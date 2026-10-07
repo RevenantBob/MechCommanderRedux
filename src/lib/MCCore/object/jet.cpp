@@ -3,9 +3,11 @@
 #include "appear/apprtype.h"
 #include "camera/camera.h"
 #include "camera/camlist.h"
-#include "lib/cvmath.h"
-#include "lib/file.h"
-#include "lib/inifile.h"
+#include "lib/MCFrameOfRef.h"
+#include "lib/MCVector2D.h"
+#include "lib/MCDice.h"
+#include "lib/MCFile.h"
+#include "lib/MCFitIniFile.h"
 #include "main/main.h"
 #include "object/mech.h"
 #include "object/object.h"
@@ -57,7 +59,7 @@ auto MCJetType::Destroy() -> void
 auto MCJetType::Init(MCFile* objFile, uint32_t fileSize) -> int32_t
 {
     MCFitIniFile jetFile;
-    int32_t result = jetFile.Open(objFile, fileSize, 50);
+    int32_t result = jetFile.Open(objFile, fileSize);
 
     if (result != 0)
     {

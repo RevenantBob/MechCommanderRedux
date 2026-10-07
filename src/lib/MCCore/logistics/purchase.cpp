@@ -2,9 +2,9 @@
 #include "logistics/purchase.h"
 #include "gui/afont.h"
 #include "gui/scrlpane.h"
-#include "lib/aerror.h"
-#include "lib/cident.h"
-#include "lib/inifile.h"
+#include "lib/MCFatal.h"
+#include "lib/MCIDString.h"
+#include "lib/MCFitIniFile.h"
 #include "logistics/invblock.h"
 #include "logistics/logbri.h"
 #include "logistics/logdlg.h"
@@ -258,8 +258,8 @@ namespace
         auto* file = new MCFitIniFile;
         char text[1024];
         std::snprintf(text, sizeof(text), "%s%s", ObjectPath, ObjectDesc);
-        int32_t result = file->Open(text, READ, 0x32);
-        Assert(result == 0, result, "Could not open description file", nullptr);
+        int32_t result = file->Open(text);
+        Assert(result == 0, result, "Could not open description file");
         std::snprintf(text, sizeof(text), "Desc%d", descIndex);
         char* description = nullptr;
 
@@ -267,7 +267,7 @@ namespace
         {
             result = file->ReadIdString("DescString", text, 0x3ff);
             Assert(result == 0 || static_cast<uint32_t>(result) == 0xfada0003, result,
-                   "Could not read description string", nullptr);
+                   "Could not read description string");
             size_t length = std::strlen(text) + 1;
             description = static_cast<char*>(LogAlloc(static_cast<uint32_t>(length + 4)));
             std::snprintf(description, length + 4, "%%fc4%s", text);
@@ -282,35 +282,35 @@ namespace
     /// Opens a profile: <paramref name="dir"/> name.fit (tried twice), then the save-temp folder's name.fit, and for
     /// a mech or pilot the save-temp folder's bare name.
     /// </summary>
-    void OpenProfile(MCFitIniFile* file, MCFullPathFileName& path, const char* dir, const char* name, bool bareName,
+    void OpenProfile(MCFitIniFile* file, std::string& path, const char* dir, const char* name, bool bareName,
                      const char* error)
     {
-        path.Init(dir, name, ".fit");
+        path = GamePath(dir, name, ".fit");
 
-        if (file->Open(static_cast<char*>(path), READ, 0x32) == 0)
+        if (file->Open(path) == 0)
         {
             return;
         }
 
-        path.Init(ProfilePath, name, ".fit");
+        path = GamePath(ProfilePath, name, ".fit");
 
-        if (file->Open(static_cast<char*>(path), READ, 0x32) == 0)
+        if (file->Open(path) == 0)
         {
             return;
         }
 
-        path.Init(SaveTempPath, name, ".fit");
-        int32_t result = file->Open(static_cast<char*>(path), READ, 0x32);
+        path = GamePath(SaveTempPath, name, ".fit");
+        int32_t result = file->Open(path);
 
         if (result == 0 || !bareName)
         {
-            Assert(result == 0, result, error, nullptr);
+            Assert(result == 0, result, error);
             return;
         }
 
-        path.Init(SaveTempPath, name, nullptr);
-        result = file->Open(static_cast<char*>(path), READ, 0x32);
-        Assert(result == 0, result, error, nullptr);
+        path = GamePath(SaveTempPath, name);
+        result = file->Open(path);
+        Assert(result == 0, result, error);
     }
 
     /// <summary>
@@ -329,10 +329,10 @@ namespace
         {
             std::snprintf(block, sizeof(block), "Item:%d", item);
             int32_t result = file->SeekBlock(block);
-            Assert(result == 0, result, "Could not read 'other' item in mech file", nullptr);
+            Assert(result == 0, result, "Could not read 'other' item in mech file");
             uint8_t masterID = 0;
             result = file->ReadIdUChar("MasterID", masterID);
-            Assert(result == 0, result, "Could not read 'other' item's MasterID in mech file", nullptr);
+            Assert(result == 0, result, "Could not read 'other' item's MasterID in mech file");
             MCLogInventoryStat* stat = inventory->CreateStat(static_cast<uint8_t>(item), 0, 0, 1, 0xff);
             inventory->AddItem(masterID, stat, -1);
             cost += MasterComponentList[masterID].ResourcePoints;
@@ -342,13 +342,13 @@ namespace
         {
             std::snprintf(block, sizeof(block), "Item:%d", item);
             int32_t result = file->SeekBlock(block);
-            Assert(result == 0, result, "Could not read 'weapon' item in mech file", nullptr);
+            Assert(result == 0, result, "Could not read 'weapon' item in mech file");
             uint8_t masterID = 0;
             result = file->ReadIdUChar("MasterID", masterID);
-            Assert(result == 0, result, "Could not read 'weapon' item's MasterID in mech file", nullptr);
+            Assert(result == 0, result, "Could not read 'weapon' item's MasterID in mech file");
             uint8_t facesForward = 0;
             result = file->ReadIdUChar("FacesForward", facesForward);
-            Assert(result == 0, result, "Could not read 'weapon' item's FacesForward in mech file", nullptr);
+            Assert(result == 0, result, "Could not read 'weapon' item's FacesForward in mech file");
             MCLogInventoryStat* stat = inventory->CreateStat(static_cast<uint8_t>(item), 0, facesForward, 1, 0xff);
             inventory->AddItem(masterID, stat, -1);
             cost += MasterComponentList[masterID].ResourcePoints;
@@ -358,17 +358,17 @@ namespace
         {
             std::snprintf(block, sizeof(block), "Item:%d", item);
             int32_t result = file->SeekBlock(block);
-            Assert(result == 0, result, "Could not read 'ammo' item in mech file", nullptr);
+            Assert(result == 0, result, "Could not read 'ammo' item in mech file");
             uint8_t masterID = 0;
             result = file->ReadIdUChar("MasterID", masterID);
-            Assert(result == 0, result, "Could not read 'ammo' item's MasterID in mech file", nullptr);
+            Assert(result == 0, result, "Could not read 'ammo' item's MasterID in mech file");
             int32_t amount = 0;
 
             if (file->ReadIdLong("Amount", amount) != 0)
             {
                 uint8_t smallAmount = 0;
                 result = file->ReadIdUChar("Amount", smallAmount);
-                Assert(result == 0, result, "Could not read 'ammo' item's Amount in mech file", nullptr);
+                Assert(result == 0, result, "Could not read 'ammo' item's Amount in mech file");
                 amount = smallAmount;
             }
 
@@ -717,33 +717,33 @@ auto MCPurMechList::Destroy() -> void
 
 auto MCPurMechList::AddMech(MCPurMech* purMech, char* fileName, int32_t variant) -> int32_t
 {
-    MCFullPathFileName path;
+    std::string path;
     auto* file = new MCFitIniFile;
-    Assert(file != nullptr, 0, " no RAM for mech file ", nullptr);
+    Assert(file != nullptr, 0, " no RAM for mech file ");
     OpenProfile(file, path, ProfilePath, fileName, true, " could not open mech file ");
 
     void* memory = LogAlloc(sizeof(MCPurMechData));
-    Assert(memory != nullptr, 0, "Not enough memory for LogMech", nullptr);
+    Assert(memory != nullptr, 0, "Not enough memory for LogMech");
     auto* data = new (memory) MCPurMechData;
     std::strncpy(data->FileName, fileName, 0xb);
     data->Inventory = new MCInventoryList;
-    Assert(data != nullptr, 0, "Not enough memory for InventoryList", nullptr);
+    Assert(data != nullptr, 0, "Not enough memory for InventoryList");
 
     int32_t result = file->SeekBlock("Header");
-    Assert(result == 0, result, "Could not find header in mech file", nullptr);
+    Assert(result == 0, result, "Could not find header in mech file");
     char fileType[20];
     result = file->ReadIdString("FileType", fileType, 0x14);
-    Assert(result == 0, result, "Could not find filetype string in mech file", nullptr);
-    Assert(std::strcmp(fileType, "MechProfile") == 0, 0, "File is not a mech file", nullptr);
+    Assert(result == 0, result, "Could not find filetype string in mech file");
+    Assert(std::strcmp(fileType, "MechProfile") == 0, 0, "File is not a mech file");
     result = file->SeekBlock("General");
-    Assert(result == 0, result, "Could not find general block in mech file", nullptr);
+    Assert(result == 0, result, "Could not find general block in mech file");
     result = file->ReadIdFloat("CurTonnage", data->CurTonnage);
-    Assert(result == 0, result, "Could not find curTonnage in mech file", nullptr);
+    Assert(result == 0, result, "Could not find curTonnage in mech file");
     char text[256];
     result = file->ReadIdString("MechType", text, 0x28);
-    Assert(result == 0, result, "Could not read MechType in mech file", nullptr);
+    Assert(result == 0, result, "Could not read MechType in mech file");
     result = file->ReadIdLong("NameIndex", data->NameIndex);
-    Assert(result == 0, result, " AddPurMech: could not find NameIndex ", nullptr);
+    Assert(result == 0, result, " AddPurMech: could not find NameIndex ");
     std::strcpy(data->Name, text);
 
     if (file->ReadIdLong("ResourcePoints", data->Cost) != 0)
@@ -765,30 +765,30 @@ auto MCPurMechList::AddMech(MCPurMech* purMech, char* fileName, int32_t variant)
     data->Name[0x28] = '\0';
 
     result = file->SeekBlock("Engine");
-    Assert(result == 0, result, "Could not find Engine block in mech file", nullptr);
+    Assert(result == 0, result, "Could not find Engine block in mech file");
     result = file->ReadIdUChar("MaxRunSpeed", data->MaxRunSpeed);
-    Assert(result == 0, result, "Could not read MaxRunSpeed in mech file", nullptr);
+    Assert(result == 0, result, "Could not read MaxRunSpeed in mech file");
     result = file->SeekBlock("Armor");
-    Assert(result == 0, result, "Could not find Armor block in mech file", nullptr);
+    Assert(result == 0, result, "Could not find Armor block in mech file");
     result = file->ReadIdFloat("Tonnage", data->ArmorTonnage);
-    Assert(result == 0, result, "Could not read Tonnage in mech file", nullptr);
+    Assert(result == 0, result, "Could not read Tonnage in mech file");
     result = file->SeekBlock("MaxArmorPoints");
-    Assert(result == 0, result, "Could not find MaxArmorPoints block in mech file", nullptr);
+    Assert(result == 0, result, "Could not find MaxArmorPoints block in mech file");
 
     for (int32_t location = 0; location < 11; ++location)
     {
         result = file->ReadIdUChar(ArmorLocationNames[location], data->Armor[location].MaxArmor);
-        Assert(result == 0, result, "Could not read armor in maxArmor block in mech file", nullptr);
+        Assert(result == 0, result, "Could not read armor in maxArmor block in mech file");
     }
 
     result = file->SeekBlock("CurArmorPoints");
-    Assert(result == 0, result, "Could not find CurArmorPoints block in mech file", nullptr);
+    Assert(result == 0, result, "Could not find CurArmorPoints block in mech file");
     int32_t armorPoints = 0;
 
     for (int32_t location = 0; location < 11; ++location)
     {
         result = file->ReadIdUChar(ArmorLocationNames[location], data->Armor[location].CurArmor);
-        Assert(result == 0, result, "Could not read armor in curArmorPoins block in mech file", nullptr);
+        Assert(result == 0, result, "Could not read armor in curArmorPoins block in mech file");
         armorPoints += data->Armor[location].CurArmor;
     }
 
@@ -796,13 +796,13 @@ auto MCPurMechList::AddMech(MCPurMech* purMech, char* fileName, int32_t variant)
     data->Cost += armorPoints * 0x28;
 
     result = file->SeekBlock("InventoryInfo");
-    Assert(result == 0, result, "Could not find InventoryInfo block in vehicle file", nullptr);
+    Assert(result == 0, result, "Could not find InventoryInfo block in vehicle file");
     result = file->ReadIdUChar("NumOther", data->NumOther);
-    Assert(result == 0, result, "Could not read NumOther in mech file", nullptr);
+    Assert(result == 0, result, "Could not read NumOther in mech file");
     result = file->ReadIdUChar("NumWeapons", data->NumWeapons);
-    Assert(result == 0, result, "Could not read NumWeapons in mech file", nullptr);
+    Assert(result == 0, result, "Could not read NumWeapons in mech file");
     result = file->ReadIdUChar("NumAmmo", data->NumAmmo);
-    Assert(result == 0, result, "Could not read NumAmmo in mech file", nullptr);
+    Assert(result == 0, result, "Could not read NumAmmo in mech file");
     std::memset(data->CriticalSlots, 0xff, sizeof(data->CriticalSlots));
     data->Cost += ReadInventory(file, data->Inventory, data->NumOther, data->NumWeapons, data->NumAmmo);
 
@@ -812,9 +812,9 @@ auto MCPurMechList::AddMech(MCPurMech* purMech, char* fileName, int32_t variant)
     for (int32_t location = 0; location < 8; ++location)
     {
         result = file->SeekBlock(BodyLocationNames[location]);
-        Assert(result == 0, result, "Could not find BodyLocation block in mech file", nullptr);
+        Assert(result == 0, result, "Could not find BodyLocation block in mech file");
         result = file->ReadIdUChar("CurInternalStructure", data->CurInternalStructure[location]);
-        Assert(result == 0, result, "Could not read CurInternalStructure in mech file", nullptr);
+        Assert(result == 0, result, "Could not read CurInternalStructure in mech file");
         internalPoints = static_cast<float>(data->CurInternalStructure[location]) + internalPoints;
 
         for (int32_t slot = 0; slot < NumLocationCriticalSpaces[location]; ++slot)
@@ -822,7 +822,7 @@ auto MCPurMechList::AddMech(MCPurMech* purMech, char* fileName, int32_t variant)
             std::snprintf(text, sizeof(text), "Component:%d", slot);
             uint8_t component[2] = {};
             result = file->ReadIdUCharArray(text, component, 2);
-            Assert(result == 0, result, "Could not read component in mech file", nullptr);
+            Assert(result == 0, result, "Could not read component in mech file");
             data->CriticalSlots[location][slot].MasterId = component[0];
             data->CriticalSlots[location][slot].Damage = component[1];
 
@@ -852,10 +852,10 @@ auto MCPurMechList::AddMech(char* fileName0, int32_t count0, char* fileName2, in
                             int32_t count1) -> int32_t
 {
     auto* purMech = new MCPurMech;
-    Assert(purMech != nullptr, 0, " Not enough memory to allocate PurMech", nullptr);
+    Assert(purMech != nullptr, 0, " Not enough memory to allocate PurMech");
     auto* block = new MCMechPurchaseBlock;
     purMech->Block = block;
-    Assert(block != nullptr, 0, " Not enough memory for repair block ", nullptr);
+    Assert(block != nullptr, 0, " Not enough memory for repair block ");
     block->CurVariant = -1;
     AddMech(purMech, fileName0, 0);
     purMech->Variants[0]->NumAvailable = count0;
@@ -1512,13 +1512,13 @@ auto MCPurVehicleList::ModVehicle(char* fileName, int32_t delta) -> int32_t
 
 auto MCPurVehicleList::AddVehicle(char* fileName, int32_t numAvailable) -> int32_t
 {
-    MCFullPathFileName path;
+    std::string path;
     auto* file = new MCFitIniFile;
-    Assert(file != nullptr, 0, " no RAM for scenario file ", nullptr);
+    Assert(file != nullptr, 0, " no RAM for scenario file ");
     OpenProfile(file, path, ProfilePath, fileName, false, " could not open vehicle file in scenario ");
 
     void* memory = LogAlloc(sizeof(MCPurVehicle));
-    Assert(memory != nullptr, 0, "Not enough memory for LogVehicle", nullptr);
+    Assert(memory != nullptr, 0, "Not enough memory for LogVehicle");
     auto* vehicle = new (memory) MCPurVehicle;
     auto* data = new MCPurVehicleData;
     vehicle->Data = data;
@@ -1537,19 +1537,19 @@ auto MCPurVehicleList::AddVehicle(char* fileName, int32_t numAvailable) -> int32
 
     if (result != 0)
     {
-        Assert(0, result, "Could not find Header block in vehicle file", nullptr);
+        Assert(0, result, "Could not find Header block in vehicle file");
     }
 
     char text[256];
     result = file->ReadIdString("FileType", text, 0x7f);
-    Assert(result == 0, result, "Could not read FileType in vehicle file", nullptr);
-    Assert(std::strcmp(text, "GroundVehicleProfile") == 0, 0, "File is not a vehicle file", nullptr);
+    Assert(result == 0, result, "Could not read FileType in vehicle file");
+    Assert(std::strcmp(text, "GroundVehicleProfile") == 0, 0, "File is not a vehicle file");
     result = file->SeekBlock("General");
-    Assert(result == 0, result, "Could not find General block in vehicle file", nullptr);
+    Assert(result == 0, result, "Could not find General block in vehicle file");
     result = file->ReadIdLong("NameIndex", data->NameIndex);
-    Assert(result == 0, result, "Could not read NameIndex in vehicle file", nullptr);
+    Assert(result == 0, result, "Could not read NameIndex in vehicle file");
     result = file->ReadIdFloat("CurTonnage", data->CurTonnage);
-    Assert(result == 0, result, "Could not read CurTonnage in vehicle file", nullptr);
+    Assert(result == 0, result, "Could not read CurTonnage in vehicle file");
 
     if (file->ReadIdLong("ResourcePoints", data->BaseCost) != 0)
     {
@@ -1564,23 +1564,23 @@ auto MCPurVehicleList::AddVehicle(char* fileName, int32_t numAvailable) -> int32
     data->Name = HeapString(text);
 
     result = file->SeekBlock("Engine");
-    Assert(result == 0, result, "Could not find engine block in vehicle file", nullptr);
+    Assert(result == 0, result, "Could not find engine block in vehicle file");
     result = file->ReadIdUChar("MaxMoveSpeed", data->MaxMoveSpeed);
-    Assert(result == 0, result, "Could not read MaxMoveSpeed in vehicle file", nullptr);
+    Assert(result == 0, result, "Could not read MaxMoveSpeed in vehicle file");
     result = file->SeekBlock("Armor");
-    Assert(result == 0, result, "Could not find armor block in vehicle file", nullptr);
+    Assert(result == 0, result, "Could not find armor block in vehicle file");
     result = file->ReadIdFloat("Tonnage", data->ArmorTonnage);
-    Assert(result == 0, result, "Could not read Tonnage in vehicle file", nullptr);
+    Assert(result == 0, result, "Could not read Tonnage in vehicle file");
     result = file->SeekBlock("InventoryInfo");
-    Assert(result == 0, result, "Could not find InventoryInfo block in vehicle file", nullptr);
+    Assert(result == 0, result, "Could not find InventoryInfo block in vehicle file");
     result = file->ReadIdUChar("NumOther", data->NumOther);
-    Assert(result == 0, result, "Could not read NumOther in vehicle file", nullptr);
+    Assert(result == 0, result, "Could not read NumOther in vehicle file");
     result = file->ReadIdUChar("NumWeapons", data->NumWeapons);
-    Assert(result == 0, result, "Could not read NumWeapons in vehicle file", nullptr);
+    Assert(result == 0, result, "Could not read NumWeapons in vehicle file");
     result = file->ReadIdUChar("NumAmmo", data->NumAmmo);
-    Assert(result == 0, result, "Could not read NumAmmo in vehicle file", nullptr);
+    Assert(result == 0, result, "Could not read NumAmmo in vehicle file");
     data->Inventory = new MCInventoryList;
-    Assert(data->Inventory != nullptr, result, " invalid vehicle file: no inventory ", nullptr);
+    Assert(data->Inventory != nullptr, result, " invalid vehicle file: no inventory ");
     ReadInventory(file, data->Inventory, data->NumOther, data->NumWeapons, data->NumAmmo);
     data->NumAvailable = numAvailable;
     std::strncpy(data->FileName, fileName, 9);
@@ -2435,9 +2435,9 @@ auto MCPurPilotList::Destroy() -> void
 
 auto MCPurPilotList::AddPilot(char* fileName, int32_t status) -> int32_t
 {
-    MCFullPathFileName path;
+    std::string path;
     auto* file = new MCFitIniFile;
-    Assert(file != nullptr, 0, " no RAM for pilot file ", nullptr);
+    Assert(file != nullptr, 0, " no RAM for pilot file ");
     OpenProfile(file, path, WarriorPath, fileName, true, " could not open scenario file ");
 
     auto* data = new MCPurPilotData;
@@ -2446,33 +2446,33 @@ auto MCPurPilotList::AddPilot(char* fileName, int32_t status) -> int32_t
     block->Init(data);
     std::strncpy(data->FileName, fileName, sizeof(data->FileName));
     int32_t result = file->SeekBlock("General");
-    Assert(result == 0, result, " could not find general block in pilot file ", nullptr);
+    Assert(result == 0, result, " could not find general block in pilot file ");
     result = file->ReadIdLong("NameIndex", data->NameIndex);
-    Assert(result == 0, result, "could not read NameIndex in pilot profile", nullptr);
+    Assert(result == 0, result, "could not read NameIndex in pilot profile");
     char callsign[0x80];
     result = file->ReadIdString("Callsign", callsign, 0x14);
-    Assert(result == 0, result, " could not read callsign in pilot file ", nullptr);
+    Assert(result == 0, result, " could not read callsign in pilot file ");
     std::strcpy(data->Callsign, callsign);
     result = file->ReadIdString("pilotAudio", data->PilotAudio, 0xff);
-    Assert(result == 0, result, " Could not find pilotAudio in General Block ", nullptr);
+    Assert(result == 0, result, " Could not find pilotAudio in General Block ");
     data->DescIndex = -1;
     data->Description = nullptr;
     file->ReadIdLong("DescIndex", data->DescIndex);
     data->LoadDescription(data->DescIndex);
     result = file->SeekBlock("Skills");
-    Assert(result == 0, result, " could not find skills block in pilot file ", nullptr);
+    Assert(result == 0, result, " could not find skills block in pilot file ");
     result = file->ReadIdChar("Piloting", data->Piloting);
-    Assert(result == 0, result, " could not read Piloting in pilot file ", nullptr);
+    Assert(result == 0, result, " could not read Piloting in pilot file ");
     result = file->ReadIdChar("Gunnery", data->Gunnery);
-    Assert(result == 0, result, " could not read Gunnery in pilot file ", nullptr);
+    Assert(result == 0, result, " could not read Gunnery in pilot file ");
     result = file->ReadIdChar("Jumping", data->Jumping);
-    Assert(result == 0, result, " could not read Jumping in pilot file ", nullptr);
+    Assert(result == 0, result, " could not read Jumping in pilot file ");
     result = file->ReadIdChar("Sensors", data->Sensors);
-    Assert(result == 0, result, " could not read Sensors in pilot file ", nullptr);
+    Assert(result == 0, result, " could not read Sensors in pilot file ");
     result = file->SeekBlock("Status");
-    Assert(result == 0, result, " could not find status block in pilot file ", nullptr);
+    Assert(result == 0, result, " could not find status block in pilot file ");
     result = file->ReadIdChar("Wounds", data->Health);
-    Assert(result == 0, result, " could not read Wounds in pilot file ", nullptr);
+    Assert(result == 0, result, " could not read Wounds in pilot file ");
     data->Health = static_cast<char>(6 - data->Health);
     data->Rank = 0;
     data->CalcRank();

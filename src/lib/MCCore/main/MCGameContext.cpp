@@ -1,5 +1,6 @@
 #include "stdafx.h"
 #include "main/MCGameContext.h"
+#include "lib/MCFastFileSet.h"
 
 namespace
 {
@@ -15,6 +16,7 @@ namespace
             context->SetFiles(std::make_unique<MCDiskFileSource>());
             context->SetAudio(std::make_unique<MCSdlAudioDevice>());
             context->SetNet(std::make_unique<MCSocketTransport>());
+            context->SetFastFiles(std::make_unique<MCFastFileSet>());
             return context;
         }();
         return root;
@@ -52,6 +54,8 @@ MCGameContext::MCGameContext(MCGameContext* parent) : _Parent(parent)
 {
 }
 
+MCGameContext::~MCGameContext() = default;
+
 MCClock& MCGameContext::Clock() const
 {
     return Find(_Clock, _Parent, &MCGameContext::Clock);
@@ -75,6 +79,16 @@ MCAudioDevice& MCGameContext::Audio() const
 MCNetTransport& MCGameContext::Net() const
 {
     return Find(_Net, _Parent, &MCGameContext::Net);
+}
+
+MCFastFileSet& MCGameContext::FastFiles() const
+{
+    return Find(_FastFiles, _Parent, &MCGameContext::FastFiles);
+}
+
+MCFastFileSet& MCGameContext::SetFastFiles(std::unique_ptr<MCFastFileSet> fastFiles)
+{
+    return Install(_FastFiles, std::move(fastFiles));
 }
 
 MCTestContextScope::MCTestContextScope() : _Previous(&MCGameContext::Current()), _Context(_Previous)

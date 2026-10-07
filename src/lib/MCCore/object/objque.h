@@ -1,6 +1,6 @@
 #pragma once
 
-#include "lib/cident.h"
+#include "lib/MCIDString.h"
 #include "object/baseobj.h"
 
 class MCObjectEvent;

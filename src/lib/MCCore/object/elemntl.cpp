@@ -11,9 +11,11 @@
 #include "engine/crater.h"
 #include "vfx/vfxfuncs.h"
 #include "iface/iface.h"
-#include "lib/aerror.h"
-#include "lib/cvmath.h"
-#include "lib/inifile.h"
+#include "lib/MCFatal.h"
+#include "lib/MCFrameOfRef.h"
+#include "lib/MCVector2D.h"
+#include "lib/MCDice.h"
+#include "lib/MCFitIniFile.h"
 #include "main/main.h"
 #include "mission/scenario.h"
 #include "network/multplyr.h"
@@ -269,7 +271,7 @@ auto MCElementalType::Destroy() -> void
 auto MCElementalType::Init(MCFile* objFile, uint32_t fileSize) -> int32_t
 {
     MCFitIniFile elementalFile;
-    int32_t result = elementalFile.Open(objFile, fileSize, 50);
+    int32_t result = elementalFile.Open(objFile, fileSize);
 
     if (result != 0)
     {
@@ -1602,7 +1604,7 @@ auto MCElemental::UpdateMovement() -> void
             // An idle marine wanders. Original behaviour (OB-001): RollDice(100) is always 1, so always toward -x, -y.
             MCVector3D wanderPoint = Position;
 
-            if (RollDice(100) < 51)
+            if (static_cast<int>(RollDice(100)) < 51)
             {
                 wanderPoint.X = wanderPoint.X - static_cast<float>(RandomNumber(200));
             }
@@ -1611,7 +1613,7 @@ auto MCElemental::UpdateMovement() -> void
                 wanderPoint.X = static_cast<float>(RandomNumber(200)) + wanderPoint.X;
             }
 
-            if (RollDice(100) < 51)
+            if (static_cast<int>(RollDice(100)) < 51)
             {
                 wanderPoint.Y = wanderPoint.Y - static_cast<float>(RandomNumber(200));
             }

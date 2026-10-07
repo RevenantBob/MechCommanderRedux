@@ -4,9 +4,9 @@
 #include "gui/awindow.h"
 #include "gui/scrlpane.h"
 #include "gui/updisp.h"
-#include "lib/aerror.h"
-#include "lib/cident.h"
-#include "lib/inifile.h"
+#include "lib/MCFatal.h"
+#include "lib/MCIDString.h"
+#include "lib/MCFitIniFile.h"
 #include "linkup/dpplayer.h"
 #include "linkup/sessionmanager.h"
 #include "logistics/invblock.h"
@@ -178,7 +178,7 @@ auto MCBriefingScreen::Init() -> void
     ChatBlinkOn = 0;
     ChatTimerOn = 0;
     int32_t result = MCLogObject::Init(0, 0, 0x280, 0x1e0, nullptr, nullptr);
-    Assert(result == 0, result, "Unable to init briefing screen", nullptr);
+    Assert(result == 0, result, "Unable to init briefing screen");
     // The original loaded the background (lsbbk00) as the screen's picture; the screen draws it each frame.
     char fileName[256];
 
@@ -190,7 +190,7 @@ auto MCBriefingScreen::Init() -> void
     }
 
     MissionPane = pane;
-    Assert(pane != nullptr, 0, " Not enough memory for missionScroll ", nullptr);
+    Assert(pane != nullptr, 0, " Not enough memory for missionScroll ");
     std::snprintf(fileName, sizeof(fileName), "%slogart\\lsbbk01.tga", ArtPath);
     pane->Init(0xb9, 0xdb, 7, 0x6b, fileName);
     pane->SetDisplayPort(nullptr, -1, -1);
@@ -203,21 +203,21 @@ auto MCBriefingScreen::Init() -> void
     }
 
     DeployPane = deploy;
-    Assert(deploy != nullptr, 0, " Not enough memory for deployScroll ", nullptr);
+    Assert(deploy != nullptr, 0, " Not enough memory for deployScroll ");
     deploy->Init(0xc4, 0x7a, 7, 0x15e, static_cast<char*>(nullptr));
 
     MissionPort = new MCLogPort;
-    Assert(MissionPort != nullptr, 0, " Not enough memory for missionPort ", nullptr);
+    Assert(MissionPort != nullptr, 0, " Not enough memory for missionPort ");
     MissionPort->Init(0xad, 0xdd, -1);
     VfxPaneWipe(MissionPort->Frame(), 0x10);
 
     char artName[256];
     ChatBlinkPort = new MCLogPort;
-    Assert(ChatBlinkPort != nullptr, 0, " Not enough memory for chatBlinker ", nullptr);
+    Assert(ChatBlinkPort != nullptr, 0, " Not enough memory for chatBlinker ");
     std::snprintf(artName, sizeof(artName), "%slogart\\lsbdw08.tga", ArtPath);
     ChatBlinkPort->Init(artName);
     ChatRegularPort = new MCLogPort;
-    Assert(ChatRegularPort != nullptr, 0, " Not enough memory for chatRegular ", nullptr);
+    Assert(ChatRegularPort != nullptr, 0, " Not enough memory for chatRegular ");
     std::snprintf(artName, sizeof(artName), "%slogart\\lsbdw03.tga", ArtPath);
     ChatRegularPort->Init(artName);
 
@@ -259,33 +259,33 @@ auto MCBriefingScreen::DrawBackground() -> void
     }
 
     // The mission's tac map picture, turned 45 degrees onto the map area.
-    MCFullPathFileName mapName;
-    mapName.Init(TerrainPath, GlobalLogPtr->MissionFileName, ".log.tga");
-    MCFullPathFileName fitName;
-    fitName.Init(TerrainPath, GlobalLogPtr->MissionFileName, ".fit");
+    std::string mapName;
+    mapName = GamePath(TerrainPath, GlobalLogPtr->MissionFileName, ".log.tga");
+    std::string fitName;
+    fitName = GamePath(TerrainPath, GlobalLogPtr->MissionFileName, ".fit");
     MCFitIniFile terrainFile;
-    int32_t result = terrainFile.Open(fitName, READ, 0x32);
-    Assert(result == 0, result, "Could not find terrain file from .TGA ", nullptr);
+    int32_t result = terrainFile.Open(fitName);
+    Assert(result == 0, result, "Could not find terrain file from .TGA ");
     result = terrainFile.SeekBlock("TerrainData");
-    Assert(result == 0, result, "Could not find TerrainData block in terrain .FIT file", nullptr);
+    Assert(result == 0, result, "Could not find TerrainData block in terrain .FIT file");
     int32_t verticesBlockSide = 0;
     result = terrainFile.ReadIdLong("VerticesBlockSide", verticesBlockSide);
-    Assert(result == 0, result, "Could not find variable VerticesBlockSide in terrain .FIT file", nullptr);
+    Assert(result == 0, result, "Could not find variable VerticesBlockSide in terrain .FIT file");
     int32_t blocksMapSide = 0;
     result = terrainFile.ReadIdLong("BlocksMapSide", blocksMapSide);
-    Assert(result == 0, result, "Could not find variable BlocksMapSide in terrain .FIT file", nullptr);
+    Assert(result == 0, result, "Could not find variable BlocksMapSide in terrain .FIT file");
     float metersPerVertex = 0.0f;
     result = terrainFile.ReadIdFloat("MetersPerVertex", metersPerVertex);
-    Assert(result == 0, result, "Could not find variable MetersPerVertex in terrain .FIT file", nullptr);
+    Assert(result == 0, result, "Could not find variable MetersPerVertex in terrain .FIT file");
     const int32_t mapSide = blocksMapSide * verticesBlockSide;
     terrainFile.Close();
     delete MapPicture;
     MapPicture = new MCLogPort;
-    result = MapPicture->Init(static_cast<char*>(mapName));
+    result = MapPicture->Init(mapName.data());
 
     if (result != 0)
     {
-        Fatal(result, " Unable to create Port for TacMap ", nullptr);
+        Fatal(result, " Unable to create Port for TacMap ");
     }
 
     if (MPlayer != nullptr)
@@ -1136,9 +1136,9 @@ auto MCBriefingScreen::SetUpOperation() -> void
 
     if (GlobalLogPtr->OperationCinema != nullptr)
     {
-        MCFullPathFileName movieName;
-        movieName.Init(MoviePath, GlobalLogPtr->OperationCinema, ".smk");
-        Smacker = SmackOpen(movieName, 0xfe000, -1);
+        std::string movieName;
+        movieName = GamePath(MoviePath, GlobalLogPtr->OperationCinema, ".smk");
+        Smacker = SmackOpen(movieName.c_str(), 0xfe000, -1);
 
         // Port fix: a missing movie is skipped (the original read the null handle's size).
         if (Smacker == nullptr)
@@ -1806,7 +1806,7 @@ auto MCMechBriefBlock::HandleEvent(MCGuiEvent* event) -> void
             }
         }
 
-        Assert(found, 0, "Could not find the slot this item occupied", nullptr);
+        Assert(found, 0, "Could not find the slot this item occupied");
     }
     else
     {

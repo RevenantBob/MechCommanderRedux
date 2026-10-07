@@ -1,9 +1,9 @@
 #include "stdafx.h"
 #include "color/color.h"
 #include "gui/asystem.h"
-#include "lib/cident.h"
-#include "lib/file.h"
-#include "lib/inifile.h"
+#include "lib/MCIDString.h"
+#include "lib/MCFile.h"
+#include "lib/MCFitIniFile.h"
 #include "mission/scenario.h"
 #include "platform/MCDisplay.h"
 #include "platform/MCFileSystem.h"
@@ -518,10 +518,10 @@ void MCPalette::Init()
 
 int32_t MCPalette::Init(char* paletteFileName)
 {
-    MCFullPathFileName fileName;
-    fileName.Init(PalettePath, paletteFileName, ".fit");
+    std::string fileName;
+    fileName = GamePath(PalettePath, paletteFileName, ".fit");
     MCFitIniFile paletteFile;
-    int32_t result = paletteFile.Open(fileName, READ, 50);
+    int32_t result = paletteFile.Open(fileName);
 
     if (result == 0 && (result = paletteFile.SeekBlock("Palette")) == 0)
     {
@@ -755,17 +755,17 @@ int32_t MCPalette::LoadColorRanges(MCFitIniFile& paletteFile)
 
 int32_t MCPalette::LoadTables()
 {
-    MCFullPathFileName depthName;
-    depthName.Init(PalettePath, DepthTableFile, ".tbl");
-    MCFullPathFileName fadeName;
-    fadeName.Init(PalettePath, FadeTableFile, ".tbl");
-    MCFullPathFileName allFadeName;
-    allFadeName.Init(PalettePath, AllFadeTableFile, ".tbl");
+    std::string depthName;
+    depthName = GamePath(PalettePath, DepthTableFile, ".tbl");
+    std::string fadeName;
+    fadeName = GamePath(PalettePath, FadeTableFile, ".tbl");
+    std::string allFadeName;
+    allFadeName = GamePath(PalettePath, AllFadeTableFile, ".tbl");
 
     MCFile depthFile;
     MCFile fadeFile;
     MCFile allFadeFile;
-    int32_t result = depthFile.Open(depthName, READ, 50);
+    int32_t result = depthFile.Open(depthName);
 
     if (result != 0)
     {
@@ -774,7 +774,7 @@ int32_t MCPalette::LoadTables()
 
     LoadDepthHazeTables(depthFile);
     depthFile.Close();
-    result = fadeFile.Open(fadeName, READ, 50);
+    result = fadeFile.Open(fadeName);
 
     if (result != 0)
     {
@@ -783,7 +783,7 @@ int32_t MCPalette::LoadTables()
 
     LoadFadePalettes(fadeFile);
     fadeFile.Close();
-    result = allFadeFile.Open(allFadeName, READ, 50);
+    result = allFadeFile.Open(allFadeName);
 
     if (result != 0)
     {
@@ -804,10 +804,10 @@ int32_t MCPalette::LoadPalette(MCFitIniFile& paletteFile)
         return result;
     }
 
-    MCFullPathFileName fileName;
-    fileName.Init(PalettePath, PaletteFileName, ".pal");
+    std::string fileName;
+    fileName = GamePath(PalettePath, PaletteFileName, ".pal");
     MCFile file;
-    result = file.Open(fileName, READ, 50);
+    result = file.Open(fileName);
 
     if (result != 0)
     {
@@ -833,10 +833,10 @@ int32_t MCPalette::LoadPalette(MCFitIniFile& paletteFile)
 
 int32_t MCPalette::LoadPalette()
 {
-    MCFullPathFileName fileName;
-    fileName.Init(PalettePath, PaletteFileName, ".pal");
+    std::string fileName;
+    fileName = GamePath(PalettePath, PaletteFileName, ".pal");
     MCFile file;
-    int32_t result = file.Open(fileName, READ, 50);
+    int32_t result = file.Open(fileName);
 
     if (result != 0)
     {
@@ -870,11 +870,11 @@ int32_t MCPalette::LoadPalette()
 
 int32_t MCPalette::SavePalette()
 {
-    MCFullPathFileName backupName;
-    backupName.Init(PalettePath, PaletteFileName, ".bak");
-    MCFullPathFileName fileName;
-    fileName.Init(PalettePath, PaletteFileName, ".pal");
-    MCFileSystem::CopyFile(fileName.FullName, backupName.FullName);
+    std::string backupName;
+    backupName = GamePath(PalettePath, PaletteFileName, ".bak");
+    std::string fileName;
+    fileName = GamePath(PalettePath, PaletteFileName, ".pal");
+    MCFileSystem::CopyFile(fileName, backupName);
 
     MCFile file;
     const int32_t result = file.Create(fileName);
@@ -900,10 +900,10 @@ int32_t MCPalette::LoadBWPalette(MCFitIniFile& paletteFile)
         return result;
     }
 
-    MCFullPathFileName fileName;
-    fileName.Init(PalettePath, BwPaletteFileName, ".pal");
+    std::string fileName;
+    fileName = GamePath(PalettePath, BwPaletteFileName, ".pal");
     MCFile file;
-    result = file.Open(fileName, READ, 50);
+    result = file.Open(fileName);
 
     if (result != 0)
     {
@@ -920,10 +920,10 @@ int32_t MCPalette::LoadBWPalette(MCFitIniFile& paletteFile)
 
 int32_t MCPalette::LoadBWPalette()
 {
-    MCFullPathFileName fileName;
-    fileName.Init(PalettePath, BwPaletteFileName, ".pal");
+    std::string fileName;
+    fileName = GamePath(PalettePath, BwPaletteFileName, ".pal");
     MCFile file;
-    const int32_t result = file.Open(fileName, READ, 50);
+    const int32_t result = file.Open(fileName);
 
     if (result != 0)
     {
@@ -944,11 +944,11 @@ int32_t MCPalette::LoadBWPalette()
 
 int32_t MCPalette::SaveBWPalette()
 {
-    MCFullPathFileName backupName;
-    backupName.Init(PalettePath, BwPaletteFileName, ".bak");
-    MCFullPathFileName fileName;
-    fileName.Init(PalettePath, BwPaletteFileName, ".pal");
-    MCFileSystem::CopyFile(fileName.FullName, backupName.FullName);
+    std::string backupName;
+    backupName = GamePath(PalettePath, BwPaletteFileName, ".bak");
+    std::string fileName;
+    fileName = GamePath(PalettePath, BwPaletteFileName, ".pal");
+    MCFileSystem::CopyFile(fileName, backupName);
 
     MCFile file;
     const int32_t result = file.Create(fileName);
@@ -972,10 +972,10 @@ int32_t MCPalette::LoadExtractPalette(MCFitIniFile& paletteFile)
         return result;
     }
 
-    MCFullPathFileName fileName;
-    fileName.Init(PalettePath, ExPaletteFileName, ".pal");
+    std::string fileName;
+    fileName = GamePath(PalettePath, ExPaletteFileName, ".pal");
     MCFile file;
-    result = file.Open(fileName, READ, 50);
+    result = file.Open(fileName);
 
     if (result != 0)
     {
@@ -993,10 +993,10 @@ int32_t MCPalette::LoadExtractPalette(MCFitIniFile& paletteFile)
 
 int32_t MCPalette::LoadExtractPalette()
 {
-    MCFullPathFileName fileName;
-    fileName.Init(PalettePath, ExPaletteFileName, ".pal");
+    std::string fileName;
+    fileName = GamePath(PalettePath, ExPaletteFileName, ".pal");
     MCFile file;
-    const int32_t result = file.Open(fileName, READ, 50);
+    const int32_t result = file.Open(fileName);
 
     if (result != 0)
     {
@@ -1018,11 +1018,11 @@ int32_t MCPalette::LoadExtractPalette()
 
 int32_t MCPalette::SaveExtractPalette()
 {
-    MCFullPathFileName backupName;
-    backupName.Init(PalettePath, ExPaletteFileName, ".bak");
-    MCFullPathFileName fileName;
-    fileName.Init(PalettePath, ExPaletteFileName, ".pal");
-    MCFileSystem::CopyFile(fileName.FullName, backupName.FullName);
+    std::string backupName;
+    backupName = GamePath(PalettePath, ExPaletteFileName, ".bak");
+    std::string fileName;
+    fileName = GamePath(PalettePath, ExPaletteFileName, ".pal");
+    MCFileSystem::CopyFile(fileName, backupName);
 
     MCFile file;
     const int32_t result = file.Create(fileName);
@@ -1102,8 +1102,8 @@ void MCPalette::RemoveFadePalette(int32_t index)
 
 int32_t MCPalette::SaveFadePalettes()
 {
-    MCFullPathFileName fileName;
-    fileName.Init(PalettePath, FadeTableFile, ".tbl");
+    std::string fileName;
+    fileName = GamePath(PalettePath, FadeTableFile, ".tbl");
     MCFile file;
     const int32_t result = file.Create(fileName);
 

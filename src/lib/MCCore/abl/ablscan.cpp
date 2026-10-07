@@ -5,8 +5,8 @@
 #include "abl/ablexec.h"
 #include "abl/ablrtn.h"
 #include "abl/ablsymt.h"
-#include "lib/aerror.h"
-#include "lib/file.h"
+#include "lib/MCFatal.h"
+#include "lib/MCFile.h"
 
 MCReservedWord Keywords2[] = {
     {"if", TKN_IF}, {"or", TKN_OR}, {"do", TKN_DO}, {"to", TKN_TO}, {nullptr, TKN_NONE},

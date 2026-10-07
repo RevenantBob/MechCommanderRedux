@@ -8,9 +8,11 @@
 #include "engine/ceglist.h"
 #include "engine/cellip.h"
 #include "engine/cevfx.h"
-#include "lib/aerror.h"
-#include "lib/cvmath.h"
-#include "lib/inifile.h"
+#include "lib/MCFatal.h"
+#include "lib/MCFrameOfRef.h"
+#include "lib/MCVector2D.h"
+#include "lib/MCDice.h"
+#include "lib/MCFitIniFile.h"
 #include "logistics/logmain.h"
 #include "main/main.h"
 #include "mission/scenario.h"
@@ -370,7 +372,7 @@ auto MCTurretType::Destroy() -> void
 auto MCTurretType::Init(MCFile* objFile, uint32_t fileSize) -> int32_t
 {
     MCFitIniFile turretFile;
-    int32_t result = turretFile.Open(objFile, fileSize, 50);
+    int32_t result = turretFile.Open(objFile, fileSize);
 
     if (result != 0)
     {

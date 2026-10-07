@@ -9,10 +9,10 @@
 #include "gui/updisp.h"
 #include "iface/icallbk.h"
 #include "iface/iface.h"
-#include "lib/aerror.h"
-#include "lib/cident.h"
-#include "lib/file.h"
-#include "lib/inifile.h"
+#include "lib/MCFatal.h"
+#include "lib/MCIDString.h"
+#include "lib/MCFile.h"
+#include "lib/MCFitIniFile.h"
 #include "linkup/dpplayer.h"
 #include "linkup/sessionmanager.h"
 #include "logistics/invblock.h"
@@ -215,8 +215,8 @@ auto MCMission::Init(char* missionName) -> int32_t
             return 3;
         }
 
-        MCFullPathFileName fileName;
-        fileName.Init(MissionPath, missionName, ".fit");
+        std::string fileName;
+        fileName = GamePath(MissionPath, missionName, ".fit");
         result = MissionFile->Open(fileName);
 
         if (result != 0)
@@ -285,8 +285,8 @@ auto MCMission::Init(char* missionName) -> int32_t
         return 3;
     }
 
-    MCFullPathFileName controlName;
-    controlName.Init(MissionPath, missionName, ".fit");
+    std::string controlName;
+    controlName = GamePath(MissionPath, missionName, ".fit");
     result = MissionFile->Open(controlName);
 
     if (result != 0)
@@ -335,8 +335,8 @@ auto MCMission::Init(char* missionName) -> int32_t
 
     char campaignName[256];
     SplitFileName(campaignFile, campaignName, sizeof(campaignName));
-    MCFullPathFileName campaignFileName;
-    campaignFileName.Init(MissionPath, campaignName, ".fit");
+    std::string campaignFileName;
+    campaignFileName = GamePath(MissionPath, campaignName, ".fit");
     MissionFile = new MCFitIniFile;
 
     if (MissionFile == nullptr)
@@ -426,8 +426,8 @@ auto MCMission::Init(char* missionName) -> int32_t
     // The component list, which logistics needs before any scenario has loaded it.
     if (MasterComponentList == nullptr)
     {
-        MCFullPathFileName gameSystemName;
-        gameSystemName.Init(MissionPath, "gamesys", ".fit");
+        std::string gameSystemName;
+        gameSystemName = GamePath(MissionPath, "gamesys", ".fit");
         // MCX.EXE allocates this FIT (Fatal " Game System File " when out of memory) and never frees it.
         MCFitIniFile gameSystemFile;
         uint32_t readResult = static_cast<uint32_t>(gameSystemFile.Open(gameSystemName));
@@ -445,10 +445,10 @@ auto MCMission::Init(char* missionName) -> int32_t
         Assert(readResult == 0, readResult, " Could not find BaseSensorRange in GameSys ");
         gameSystemFile.Close();
 
-        MCFullPathFileName componentName;
-        componentName.Init(ObjectPath, "compbas", ".csv");
+        std::string componentName;
+        componentName = GamePath(ObjectPath, "compbas", ".csv");
         const int32_t loadResult =
-            InitMasterComponentListExcel(componentName, 0xff, maxVisualRange / maxWeaponRange, baseSensorRange);
+            InitMasterComponentListExcel(componentName.data(), 0xff, maxVisualRange / maxWeaponRange, baseSensorRange);
         // Faithful: the assert reports the previous read's code.
         Assert(loadResult == 0, readResult, " Could not load compBas.csv ");
     }
@@ -466,7 +466,7 @@ auto MCMission::Init(char* missionName) -> int32_t
     else
     {
         MissionState = 3;
-        Assert(MPlayer != nullptr, 0, nullptr);
+        Assert(MPlayer != nullptr, 0);
 
         if (MPlayer->SetupLobbyGame() != 0)
         {
@@ -492,8 +492,8 @@ auto MCMission::Init(char* missionName) -> int32_t
 
 auto MCMission::InitAgain(char* missionName) -> int32_t
 {
-    MCFullPathFileName fileName;
-    fileName.Init(MissionPath, missionName, ".fit");
+    std::string fileName;
+    fileName = GamePath(MissionPath, missionName, ".fit");
     // MCX.EXE keeps this FIT in a local (missionFile still holds the old one) and leaks it on every error return.
     auto* file = new MCFitIniFile;
 
@@ -845,11 +845,11 @@ auto MCMission::Run() -> int32_t
                     SoundSystem->StopDigitalMusic();
                 }
 
-                MCFullPathFileName movieName;
-                movieName.Init(CDmoviePath, Movies[movie].c_str(), ".smk");
+                std::string movieName;
+                movieName = GamePath(CDmoviePath, Movies[movie].c_str(), ".smk");
                 // MCX.EXE: when movie 1 (the opening) isn't installed, it scans drives C: to Z: for a CD-ROM holding
                 // \data\movies\opening.smk. The port reads movies from the install only.
-                Application->StartSmackerMovie(movieName, 0xfe000, nullptr, 1);
+                Application->StartSmackerMovie(movieName.data(), 0xfe000, nullptr, 1);
                 MissionState = 8;
                 PlayingLogisticsMusic = 0;
                 break;
@@ -1283,7 +1283,7 @@ auto MCMission::SaveWindowStatus() -> void
     char tempName[32];
     std::snprintf(tempName, sizeof(tempName), "windows.%u.tmp", MCPort::ProcessId());
 
-    if (windowFile.Open(tempName, CREATE) != 0)
+    if (windowFile.Open(tempName, MCFileMode::Create) != 0)
     {
         return;
     }

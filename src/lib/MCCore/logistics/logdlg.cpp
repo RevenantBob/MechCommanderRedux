@@ -2,7 +2,7 @@
 #include "logistics/logdlg.h"
 #include "gui/afont.h"
 #include "gui/updisp.h"
-#include "lib/aerror.h"
+#include "lib/MCFatal.h"
 #include "logistics/logbri.h"
 #include "logistics/logmain.h"
 #include "logistics/purchase.h"
@@ -507,25 +507,25 @@ auto MCReusableDialog::Init(int32_t xPos, int32_t yPos, int32_t width, int32_t h
     // The box is its top, some middle pieces and its bottom, centred across the screen at y 200.
     TopPiece = new MCLogPort;
     int32_t result = TopPiece->Init(const_cast<char*>("dbox_top.tga"));
-    Assert(result == 0, result, "Error initializing reusable dialog", nullptr);
+    Assert(result == 0, result, "Error initializing reusable dialog");
     MiddlePiece = new MCLogPort;
     result = MiddlePiece->Init(const_cast<char*>("dbox_middle.tga"));
-    Assert(result == 0, result, "Error initializing reusable dialog", nullptr);
+    Assert(result == 0, result, "Error initializing reusable dialog");
     BottomPiece = new MCLogPort;
     result = BottomPiece->Init(const_cast<char*>("dbox_bottom.tga"));
-    Assert(result == 0, result, "Error initializing reusable dialog", nullptr);
+    Assert(result == 0, result, "Error initializing reusable dialog");
     const int32_t boxWidth = TopPiece->Width();
     result = MCLogObject::Init(Application->Width() / 2 - boxWidth / 2, 200, boxWidth,
                                BottomPiece->Height() + MiddlePiece->Height() + TopPiece->Height(), nullptr, nullptr);
-    Assert(result == 0, result, "Error initializing reusable dialog", nullptr);
+    Assert(result == 0, result, "Error initializing reusable dialog");
 
     OkButton = new MCLogDialogButton;
     result = OkButton->Init(0, 0, 0x3f, 0xe, nullptr);
-    Assert(result == 0, result, "Error initializing reusable dialog", nullptr);
+    Assert(result == 0, result, "Error initializing reusable dialog");
     AddChild(OkButton);
     CancelButton = new MCLogDialogButton;
     result = CancelButton->Init(0, 0, 0x3f, 0xe, nullptr);
-    Assert(result == 0, result, "Error initializing reusable dialog", nullptr);
+    Assert(result == 0, result, "Error initializing reusable dialog");
     AddChild(CancelButton);
     SetTwoButton(0);
     ShowGuiWindow(0);

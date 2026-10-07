@@ -5,7 +5,7 @@
 #include "gui/afont.h"
 #include "gui/aport.h"
 #include "iface/iface.h"
-#include "lib/aerror.h"
+#include "lib/MCFatal.h"
 #include "linkup/dpmessage.h"
 #include "linkup/dpplayer.h"
 #include "linkup/sessionmanager.h"

@@ -3,7 +3,7 @@
 #include "TestGame.h"
 #include "gui/mchwcursor.h"
 #include "gui/updisp.h"
-#include "lib/packet.h"
+#include "lib/MCPacketFile.h"
 #include "vfx/mcagshape.h"
 #include "vfx/vfxfuncs.h"
 

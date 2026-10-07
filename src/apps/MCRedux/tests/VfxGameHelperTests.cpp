@@ -1,7 +1,7 @@
 #include "stdafx.h"
 #include "MCTest.h"
 #include "TestGame.h"
-#include "lib/file.h"
+#include "lib/MCFile.h"
 #include "vfx/vfxfuncs.h"
 
 // Tests of the game's own VFX helpers: alphapalette.cpp, encode_vfx.cpp, fastshp.cpp, vfx_ellipse.cpp and

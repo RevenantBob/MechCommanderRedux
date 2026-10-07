@@ -2,7 +2,7 @@
 #include "object/group.h"
 #include "ai/move.h"
 #include "iface/iface.h"
-#include "lib/aerror.h"
+#include "lib/MCFatal.h"
 #include "main/main.h"
 #include "network/multplyr.h"
 #include "object/mover.h"

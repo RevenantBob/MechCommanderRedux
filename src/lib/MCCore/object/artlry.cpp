@@ -9,11 +9,13 @@
 #include "engine/cfont.h"
 #include "gui/asystem.h"
 #include "iface/iface.h"
-#include "lib/aerror.h"
-#include "lib/cident.h"
-#include "lib/cvmath.h"
-#include "lib/file.h"
-#include "lib/inifile.h"
+#include "lib/MCFatal.h"
+#include "lib/MCIDString.h"
+#include "lib/MCFrameOfRef.h"
+#include "lib/MCVector2D.h"
+#include "lib/MCDice.h"
+#include "lib/MCFile.h"
+#include "lib/MCFitIniFile.h"
 #include "logistics/logmain.h"
 #include "main/main.h"
 #include "mission/scenario.h"
@@ -396,7 +398,7 @@ auto MCArtilleryType::Destroy() -> void
 auto MCArtilleryType::Init(MCFile* objFile, uint32_t fileSize) -> int32_t
 {
     MCFitIniFile artFile;
-    int32_t result = artFile.Open(objFile, fileSize, 50);
+    int32_t result = artFile.Open(objFile, fileSize);
 
     if (result != 0)
     {
@@ -559,11 +561,11 @@ auto MCArtilleryType::Init(MCFile* objFile, uint32_t fileSize) -> int32_t
         }
     }
 
-    MCFullPathFileName spritePath;
-    spritePath.Init(ShapesPath, spriteName, ".shp");
+    std::string spritePath;
+    spritePath = GamePath(ShapesPath, spriteName, ".shp");
     MCFile spriteFile;
 
-    if ((result = spriteFile.Open(spritePath, READ, 50)) != 0)
+    if ((result = spriteFile.Open(spritePath)) != 0)
     {
         return result;
     }
@@ -1163,7 +1165,7 @@ auto MCCameraDroneType::Destroy() -> void
 auto MCCameraDroneType::Init(MCFile* objFile, uint32_t fileSize) -> int32_t
 {
     MCFitIniFile droneFile;
-    int32_t result = droneFile.Open(objFile, fileSize, 50);
+    int32_t result = droneFile.Open(objFile, fileSize);
 
     if (result != 0)
     {

@@ -1,9 +1,8 @@
 #include "stdafx.h"
 #include "sprite/sprtmgr.h"
-#include "lib/aerror.h"
-#include "lib/cident.h"
-#include "lib/packet.h"
-#include "lib/routines.h"
+#include "lib/MCFatal.h"
+#include "lib/MCIDString.h"
+#include "lib/MCPacketFile.h"
 #include "logistics/logmain.h"
 #include "main/main.h"
 #include "mission/mission.h"
@@ -23,15 +22,15 @@ namespace
     /// <summary>Opens the PAK <paramref name="name"/><paramref name="ext"/> from the sprite path, then the CD's.</summary>
     auto OpenSpriteFile(MCPacketFile* file, const char* name, const char* ext) -> int32_t
     {
-        MCFullPathFileName fileName;
-        fileName.Init(SpritePath, name, ext);
-        int32_t result = file->Open(fileName, READ, 50);
+        std::string fileName;
+        fileName = GamePath(SpritePath, name, ext);
+        int32_t result = file->Open(fileName);
 
         if (result != 0)
         {
-            MCFullPathFileName cdName;
-            cdName.Init(CDspritePath, name, ext);
-            result = file->Open(cdName, READ, 50);
+            std::string cdName;
+            cdName = GamePath(CDspritePath, name, ext);
+            result = file->Open(cdName);
         }
 
         return result;
@@ -107,7 +106,7 @@ namespace
             return nullptr;
         }
 
-        if (file->Open(table[0], static_cast<uint32_t>(childSize), 50) != 0)
+        if (file->Open(table[0], static_cast<uint32_t>(childSize)) != 0)
         {
             return nullptr;
         }
@@ -138,7 +137,7 @@ namespace
 
             const int32_t size = table[0]->GetPacketSize();
 
-            if (file->Open(table[0], static_cast<uint32_t>(size), 50) != 0)
+            if (file->Open(table[0], static_cast<uint32_t>(size)) != 0)
             {
                 return nullptr;
             }
@@ -159,7 +158,7 @@ namespace
 
         if (shape == nullptr)
         {
-            Fatal(-1, " No More Data Shape RAM ", nullptr);
+            Fatal(-1, " No More Data Shape RAM ");
         }
 
         auto* data = static_cast<uint8_t*>(manager->MallocShapeRam(size));
@@ -267,16 +266,16 @@ auto MCSpriteManager::Init(char* spriteFileName) -> int32_t
         return noRam;
     }
 
-    MCFullPathFileName fileName;
-    fileName.Init(SpritePath, spriteFileName, preferredExt);
-    int32_t result = probe->Open(fileName, READ, 50);
+    std::string fileName;
+    fileName = GamePath(SpritePath, spriteFileName, preferredExt);
+    int32_t result = probe->Open(fileName);
 
     if (result != 0)
     {
         // Faithful: the CD retry always adds "90.pak", even in the demo.
-        MCFullPathFileName cdName;
-        cdName.Init(CDspritePath, spriteFileName, "90.pak");
-        result = probe->Open(cdName, READ, 50);
+        std::string cdName;
+        cdName = GamePath(CDspritePath, spriteFileName, "90.pak");
+        result = probe->Open(cdName);
 
         if (result != 0)
         {
@@ -299,13 +298,13 @@ auto MCSpriteManager::Init(char* spriteFileName) -> int32_t
         return noRam;
     }
 
-    result = SpriteFiles[0]->Open(fileName, READ, numFiles);
+    result = SpriteFiles[0]->Open(fileName);
 
     if (result != 0)
     {
-        MCFullPathFileName cdName;
-        cdName.Init(CDspritePath, spriteFileName, "90.pak");
-        result = SpriteFiles[0]->Open(cdName, READ, numFiles);
+        std::string cdName;
+        cdName = GamePath(CDspritePath, spriteFileName, "90.pak");
+        result = SpriteFiles[0]->Open(cdName);
 
         if (result != 0)
         {
@@ -313,8 +312,8 @@ auto MCSpriteManager::Init(char* spriteFileName) -> int32_t
         }
     }
 
-    MCFullPathFileName fileName2;
-    fileName2.Init(SpritePath, spriteFileName, ".pak");
+    std::string fileName2;
+    fileName2 = GamePath(SpritePath, spriteFileName, ".pak");
     SpriteFiles90[0] = new MCPacketFile;
 
     if (SpriteFiles90[0] == nullptr)
@@ -322,13 +321,13 @@ auto MCSpriteManager::Init(char* spriteFileName) -> int32_t
         return noRam;
     }
 
-    result = SpriteFiles90[0]->Open(fileName2, READ, numFiles);
+    result = SpriteFiles90[0]->Open(fileName2);
 
     if (result != 0)
     {
-        MCFullPathFileName cdName;
-        cdName.Init(CDspritePath, spriteFileName, ".pak");
-        result = SpriteFiles90[0]->Open(cdName, READ, numFiles);
+        std::string cdName;
+        cdName = GamePath(CDspritePath, spriteFileName, ".pak");
+        result = SpriteFiles90[0]->Open(cdName);
 
         if (result != 0)
         {

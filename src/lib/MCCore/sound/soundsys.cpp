@@ -5,12 +5,14 @@
 #include "gameos/soundrenderer.h"
 #include "gameos/soundresource.h"
 #include "gui/awindow.h"
-#include "lib/aerror.h"
-#include "lib/cident.h"
-#include "lib/cvmath.h"
-#include "lib/file.h"
-#include "lib/inifile.h"
-#include "lib/packet.h"
+#include "lib/MCFatal.h"
+#include "lib/MCIDString.h"
+#include "lib/MCFrameOfRef.h"
+#include "lib/MCVector2D.h"
+#include "lib/MCDice.h"
+#include "lib/MCFile.h"
+#include "lib/MCFitIniFile.h"
+#include "lib/MCPacketFile.h"
 #include "logistics/logmain.h"
 #include "main/logistics.h"
 #include "main/main.h"
@@ -417,8 +419,8 @@ int32_t MCSoundSystem::Init(char* soundFileName)
 
     if (UseSound != 0)
     {
-        MCFullPathFileName soundName;
-        soundName.Init(SoundPath, soundFileName, ".snd");
+        std::string soundName;
+        soundName = GamePath(SoundPath, soundFileName, ".snd");
         MCFitIniFile soundFile;
         int32_t result = soundFile.Open(soundName);
         Assert(result == 0, result, " Error opening .SND file ");
@@ -463,14 +465,14 @@ int32_t MCSoundSystem::Init(char* soundFileName)
 
         SoundDataFile = new MCPacketFile();
         Assert(SoundDataFile != nullptr, 0xabba000c, " Couldn't allocate soundDataFile ");
-        MCFullPathFileName dataName;
-        dataName.Init(SoundPath, soundFileName, ".pak");
+        std::string dataName;
+        dataName = GamePath(SoundPath, soundFileName, ".pak");
         result = SoundDataFile->Open(dataName);
         Assert(result == 0, result, " Sound file initialization failed ");
         BettyDataFile = new MCPacketFile();
         Assert(BettyDataFile != nullptr, 0xabba000c, " Couldn't allocate bettyDataFile ");
-        MCFullPathFileName bettyName;
-        bettyName.Init(SoundPath, "Betty", ".pak");
+        std::string bettyName;
+        bettyName = GamePath(SoundPath, "Betty", ".pak");
         result = BettyDataFile->Open(bettyName);
         Assert(result == 0, result, " Couldn't open bettyDataFile ");
         result = soundFile.SeekBlock("SoundBites");
@@ -841,8 +843,8 @@ void MCSoundSystem::PlayStaticNoise()
 
     if (MCRadio::NoiseFile == nullptr)
     {
-        MCFullPathFileName noiseName;
-        noiseName.Init(CDsoundPath, "noise", ".pak");
+        std::string noiseName;
+        noiseName = GamePath(CDsoundPath, "noise", ".pak");
         MCRadio::NoiseFile = new MCPacketFile();
 
         if (MCRadio::NoiseFile->Open(noiseName) != 0)
@@ -1283,10 +1285,10 @@ int32_t MCSoundSystem::PlayDigitalMusic(int32_t musicId, bool loop)
         stream = 1;
     }
 
-    MCFullPathFileName musicName;
-    musicName.Init(SoundPath, DigitalMusicIds[musicId].c_str(), ".wav");
+    std::string musicName;
+    musicName = GamePath(SoundPath, DigitalMusicIds[musicId].c_str(), ".wav");
 
-    if (FileExists(musicName) != 0)
+    if (FileExists(musicName))
     {
         int32_t channel = MUSIC_CHANNEL_A + stream;
 
@@ -1295,7 +1297,7 @@ int32_t MCSoundSystem::PlayDigitalMusic(int32_t musicId, bool loop)
             GosDestroySoundResource(ChannelResource[channel]);
         }
 
-        GosCreateSoundResource(&ChannelResource[channel], musicName, SOUND_RESOURCE_STREAM, 0);
+        GosCreateSoundResource(&ChannelResource[channel], musicName.c_str(), SOUND_RESOURCE_STREAM, 0);
 
         if (stream == 0)
         {
@@ -1576,8 +1578,8 @@ int32_t MCSoundSystem::PlayPilotSpeech(char* fileName, int32_t speechId)
         return 0;
     }
 
-    MCFullPathFileName speechName;
-    speechName.Init(CDsoundPath, fileName, ".pak");
+    std::string speechName;
+    speechName = GamePath(CDsoundPath, fileName, ".pak");
     MCPacketFile speechFile;
     int32_t result = speechFile.Open(speechName);
 

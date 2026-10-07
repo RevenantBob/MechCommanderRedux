@@ -18,12 +18,12 @@
 #include "gui/asystem.h"
 #include "gui/atextbox.h"
 #include "gui/updisp.h"
-#include "lib/aerror.h"
-#include "lib/cident.h"
-#include "lib/file.h"
-#include "lib/inifile.h"
-#include "lib/packet.h"
-#include "lib/pqueue.h"
+#include "lib/MCFatal.h"
+#include "lib/MCIDString.h"
+#include "lib/MCFile.h"
+#include "lib/MCFitIniFile.h"
+#include "lib/MCPacketFile.h"
+#include "lib/MCPriorityQueue.h"
 #include "logistics/logbri.h"
 #include "logistics/logmain.h"
 #include "main/honorb.h"
@@ -198,8 +198,8 @@ namespace
     /// <returns>The block, or null when the file can't be opened (the old one is kept).</returns>
     uint8_t* LoadShapeFile(const char* name, uint8_t* oldShapes, int freeOld)
     {
-        MCFullPathFileName fileName;
-        fileName.Init(ShapesPath, name, ".shp");
+        std::string fileName;
+        fileName = GamePath(ShapesPath, name, ".shp");
         MCFile shapeFile;
 
         if (shapeFile.Open(fileName) != 0)
@@ -233,13 +233,13 @@ namespace
     /// <returns>The result of the last open.</returns>
     int32_t OpenWithSaveFallback(MCFitIniFile& file, const char* path, const char* name)
     {
-        MCFullPathFileName fileName;
-        fileName.Init(path, name, ".fit");
+        std::string fileName;
+        fileName = GamePath(path, name, ".fit");
         int32_t result = file.Open(fileName);
 
         if (result != 0)
         {
-            fileName.Init(SaveTempPath, name, ".fit");
+            fileName = GamePath(SaveTempPath, name, ".fit");
             result = file.Open(fileName);
         }
 
@@ -449,8 +449,8 @@ auto MCScenario::Init(char* scenarioName, char* terrainName) -> int32_t
 
     //---------------------------------------------------------------------------------------------------------------
     // The game system file.
-    MCFullPathFileName gameSystemName;
-    gameSystemName.Init(MissionPath, "gamesys", ".fit");
+    std::string gameSystemName;
+    gameSystemName = GamePath(MissionPath, "gamesys", ".fit");
     auto* gameSystemFile = new MCFitIniFile;
 
     if (gameSystemFile == nullptr)
@@ -487,10 +487,10 @@ auto MCScenario::Init(char* scenarioName, char* terrainName) -> int32_t
 
     if (MasterComponentList == nullptr)
     {
-        MCFullPathFileName componentName;
-        componentName.Init(ObjectPath, "compbas", ".csv");
+        std::string componentName;
+        componentName = GamePath(ObjectPath, "compbas", ".csv");
         const int32_t loadResult =
-            InitMasterComponentListExcel(componentName, 0xff, MaxVisualRange / MaxWeaponRange, BaseSensorRange);
+            InitMasterComponentListExcel(componentName.data(), 0xff, MaxVisualRange / MaxWeaponRange, BaseSensorRange);
         // Faithful: the assert reports the previous read's code.
         Assert(loadResult == 0, static_cast<uint32_t>(result), " Could not load compBas.csv ");
     }
@@ -590,15 +590,15 @@ auto MCScenario::Init(char* scenarioName, char* terrainName) -> int32_t
 
     //---------------------------------------------------------------------------------------------------------------
     // The scenario file (from the missions folder, or a saved game's copy).
-    MCFullPathFileName scenarioFileName;
-    scenarioFileName.Init(MissionPath, scenarioName, ".fit");
+    std::string scenarioFileName;
+    scenarioFileName = GamePath(MissionPath, scenarioName, ".fit");
     ScenarioFile = new MCFitIniFile;
     Assert(ScenarioFile != nullptr, 0, " no RAM for scenario file ");
     result = ScenarioFile->Open(scenarioFileName);
 
     if (result != 0)
     {
-        scenarioFileName.Init(SaveTempPath, scenarioName, ".fit");
+        scenarioFileName = GamePath(SaveTempPath, scenarioName, ".fit");
         result = ScenarioFile->Open(scenarioFileName);
         RequireOk(result, " could not open scenario file ");
     }
@@ -837,15 +837,15 @@ auto MCScenario::Init(char* scenarioName, char* terrainName) -> int32_t
     char sensorShapeName[80];
     result = ScenarioFile->ReadIdString("shapeName", sensorShapeName, 79);
     RequireOk(result, " could not find ShapeName in SensorContactShape block in Scenario File ");
-    MCFullPathFileName sensorShapeFileName;
-    sensorShapeFileName.Init(SpritePath, sensorShapeName, ".pak");
+    std::string sensorShapeFileName;
+    sensorShapeFileName = GamePath(SpritePath, sensorShapeName, ".pak");
     MCPacketFile sensorShapeFile;
     result = sensorShapeFile.Open(sensorShapeFileName);
 
     if (result != 0)
     {
-        MCFullPathFileName cdFileName;
-        cdFileName.Init(CDspritePath, sensorShapeName, ".pak");
+        std::string cdFileName;
+        cdFileName = GamePath(CDspritePath, sensorShapeName, ".pak");
         result = sensorShapeFile.Open(cdFileName);
         RequireOk(result, " could not open sensor shape file ");
     }
@@ -1012,8 +1012,8 @@ auto MCScenario::Init(char* scenarioName, char* terrainName) -> int32_t
             Assert(0, static_cast<uint32_t>(result), " no RAM for Game Map ");
         }
 
-        MCFullPathFileName mapFileName;
-        mapFileName.Init(TerrainPath, TerrainFileName, ".dat");
+        std::string mapFileName;
+        mapFileName = GamePath(TerrainPath, TerrainFileName, ".dat");
         auto* mapFile = new MCFile;
         Assert(mapFile != nullptr, static_cast<uint32_t>(result), " no RAM for Map File");
         result = mapFile->Open(mapFileName);
@@ -1039,8 +1039,8 @@ auto MCScenario::Init(char* scenarioName, char* terrainName) -> int32_t
         GlobalMoveMap = new MCGlobalMap;
 
         auto* globalMapFile = new MCFile;
-        MCFullPathFileName globalMapFileName;
-        globalMapFileName.Init(TerrainPath, TerrainFileName, ".gmm");
+        std::string globalMapFileName;
+        globalMapFileName = GamePath(TerrainPath, TerrainFileName, ".gmm");
         result = globalMapFile->Open(globalMapFileName);
         RequireOk(result, " Could not open global Map ");
         GlobalMoveMap->Init(globalMapFile);
@@ -1089,12 +1089,12 @@ auto MCScenario::Init(char* scenarioName, char* terrainName) -> int32_t
 
             if (result == 0)
             {
-                MCFullPathFileName libraryFileName;
-                libraryFileName.Init(MissionPath, libraryName, ".abx");
+                std::string libraryFileName;
+                libraryFileName = GamePath(MissionPath, libraryName, ".abx");
                 int32_t numErrors = 0;
                 int32_t numLines = 0;
 
-                if (AblLoadLibrary(libraryFileName, &numErrors, &numLines, nullptr, 0) != 0)
+                if (AblLoadLibrary(libraryFileName.data(), &numErrors, &numLines, nullptr, 0) != 0)
                 {
                     char message[512];
                     std::snprintf(message, sizeof(message), " Cannot load ABL Library %s ", libraryName);
@@ -1122,11 +1122,11 @@ auto MCScenario::Init(char* scenarioName, char* terrainName) -> int32_t
     std::strcpy(WindowTitle, windowTitle);
     UpdateDisplay(0, 1, 30, 1, 75);
 
-    MCFullPathFileName scriptFileName;
-    scriptFileName.Init(MissionPath, ScenarioScript, ".abl");
+    std::string scriptFileName;
+    scriptFileName = GamePath(MissionPath, ScenarioScript, ".abl");
     int32_t numErrors = 0;
     int32_t numLines = 0;
-    ScenarioScriptHandle = AblPreProcess(scriptFileName, &numErrors, &numLines, nullptr, 0);
+    ScenarioScriptHandle = AblPreProcess(scriptFileName.data(), &numErrors, &numLines, nullptr, 0);
     Assert(-1 < ScenarioScriptHandle, static_cast<uint32_t>(ScenarioScriptHandle), " Bad Scenario Script ");
     ScenarioBrain = new MCAblModule;
 
@@ -1186,8 +1186,8 @@ auto MCScenario::Init(char* scenarioName, char* terrainName) -> int32_t
             Warriors[i] = NewWarrior();
             Assert(Warriors[i] != nullptr, 0, " No RAM for Warrior ");
 
-            MCFullPathFileName profileFileName;
-            profileFileName.Init(WarriorPath, profileName, ".fit");
+            std::string profileFileName;
+            profileFileName = GamePath(WarriorPath, profileName, ".fit");
             auto* profileFile = new MCFitIniFile;
             Assert(profileFile != nullptr, 0, " No RAM for Warrior Profile File ");
             int32_t profileResult = profileFile->Open(profileFileName);
@@ -1201,8 +1201,8 @@ auto MCScenario::Init(char* scenarioName, char* terrainName) -> int32_t
             {
                 // A saved game keeps its warriors' profiles in the temporary save folder.
                 MCFitIniFile savedProfileFile;
-                MCFullPathFileName savedProfileName;
-                savedProfileName.Init(SaveTempPath, profileName, ".fit");
+                std::string savedProfileName;
+                savedProfileName = GamePath(SaveTempPath, profileName, ".fit");
                 profileResult = savedProfileFile.Open(savedProfileName);
                 Assert(profileResult == 0, static_cast<uint32_t>(profileResult),
                        " Could not open Warrior Profile File ");
@@ -1219,11 +1219,11 @@ auto MCScenario::Init(char* scenarioName, char* terrainName) -> int32_t
             Assert(profileResult == 0, static_cast<uint32_t>(profileResult),
                    " Could not find Warrior Brain in Warrior Number Block ");
             Warriors[i]->SetBrainName(brainName);
-            MCFullPathFileName brainFileName;
-            brainFileName.Init(WarriorPath, brainName, ".abl");
+            std::string brainFileName;
+            brainFileName = GamePath(WarriorPath, brainName, ".abl");
             int32_t brainErrors = 0;
             int32_t brainLines = 0;
-            const int32_t brainHandle = AblPreProcess(brainFileName, &brainErrors, &brainLines, nullptr, 0);
+            const int32_t brainHandle = AblPreProcess(brainFileName.data(), &brainErrors, &brainLines, nullptr, 0);
             Assert(-1 < brainHandle, static_cast<uint32_t>(brainHandle), " Could not start Warrior Brain ");
             const int32_t setBrainResult = Warriors[i]->SetBrain(brainHandle);
             Assert(setBrainResult == 0, static_cast<uint32_t>(setBrainResult), " Could Not Set Brain ");
@@ -1240,8 +1240,8 @@ auto MCScenario::Init(char* scenarioName, char* terrainName) -> int32_t
 
     if (haveBrainParameters)
     {
-        MCFullPathFileName parameterFileName;
-        parameterFileName.Init(WarriorPath, brainParameterFileName, ".fit");
+        std::string parameterFileName;
+        parameterFileName = GamePath(WarriorPath, brainParameterFileName, ".fit");
         auto* parameterFile = new MCFitIniFile;
         Assert(parameterFile != nullptr, 0, " No RAM for Brain Parameter File ");
         const int32_t openResult = parameterFile->Open(parameterFileName);
@@ -2080,9 +2080,6 @@ auto MCScenario::Destroy() -> void
 
     if (OpenList != nullptr)
     {
-        // Faithful: destroyed twice (once here, once by the inlined destructor).
-        OpenList->Destroy();
-        OpenList->Destroy();
         delete OpenList;
     }
 
@@ -2137,8 +2134,8 @@ auto MCScenario::CreatePartObject(int32_t partNumber) -> void
 
     if (std::strcmp(part.ProfileName, "NONE") != 0)
     {
-        MCFullPathFileName profileFileName;
-        profileFileName.Init(ProfilePath, part.ProfileName, ".fit");
+        std::string profileFileName;
+        profileFileName = GamePath(ProfilePath, part.ProfileName, ".fit");
         auto* profileFile = new MCFitIniFile;
 
         if (profileFile == nullptr)
@@ -2156,13 +2153,13 @@ auto MCScenario::CreatePartObject(int32_t partNumber) -> void
         else
         {
             MCFitIniFile savedProfileFile;
-            MCFullPathFileName savedProfileName;
-            savedProfileName.Init(SaveTempPath, part.ProfileName, ".fit");
+            std::string savedProfileName;
+            savedProfileName = GamePath(SaveTempPath, part.ProfileName, ".fit");
             const int32_t openResult = savedProfileFile.Open(savedProfileName);
 
             if (openResult != 0)
             {
-                Fatal(openResult, nullptr);
+                Fatal(openResult);
             }
 
             if (object->Init(&savedProfileFile) != 0)

@@ -1,11 +1,13 @@
 #include "stdafx.h"
 #include "sound/radio.h"
 #include "gui/awindow.h"
-#include "lib/aerror.h"
-#include "lib/cident.h"
-#include "lib/cvmath.h"
-#include "lib/file.h"
-#include "lib/packet.h"
+#include "lib/MCFatal.h"
+#include "lib/MCIDString.h"
+#include "lib/MCFrameOfRef.h"
+#include "lib/MCVector2D.h"
+#include "lib/MCDice.h"
+#include "lib/MCFile.h"
+#include "lib/MCPacketFile.h"
 #include "logistics/logmain.h"
 #include "main/main.h"
 #include "mission/mission.h"
@@ -53,10 +55,10 @@ int32_t MCRadio::Init(char* fileName, uint32_t heapSize, char* movieName)
         CurrentRadio = 0;
     }
 
-    MCFullPathFileName radioName;
-    radioName.Init(CDsoundPath, fileName, ".pak");
-    MCFullPathFileName noiseName;
-    noiseName.Init(CDsoundPath, "noise", ".pak");
+    std::string radioName;
+    radioName = GamePath(CDsoundPath, fileName, ".pak");
+    std::string noiseName;
+    noiseName = GamePath(CDsoundPath, "noise", ".pak");
     RadioFile = new MCPacketFile();
     int32_t result = RadioFile->Open(radioName);
 
@@ -173,9 +175,9 @@ int32_t MCRadio::PlayMessage(MCRadioMessageType msgType)
         tagRECT area = tacMap->GetVideoRect();
         window->Init(&area, nullptr);
         message->MovieWindow = window;
-        MCFullPathFileName videoPath;
-        videoPath.Init(MoviePath, videoName, ".smk");
-        message->Movie = SmackOpen(videoPath, 0xfe000, -1);
+        std::string videoPath;
+        videoPath = GamePath(MoviePath, videoName, ".smk");
+        message->Movie = SmackOpen(videoPath.c_str(), 0xfe000, -1);
     }
 
     // The pilot's name first (sometimes), then the message, and the static under it.
@@ -230,8 +232,8 @@ int32_t MCRadio::PlayMessage(MCRadioMessageType msgType)
 
 int32_t MCRadio::LoadMessageInfo()
 {
-    MCFullPathFileName infoName;
-    infoName.Init(SoundPath, "radio", ".csv");
+    std::string infoName;
+    infoName = GamePath(SoundPath, "radio", ".csv");
     MCFile* infoFile = new MCFile();
     int32_t result = infoFile->Open(infoName);
 

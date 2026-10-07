@@ -28,7 +28,7 @@ namespace
     /// <summary>Whether a list holds a terrain block's objects ("TBlk%d" or "RBlk%d").</summary>
     bool IsTerrainList(const MCObjectQueueNode* node)
     {
-        return std::strstr(node->Id, "TBlk") != nullptr || std::strstr(node->Id, "RBlk") != nullptr;
+        return node->Id.contains("TBlk") || node->Id.contains("RBlk");
     }
 
     /// <summary>The list named <paramref name="listId"/> of <paramref name="first"/>'s chain, by IDString ==.</summary>
@@ -67,9 +67,8 @@ MCObjectQueueNode::MCObjectQueueNode(const char* newId)
 
 auto MCObjectQueueNode::Init(const char* newId, int32_t newBlockNumber) -> void
 {
-    std::strncpy(Id, newId, 7);
+    MCIDString::Init(newId);
     BlockNumber = newBlockNumber;
-    Id[7] = 0;
     Next = nullptr;
     Tail = nullptr;
     Head = nullptr;
@@ -460,10 +459,10 @@ auto MCObjectQueue::AddList(MCObjectQueueNode* node) -> void
 
 auto MCObjectQueue::FindList(const char* listId) -> MCObjectQueueNode*
 {
-    // The original compares up to eight characters, stopping at the end of listId.
+    // The original compares up to eight characters, so a longer listId never matches.
     for (MCObjectQueueNode* node = Head; node != nullptr; node = node->Next)
     {
-        if (std::strncmp(listId, node->Id, 8) == 0)
+        if (*node == listId)
         {
             return node;
         }

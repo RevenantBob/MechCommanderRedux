@@ -1,7 +1,7 @@
 #include "stdafx.h"
 #include "main/main.h"
 #include "main/honorb.h"
-#include "lib/aerror.h"
+#include "lib/MCFatal.h"
 #include "platform/MCStringTable.h"
 #include "logistics/logbri.h"
 #include "logistics/logmain.h"

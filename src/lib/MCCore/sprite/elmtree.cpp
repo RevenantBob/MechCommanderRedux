@@ -1,7 +1,7 @@
 #include "stdafx.h"
 #include "sprite/elmtree.h"
 #include "camera/camera.h"
-#include "lib/inifile.h"
+#include "lib/MCFitIniFile.h"
 #include "main/main.h"
 #include "sprite/bactor.h"
 #include "sprite/sprtmgr.h"
@@ -98,7 +98,7 @@ auto MCElementalTree::PreloadGestures(int32_t, float) -> void
 auto MCElementalTree::LoadIniFile(MCFile* apprFile, uint32_t fileSize) -> int32_t
 {
     MCFitIniFile iniFile;
-    int32_t result = iniFile.Open(apprFile, fileSize, 50);
+    int32_t result = iniFile.Open(apprFile, fileSize);
 
     if (result != 0)
     {

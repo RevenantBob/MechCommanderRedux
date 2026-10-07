@@ -3,7 +3,7 @@
 #include "gui/afont.h"
 #include "gui/scrlpane.h"
 #include "gui/updisp.h"
-#include "lib/aerror.h"
+#include "lib/MCFatal.h"
 #include "logistics/invblock.h"
 #include "logistics/logbri.h"
 #include "logistics/logdlg.h"
@@ -3289,9 +3289,9 @@ auto MCVehicleRepairBlock::HandleEvent(MCGuiEvent* event) -> void
                         if (slot.Vehicle == SlotIndex - GlobalLogPtr->ForceMechList->GetMechCount())
                         {
                             MCLogVehicle* leaving = Vehicle;
-                            Assert(leaving != nullptr, 0, "Vehicle is NULL", nullptr);
+                            Assert(leaving != nullptr, 0, "Vehicle is NULL");
                             MCMechBriefBlock* brief = leaving->BriefBlock;
-                            Assert(brief != nullptr, 0, "vehicleBrief is NULL", nullptr);
+                            Assert(brief != nullptr, 0, "vehicleBrief is NULL");
 
                             if (brief->Parent != nullptr)
                             {

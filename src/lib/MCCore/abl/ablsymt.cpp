@@ -2,7 +2,7 @@
 #include "abl/ablsymt.h"
 #include "abl/ablerr.h"
 #include "abl/ablscan.h"
-#include "lib/aerror.h"
+#include "lib/MCFatal.h"
 
 MCSymTableNodePtr SymTableDisplay[MAX_NESTING_LEVEL];
 int32_t Level;

@@ -1,12 +1,13 @@
 #include "stdafx.h"
 #include "ai/move.h"
-#include "lib/aerror.h"
-#include "lib/cvmath.h"
-#include "lib/file.h"
-#include "lib/inifile.h"
-#include "lib/packet.h"
-#include "lib/pqueue.h"
-#include "lib/routines.h"
+#include "lib/MCFatal.h"
+#include "lib/MCFrameOfRef.h"
+#include "lib/MCVector2D.h"
+#include "lib/MCDice.h"
+#include "lib/MCFile.h"
+#include "lib/MCFitIniFile.h"
+#include "lib/MCPacketFile.h"
+#include "lib/MCPriorityQueue.h"
 #include "main/main.h"
 #include "mission/scenario.h"
 #include "object/gameobj.h"
@@ -359,7 +360,7 @@ auto DebugOpenList(char* msg) -> void
     for (int32_t i = 0; i < OpenList->Size(); i++)
     {
         // As the original: items are read from pqList[0] (the sentinel) up, so the last item is left out.
-        const MCPQNode& item = *OpenList->GetItem(i);
+        const MCPQNode& item = OpenList->GetItem(i);
         std::snprintf(line, sizeof(line), "Item: %04d\n", i);
         debugFile->WriteString(line);
         std::snprintf(line, sizeof(line), "     key: %d\n", item.Key);
@@ -3736,14 +3737,7 @@ auto MCGlobalMap::CalcPath(int32_t startArea, int32_t goalArea, MCGlobalPathStep
 
     if (OpenList == nullptr)
     {
-        OpenList = new MCPriorityQueue;
-
-        if (OpenList == nullptr)
-        {
-            Fatal(0, " Unable to create MoveMap::openList ");
-        }
-
-        OpenList->Init(5000, -2000000);
+        OpenList = new MCPriorityQueue(5000, -2000000);
     }
 
     const int32_t startDoor = NumDoors;
@@ -3769,7 +3763,7 @@ auto MCGlobalMap::CalcPath(int32_t startArea, int32_t goalArea, MCGlobalPathStep
     startNode.Key = 0;
     startNode.Id = startDoor;
 
-    if (OpenList->Insert(startNode) != 0)
+    if (!OpenList->Insert(startNode))
     {
         Fatal(0, "PathFind OPEN overflow");
     }
@@ -3780,8 +3774,7 @@ auto MCGlobalMap::CalcPath(int32_t startArea, int32_t goalArea, MCGlobalPathStep
 
     while (OpenList->Size() != 0)
     {
-        MCPQNode best;
-        OpenList->Remove(best);
+        const MCPQNode best = OpenList->Pop();
         const int32_t curIndex = best.Id;
         MCGlobalMapDoor& current = Doors[curIndex];
         const int32_t g = current.G;
@@ -3831,7 +3824,7 @@ auto MCGlobalMap::CalcPath(int32_t startArea, int32_t goalArea, MCGlobalPathStep
                     node.Key = successor.FPrime;
                     node.Id = succIndex;
 
-                    if (OpenList->Insert(node) != 0)
+                    if (!OpenList->Insert(node))
                     {
                         Fatal(0, "PathFind OPEN overflow");
                     }
@@ -5047,14 +5040,7 @@ auto MCMoveMap::SearchPath(MCMovePath* path, MCVector3D* goalWorldPos, int32_t* 
 
     if (OpenList == nullptr)
     {
-        OpenList = new MCPriorityQueue;
-
-        if (OpenList == nullptr)
-        {
-            Fatal(0, " Unable to create MoveMap::openList ");
-        }
-
-        OpenList->Init(5000, -2000000);
+        OpenList = new MCPriorityQueue(5000, -2000000);
     }
 
     MCMoveMapNode& start = Map[MaxCellWidth * StartR + StartC];
@@ -5069,7 +5055,7 @@ auto MCMoveMap::SearchPath(MCMovePath* path, MCVector3D* goalWorldPos, int32_t* 
     startNode.Row = StartR;
     startNode.Col = StartC;
 
-    if (OpenList->Insert(startNode) != 0)
+    if (!OpenList->Insert(startNode))
     {
         Fatal(0, "PathFind OPEN overflow");
     }
@@ -5082,8 +5068,7 @@ auto MCMoveMap::SearchPath(MCMovePath* path, MCVector3D* goalWorldPos, int32_t* 
 
     while (OpenList->Size() != 0)
     {
-        MCPQNode best;
-        OpenList->Remove(best);
+        const MCPQNode best = OpenList->Pop();
         bestR = best.Row;
         bestC = best.Col;
         MCMoveMapNode& current = Map[MaxCellWidth * bestR + bestC];
@@ -5148,7 +5133,7 @@ auto MCMoveMap::SearchPath(MCMovePath* path, MCVector3D* goalWorldPos, int32_t* 
                     node.Row = nextR;
                     node.Col = nextC;
 
-                    if (OpenList->Insert(node) != 0)
+                    if (!OpenList->Insert(node))
                     {
                         Fatal(0, "PathFind OPEN overflow");
                     }

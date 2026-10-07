@@ -12,9 +12,11 @@
 #include "gameos/soundchannel.h"
 #include "gameos/soundrenderer.h"
 #include "gameos/soundresource.h"
-#include "lib/cvmath.h"
-#include "lib/file.h"
-#include "lib/inifile.h"
+#include "lib/MCFrameOfRef.h"
+#include "lib/MCVector2D.h"
+#include "lib/MCDice.h"
+#include "lib/MCFile.h"
+#include "lib/MCFitIniFile.h"
 #include "main/MCGameContext.h"
 #include "platform/MCFileSystem.h"
 
@@ -121,10 +123,10 @@ TEST_CASE("services: RollDice and RandomNumber roll the installed dice")
     MCScriptedRandom& dice = scope.Context().SetRandom(std::make_unique<MCScriptedRandom>());
     // rand 0 is a roll of 0; 0x7fff a roll of 99; 16383 a roll of 49; 16384 a roll of 50.
     dice.Returns({0, 0x7fff, 16383, 16384, 0x7fff, 0});
-    CHECK_EQ(RollDice(50), 1);
-    CHECK_EQ(RollDice(50), 0);
-    CHECK_EQ(RollDice(50), 1);
-    CHECK_EQ(RollDice(50), 0);
+    CHECK_EQ(RollDice(50), true);
+    CHECK_EQ(RollDice(50), false);
+    CHECK_EQ(RollDice(50), true);
+    CHECK_EQ(RollDice(50), false);
     CHECK_EQ(RandomNumber(6), 5);
     CHECK_EQ(RandomNumber(6), 0);
     CHECK_EQ(dice.Remaining(), static_cast<size_t>(0));

@@ -2,16 +2,16 @@
 #include "logistics/smuti.h"
 #include "gui/afont.h"
 #include "gui/aport.h"
-#include "lib/aerror.h"
-#include "lib/file.h"
+#include "lib/MCFatal.h"
+#include "lib/MCFile.h"
 #include "logistics/loggen.h"
 #include "logistics/mrblock.h"
 
 auto MCSmuti::Init(char* fileName, MCGuiPort* port, int32_t width) -> int32_t
 {
     auto* file = new MCFile;
-    const int32_t result = file->Open(fileName, READ, 0x32);
-    Assert(result == 0, result, "Could not open SMUTI file", nullptr);
+    const int32_t result = file->Open(fileName);
+    Assert(result == 0, result, "Could not open SMUTI file");
     auto* text = new uint8_t[file->GetLength() + 1];
     file->Read(text, static_cast<int32_t>(file->GetLength()));
     // The last two bytes (the file's closing CR LF) are dropped.

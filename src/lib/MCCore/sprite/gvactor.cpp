@@ -5,7 +5,7 @@
 #include "engine/ceglist.h"
 #include "engine/cepoly.h"
 #include "engine/cevfx.h"
-#include "lib/inifile.h"
+#include "lib/MCFitIniFile.h"
 #include "main/main.h"
 #include "object/artlry.h"
 #include "object/gvehicl.h"
@@ -116,7 +116,7 @@ auto MCGVAppearanceType::RemoveShape(MCShape* shape) -> void
 auto MCGVAppearanceType::LoadIniFile(MCFile* apprFile, uint32_t fileSize) -> int32_t
 {
     MCFitIniFile iniFile;
-    int32_t result = iniFile.Open(apprFile, fileSize, 50);
+    int32_t result = iniFile.Open(apprFile, fileSize);
 
     if (result != 0)
     {

@@ -2,7 +2,7 @@
 #include "gameos/soundrenderer.h"
 #include "gameos/soundchannel.h"
 #include "gameos/soundresource.h"
-#include "lib/aerror.h"
+#include "lib/MCFatal.h"
 #include "main/MCGameContext.h"
 #include "platform/MCAudio.h"
 

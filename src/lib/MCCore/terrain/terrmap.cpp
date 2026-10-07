@@ -9,10 +9,12 @@
 #include "gui/atextbox.h"
 #include "gui/awindow.h"
 #include "iface/iface.h"
-#include "lib/aerror.h"
-#include "lib/cident.h"
-#include "lib/cvmath.h"
-#include "lib/file.h"
+#include "lib/MCFatal.h"
+#include "lib/MCIDString.h"
+#include "lib/MCFrameOfRef.h"
+#include "lib/MCVector2D.h"
+#include "lib/MCDice.h"
+#include "lib/MCFile.h"
 #include "logistics/logbri.h"
 #include "logistics/logmain.h"
 #include "main/main.h"
@@ -1165,15 +1167,15 @@ MCTacticalMap::~MCTacticalMap()
 auto MCTacticalMap::SetRevealedBitmap(char* fileName) -> void
 {
     MCFile gifFile;
-    MCFullPathFileName gifName;
-    gifName.Init(TerrainPath, fileName, ".gif");
+    std::string gifName;
+    gifName = GamePath(TerrainPath, fileName, ".gif");
 
-    if (FileExists(gifName) == 0)
+    if (!FileExists(gifName))
     {
         return;
     }
 
-    gifFile.Open(gifName, READ, 50);
+    gifFile.Open(gifName);
     const uint32_t size = gifFile.FileSize();
 
     if (size == 0)
@@ -1215,9 +1217,9 @@ auto MCTacticalMap::Init(int32_t xPos, int32_t yPos) -> int32_t
         Fatal(-1, "No RAM for TacMap");
     }
 
-    MCFullPathFileName pictureName;
-    pictureName.Init(TerrainPath, MCTerrain::TerrainName, ".tga");
-    int32_t result = MapPort->Init(pictureName);
+    std::string pictureName;
+    pictureName = GamePath(TerrainPath, MCTerrain::TerrainName, ".tga");
+    int32_t result = MapPort->Init(pictureName.data());
     Assert(result == 0, static_cast<uint32_t>(result), " could not start tacticalMap ");
     MapWidth = MapPort->Frame()->Window->XMax;
     MapHeight = MapPort->Frame()->Window->YMax;
@@ -3328,10 +3330,10 @@ auto MCTacticalMap::SetID(int32_t partId) -> void
     }
 
     // The part diagram's shapes.
-    MCFullPathFileName shapePath;
-    shapePath.Init(ArtPath, shapeName, ".shp");
+    std::string shapePath;
+    shapePath = GamePath(ArtPath, shapeName, ".shp");
 
-    if (shapeFile.Open(shapePath, READ, 0x32) != 0)
+    if (shapeFile.Open(shapePath) != 0)
     {
         Fatal(0, "Unable to open damage display shape file");
     }

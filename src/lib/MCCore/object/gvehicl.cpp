@@ -14,8 +14,8 @@
 #include "gui/aport.h"
 #include "gui/asystem.h"
 #include "iface/iface.h"
-#include "lib/aerror.h"
-#include "lib/inifile.h"
+#include "lib/MCFatal.h"
+#include "lib/MCFitIniFile.h"
 #include "logistics/logmain.h"
 #include "main/main.h"
 #include "mission/scenario.h"
@@ -247,7 +247,7 @@ auto MCGroundVehicleType::Init(MCFile* objFile, uint32_t fileSize) -> int32_t
     static const char* const locationNames[NUM_GROUNDVEHICLE_LOCATIONS] = {"Front", "Left", "Right", "Rear", "Turret"};
 
     MCFitIniFile vehicleFile;
-    int32_t result = vehicleFile.Open(objFile, fileSize, 50);
+    int32_t result = vehicleFile.Open(objFile, fileSize);
 
     if (result != 0)
     {
@@ -2631,10 +2631,10 @@ auto MCGroundVehicle::CreateVehiclePilot() -> void
     }
 
     marine->SetAwake(1);
-    MCFullPathFileName profileName;
-    profileName.Init(ProfilePath, MarineProfileName, ".fit");
+    std::string profileName;
+    profileName = GamePath(ProfilePath, MarineProfileName, ".fit");
     MCFitIniFile profileFile;
-    const int32_t result = profileFile.Open(profileName, READ, 50);
+    const int32_t result = profileFile.Open(profileName);
 
     if (result != 0)
     {
@@ -2967,7 +2967,7 @@ auto MCGroundVehicle::Update() -> int32_t
 
             if (tileR < 0 || GameMap->Height <= tileR || tileC < 0 || GameMap->Width <= tileC)
             {
-                Fatal(0, " gvehicl.update: newMoveChunk stepPos not on map! ", nullptr);
+                Fatal(0, " gvehicl.update: newMoveChunk stepPos not on map! ");
             }
         }
 
@@ -3535,7 +3535,7 @@ auto MCGroundVehicle::BuildStatusChunk() -> int32_t
                 }
 
                 default:
-                    Fatal(targetClass, " GroundVehicle.buildStatusChunk: bad target object class ", nullptr);
+                    Fatal(targetClass, " GroundVehicle.buildStatusChunk: bad target object class ");
             }
         }
     }
@@ -3550,7 +3550,7 @@ auto MCGroundVehicle::BuildStatusChunk() -> int32_t
 
     if (StatusChunk.EqualTo(&check) == 0)
     {
-        Fatal(0, " BAD Statuschunk: save stchunk.dbg file! ", nullptr);
+        Fatal(0, " BAD Statuschunk: save stchunk.dbg file! ");
     }
 
     return 0;
@@ -3652,7 +3652,7 @@ auto MCGroundVehicle::BuildMoveChunk() -> int32_t
     {
         if (MoveChunk.EqualTo(this, &check) == 0)
         {
-            Fatal(0, " Bad gvehicl movechunk: save mvchunk.dbg file! ", nullptr);
+            Fatal(0, " Bad gvehicl movechunk: save mvchunk.dbg file! ");
         }
     }
     else
@@ -3869,7 +3869,7 @@ namespace
 
         if (chunk.EqualTo(&check) == 0)
         {
-            Fatal(0, badChunkMessage, nullptr);
+            Fatal(0, badChunkMessage);
         }
 
         vehicle->AddWeaponFireChunk(0, &chunk);
@@ -4241,7 +4241,7 @@ auto MCGroundVehicle::FireWeapon(MCGameObject* target, float targetTime, int32_t
                     targetHotSpot = TargetHotSpotOf(target, hitLocation);
                 }
 
-                Assert(hitLocation != -2 ? 1 : 0, 0, " GroundVehicle.FireWeapon: Bad Hit Location ", nullptr);
+                Assert(hitLocation != -2 ? 1 : 0, 0, " GroundVehicle.FireWeapon: Bad Hit Location ");
                 MCWeaponShotInfo shot;
                 shot.Init(this, item.MasterID, fired.Damage * static_cast<float>(missilesLeft), hitLocation,
                           entryAngle);
@@ -4271,7 +4271,7 @@ auto MCGroundVehicle::FireWeapon(MCGameObject* target, float targetTime, int32_t
                 hitLocation = target->CalcHitLocation(this, weaponIndex, 0, attackType);
             }
 
-            Assert(hitLocation != -2 ? 1 : 0, 0, " GroundVehicle.FireWeapon: Bad Hit Location ", nullptr);
+            Assert(hitLocation != -2 ? 1 : 0, 0, " GroundVehicle.FireWeapon: Bad Hit Location ");
             MCWeaponShotInfo shot;
             shot.Init(this, item.MasterID, fired.Damage, hitLocation, entryAngle);
 
@@ -4376,16 +4376,15 @@ auto MCGroundVehicle::HandleWeaponFire(int32_t weaponIndex, MCGameObject* target
 
     if (hit == 0)
     {
-        Assert(target == nullptr ? 1 : 0, 0, " GVehicl.handleWeaponFire: target should be NULL with network miss! ",
-               nullptr);
+        Assert(target == nullptr ? 1 : 0, 0, " GVehicl.handleWeaponFire: target should be NULL with network miss! ");
         Assert(targetPoint != nullptr ? 1 : 0, 0,
-               " GVehicl.handleWeaponFire: MUST have targetpoint with network miss! ", nullptr);
+               " GVehicl.handleWeaponFire: MUST have targetpoint with network miss! ");
 
         if (isStreak != 0)
         {
             CurMoverWeaponFireChunk.Unpack(this);
             DebugWeaponFireChunk(&CurMoverWeaponFireChunk, nullptr, this);
-            Assert(0, 0, " GVehicl.handleWeaponFire: streaks shouldn't miss! ", nullptr);
+            Assert(0, 0, " GVehicl.handleWeaponFire: streaks shouldn't miss! ");
         }
 
         if (numShots != UNLIMITED_SHOTS)
@@ -4427,7 +4426,7 @@ auto MCGroundVehicle::HandleWeaponFire(int32_t weaponIndex, MCGameObject* target
             {
                 MCGameObject* fx = CreateWeaponFX(fired);
                 Assert(hitLocation != -2 ? 1 : 0, static_cast<uint32_t>(TargetRolo),
-                       " GroundVehicle.handleWeaponFire: Bad Hit Location ", nullptr);
+                       " GroundVehicle.handleWeaponFire: Bad Hit Location ");
                 const int32_t targetHotSpot = TargetHotSpotOf(target, hitLocation);
                 shot.Init(this, item.MasterID, fired.Damage * static_cast<float>(missilesPastAMS), hitLocation,
                           entryAngle);

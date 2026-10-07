@@ -2,8 +2,10 @@
 #include "iface/parser.h"
 #include "ai/tacordr.h"
 #include "iface/iface.h"
-#include "lib/aerror.h"
-#include "lib/cvmath.h"
+#include "lib/MCFatal.h"
+#include "lib/MCFrameOfRef.h"
+#include "lib/MCVector2D.h"
+#include "lib/MCDice.h"
 #include "network/multplyr.h"
 #include "object/gameobj.h"
 #include "object/group.h"
@@ -398,7 +400,7 @@ auto MCParser::SendTacOrder(MCTacticalOrder order, int sortMovers) -> int
         if (jumpToObject)
         {
             order.Code = TACTICAL_ORDER_JUMPTO_POINT;
-            Assert(order.Target != nullptr, 0, " JumpToObject is NULL ", nullptr);
+            Assert(order.Target != nullptr, 0, " JumpToObject is NULL ");
             order.SetWayPoint(0, order.Target->GetPosition());
         }
 

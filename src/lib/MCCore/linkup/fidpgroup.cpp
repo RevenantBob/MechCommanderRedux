@@ -1,7 +1,7 @@
 #include "stdafx.h"
 #include "linkup/fidpgroup.h"
 #include "linkup/sessionmanager.h"
-#include "lib/aerror.h"
+#include "lib/MCFatal.h"
 
 MCFidpGroup::MCFidpGroup()
 {
@@ -125,5 +125,5 @@ void MCFidpGroup::ClearList(MCFLinkedList<MCFidpGroup>& list)
         delete group;
     }
 
-    Assert(list.Count == 0, 0, nullptr);
+    Assert(list.Count == 0, 0);
 }

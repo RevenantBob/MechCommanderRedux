@@ -4,7 +4,7 @@
 #include "abl/ablenv.h"
 #include "abl/ablexec.h"
 #include "abl/ablscan.h"
-#include "lib/aerror.h"
+#include "lib/MCFatal.h"
 
 // The original's syntaxErrorMessages held 62 entries and runtimeErrorMessages followed it in memory, so syntax
 // errors 62 .. 69 read the runtime messages. The port spells those out (same text).

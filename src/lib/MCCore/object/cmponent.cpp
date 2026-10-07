@@ -1,7 +1,7 @@
 #include "stdafx.h"
 #include "object/cmponent.h"
-#include "lib/aerror.h"
-#include "lib/file.h"
+#include "lib/MCFatal.h"
+#include "lib/MCFile.h"
 
 const char* ComponentFormString[21] = {
     "Simple",       "Cockpit",         "Sensors",       "Actuator", "Engine",  "HeatSink", "Weapon",
@@ -277,7 +277,7 @@ auto InitMasterComponentListExcel(char* fileName, int32_t numComponents, float w
     MasterInnerSphereAntiMissileSystemID = -1;
 
     MCFile componentFile;
-    int32_t result = componentFile.Open(fileName, READ, 0x32);
+    int32_t result = componentFile.Open(fileName);
 
     if (result != 0)
     {

@@ -13,13 +13,15 @@
 #include "gui/updisp.h"
 #include "iface/icallbk.h"
 #include "iface/iface.h"
-#include "lib/aerror.h"
-#include "lib/cident.h"
-#include "lib/cvmath.h"
-#include "lib/ffile.h"
-#include "lib/file.h"
-#include "lib/inifile.h"
-#include "lib/packet.h"
+#include "lib/MCFatal.h"
+#include "lib/MCIDString.h"
+#include "lib/MCFrameOfRef.h"
+#include "lib/MCVector2D.h"
+#include "lib/MCDice.h"
+#include "lib/MCFastFile.h"
+#include "lib/MCFile.h"
+#include "lib/MCFitIniFile.h"
+#include "lib/MCPacketFile.h"
 #include "linkup/dpmessage.h"
 #include "linkup/dpplayer.h"
 #include "linkup/ficommonnetwork.h"
@@ -1829,13 +1831,13 @@ auto CreatePaletteFromGif(char* fileName) -> void*
     MCFile gifFile;
     std::snprintf(path, sizeof(path), "%s%s", PalettePath, fileName);
 
-    if (FileExists(path) == 0)
+    if (!FileExists(path))
     {
         std::snprintf(message, sizeof(message), "Unable to find '%s'", path);
         GeneralMsg(message);
     }
 
-    gifFile.Open(path, READ, 50);
+    gifFile.Open(path);
     const uint32_t size = gifFile.FileSize();
 
     if (size == 0)
@@ -1968,12 +1970,12 @@ auto SendAndReceiveTestMessages() -> void
 auto StartMultiplayerGame(char* commandLine) -> int
 {
     int started = 0;
-    MCFullPathFileName fileName;
+    std::string fileName;
     MCFitIniFile gameFile;
     MCInput::GetAsyncKeyState(VK_ESCAPE);
-    fileName.Init(MissionPath, commandLine, "");
+    fileName = GamePath(MissionPath, commandLine, "");
 
-    if (gameFile.Open(fileName, READ, 50) != 0 || gameFile.SeekBlock("Multiplayer") != 0)
+    if (gameFile.Open(fileName) != 0 || gameFile.SeekBlock("Multiplayer") != 0)
     {
         return 0;
     }
@@ -3389,11 +3391,11 @@ auto GetPaletteFromArt(char* fileName) -> MCVfxRgb*
     MCFile artFileHandle;
     std::snprintf(path, sizeof(path), "%s%s", ArtPath, fileName);
 
-    if (artFileHandle.Open(path, READ, 50) != 0)
+    if (artFileHandle.Open(path) != 0)
     {
         MCPort::StrCopy(path, sizeof(path), fileName);
 
-        if (artFileHandle.Open(path, READ, 50) != 0)
+        if (artFileHandle.Open(path) != 0)
         {
             std::snprintf(message, sizeof(message), "Error reading '%s'", path);
             GeneralMsg(message);
@@ -3590,10 +3592,10 @@ auto MCGuiSystem::Start(void* instance, void* prevInstance, char* commandLine, i
     ArtFile = new MCPacketFile;
     Assert(ArtFile != nullptr, 0, "Not enough RAM for artFile (Something's way wrong...)");
     {
-        MCFullPathFileName artFileName;
-        artFileName.Init(ArtPath, "art", ".pak");
+        std::string artFileName;
+        artFileName = GamePath(ArtPath, "art", ".pak");
 
-        if (ArtFile->Open(artFileName, READ, 50) != 0)
+        if (ArtFile->Open(artFileName) != 0)
         {
             Fatal(0, "Error opening art file");
         }
@@ -3606,16 +3608,16 @@ auto MCGuiSystem::Start(void* instance, void* prevInstance, char* commandLine, i
     CursorShapeBlocks.Clear();
     CursorShapeTable.fill(nullptr);
     CursorShapes = CursorShapeTable.data();
-    MCFullPathFileName cursorFileName;
-    cursorFileName.Init(SpritePath, "cursors", ".pak");
+    std::string cursorFileName;
+    cursorFileName = GamePath(SpritePath, "cursors", ".pak");
     MCPacketFile* cursorFile = new MCPacketFile;
 
-    if (cursorFile->Open(cursorFileName, READ, 50) != 0)
+    if (cursorFile->Open(cursorFileName) != 0)
     {
-        MCFullPathFileName cdCursorFileName;
-        cdCursorFileName.Init(CDspritePath, "cursors", ".pak");
+        std::string cdCursorFileName;
+        cdCursorFileName = GamePath(CDspritePath, "cursors", ".pak");
 
-        if (cursorFile->Open(cdCursorFileName, READ, 50) != 0)
+        if (cursorFile->Open(cdCursorFileName) != 0)
         {
             Fatal(0, "Cannot find cursors.pak file");
         }
@@ -3853,12 +3855,6 @@ auto MCGuiSystem::Stop() -> void
     // The cursor shapes went with systemHeap in the original.
     CursorShapes = nullptr;
     CursorShapeBlocks.Clear();
-
-    if (LZPacketBuffer != nullptr)
-    {
-        std::free(LZPacketBuffer);
-        LZPacketBuffer = nullptr;
-    }
 
     // Port: the original repainted the desktop (InvalidateRect of every window).
 }
@@ -4385,11 +4381,11 @@ auto MCGuiSystem::ActivatePaletteFromTga(char* fileName) -> void
     MCFile tgaFile;
     std::snprintf(path, sizeof(path), "%s%s", ArtPath, fileName);
 
-    if (tgaFile.Open(path, READ, 50) != 0)
+    if (tgaFile.Open(path) != 0)
     {
         MCPort::StrCopy(path, sizeof(path), fileName);
 
-        if (tgaFile.Open(path, READ, 50) != 0)
+        if (tgaFile.Open(path) != 0)
         {
             std::snprintf(message, sizeof(message), "Error reading '%s'", path);
             GeneralMsg(message);
@@ -4425,13 +4421,13 @@ auto MCGuiSystem::ActivatePaletteFromGif(char* fileName) -> void
     MCFile gifFile;
     std::snprintf(path, sizeof(path), "%s%s", PalettePath, fileName);
 
-    if (FileExists(path) == 0)
+    if (!FileExists(path))
     {
         std::strncpy(path, fileName, 0x7f);
         Assert(FileExists(path), 0, "Unable to find palette .gif");
     }
 
-    gifFile.Open(path, READ, 50);
+    gifFile.Open(path);
     const uint32_t size = gifFile.FileSize();
     Assert(size != 0, 0, "Error reading from palette gif");
     std::vector<uint8_t> gif(size);

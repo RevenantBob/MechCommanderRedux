@@ -1,6 +1,6 @@
 #include "stdafx.h"
 #include "object/objwtch.h"
-#include "lib/aerror.h"
+#include "lib/MCFatal.h"
 
 MCObjectWatcherList* ObjectWatchers = nullptr;
 
@@ -29,7 +29,7 @@ auto MCObjectWatcherList::Watch(MCBaseObject** watcher) -> void
         return;
     }
 
-    Fatal(static_cast<int32_t>(0xfeef0002), " Out of Object Watchers ", nullptr);
+    Fatal(static_cast<int32_t>(0xfeef0002), " Out of Object Watchers ");
 }
 
 auto MCObjectWatcherList::RemoveObject(MCBaseObject* obj) -> int32_t

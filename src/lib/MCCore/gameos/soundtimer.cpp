@@ -1,6 +1,6 @@
 #include "stdafx.h"
 #include "gameos/soundtimer.h"
-#include "lib/aerror.h"
+#include "lib/MCFatal.h"
 
 namespace
 {

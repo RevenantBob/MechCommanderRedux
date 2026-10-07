@@ -9,7 +9,7 @@
 #include <iostream>
 #include <string>
 
-#include "lib/aerror.h"
+#include "lib/MCFatal.h"
 #include "platform/MCAllocator.h"
 
 namespace

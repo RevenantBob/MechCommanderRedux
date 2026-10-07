@@ -10,10 +10,10 @@
 #include "gui/asystem.h"
 #include "gui/awindow.h"
 #include "iface/iface.h"
-#include "lib/aerror.h"
-#include "lib/cident.h"
-#include "lib/file.h"
-#include "lib/inifile.h"
+#include "lib/MCFatal.h"
+#include "lib/MCIDString.h"
+#include "lib/MCFile.h"
+#include "lib/MCFitIniFile.h"
 #include "linkup/sessionmanager.h"
 #include "logistics/logbri.h"
 #include "logistics/logmain.h"
@@ -95,10 +95,10 @@ namespace
     /// <summary>Loads a shape file of artPath into the object cache (the pause and asked shapes).</summary>
     auto LoadShape(const char* name, const char* errorMessage) -> uint8_t*
     {
-        MCFullPathFileName shapeName;
-        shapeName.Init(ArtPath, name, ".shp");
+        std::string shapeName;
+        shapeName = GamePath(ArtPath, name, ".shp");
         MCFile shapeFile;
-        const int32_t result = shapeFile.Open(shapeName, READ, 50);
+        const int32_t result = shapeFile.Open(shapeName);
         Assert(result == 0, static_cast<uint32_t>(result), errorMessage);
         const uint32_t size = shapeFile.FileSize();
         auto* shape = static_cast<uint8_t*>(MCObjectTypeManager::ObjectCache.Allocate(size));

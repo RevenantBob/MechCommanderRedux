@@ -2,6 +2,8 @@
 
 #include "platform/MCServices.h"
 
+class MCFastFileSet;
+
 /// <summary>
 /// Everything the game reaches for that a test may want to replace: the port services (clock, dice, files, sound
 /// output, network) and, as the modernization moves them here, the game's own systems. Game code asks
@@ -23,6 +25,7 @@ public:
     /// <summary>A context with no services of its own: each comes from <paramref name="parent"/>.</summary>
     explicit MCGameContext(MCGameContext* parent);
 
+    ~MCGameContext();
     MCGameContext(const MCGameContext&) = delete;
     MCGameContext& operator=(const MCGameContext&) = delete;
 
@@ -40,6 +43,9 @@ public:
 
     /// <summary>The network.</summary>
     MCNetTransport& Net() const;
+
+    /// <summary>The FastFiles the game has open.</summary>
+    MCFastFileSet& FastFiles() const;
 
     /// <summary>Gives this context its own clock.</summary>
     /// <returns>The clock, still reachable as its own type.</returns>
@@ -72,6 +78,9 @@ public:
         return Install(_Net, std::move(net));
     }
 
+    /// <summary>Gives this context its own set of FastFiles.</summary>
+    MCFastFileSet& SetFastFiles(std::unique_ptr<MCFastFileSet> fastFiles);
+
 private:
     friend class MCTestContextScope;
 
@@ -93,6 +102,7 @@ private:
     std::unique_ptr<MCFileSource> _Files;
     std::unique_ptr<MCAudioDevice> _Audio;
     std::unique_ptr<MCNetTransport> _Net;
+    std::unique_ptr<MCFastFileSet> _FastFiles;
 };
 
 /// <summary>

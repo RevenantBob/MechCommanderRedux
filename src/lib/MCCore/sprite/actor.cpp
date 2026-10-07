@@ -5,9 +5,8 @@
 #include "engine/cepane.h"
 #include "engine/cepoly.h"
 #include "engine/cevfx.h"
-#include "lib/aerror.h"
-#include "lib/inifile.h"
-#include "lib/routines.h"
+#include "lib/MCFatal.h"
+#include "lib/MCFitIniFile.h"
 #include "main/main.h"
 #include "object/gameobj.h"
 #include "object/tbldng.h"
@@ -114,7 +113,7 @@ auto MCVfxAppearanceType::Init(MCFile* apprFile, uint32_t fileSize, uint32_t loa
         return NO_DATA_RAM;
     }
 
-    Memclear(ShapeList, static_cast<int>(listSize));
+    std::memset(ShapeList, 0, listSize);
     KeepLoaded = static_cast<int32_t>(loadFlags);
 
     if (loadFlags != 0)
@@ -151,7 +150,7 @@ auto MCVfxAppearanceType::RemoveShape(MCShape* shape) -> void
 auto MCVfxAppearanceType::LoadIniFile(MCFile* apprFile, uint32_t fileSize) -> int32_t
 {
     MCFitIniFile iniFile;
-    int32_t result = iniFile.Open(apprFile, fileSize, 50);
+    int32_t result = iniFile.Open(apprFile, fileSize);
 
     if (result != 0)
     {
@@ -201,7 +200,7 @@ auto MCVfxAppearanceType::LoadIniFile(MCFile* apprFile, uint32_t fileSize) -> in
         return NO_DATA_RAM;
     }
 
-    Memclear(ActorStateData, stateTableSize);
+    std::memset(ActorStateData, 0, stateTableSize);
 
     for (int32_t i = 0; i < NumStates; i++)
     {
@@ -251,7 +250,7 @@ auto MCVfxAppearanceType::LoadIniFile(MCFile* apprFile, uint32_t fileSize) -> in
             return NO_DATA_RAM;
         }
 
-        Memclear(ActorSubStateData, static_cast<int>(subTableSize));
+        std::memset(ActorSubStateData, 0, subTableSize);
 
         for (int32_t j = 0; j < numSubStates; j++)
         {
@@ -671,7 +670,7 @@ auto MCVfxAppearance::Update() -> int32_t
 
     if (frames < static_cast<float>(played))
     {
-        Fatal(played, " Frame Count wrong", nullptr);
+        Fatal(played, " Frame Count wrong");
     }
 
     const int32_t wholeFrames = static_cast<int32_t>(std::floor(static_cast<double>(frames)));

@@ -1,5 +1,5 @@
 #include "stdafx.h"
-#include "lib/llist.h"
+#include "lib/MCLinkedList.h"
 
 void MCLinkedList::AddToHead(MCLink* link)
 {
@@ -107,7 +107,7 @@ void MCLinkedList::Remove(MCLink* link, MCLink* previous)
     {
         previous->Next = link->Next;
 
-        // Original behaviour: head can only equal link here when a wrong previous was passed.
+        // As in the original: the head can only be the link here when the caller passed a wrong previous.
         if (_Head == link)
         {
             _Head = link->Next;
@@ -129,7 +129,7 @@ void MCLinkedList::Kill()
     _Head = nullptr;
 }
 
-int MCLinkedList::Traverse(MCLink*& link)
+bool MCLinkedList::Traverse(MCLink*& link)
 {
     if (link == nullptr)
     {

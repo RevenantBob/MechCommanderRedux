@@ -1,7 +1,7 @@
 #include "stdafx.h"
 #include "camera/camlist.h"
-#include "lib/cident.h"
-#include "lib/inifile.h"
+#include "lib/MCIDString.h"
+#include "lib/MCFitIniFile.h"
 #include "terrain/terrain.h"
 
 char CameraPath[80] = "data\\cameras\\";
@@ -38,11 +38,11 @@ auto MCCameraList::Destroy() -> void
 auto MCCameraList::Init(char* fileName) -> int32_t
 {
     int32_t result = 0;
-    MCFullPathFileName cameraName;
-    cameraName.Init(CameraPath, fileName, ".fit");
+    std::string cameraName;
+    cameraName = GamePath(CameraPath, fileName, ".fit");
     MCFitIniFile cameraFile;
 
-    if ((result = cameraFile.Open(cameraName, READ, 50)) != 0)
+    if ((result = cameraFile.Open(cameraName)) != 0)
     {
         return result;
     }

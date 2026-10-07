@@ -1,8 +1,8 @@
 #include "stdafx.h"
 #include "logistics/lport.h"
 #include "gui/aanim.h"
-#include "lib/aerror.h"
-#include "lib/file.h"
+#include "lib/MCFatal.h"
+#include "lib/MCFile.h"
 #include "logistics/logbri.h"
 #include "logistics/logmain.h"
 #include "main/logistics.h"
@@ -145,11 +145,11 @@ auto MCLogPort::Init(char* fileName) -> int32_t
     MCFile file;
     std::snprintf(path, sizeof(path), "%s%s", ArtPath, fileName);
 
-    if (file.Open(path, READ, 0x32) != 0)
+    if (file.Open(path) != 0)
     {
         std::snprintf(path, sizeof(path), "%s", fileName);
 
-        if (file.Open(path, READ, 0x32) != 0)
+        if (file.Open(path) != 0)
         {
             std::snprintf(message, sizeof(message), "Error reading '%s'", fileName);
             GeneralMsg(message);

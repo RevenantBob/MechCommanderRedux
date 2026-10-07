@@ -11,7 +11,7 @@
 #include "abl/ablsymt.h"
 #include "abl/ablxstd.h"
 #include "abl/ablxstmt.h"
-#include "lib/aerror.h"
+#include "lib/MCFatal.h"
 
 int32_t MaxBreaks = 50;
 int32_t MaxWatches = 50;

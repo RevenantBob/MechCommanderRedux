@@ -5,11 +5,13 @@
 #include "engine/ceglist.h"
 #include "engine/cevfx.h"
 #include "gui/asystem.h"
-#include "lib/aerror.h"
-#include "lib/cident.h"
-#include "lib/cvmath.h"
-#include "lib/file.h"
-#include "lib/inifile.h"
+#include "lib/MCFatal.h"
+#include "lib/MCIDString.h"
+#include "lib/MCFrameOfRef.h"
+#include "lib/MCVector2D.h"
+#include "lib/MCDice.h"
+#include "lib/MCFile.h"
+#include "lib/MCFitIniFile.h"
 #include "logistics/logmain.h"
 #include "main/main.h"
 #include "object/object.h"
@@ -142,7 +144,7 @@ auto MCSmokeType::Destroy() -> void
 auto MCSmokeType::Init(MCFile* objFile, uint32_t fileSize) -> int32_t
 {
     MCFitIniFile smokeFile;
-    int32_t result = smokeFile.Open(objFile, fileSize, 50);
+    int32_t result = smokeFile.Open(objFile, fileSize);
 
     if (result != 0)
     {
@@ -233,11 +235,11 @@ auto MCSmokeType::Init(MCFile* objFile, uint32_t fileSize) -> int32_t
         return result;
     }
 
-    MCFullPathFileName shapePath;
-    shapePath.Init(ShapesPath, shapeName, ".shp");
+    std::string shapePath;
+    shapePath = GamePath(ShapesPath, shapeName, ".shp");
     MCFile shapeFile;
 
-    if ((result = shapeFile.Open(shapePath, READ, 50)) != 0)
+    if ((result = shapeFile.Open(shapePath)) != 0)
     {
         return result;
     }

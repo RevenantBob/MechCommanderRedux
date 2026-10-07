@@ -7,10 +7,12 @@
 #include "engine/bitflag.h"
 #include "engine/ceglist.h"
 #include "engine/cellip.h"
-#include "lib/aerror.h"
-#include "lib/cvmath.h"
-#include "lib/file.h"
-#include "lib/inifile.h"
+#include "lib/MCFatal.h"
+#include "lib/MCFrameOfRef.h"
+#include "lib/MCVector2D.h"
+#include "lib/MCDice.h"
+#include "lib/MCFile.h"
+#include "lib/MCFitIniFile.h"
 #include "main/main.h"
 #include "network/multplyr.h"
 #include "object/bldng.h"
@@ -77,7 +79,7 @@ auto MCTerrainObjectType::Destroy() -> void
 auto MCTerrainObjectType::Init(MCFile* objFile, uint32_t fileSize) -> int32_t
 {
     MCFitIniFile objectFile;
-    int32_t result = objectFile.Open(objFile, fileSize, 50);
+    int32_t result = objectFile.Open(objFile, fileSize);
 
     if (result != 0)
     {

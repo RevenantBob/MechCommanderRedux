@@ -3,7 +3,7 @@
 #include "linkup/dpmessage.h"
 #include "linkup/ficommonnetwork.h"
 #include "linkup/sessionmanager.h"
-#include "lib/aerror.h"
+#include "lib/MCFatal.h"
 #include "platform/MCFileSystem.h"
 
 char HomeDirectory[512];

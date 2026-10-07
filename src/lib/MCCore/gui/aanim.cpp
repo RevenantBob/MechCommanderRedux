@@ -1,8 +1,8 @@
 #include "stdafx.h"
 #include "gui/aanim.h"
 #include "gui/asystem.h"
-#include "lib/aerror.h"
-#include "lib/file.h"
+#include "lib/MCFatal.h"
+#include "lib/MCFile.h"
 #include "logistics/logbri.h"
 #include "platform/MCRenderer.h"
 #include "vfx/vfxfuncs.h"
@@ -80,7 +80,7 @@ auto MCGuiAnimation::LoadShape(char* fileName) -> int32_t
     char path[128];
     std::snprintf(path, sizeof(path), "%s%s", ArtPath, fileName);
 
-    if (FileExists(path) == 0)
+    if (!FileExists(path))
     {
         char message[256];
         std::snprintf(message, sizeof(message), "Unable to find '%s'", path);
@@ -88,7 +88,7 @@ auto MCGuiAnimation::LoadShape(char* fileName) -> int32_t
         return -1;
     }
 
-    file.Open(path, READ, 0x32);
+    file.Open(path);
     const uint32_t size = file.FileSize();
 
     if (size == 0)

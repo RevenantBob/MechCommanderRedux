@@ -1,7 +1,7 @@
 #include "stdafx.h"
 #include "linkup/dpmessage.h"
 #include "linkup/sessionmanager.h"
-#include "lib/aerror.h"
+#include "lib/MCFatal.h"
 
 MCFidpMessage::MCFidpMessage(uint32_t toID, uint32_t bufferSize)
 {

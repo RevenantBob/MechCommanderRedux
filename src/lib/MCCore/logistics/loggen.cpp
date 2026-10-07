@@ -3,11 +3,11 @@
 #include "color/color.h"
 #include "gui/afont.h"
 #include "gui/updisp.h"
-#include "lib/aerror.h"
-#include "lib/cident.h"
-#include "lib/file.h"
-#include "lib/inifile.h"
-#include "lib/packet.h"
+#include "lib/MCFatal.h"
+#include "lib/MCIDString.h"
+#include "lib/MCFile.h"
+#include "lib/MCFitIniFile.h"
+#include "lib/MCPacketFile.h"
 #include "linkup/linkedlist.hpp"
 #include "linkup/session.h"
 #include "linkup/sessionmanager.h"
@@ -126,43 +126,43 @@ namespace
         if (MCPort::StrICmp(art, "NONE") != 0)
         {
             result = button->SetUpPicture(art);
-            Assert(result == 0, result, " Couldn't locate button upPicture image ", nullptr);
+            Assert(result == 0, result, " Couldn't locate button upPicture image ");
         }
 
         result = file->ReadIdString("GreyArt", art, 0xf9);
-        Assert(result == 0, result, " Could not Find gray button art in Generic Screen ", nullptr);
+        Assert(result == 0, result, " Could not Find gray button art in Generic Screen ");
 
         if (MCPort::StrICmp(art, "NONE") != 0)
         {
             result = button->SetGrayPicture(art);
-            Assert(result == 0, result, " Couldn't locate button grayPicture image ", nullptr);
+            Assert(result == 0, result, " Couldn't locate button grayPicture image ");
         }
 
         result = file->ReadIdString("PressArt", art, 0xf9);
-        Assert(result == 0, result, " Could not Find down button art in Generic Screen ", nullptr);
+        Assert(result == 0, result, " Could not Find down button art in Generic Screen ");
 
         if (MCPort::StrICmp(art, "NONE") != 0)
         {
             result = button->SetDownPicture(art);
-            Assert(result == 0, result, " Couldn't locate button downPicture image ", nullptr);
+            Assert(result == 0, result, " Couldn't locate button downPicture image ");
         }
 
         result = file->ReadIdString("OverArt", art, 0xf9);
-        Assert(result == 0, result, " Could not Find button rollover art in Generic Screen ", nullptr);
+        Assert(result == 0, result, " Could not Find button rollover art in Generic Screen ");
 
         if (MCPort::StrICmp(art, "NONE") != 0)
         {
             result = button->SetOverPicture(art);
             // The original reports the down picture's message here too.
-            Assert(result == 0, result, " Couldn't locate button downPicture image ", nullptr);
+            Assert(result == 0, result, " Couldn't locate button downPicture image ");
         }
 
         int32_t sound = 0;
         result = file->ReadIdLong("OverSFX", sound);
-        Assert(result == 0, result, " Could not Find Element Sound in Generic Screen ", nullptr);
+        Assert(result == 0, result, " Could not Find Element Sound in Generic Screen ");
         button->OverSound = static_cast<uint32_t>(sound);
         result = file->ReadIdLong("PressSFX", sound);
-        Assert(result == 0, result, " Could not Find Element Sound in Generic Screen ", nullptr);
+        Assert(result == 0, result, " Could not Find Element Sound in Generic Screen ");
         button->PressSound = static_cast<uint32_t>(sound);
         return file->ReadIdLong("Callback", callback) == 0;
     }
@@ -255,33 +255,33 @@ namespace
         char blockName[20];
         std::snprintf(blockName, sizeof(blockName), "Element%d", index);
         int32_t result = file->SeekBlock(blockName);
-        Assert(result == 0, result, " Could not Find Element block in Generic Screen ", nullptr);
+        Assert(result == 0, result, " Could not Find Element block in Generic Screen ");
         type = -1;
         result = file->ReadIdLong("ElementType", type);
-        Assert(result == 0, result, " Could not Find Element Type in Generic Screen ", nullptr);
+        Assert(result == 0, result, " Could not Find Element Type in Generic Screen ");
         result = file->ReadIdLong("Left", left);
-        Assert(result == 0, result, " Could not Find Element Coord in Generic Screen ", nullptr);
+        Assert(result == 0, result, " Could not Find Element Coord in Generic Screen ");
         result = file->ReadIdLong("Top", top);
-        Assert(result == 0, result, " Could not Find Element Coord in Generic Screen ", nullptr);
+        Assert(result == 0, result, " Could not Find Element Coord in Generic Screen ");
         result = file->ReadIdLong("Width", width);
-        Assert(result == 0, result, " Could not Find Element Coord in Generic Screen ", nullptr);
+        Assert(result == 0, result, " Could not Find Element Coord in Generic Screen ");
         result = file->ReadIdLong("Height", height);
-        Assert(result == 0, result, " Could not Find Element Coord in Generic Screen ", nullptr);
+        Assert(result == 0, result, " Could not Find Element Coord in Generic Screen ");
         result = file->ReadIdString("NormalArt", art, 0xf9);
-        Assert(result == 0, result, " Could not Find Element Art in Generic Screen ", nullptr);
+        Assert(result == 0, result, " Could not Find Element Art in Generic Screen ");
     }
 
     /// <summary>Reads the Elements block and allocates the element array.</summary>
     void ReadElementCount(MCFitIniFile* file, MCGenericScreen* screen)
     {
         int32_t result = file->SeekBlock("Elements");
-        Assert(result == 0, result, " Could not Find Elements block in Generic Screen ", nullptr);
+        Assert(result == 0, result, " Could not Find Elements block in Generic Screen ");
         result = file->ReadIdLong("NumElements", screen->NumElements);
-        Assert(result == 0, result, " Could not Find Elements number in Generic Screen ", nullptr);
+        Assert(result == 0, result, " Could not Find Elements number in Generic Screen ");
         // Port fix: sized by the port's pointer size (the original's count * 4 overran the array on 64-bit).
         screen->Elements = static_cast<MCGuiObject**>(
             LogAlloc(static_cast<uint32_t>(sizeof(MCGuiObject*) * static_cast<size_t>(screen->NumElements))));
-        Assert(screen->Elements != nullptr, 0, " No RAM for Generic Screen Elements ", nullptr);
+        Assert(screen->Elements != nullptr, 0, " No RAM for Generic Screen Elements ");
 
         // Port fix: element types 2 and 3 leave their slot unset, which GenericScreen::destroy then deleted.
         if (screen->Elements != nullptr)
@@ -1104,10 +1104,10 @@ auto MCFileScrollPane::DrawFiles() -> void
 auto MCFileScrollPane::GetAllFiles(char* extension, bool sort) -> void
 {
     MCFitIniFile masterFiles[2];
-    MCFullPathFileName pattern;
-    MCFullPathFileName path;
-    pattern.Init(StartDirectory, "*", extension);
-    const std::vector<std::string> found = MCFileSystem::FindFiles(static_cast<char*>(pattern));
+    std::string pattern;
+    std::string path;
+    pattern = GamePath(StartDirectory, "*", extension);
+    const std::vector<std::string> found = MCFileSystem::FindFiles(pattern);
 
     if (NumFiles != 0 && FileNames != nullptr)
     {
@@ -1169,16 +1169,16 @@ auto MCFileScrollPane::GetAllFiles(char* extension, bool sort) -> void
     if (Multiplayer == 0)
     {
         // The operation and mission numbers come from the planets' master mission files (Port Arthur, Cermak).
-        path.Init(MissionPath, "mechcmdr1", ".fit");
-        int32_t result = masterFiles[0].Open(static_cast<char*>(path), READ, 0x32);
-        Assert(result == 0, 0, " could not open Port Arthur master mission file ", nullptr);
+        path = GamePath(MissionPath, "mechcmdr1", ".fit");
+        int32_t result = masterFiles[0].Open(path);
+        Assert(result == 0, 0, " could not open Port Arthur master mission file ");
         result = masterFiles[0].SeekBlock("OpInfo");
-        Assert(result == 0, 0, " could not find operation information in master mission file", nullptr);
-        path.Init(MissionPath, "xmechcmdr1", ".fit");
-        result = masterFiles[1].Open(static_cast<char*>(path), READ, 0x32);
-        Assert(result == 0, 0, " could not open Cermak master mission file ", nullptr);
+        Assert(result == 0, 0, " could not find operation information in master mission file");
+        path = GamePath(MissionPath, "xmechcmdr1", ".fit");
+        result = masterFiles[1].Open(path);
+        Assert(result == 0, 0, " could not open Cermak master mission file ");
         result = masterFiles[1].SeekBlock("OpInfo");
-        Assert(result == 0, 0, " could not find operation information in master mission file", nullptr);
+        Assert(result == 0, 0, " could not find operation information in master mission file");
 
         if (newSlot)
         {
@@ -1191,10 +1191,10 @@ auto MCFileScrollPane::GetAllFiles(char* extension, bool sort) -> void
             int32_t mission = 0;
             std::snprintf(key, sizeof(key), "Scenario%iOperation", GlobalLogPtr->CurrentMission);
             result = master.ReadIdLong(key, operation);
-            Assert(result == 0, 0, " could not find operation number in master mission file ", nullptr);
+            Assert(result == 0, 0, " could not find operation number in master mission file ");
             std::snprintf(key, sizeof(key), "Scenario%iMission", GlobalLogPtr->CurrentMission);
             result = master.ReadIdLong(key, mission);
-            Assert(result == 0, 0, " could not find mission number in master mission file ", nullptr);
+            Assert(result == 0, 0, " could not find mission number in master mission file ");
             FileOperations[0] = operation;
             FileMissions[0] = mission;
             FileResourcePoints[0] = static_cast<uint32_t>(ResourcePoints);
@@ -1210,19 +1210,19 @@ auto MCFileScrollPane::GetAllFiles(char* extension, bool sort) -> void
         const std::string stem = std::filesystem::path(name).stem().string();
         FileNames[index] = static_cast<char*>(LogAlloc(static_cast<uint32_t>(stem.size() + 1)));
         std::sprintf(FileNames[index], "%s", stem.c_str());
-        path.Init(StartDirectory, stem.c_str(), extension);
+        path = GamePath(StartDirectory, stem.c_str(), extension);
 
         if (Multiplayer == 0)
         {
             MCPacketFile saveFile;
             MCFitIniFile saveFit;
             int32_t planet = 0;
-            int32_t result = saveFile.Open(static_cast<char*>(path), READ, 0x32);
-            Assert(result == 0, result, " Could not find save game file ", nullptr);
+            int32_t result = saveFile.Open(path);
+            Assert(result == 0, result, " Could not find save game file ");
             result = saveFile.SeekPacket(0);
-            Assert(result == 0, 0, " could not find packet 0 in save game file ", nullptr);
-            result = saveFit.Open(&saveFile, static_cast<uint32_t>(saveFile.GetPacketSize()), 0x32);
-            Assert(result == 0, 0, " could not open save game file ", nullptr);
+            Assert(result == 0, 0, " could not find packet 0 in save game file ");
+            result = saveFit.Open(&saveFile, static_cast<uint32_t>(saveFile.GetPacketSize()));
+            Assert(result == 0, 0, " could not open save game file ");
 
             if (saveFit.SeekBlock("Planet") == 0)
             {
@@ -1230,14 +1230,14 @@ auto MCFileScrollPane::GetAllFiles(char* extension, bool sort) -> void
             }
 
             result = saveFit.SeekBlock("General");
-            Assert(result == 0, 0, " could not find General Block in campaign file ", nullptr);
+            Assert(result == 0, 0, " could not find General Block in campaign file ");
             int32_t missionNumber = 0;
             result = saveFit.ReadIdLong("MissionNumber", missionNumber);
-            Assert(result == 0, 0, " Could not find MissionNumber in save game file ", nullptr);
+            Assert(result == 0, 0, " Could not find MissionNumber in save game file ");
             result = saveFit.SeekBlock("ResourcePoints");
-            Assert(result == 0, 0, " could not find ResourcePoints Block in save game file ", nullptr);
+            Assert(result == 0, 0, " could not find ResourcePoints Block in save game file ");
             result = saveFit.ReadIdULong("numPoints", FileResourcePoints[index]);
-            Assert(result == 0, 0, " Could not find numPoints in save game file ", nullptr);
+            Assert(result == 0, 0, " Could not find numPoints in save game file ");
             saveFit.Close();
             saveFile.Close();
             char key[64];
@@ -1245,10 +1245,10 @@ auto MCFileScrollPane::GetAllFiles(char* extension, bool sort) -> void
             int32_t mission = 0;
             std::snprintf(key, sizeof(key), "Scenario%iOperation", missionNumber);
             result = masterFiles[planet].ReadIdLong(key, operation);
-            Assert(result == 0, 0, " could not find operation number in master mission file ", nullptr);
+            Assert(result == 0, 0, " could not find operation number in master mission file ");
             std::snprintf(key, sizeof(key), "Scenario%iMission", missionNumber);
             result = masterFiles[planet].ReadIdLong(key, mission);
-            Assert(result == 0, 0, " could not find mission number in master mission file ", nullptr);
+            Assert(result == 0, 0, " could not find mission number in master mission file ");
             FileOperations[index] = operation;
             FileMissions[index] = mission;
         }
@@ -1373,11 +1373,11 @@ auto MCGenericScreen::GetPaletteFromArt(char* fileName) -> uint8_t*
     MCFile file;
     std::snprintf(path, sizeof(path), "%s%s", ArtPath, fileName);
 
-    if (file.Open(path, READ, 0x32) != 0)
+    if (file.Open(path) != 0)
     {
         std::snprintf(path, sizeof(path), "%s", fileName);
 
-        if (file.Open(path, READ, 0x32) != 0)
+        if (file.Open(path) != 0)
         {
             std::snprintf(message, sizeof(message), "Error reading '%s'", path);
             GeneralMsg(message);
@@ -1437,10 +1437,10 @@ auto MCGenericScreen::Init(MCFitIniFile* screenFile) -> int32_t
             case 0:
             {
                 // The background: the screen itself.
-                Assert(i == 0, i, " Background MUST be first element ", nullptr);
+                Assert(i == 0, i, " Background MUST be first element ");
                 int useBackPalette = 0;
                 int32_t result = screenFile->ReadIdBoolean("UseBackPalette", useBackPalette);
-                Assert(result == 0, result, " Could not find UseBackPalette for background Generic Screen", nullptr);
+                Assert(result == 0, result, " Could not find UseBackPalette for background Generic Screen");
 
                 if (useBackPalette != 0)
                 {
@@ -1448,10 +1448,10 @@ auto MCGenericScreen::Init(MCFitIniFile* screenFile) -> int32_t
                 }
 
                 result = MCLogObject::Init(left, top, width, height, nullptr, nullptr);
-                Assert(result == 0, result, " Could not start background Generic Screen ", nullptr);
+                Assert(result == 0, result, " Could not start background Generic Screen ");
                 ArtPort = new MCLogPort;
                 result = ArtPort->Init(art);
-                Assert(result == 0, result, " Could not find background Art in Generic Screen ", nullptr);
+                Assert(result == 0, result, " Could not find background Art in Generic Screen ");
                 Elements[i] = this;
                 break;
             }
@@ -1460,7 +1460,7 @@ auto MCGenericScreen::Init(MCFitIniFile* screenFile) -> int32_t
             {
                 auto* button = new MCLogButton;
                 const int32_t result = button->Init(left, top, width, height, nullptr);
-                Assert(result == 0, result, " Couldn't init new button ", nullptr);
+                Assert(result == 0, result, " Couldn't init new button ");
                 int32_t callback = 0;
 
                 if (ReadButton(screenFile, button, art, callback) && !SetScreenCallback(this, button, callback))
@@ -1708,11 +1708,11 @@ auto MCSplashScreen::Init(MCFitIniFile* screenFile) -> int32_t
     if (screenFile->SeekBlock("Blocks") == 0)
     {
         int32_t result = screenFile->ReadIdLong("Block Count", NumBlocks);
-        Assert(result == 0, result, " Could not find block count in Generic Screen ", nullptr);
+        Assert(result == 0, result, " Could not find block count in Generic Screen ");
         // Port fix: sized by the port's pointer size (the original: count * 4).
         Blocks =
             static_cast<uint8_t**>(LogAlloc(static_cast<uint32_t>(sizeof(uint8_t*) * static_cast<size_t>(NumBlocks))));
-        Assert(Blocks != nullptr, 0, " No RAM for Generic Screen Block Array ", nullptr);
+        Assert(Blocks != nullptr, 0, " No RAM for Generic Screen Block Array ");
         const uint32_t blockSize = static_cast<uint32_t>(NumElements);
 
         for (int32_t i = 0; i < NumBlocks; i++)
@@ -1740,18 +1740,18 @@ auto MCSplashScreen::Init(MCFitIniFile* screenFile) -> int32_t
             case 0:
             {
                 // The background: the shared port, reloaded only when the art changes.
-                Assert(i == 0, i, " If there's a background it MUST be the first element ", nullptr);
+                Assert(i == 0, i, " If there's a background it MUST be the first element ");
 
                 if (MCPort::StrICmp(_GenericPortFileName, art) != 0)
                 {
                     std::strcpy(_GenericPortFileName, art);
                     const int32_t result = _GenericPort->Init(art);
-                    Assert(result == 0, result, " Could not find background Art in Generic Screen ", nullptr);
+                    Assert(result == 0, result, " Could not find background Art in Generic Screen ");
                 }
 
                 int useBackPalette = 0;
                 int32_t result = screenFile->ReadIdBoolean("UseBackPalette", useBackPalette);
-                Assert(result == 0, result, " Could not find UseBackPalette for background Generic Screen", nullptr);
+                Assert(result == 0, result, " Could not find UseBackPalette for background Generic Screen");
 
                 if (useBackPalette != 0)
                 {
@@ -1760,7 +1760,7 @@ auto MCSplashScreen::Init(MCFitIniFile* screenFile) -> int32_t
 
                 // The screen draws the shared art each frame (the original made the shared port its own).
                 result = MCLogObject::Init(left, top, width, height, nullptr, nullptr);
-                Assert(result == 0, result, " Could not start background Generic Screen ", nullptr);
+                Assert(result == 0, result, " Could not start background Generic Screen ");
                 ArtPort = _GenericPort;
                 Elements[i] = this;
                 continue;
@@ -1771,7 +1771,7 @@ auto MCSplashScreen::Init(MCFitIniFile* screenFile) -> int32_t
                 auto* button = new MCLogButton;
                 const int32_t result = button->Init(left, top, width, height, nullptr);
                 button->SetTransparent(-1);
-                Assert(result == 0, result, " Couldn't init new button ", nullptr);
+                Assert(result == 0, result, " Couldn't init new button ");
                 int32_t callback = 0;
 
                 if (ReadButton(screenFile, button, art, callback))
@@ -1898,7 +1898,7 @@ auto MCSplashScreen::Init(MCFitIniFile* screenFile) -> int32_t
                 text->Init(left, top, width, height, nullptr);
                 int scrolling = 0;
                 const int32_t result = screenFile->ReadIdBoolean("Scrolling", scrolling);
-                Assert(result == 0, result, " Couldn't locate Scrolling in textscrollpane ", nullptr);
+                Assert(result == 0, result, " Couldn't locate Scrolling in textscrollpane ");
                 text->ScrollTab->ShowGuiWindow(scrolling);
                 text->Scrolling = scrolling;
                 text->ShowGuiWindow(-1);
@@ -1923,14 +1923,14 @@ auto MCSplashScreen::Init(MCFitIniFile* screenFile) -> int32_t
                 slider->Init(left, top, width, height, nullptr);
                 int32_t value = 0;
                 int32_t result = screenFile->ReadIdLong("MinValue", value);
-                Assert(result == 0, result, " Couldn't locate min slider value", nullptr);
+                Assert(result == 0, result, " Couldn't locate min slider value");
                 slider->MinValue = value;
                 result = screenFile->ReadIdLong("MaxValue", value);
-                Assert(result == 0, result, " Couldn't locate max slider value", nullptr);
+                Assert(result == 0, result, " Couldn't locate max slider value");
                 slider->MaxValue = value;
                 int32_t callback = 0;
                 result = screenFile->ReadIdLong("Callback", callback);
-                Assert(result == 0, result, " Couldn't locate callback value", nullptr);
+                Assert(result == 0, result, " Couldn't locate callback value");
 
                 switch (callback)
                 {
@@ -1969,43 +1969,43 @@ auto MCSplashScreen::Init(MCFitIniFile* screenFile) -> int32_t
                 else
                 {
                     const int32_t result = toggle->SetUpPicture(art);
-                    Assert(result == 0, result, " Couldn't locate button upPicture image ", nullptr);
+                    Assert(result == 0, result, " Couldn't locate button upPicture image ");
                 }
 
                 // readButton would load NormalArt again; the rest is the same.
                 int32_t result = screenFile->ReadIdString("GreyArt", art, 0xf9);
-                Assert(result == 0, result, " Could not Find gray button art in Generic Screen ", nullptr);
+                Assert(result == 0, result, " Could not Find gray button art in Generic Screen ");
 
                 if (MCPort::StrICmp(art, "NONE") != 0)
                 {
                     result = toggle->SetGrayPicture(art);
-                    Assert(result == 0, result, " Couldn't locate button grayPicture image ", nullptr);
+                    Assert(result == 0, result, " Couldn't locate button grayPicture image ");
                 }
 
                 result = screenFile->ReadIdString("PressArt", art, 0xf9);
-                Assert(result == 0, result, " Could not Find down button art in Generic Screen ", nullptr);
+                Assert(result == 0, result, " Could not Find down button art in Generic Screen ");
 
                 if (MCPort::StrICmp(art, "NONE") != 0)
                 {
                     result = toggle->SetDownPicture(art);
-                    Assert(result == 0, result, " Couldn't locate button downPicture image ", nullptr);
+                    Assert(result == 0, result, " Couldn't locate button downPicture image ");
                 }
 
                 result = screenFile->ReadIdString("OverArt", art, 0xf9);
-                Assert(result == 0, result, " Could not Find button rollover art in Generic Screen ", nullptr);
+                Assert(result == 0, result, " Could not Find button rollover art in Generic Screen ");
 
                 if (MCPort::StrICmp(art, "NONE") != 0)
                 {
                     result = toggle->SetOverPicture(art);
-                    Assert(result == 0, result, " Couldn't locate button downPicture image ", nullptr);
+                    Assert(result == 0, result, " Couldn't locate button downPicture image ");
                 }
 
                 int32_t sound = 0;
                 result = screenFile->ReadIdLong("OverSFX", sound);
-                Assert(result == 0, result, " Could not Find Element Sound in Generic Screen ", nullptr);
+                Assert(result == 0, result, " Could not Find Element Sound in Generic Screen ");
                 toggle->OverSound = static_cast<uint32_t>(sound);
                 result = screenFile->ReadIdLong("PressSFX", sound);
-                Assert(result == 0, result, " Could not Find Element Sound in Generic Screen ", nullptr);
+                Assert(result == 0, result, " Could not Find Element Sound in Generic Screen ");
                 toggle->PressSound = static_cast<uint32_t>(sound);
                 int32_t callback = 0;
 

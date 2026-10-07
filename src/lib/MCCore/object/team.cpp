@@ -2,8 +2,10 @@
 #include "object/team.h"
 #include "ai/move.h"
 #include "engine/bitflag.h"
-#include "lib/aerror.h"
-#include "lib/cvmath.h"
+#include "lib/MCFatal.h"
+#include "lib/MCFrameOfRef.h"
+#include "lib/MCVector2D.h"
+#include "lib/MCDice.h"
 #include "mission/scenario.h"
 #include "network/multplyr.h"
 #include "object/cmponent.h"
@@ -562,7 +564,7 @@ auto MCTeam::DestroyTargets() -> void
 
         for (int32_t shot = 0; shot < 100; shot++)
         {
-            if (RollDice(30) == 0)
+            if (!RollDice(30))
             {
                 shotInfo.HitLocation = target->CalcHitLocation(nullptr, -1, 4, 0);
             }

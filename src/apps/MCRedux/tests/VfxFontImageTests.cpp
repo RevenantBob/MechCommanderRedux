@@ -1,7 +1,7 @@
 #include "stdafx.h"
 #include "MCTest.h"
 #include "TestGame.h"
-#include "lib/file.h"
+#include "lib/MCFile.h"
 #include "vfx/vfxfuncs.h"
 
 namespace

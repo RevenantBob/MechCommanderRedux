@@ -11,11 +11,13 @@
 #include "gui/atextbox.h"
 #include "iface/icallbk.h"
 #include "iface/parser.h"
-#include "lib/aerror.h"
-#include "lib/cident.h"
-#include "lib/cvmath.h"
-#include "lib/file.h"
-#include "lib/inifile.h"
+#include "lib/MCFatal.h"
+#include "lib/MCIDString.h"
+#include "lib/MCFrameOfRef.h"
+#include "lib/MCVector2D.h"
+#include "lib/MCDice.h"
+#include "lib/MCFile.h"
+#include "lib/MCFitIniFile.h"
 #include "linkup/dpplayer.h"
 #include "linkup/sessionmanager.h"
 #include "logistics/logbri.h"
@@ -944,10 +946,10 @@ auto MCFriendlyMechIcon::SetID(int32_t newPartId) -> void
     IconBackground->Init(const_cast<char*>("guiub00.tga"));
     Port()->InitView(IconBackground->Width(), IconBackground->Height());
 
-    MCFullPathFileName shapePath;
-    shapePath.Init(ArtPath, shapeName, ".shp");
+    std::string shapePath;
+    shapePath = GamePath(ArtPath, shapeName, ".shp");
 
-    if (shapeFile.Open(shapePath, READ, 0x32) != 0)
+    if (shapeFile.Open(shapePath) != 0)
     {
         Fatal(0, "Unable to open damage display shape file");
     }
@@ -1792,9 +1794,9 @@ auto MCInterfaceObject::Init() -> int32_t
         return 3;
     }
 
-    MCFullPathFileName fileName;
-    fileName.Init(InterfacePath, "iface", ".fit");
-    int32_t result = ifaceFile->Open(fileName, READ, 0x32);
+    std::string fileName;
+    fileName = GamePath(InterfacePath, "iface", ".fit");
+    int32_t result = ifaceFile->Open(fileName);
 
     if (result != 0)
     {

@@ -6,7 +6,7 @@
 #include "camera/camera.h"
 #include "gui/asystem.h"
 #include "gui/updisp.h"
-#include "lib/fastfile.h"
+#include "lib/MCFastFileSet.h"
 #include "logistics/loggen.h"
 #include "logistics/logmain.h"
 #include "main/honorb.h"
@@ -213,12 +213,11 @@ namespace MCTestGame
         }
 
         opened = true;
-        MaxFastFiles = 5;
-        FastFiles = static_cast<MCFastFile**>(std::calloc(static_cast<size_t>(MaxFastFiles), sizeof(MCFastFile*)));
+        MCFastFileSet& fastFiles = MCGameContext::Current().FastFiles();
 
         for (const char* name : {"art.fst", "mission.fst", "misc.fst", "terrain.fst", "shapes.fst"})
         {
-            FastFileInit(name);
+            (void)fastFiles.Open(name);
         }
     }
 

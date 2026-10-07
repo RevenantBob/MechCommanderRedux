@@ -7,11 +7,13 @@
 #include "engine/ceglist.h"
 #include "engine/cepoly.h"
 #include "engine/cevfx.h"
-#include "lib/aerror.h"
-#include "lib/cident.h"
-#include "lib/cvmath.h"
-#include "lib/file.h"
-#include "lib/inifile.h"
+#include "lib/MCFatal.h"
+#include "lib/MCIDString.h"
+#include "lib/MCFrameOfRef.h"
+#include "lib/MCVector2D.h"
+#include "lib/MCDice.h"
+#include "lib/MCFile.h"
+#include "lib/MCFitIniFile.h"
 #include "logistics/logmain.h"
 #include "main/main.h"
 #include "network/multplyr.h"
@@ -163,7 +165,7 @@ auto MCMiscTerrainObjectType::Destroy() -> void
 auto MCMiscTerrainObjectType::Init(MCFile* objFile, uint32_t fileSize) -> int32_t
 {
     MCFitIniFile bridgeFile;
-    int32_t result = bridgeFile.Open(objFile, fileSize, 50);
+    int32_t result = bridgeFile.Open(objFile, fileSize);
 
     if (result != 0)
     {
@@ -245,11 +247,11 @@ auto MCMiscTerrainObjectType::Init(MCFile* objFile, uint32_t fileSize) -> int32_
         std::strcat(edgesName, "x");
     }
 
-    MCFullPathFileName edgesPath;
-    edgesPath.Init(SpritePath, edgesName, ".shp");
+    std::string edgesPath;
+    edgesPath = GamePath(SpritePath, edgesName, ".shp");
     MCFile edgesFile;
 
-    if ((result = edgesFile.Open(edgesPath, READ, 50)) != 0)
+    if ((result = edgesFile.Open(edgesPath)) != 0)
     {
         return result;
     }

@@ -111,6 +111,19 @@ namespace MCPort
     uint32_t RandState();
 }
 
+/// <summary>Whether two strings match with ASCII case ignored (the port's one case-insensitive compare).</summary>
+constexpr bool MCIEquals(std::string_view a, std::string_view b)
+{
+    constexpr auto lower = [](char c) { return c >= 'A' && c <= 'Z' ? static_cast<char>(c - 'A' + 'a') : c; };
+    return std::ranges::equal(a, b, {}, lower, lower);
+}
+
+/// <summary>Whether <paramref name="text"/> starts with <paramref name="prefix"/>, ASCII case ignored.</summary>
+constexpr bool MCIStartsWith(std::string_view text, std::string_view prefix)
+{
+    return text.size() >= prefix.size() && MCIEquals(text.substr(0, prefix.size()), prefix);
+}
+
 /// <summary>StrCopy into a char array, with the size taken from the array.</summary>
 template <size_t N> inline void MCStrCopy(char (&destination)[N], const char* source)
 {

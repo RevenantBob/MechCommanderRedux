@@ -2,7 +2,7 @@
 #include "MCRetailData.h"
 #include "../MCTest.h"
 #include "../TestGame.h"
-#include "lib/file.h"
+#include "lib/MCFile.h"
 
 namespace MCRetailData
 {

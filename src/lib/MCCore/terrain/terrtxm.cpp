@@ -1,7 +1,7 @@
 #include "stdafx.h"
 #include "terrain/terrtxm.h"
-#include "lib/cident.h"
-#include "lib/packet.h"
+#include "lib/MCIDString.h"
+#include "lib/MCPacketFile.h"
 #include "logistics/logmain.h"
 #include "main/main.h"
 #include "terrain/vertex.h"
@@ -21,8 +21,8 @@ auto MCTerrainTiles::Init(char* tileFileName) -> int32_t
     TileCacheReqs = 0;
     TileCacheHits = 0;
     TileCacheMiss = 0;
-    MCFullPathFileName tileName;
-    MCFullPathFileName tile90Name;
+    std::string tileName;
+    std::string tile90Name;
 
     TileFile = new MCPacketFile;
 
@@ -31,8 +31,8 @@ auto MCTerrainTiles::Init(char* tileFileName) -> int32_t
         return TILE_NO_FILE;
     }
 
-    tileName.Init(TilePath, tileFileName, ".pak");
-    const int32_t result = TileFile->Open(tileName, READ, 50);
+    tileName = GamePath(TilePath, tileFileName, ".pak");
+    const int32_t result = TileFile->Open(tileName);
 
     if (result != 0)
     {
@@ -49,9 +49,9 @@ auto MCTerrainTiles::Init(char* tileFileName) -> int32_t
         return TILE_NO_FILE;
     }
 
-    tile90Name.Init(Tile90Path, tileFileName, "90.pak");
+    tile90Name = GamePath(Tile90Path, tileFileName, "90.pak");
     // The rotated set is optional: the result isn't checked.
-    Tile90File->Open(tile90Name, READ, 50);
+    Tile90File->Open(tile90Name);
     TileSetOffset[0] = 0;
     TileSetOffset[1] = packets / 2;
 
@@ -64,10 +64,10 @@ auto MCTerrainTiles::Init(char* tileFileName) -> int32_t
 
 auto MCTerrainTiles::Preload(char* terrainName) -> int32_t
 {
-    MCFullPathFileName preloadName;
-    preloadName.Init(TerrainPath, terrainName, ".pre");
+    std::string preloadName;
+    preloadName = GamePath(TerrainPath, terrainName, ".pre");
     MCFile preloadFile;
-    int32_t result = preloadFile.Open(preloadName, READ, 50);
+    int32_t result = preloadFile.Open(preloadName);
 
     if (result != 0)
     {

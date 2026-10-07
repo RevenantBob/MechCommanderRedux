@@ -16,11 +16,11 @@
 #include "gui/aport.h"
 #include "gui/asystem.h"
 #include "iface/iface.h"
-#include "lib/aerror.h"
-#include "lib/cident.h"
-#include "lib/file.h"
-#include "lib/inifile.h"
-#include "lib/packet.h"
+#include "lib/MCFatal.h"
+#include "lib/MCIDString.h"
+#include "lib/MCFile.h"
+#include "lib/MCFitIniFile.h"
+#include "lib/MCPacketFile.h"
 #include "logistics/logmain.h"
 #include "main/main.h"
 #include "mission/scenario.h"
@@ -883,39 +883,39 @@ auto MCBattleMechType::LoadHotSpots(MCFitIniFile* mechFile) -> int32_t
 
     FootprintType = footprint;
 
-    MCFullPathFileName hotSpotPath;
-    hotSpotPath.Init(ShapesPath, hotSpotFileName, ".hsp");
-    MCFullPathFileName outlinePath;
-    outlinePath.Init(ShapesPath, hotSpotFileName, ".out");
-    MCFullPathFileName infoPath;
-    infoPath.Init(ShapesPath, hotSpotFileName, ".inf");
-    MCFullPathFileName jumpPath;
-    jumpPath.Init(ShapesPath, hotSpotFileName, ".jmp");
+    std::string hotSpotPath;
+    hotSpotPath = GamePath(ShapesPath, hotSpotFileName, ".hsp");
+    std::string outlinePath;
+    outlinePath = GamePath(ShapesPath, hotSpotFileName, ".out");
+    std::string infoPath;
+    infoPath = GamePath(ShapesPath, hotSpotFileName, ".inf");
+    std::string jumpPath;
+    jumpPath = GamePath(ShapesPath, hotSpotFileName, ".jmp");
 
     MCPacketFile hotSpotFile;
 
-    if ((result = hotSpotFile.Open(hotSpotPath, READ, 50)) != 0)
+    if ((result = hotSpotFile.Open(hotSpotPath)) != 0)
     {
         return result;
     }
 
     MCPacketFile outlineFile;
 
-    if ((result = outlineFile.Open(outlinePath, READ, 50)) != 0)
+    if ((result = outlineFile.Open(outlinePath)) != 0)
     {
         return result;
     }
 
     MCFitIniFile infoFile;
 
-    if ((result = infoFile.Open(infoPath, READ, 50)) != 0)
+    if ((result = infoFile.Open(infoPath)) != 0)
     {
         return result;
     }
 
     MCFile jumpFile;
 
-    if ((result = jumpFile.Open(jumpPath, READ, 50)) != 0)
+    if ((result = jumpFile.Open(jumpPath)) != 0)
     {
         return result;
     }
@@ -4326,7 +4326,7 @@ auto MCBattleMech::Update() -> int32_t
                 if (tileR < 0 || GameMap->Height <= tileR || MoveChunk.StepPos[0][1] < 0 ||
                     GameMap->Width <= MoveChunk.StepPos[0][1])
                 {
-                    Fatal(0, " mech.update: newMoveChunk stepPos not on map! ", nullptr);
+                    Fatal(0, " mech.update: newMoveChunk stepPos not on map! ");
                 }
             }
 
@@ -4661,7 +4661,7 @@ auto MCBattleMech::Render() -> void
     {
         // Debug: the move path's steps as lines.
         MCMovePath* path = Pilot->GetMovePath();
-        Assert(path != nullptr, 0, " NULL move path--bad thing ", nullptr);
+        Assert(path != nullptr, 0, " NULL move path--bad thing ");
         const int32_t numSteps = path->NumSteps;
 
         for (int32_t i = 0; i < numSteps; i++)
@@ -5299,10 +5299,9 @@ auto MCBattleMech::CalcCriticalHit(int32_t hitLocation) -> void
             spaceRoll -= size;
         }
 
-        Assert(location >= 0 && location <= 7, static_cast<uint32_t>(location), " Bad bodyLocation in CriticalHit ",
-               nullptr);
+        Assert(location >= 0 && location <= 7, static_cast<uint32_t>(location), " Bad bodyLocation in CriticalHit ");
         Assert(space >= 0 && space < NumLocationCriticalSpaces[location], static_cast<uint32_t>(space),
-               " Bad Critical Hit Space ", nullptr);
+               " Bad Critical Hit Space ");
         MCCriticalSpace& criticalSpace = bodyLocation.CriticalSpaces[space];
         criticalSpace.Hit = 1;
         HitInventoryItem(static_cast<int8_t>(criticalSpace.InventoryID), 0);
@@ -5447,7 +5446,7 @@ auto MCBattleMech::BuildStatusChunk() -> int32_t
                     }
 
                     default:
-                        Fatal(targetClass, " BattleMech.buildStatusChunk: bad target type ", nullptr);
+                        Fatal(targetClass, " BattleMech.buildStatusChunk: bad target type ");
                 }
             }
         }
@@ -5472,7 +5471,7 @@ auto MCBattleMech::BuildStatusChunk() -> int32_t
 
     if (StatusChunk.EqualTo(&check) == 0)
     {
-        Fatal(0, " BAD status chunk in mech: save stchunk.dbg file! ", nullptr);
+        Fatal(0, " BAD status chunk in mech: save stchunk.dbg file! ");
     }
 
     return 0;
@@ -5574,7 +5573,7 @@ auto MCBattleMech::BuildMoveChunk() -> int32_t
     {
         if (MoveChunk.EqualTo(this, &check) == 0)
         {
-            Fatal(0, " Bad mech movechunk: save mvchunk.dbg file! ", nullptr);
+            Fatal(0, " Bad mech movechunk: save mvchunk.dbg file! ");
         }
     }
     else
@@ -5916,7 +5915,7 @@ namespace
 
         if (chunk.EqualTo(&check) == 0)
         {
-            Fatal(0, " Mech.fireWeapon: Bad WeaponFireChunk (save wfchunk.dbg file now) ", nullptr);
+            Fatal(0, " Mech.fireWeapon: Bad WeaponFireChunk (save wfchunk.dbg file now) ");
         }
 
         mech->AddWeaponFireChunk(0, &chunk);
@@ -5965,7 +5964,7 @@ namespace
     void CheckDamageRound(const MCWeaponShotInfo& shot)
     {
         const auto quarters = static_cast<int32_t>(shot.Damage * 4.0);
-        Assert(shot.Damage == quarters * 0.25 ? 1 : 0, 0, " WeaponHitChunk.build: damage round error ", nullptr);
+        Assert(shot.Damage == quarters * 0.25 ? 1 : 0, 0, " WeaponHitChunk.build: damage round error ");
     }
 
     /// <summary>A shot with no effect object sets off a live mine where it lands.</summary>
@@ -6347,7 +6346,7 @@ auto MCBattleMech::FireWeapon(MCGameObject* target, float targetTime, int32_t we
                     }
                 }
 
-                Assert(hitLocation != -2 ? 1 : 0, 0, " Mech.FireWeapon: Bad Hit Location ", nullptr);
+                Assert(hitLocation != -2 ? 1 : 0, 0, " Mech.FireWeapon: Bad Hit Location ");
                 MCWeaponShotInfo shot;
                 shot.Init(this, item.MasterID, fired.Damage * static_cast<float>(missilesLeft), hitLocation,
                           entryAngle);
@@ -6390,7 +6389,7 @@ auto MCBattleMech::FireWeapon(MCGameObject* target, float targetTime, int32_t we
                 hitLocation = target->CalcHitLocation(this, weaponIndex, 0, attackType);
             }
 
-            Assert(hitLocation != -2 ? 1 : 0, 1, " Mech.FireWeapon: Bad Hit Location ", nullptr);
+            Assert(hitLocation != -2 ? 1 : 0, 1, " Mech.FireWeapon: Bad Hit Location ");
             MCWeaponShotInfo shot;
             shot.Init(this, item.MasterID, fired.Damage, hitLocation, entryAngle);
 
@@ -6549,16 +6548,14 @@ auto MCBattleMech::HandleWeaponFire(int32_t weaponIndex, MCGameObject* target, M
 
     if (hit == 0)
     {
-        Assert(target == nullptr ? 1 : 0, 0, " Mech.handleWeaponFire: target should be NULL with network miss! ",
-               nullptr);
-        Assert(targetPoint != nullptr ? 1 : 0, 0, " Mech.handleWeaponFire: MUST have targetpoint with network miss! ",
-               nullptr);
+        Assert(target == nullptr ? 1 : 0, 0, " Mech.handleWeaponFire: target should be NULL with network miss! ");
+        Assert(targetPoint != nullptr ? 1 : 0, 0, " Mech.handleWeaponFire: MUST have targetpoint with network miss! ");
 
         if (isStreak != 0)
         {
             CurMoverWeaponFireChunk.Unpack(this);
             DebugWeaponFireChunk(&CurMoverWeaponFireChunk, nullptr, this);
-            Assert(0, 0, " Mech.handleWeaponFire: streaks shouldn't miss! ", nullptr);
+            Assert(0, 0, " Mech.handleWeaponFire: streaks shouldn't miss! ");
         }
 
         if (numShots != 9999)
@@ -6639,7 +6636,7 @@ auto MCBattleMech::HandleWeaponFire(int32_t weaponIndex, MCGameObject* target, M
                 if (fx != nullptr)
                 {
                     Assert(hitLocation != -2 ? 1 : 0, static_cast<uint32_t>(TargetRolo),
-                           " Mech.handleWeaponFire: Bad Hit Location ", nullptr);
+                           " Mech.handleWeaponFire: Bad Hit Location ");
 
                     if (target != nullptr && target->ObjectClass == BATTLEMECH)
                     {

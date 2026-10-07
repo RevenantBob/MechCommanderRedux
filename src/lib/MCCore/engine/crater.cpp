@@ -5,8 +5,8 @@
 #include "engine/bitflag.h"
 #include "engine/ceglist.h"
 #include "engine/cevfx.h"
-#include "lib/cident.h"
-#include "lib/packet.h"
+#include "lib/MCIDString.h"
+#include "lib/MCPacketFile.h"
 #include "logistics/logmain.h"
 #include "object/team.h"
 #include "sprite/bactor.h"
@@ -32,8 +32,8 @@ auto MCCraterManager::Init(int32_t numCraters, uint32_t unused, char* craterFile
     CraterFile = nullptr;
     MaxCraters = numCraters;
 
-    MCFullPathFileName craterPath;
-    craterPath.Init(SpritePath, craterFileName, ".pak");
+    std::string craterPath;
+    craterPath = GamePath(SpritePath, craterFileName, ".pak");
     MCPacketFile* packetFile = new MCPacketFile();
     CraterFile = packetFile;
 
@@ -42,11 +42,11 @@ auto MCCraterManager::Init(int32_t numCraters, uint32_t unused, char* craterFile
         return -0x3520fffd;
     }
 
-    if (packetFile->Open(craterPath, READ, 0x32) != 0)
+    if (packetFile->Open(craterPath) != 0)
     {
-        MCFullPathFileName cdPath;
-        cdPath.Init(CDspritePath, craterFileName, ".pak");
-        const int32_t result = packetFile->Open(cdPath, READ, 0x32);
+        std::string cdPath;
+        cdPath = GamePath(CDspritePath, craterFileName, ".pak");
+        const int32_t result = packetFile->Open(cdPath);
 
         if (result != 0)
         {

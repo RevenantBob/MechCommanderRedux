@@ -7,7 +7,7 @@
 #include "abl/ablscan.h"
 #include "abl/ablstmt.h"
 #include "abl/ablsymt.h"
-#include "lib/aerror.h"
+#include "lib/MCFatal.h"
 
 MCTokenCodeType RelationalOperatorList[] = {TKN_LT, TKN_LE, TKN_EQUALEQUAL, TKN_NE, TKN_GE, TKN_GT, TKN_NONE};
 MCTokenCodeType AddOperatorList[] = {TKN_PLUS, TKN_MINUS, TKN_OR, TKN_NONE};

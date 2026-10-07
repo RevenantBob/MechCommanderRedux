@@ -4,7 +4,9 @@
 #include "camera/camera.h"
 #include "engine/ceglist.h"
 #include "engine/celine.h"
-#include "lib/cvmath.h"
+#include "lib/MCFrameOfRef.h"
+#include "lib/MCVector2D.h"
+#include "lib/MCDice.h"
 #include "object/gameobj.h"
 
 namespace

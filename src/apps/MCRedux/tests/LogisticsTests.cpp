@@ -1,8 +1,8 @@
 #include "stdafx.h"
 #include "MCTest.h"
 #include "TestGame.h"
-#include "lib/cident.h"
-#include "lib/inifile.h"
+#include "lib/MCIDString.h"
+#include "lib/MCFitIniFile.h"
 #include "logistics/logmain.h"
 #include "main/logistics.h"
 #include "object/cmponent.h"
@@ -24,9 +24,8 @@ namespace
 
             if (MasterComponentList == nullptr)
             {
-                MCFullPathFileName components;
-                components.Init(ObjectPath, "compbas", ".csv");
-                InitMasterComponentListExcel(components, 0xff, 1.0f, 0.0f);
+                std::string components = GamePath(ObjectPath, "compbas", ".csv");
+                InitMasterComponentListExcel(components.data(), 0xff, 1.0f, 0.0f);
             }
 
             MCPort::StrCopy(ProfilePath, 80, "data\\missions\\profiles\\");
@@ -155,8 +154,8 @@ TEST_CASE("game: logistics reads a vehicle profile into its list")
     LogisticsFixture fixture;
 
     MCFitIniFile file;
-    MCFullPathFileName path;
-    path.Init(ProfilePath, "PV20000", ".fit");
+    std::string path;
+    path = GamePath(ProfilePath, "PV20000", ".fit");
     REQUIRE_EQ(file.Open(path), 0);
     MCLogVehicleList vehicles;
     MCLogVehicle* vehicle = vehicles.AddVehicle(&file, 0, 1, 0);

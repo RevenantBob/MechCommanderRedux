@@ -13,14 +13,15 @@
 #include "color/color.h"
 #include "gui/aport.h"
 #include "gui/atextbox.h"
-#include "lib/aerror.h"
-#include "lib/cident.h"
-#include "lib/fastfile.h"
-#include "lib/inifile.h"
+#include "lib/MCFatal.h"
+#include "lib/MCIDString.h"
+#include "lib/MCFastFileSet.h"
+#include "lib/MCFitIniFile.h"
 #include "linkup/session.h"
 #include "linkup/sessionmanager.h"
 #include "logistics/logbri.h"
 #include "logistics/logmain.h"
+#include "main/MCGameContext.h"
 #include "main/logistics.h"
 #include "mission/mission.h"
 #include "mission/scenario.h"
@@ -227,22 +228,12 @@ void SystemInit()
 
     //---------------------------------------------------------------------------------------------------------------
     // Every *.fst in the game folder is a FastFile (SYSTEM.CFG's [FastFiles] list isn't read).
-    const std::vector<std::string> fastFileNames = MCFileSystem::FindFiles("*.fst");
-    MaxFastFiles += static_cast<int32_t>(fastFileNames.size());
+    MCFastFileSet& fastFiles = MCGameContext::Current().FastFiles();
 
-    if (MaxFastFiles != 0)
+    for (const std::string& name : MCFileSystem::FindFiles("*.fst"))
     {
-        FastFiles = static_cast<MCFastFile**>(std::malloc(sizeof(MCFastFile*) * static_cast<size_t>(MaxFastFiles)));
-
-        for (int32_t i = 0; i < MaxFastFiles; i++)
-        {
-            FastFiles[i] = nullptr;
-        }
-
-        for (const std::string& name : fastFileNames)
-        {
-            FastFileInit(name.c_str());
-        }
+        // A FastFile that doesn't open is left out, as in the original.
+        (void)fastFiles.Open(name);
     }
 
     systemFile->Close();
@@ -935,8 +926,8 @@ int32_t UserInit()
     {
         // iface.fit's [ABL Window] places the debugger window.
         MCFitIniFile ifaceFile;
-        MCFullPathFileName ifaceName;
-        ifaceName.Init(InterfacePath, "iface", ".fit");
+        std::string ifaceName;
+        ifaceName = GamePath(InterfacePath, "iface", ".fit");
 
         if (ifaceFile.Open(ifaceName) == 0)
         {
@@ -1050,7 +1041,7 @@ void UserDestroy()
         MPlayer = nullptr;
     }
 
-    FastFileFini();
+    MCGameContext::Current().FastFiles().Clear();
     delete SoundSystem;
     SoundSystem = nullptr;
 }

@@ -1,6 +1,6 @@
 #include "stdafx.h"
 #include "object/mechdyn.h"
-#include "lib/inifile.h"
+#include "lib/MCFitIniFile.h"
 #include "main/main.h"
 #include "object/control.h"
 #include "object/mech.h"

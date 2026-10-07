@@ -1,6 +1,6 @@
 #include "stdafx.h"
 #include "object/sortlist.h"
-#include "lib/aerror.h"
+#include "lib/MCFatal.h"
 #include "object/objtype.h"
 
 namespace

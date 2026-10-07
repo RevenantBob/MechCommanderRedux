@@ -1,7 +1,9 @@
 #pragma once
 
 #include "engine/celement.h"
-#include "lib/cvmath.h"
+#include "lib/MCFrameOfRef.h"
+#include "lib/MCVector2D.h"
+#include "lib/MCDice.h"
 
 /// <summary>A line between two screen points, in one colour or through a fade table.</summary>
 /// <remarks>Original source: <c>engine\celine.cpp</c>, 0x28 bytes.</remarks>

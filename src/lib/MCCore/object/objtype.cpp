@@ -1,10 +1,10 @@
 #include "stdafx.h"
 #include "object/objtype.h"
 #include "appear/apprtype.h"
-#include "lib/aerror.h"
-#include "lib/cident.h"
-#include "lib/inifile.h"
-#include "lib/packet.h"
+#include "lib/MCFatal.h"
+#include "lib/MCIDString.h"
+#include "lib/MCFitIniFile.h"
+#include "lib/MCPacketFile.h"
 #include "object/artlry.h"
 #include "object/baseobj.h"
 #include "object/bldng.h"
@@ -160,8 +160,8 @@ auto MCObjectType::HandleDestruction(MCGameObject* collidee, MCGameObject*) -> i
 
 auto MCObjectTypeManager::Init(char* objectFileName, int32_t objectTypeCacheSize, int32_t objectCacheSize) -> int32_t
 {
-    MCFullPathFileName fileName;
-    fileName.Init(ObjectPath, objectFileName, ".pak");
+    std::string fileName;
+    fileName = GamePath(ObjectPath, objectFileName, ".pak");
 
     ObjectFile = new MCPacketFile;
 
@@ -170,7 +170,7 @@ auto MCObjectTypeManager::Init(char* objectFileName, int32_t objectTypeCacheSize
         return static_cast<int32_t>(0xbeef0008);
     }
 
-    int32_t result = ObjectFile->Open(fileName, READ, 50);
+    int32_t result = ObjectFile->Open(fileName);
 
     if (result != 0)
     {
@@ -336,19 +336,19 @@ auto MCObjectTypeManager::Load(int32_t objTypeNum, int keepMe) -> MCObjectType*
     {
         MCFitIniFile classFile;
 
-        if (classFile.Open(ObjectFile, static_cast<uint32_t>(ObjectFile->GetPacketSize()), 50) != 0)
+        if (classFile.Open(ObjectFile, static_cast<uint32_t>(ObjectFile->GetPacketSize())) != 0)
         {
-            Fatal(static_cast<int32_t>(0xbeef0006), nullptr);
+            Fatal(static_cast<int32_t>(0xbeef0006));
         }
 
         if (classFile.SeekBlock("ObjectClass") != 0)
         {
-            Fatal(static_cast<int32_t>(0xbeef0006), nullptr);
+            Fatal(static_cast<int32_t>(0xbeef0006));
         }
 
         if (classFile.ReadIdLong("ObjectTypeNum", objectClassNum) != 0)
         {
-            Fatal(static_cast<int32_t>(0xbeef0006), nullptr);
+            Fatal(static_cast<int32_t>(0xbeef0006));
         }
 
         classFile.Close();
@@ -450,9 +450,9 @@ auto MCObjectTypeManager::Load(int32_t objTypeNum, int keepMe) -> MCObjectType*
             objType = new MCLightType;
             break;
         case -1:
-            Fatal(static_cast<int32_t>(0xbeef0001), nullptr);
+            Fatal(static_cast<int32_t>(0xbeef0001));
         default:
-            Fatal(static_cast<int32_t>(0xbeef0003), nullptr);
+            Fatal(static_cast<int32_t>(0xbeef0003));
     }
 
     // Port fix: the original calls through a null type when the type heap is full.
@@ -463,7 +463,7 @@ auto MCObjectTypeManager::Load(int32_t objTypeNum, int keepMe) -> MCObjectType*
 
     if (objType->Init(ObjectFile, static_cast<uint32_t>(ObjectFile->GetPacketSize())) != 0)
     {
-        Fatal(static_cast<int32_t>(0xbeef0006), nullptr);
+        Fatal(static_cast<int32_t>(0xbeef0006));
     }
 
     if (keepMe != 0)

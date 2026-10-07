@@ -1,11 +1,11 @@
 #include "stdafx.h"
 #include "logistics/logsession.h"
 #include "gui/afont.h"
-#include "lib/aerror.h"
-#include "lib/cident.h"
-#include "lib/file.h"
-#include "lib/inifile.h"
-#include "lib/packet.h"
+#include "lib/MCFatal.h"
+#include "lib/MCIDString.h"
+#include "lib/MCFile.h"
+#include "lib/MCFitIniFile.h"
+#include "lib/MCPacketFile.h"
 #include "linkup/dpplayer.h"
 #include "linkup/fidpgroup.h"
 #include "linkup/sessionmanager.h"
@@ -1302,7 +1302,7 @@ auto MCSessionScreen::Activate(int refresh) -> void
     while (player != nullptr)
     {
         ids[count++] = player->Id;
-        Assert(link != nullptr, 0, nullptr);
+        Assert(link != nullptr, 0);
         link = link->Next;
 
         if (link == nullptr)
@@ -1580,9 +1580,9 @@ auto MCSessionScreen::SetMap(char* fileName) -> void
     ClearMap();
 
     auto* picture = new MCLogPort;
-    MCFullPathFileName path;
-    path.Init(TerrainPath, fileName, ".log.tga");
-    int32_t result = picture->Init(path);
+    std::string path;
+    path = GamePath(TerrainPath, fileName, ".log.tga");
+    int32_t result = picture->Init(path.data());
 
     if (result != 0)
     {
@@ -1773,21 +1773,21 @@ auto MCSessionScreen::LoadMission(char* fileName) -> void
     MCPacketFile packetFile;
     MCFitIniFile iniFile;
     MCFile textFile;
-    MCFullPathFileName path;
+    std::string path;
 
     if (MPlayer->IsHost == 0)
     {
-        path.Init(fileName, "", "");
+        path = GamePath(fileName, "", "");
     }
     else
     {
-        path.Init(SavePath, fileName, ".mpk");
+        path = GamePath(SavePath, fileName, ".mpk");
     }
 
     char text[256];
     uint32_t value = 0;
 
-    int32_t result = packetFile.Open(path, READ, 0x32);
+    int32_t result = packetFile.Open(path);
     Assert(result == 0, static_cast<uint32_t>(result), " Couldn't open .MPK file ");
 
     if (result == 0)
@@ -1799,7 +1799,7 @@ auto MCSessionScreen::LoadMission(char* fileName) -> void
 
     if (result == 0)
     {
-        result = iniFile.Open(&packetFile, packetFile.GetPacketSize(), 0x32);
+        result = iniFile.Open(&packetFile, packetFile.GetPacketSize());
         Assert(result == 0, static_cast<uint32_t>(result), " Couldn't open packet 0 in .MPK file ");
 
         if (result == 0)
@@ -1898,7 +1898,7 @@ auto MCSessionScreen::LoadMission(char* fileName) -> void
 
     if (result == 0)
     {
-        result = textFile.Open(&packetFile, packetFile.GetPacketSize(), 0x32);
+        result = textFile.Open(&packetFile, packetFile.GetPacketSize());
         Assert(result == 0, static_cast<uint32_t>(result), " Couldn't open packet 1 in .MPK file ");
 
         if (result == 0)
@@ -1922,8 +1922,8 @@ auto MCSessionScreen::LoadMission(char* fileName) -> void
                     GlobalLogPtr->LogisticsBlocks->Free(MissionFile);
                 }
 
-                MissionFile = HeapCopy(path);
-                MPlayer->SendFileInquiry(path);
+                MissionFile = HeapCopy(path.c_str());
+                MPlayer->SendFileInquiry(path.data());
                 // The server has it already.
                 uint32_t serverId = MPlayer->SessionManager->ServerID;
 

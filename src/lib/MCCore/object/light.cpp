@@ -4,8 +4,8 @@
 #include "camera/camera.h"
 #include "camera/camlist.h"
 #include "gui/asystem.h"
-#include "lib/file.h"
-#include "lib/inifile.h"
+#include "lib/MCFile.h"
+#include "lib/MCFitIniFile.h"
 #include "main/main.h"
 #include "sprite/actor.h"
 #include "terrain/terrain.h"
@@ -39,7 +39,7 @@ auto MCLightType::Destroy() -> void
 auto MCLightType::Init(MCFile* objFile, uint32_t fileSize) -> int32_t
 {
     MCFitIniFile lightFile;
-    int32_t result = lightFile.Open(objFile, fileSize, 50);
+    int32_t result = lightFile.Open(objFile, fileSize);
 
     if (result != 0)
     {

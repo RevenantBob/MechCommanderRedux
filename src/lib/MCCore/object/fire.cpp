@@ -7,10 +7,12 @@
 #include "engine/bitflag.h"
 #include "engine/ceglist.h"
 #include "engine/cevfx.h"
-#include "lib/cident.h"
-#include "lib/cvmath.h"
-#include "lib/file.h"
-#include "lib/inifile.h"
+#include "lib/MCIDString.h"
+#include "lib/MCFrameOfRef.h"
+#include "lib/MCVector2D.h"
+#include "lib/MCDice.h"
+#include "lib/MCFile.h"
+#include "lib/MCFitIniFile.h"
 #include "main/main.h"
 #include "mission/mission.h"
 #include "mission/scenario.h"
@@ -96,7 +98,7 @@ namespace
     {
         const auto offset = static_cast<float>(RandomNumber(range));
 
-        if (RollDice(50) == 0)
+        if (!RollDice(50))
         {
             return base - offset;
         }
@@ -161,7 +163,7 @@ auto MCFireType::Destroy() -> void
 auto MCFireType::Init(MCFile* objFile, uint32_t fileSize) -> int32_t
 {
     MCFitIniFile fireFile;
-    int32_t result = fireFile.Open(objFile, fileSize, 50);
+    int32_t result = fireFile.Open(objFile, fileSize);
 
     if (result != 0)
     {

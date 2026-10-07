@@ -1,7 +1,7 @@
 #include "stdafx.h"
 #include "gui/scrlpane.h"
 #include "gui/afont.h"
-#include "lib/aerror.h"
+#include "lib/MCFatal.h"
 #include "logistics/logbri.h"
 #include "logistics/logmain.h"
 #include "main/logistics.h"
@@ -95,7 +95,7 @@ auto MCScrollPane::Init(int32_t width, int32_t height, int32_t xPos, int32_t yPo
 
     MCLogPort* content = new MCLogPort;
     ContentPort = content;
-    Assert(content != nullptr, 0, " not enough memory for fullPane ", nullptr);
+    Assert(content != nullptr, 0, " not enough memory for fullPane ");
     content->Init(width - SliderWidth, height, -1);
     VfxPaneWipe(content->Frame(), 0x10);
 
@@ -114,12 +114,12 @@ auto MCScrollPane::Init(int32_t width, int32_t height, int32_t xPos, int32_t yPo
     }
 
     int32_t result = MCLogObject::Init(xPos, yPos, width, height, nullptr, content);
-    Assert(result == 0, 0, " could not initialize ScrollPane ", nullptr);
+    Assert(result == 0, 0, " could not initialize ScrollPane ");
     _OwnPort = ContentPort;
 
     MCLogPort* slider = new MCLogPort;
     SliderPort = slider;
-    Assert(slider != nullptr, 0, " not enought memory to allocate ", nullptr);
+    Assert(slider != nullptr, 0, " not enought memory to allocate ");
     slider->Init(SliderWidth, height, -1);
 
     char fileName[256];

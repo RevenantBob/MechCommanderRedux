@@ -1,10 +1,10 @@
 #include "stdafx.h"
 #include "appear/apprtype.h"
 #include "appear/lineappr.h"
-#include "lib/aerror.h"
-#include "lib/cident.h"
-#include "lib/inifile.h"
-#include "lib/packet.h"
+#include "lib/MCFatal.h"
+#include "lib/MCIDString.h"
+#include "lib/MCFitIniFile.h"
+#include "lib/MCPacketFile.h"
 #include "logistics/logmain.h"
 #include "sprite/actor.h"
 #include "sprite/armactor.h"
@@ -20,7 +20,7 @@ MCAppearanceTypeList* AppearanceTypeList = nullptr;
 auto MCAppearanceType::InitType(MCFile* apprFile, uint32_t fileSize) -> int32_t
 {
     MCFitIniFile iniFile;
-    int32_t result = iniFile.Open(apprFile, fileSize, 0x32);
+    int32_t result = iniFile.Open(apprFile, fileSize);
 
     if (result != 0)
     {
@@ -139,8 +139,8 @@ auto MCAppearanceType::RemoveUsers(void* user) -> void
 
 auto MCAppearanceTypeList::Init(char* fileName) -> int32_t
 {
-    MCFullPathFileName spriteName;
-    spriteName.Init(SpritePath, fileName, ".pak");
+    std::string spriteName;
+    spriteName = GamePath(SpritePath, fileName, ".pak");
     AppearanceFile = new MCPacketFile();
 
     if (AppearanceFile == nullptr)
@@ -148,11 +148,11 @@ auto MCAppearanceTypeList::Init(char* fileName) -> int32_t
         return -0x5225fffe;
     }
 
-    if (AppearanceFile->Open(spriteName, READ, 0x32) != 0)
+    if (AppearanceFile->Open(spriteName) != 0)
     {
-        MCFullPathFileName cdName;
-        cdName.Init(CDspritePath, fileName, ".pak");
-        const int32_t result = AppearanceFile->Open(cdName, READ, 0x32);
+        std::string cdName;
+        cdName = GamePath(CDspritePath, fileName, ".pak");
+        const int32_t result = AppearanceFile->Open(cdName);
 
         if (result != 0)
         {

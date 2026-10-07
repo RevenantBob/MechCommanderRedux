@@ -1,5 +1,5 @@
 #include "stdafx.h"
-#include "lib/lzcomp.h"
+#include "lib/MCLz.h"
 
 namespace
 {
@@ -12,8 +12,6 @@ namespace
     class MCCodeWriter
     {
     public:
-        explicit MCCodeWriter(uint8_t* out) : _Out(out) {}
-
         /// <summary>Emits a code at the decoder's current width, then advances the decoder's state.</summary>
         void Emit(uint32_t code)
         {
@@ -49,8 +47,8 @@ namespace
             }
         }
 
-        /// <summary>Bytes written, counting a partly filled last byte.</summary>
-        int32_t Length() const { return static_cast<int32_t>(_Pos + (_BitOffset != 0 ? 1 : 0)); }
+        /// <summary>The bytes written (a partly filled last byte included), taken out of the writer.</summary>
+        std::vector<uint8_t> Take() { return std::move(_Out); }
 
     private:
         void Put(uint32_t code, uint32_t width)
@@ -59,24 +57,19 @@ namespace
             {
                 if (_BitOffset == 0)
                 {
-                    _Out[_Pos] = 0;
+                    _Out.push_back(0);
                 }
 
                 if (code & (1u << i))
                 {
-                    _Out[_Pos] |= static_cast<uint8_t>(1u << _BitOffset);
+                    _Out.back() |= static_cast<uint8_t>(1u << _BitOffset);
                 }
 
-                if (++_BitOffset == 8)
-                {
-                    _BitOffset = 0;
-                    ++_Pos;
-                }
+                _BitOffset = (_BitOffset + 1) & 7;
             }
         }
 
-        uint8_t* _Out;
-        size_t _Pos = 0;
+        std::vector<uint8_t> _Out;
         uint32_t _BitOffset = 0;
         uint32_t _Bits = 9;
         uint32_t _Free = FirstFree;
@@ -85,31 +78,30 @@ namespace
     };
 }
 
-int32_t LZCompress(uint8_t* dest, const uint8_t* src, uint32_t srcLen)
+std::vector<uint8_t> LZCompress(std::span<const uint8_t> data)
 {
     // Dictionary: (prefix code << 8 | byte) -> code.
     std::unordered_map<uint32_t, uint16_t> dictionary;
     dictionary.reserve(TableSize * 2);
     uint32_t freeCode = FirstFree;
 
-    MCCodeWriter writer(dest);
+    MCCodeWriter writer;
     writer.Emit(ClearCode);
 
-    if (srcLen == 0)
+    if (data.empty())
     {
+        // No padding here, as the original's encoder.
         writer.Emit(EndCode);
-        return writer.Length();
+        return writer.Take();
     }
 
-    uint32_t prefix = src[0];
+    uint32_t prefix = data[0];
 
-    for (uint32_t i = 1; i < srcLen; ++i)
+    for (const uint8_t k : data.subspan(1))
     {
-        const uint8_t k = src[i];
         const uint32_t key = prefix << 8 | k;
-        const auto found = dictionary.find(key);
 
-        if (found != dictionary.end())
+        if (const auto found = dictionary.find(key); found != dictionary.end())
         {
             prefix = found->second;
             continue;
@@ -122,7 +114,8 @@ int32_t LZCompress(uint8_t* dest, const uint8_t* src, uint32_t srcLen)
 
         if (freeCode == TableSize)
         {
-            // Full: start over. The next code is a single byte, which the decoder reads as the literal after a clear.
+            // Full: start over. The next code is a single byte, which the decoder reads as the literal after a
+            // clear.
             writer.Emit(ClearCode);
             dictionary.clear();
             freeCode = FirstFree;
@@ -131,13 +124,8 @@ int32_t LZCompress(uint8_t* dest, const uint8_t* src, uint32_t srcLen)
 
     writer.Emit(prefix);
     writer.Emit(EndCode);
+    std::vector<uint8_t> packed = writer.Take();
     // Padding so the decoder's end test (it stops three bytes before the end) always reaches the last code.
-    int32_t length = writer.Length();
-
-    for (int i = 0; i < 3; ++i)
-    {
-        dest[length++] = 0;
-    }
-
-    return length;
+    packed.resize(packed.size() + 3, 0);
+    return packed;
 }

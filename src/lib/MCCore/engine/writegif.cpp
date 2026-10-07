@@ -1,7 +1,7 @@
 #include "stdafx.h"
 #include "engine/writegif.h"
 #include "color/color.h"
-#include "lib/file.h"
+#include "lib/MCFile.h"
 
 auto WriteTga8Bit(char* fileName, uint8_t* pixels, uint32_t width, uint32_t height) -> void
 {

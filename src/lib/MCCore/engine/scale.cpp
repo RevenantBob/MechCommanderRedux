@@ -2,7 +2,7 @@
 #include "engine/scale.h"
 #include "camera/camera.h"
 #include "engine/cevfx.h"
-#include "lib/aerror.h"
+#include "lib/MCFatal.h"
 #include "vfx/vfxfuncs.h"
 
 auto ScaleDraw(uint8_t* shape, uint32_t frameNum, int32_t x, int32_t y, int reverse, uint8_t* fadeTable, int scaleUp)
@@ -42,7 +42,7 @@ auto ScaleDraw(uint8_t* shape, uint32_t frameNum, int32_t x, int32_t y, int reve
 
     if (static_cast<int32_t>(height * static_cast<uint32_t>(width)) > 0x1fa3f)
     {
-        Fatal(-1, " Sprite too damned big ", nullptr);
+        Fatal(-1, " Sprite too damned big ");
     }
 
     if (fadeTable != nullptr)

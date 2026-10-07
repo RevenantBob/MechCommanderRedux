@@ -2,7 +2,7 @@
 #include "linkup/dpplayer.h"
 #include "linkup/dpmessage.h"
 #include "linkup/sessionmanager.h"
-#include "lib/aerror.h"
+#include "lib/MCFatal.h"
 
 MCFidpPlayer::MCFidpPlayer()
 {
@@ -335,7 +335,7 @@ void MCFidpPlayer::ClearList(MCFLinkedList<MCFidpPlayer>& list)
         delete player;
     }
 
-    Assert(list.Count == 0, 0, nullptr);
+    Assert(list.Count == 0, 0);
 }
 
 int MCFidpPlayer::IsInGroup(uint32_t groupID)

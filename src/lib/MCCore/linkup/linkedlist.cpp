@@ -1,6 +1,6 @@
 #include "stdafx.h"
 #include "linkup/linkedlist.h"
-#include "lib/aerror.h"
+#include "lib/MCFatal.h"
 
 MCFidpMsgList::MCFidpMsgList()
 {

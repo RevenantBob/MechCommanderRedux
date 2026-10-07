@@ -1,7 +1,7 @@
 #include "stdafx.h"
 #include "logistics/logpur.h"
 #include "gui/scrlpane.h"
-#include "lib/aerror.h"
+#include "lib/MCFatal.h"
 #include "logistics/logbri.h"
 #include "logistics/logmain.h"
 #include "logistics/purchase.h"
@@ -48,7 +48,7 @@ auto MCPurchaseScreen::Init() -> void
     PurCompPort = nullptr;
     PurVehiclePort = nullptr;
     int32_t result = MCLogObject::Init(0, 0, 0x280, 0x1e0, nullptr, nullptr);
-    Assert(result == 0, result, "Unable to init purchase screen", nullptr);
+    Assert(result == 0, result, "Unable to init purchase screen");
     // The original loaded the background (lspbk00) as the screen's picture and pasted the mech inventory header into
     // it; the screen draws both each frame.
     InitLive("lspbk00.tga");
@@ -63,7 +63,7 @@ auto MCPurchaseScreen::Init() -> void
     }
 
     InventoryPane = pane;
-    Assert(pane != nullptr, 0, " Not enough memory for inventory", nullptr);
+    Assert(pane != nullptr, 0, " Not enough memory for inventory");
     pane->Init(0xb8, 0x10d, 8, 0x6b, static_cast<char*>(nullptr));
     pane->SetDisplayPort(nullptr, -1, -1);
 
@@ -75,7 +75,7 @@ auto MCPurchaseScreen::Init() -> void
     }
 
     UnitPane = store;
-    Assert(store != nullptr, 0, "Not enough memory for vehicleScroll", nullptr);
+    Assert(store != nullptr, 0, "Not enough memory for vehicleScroll");
     std::snprintf(fileName, sizeof(fileName), "%slogart\\lsrbk01.tga", ArtPath);
     store->Init(0x1aa, 0x1cc, 0xd3, 0x11, fileName);
     store->SetDisplayPort(nullptr, -1, -1);

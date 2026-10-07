@@ -1,8 +1,8 @@
 #include "stdafx.h"
 #include "vfx/vfxint.h"
 #include "color/color.h"
-#include "lib/aerror.h"
-#include "lib/file.h"
+#include "lib/MCFatal.h"
+#include "lib/MCFile.h"
 
 // The game's translucency tables (mcx\vfx\AlphaPalette.cpp): for every "alpha colour" defined in AlphaPal.ini, the
 // palette index that colour blended over each background index gives.
@@ -72,7 +72,7 @@ void InitAlphaLookup(MCVfxRgb* palette)
     std::memset(SpecialColor, 0, sizeof(SpecialColor));
 
     MCFile* file = new MCFile;
-    const int32_t result = file->Open("AlphaPal.ini", READ, 50);
+    const int32_t result = file->Open("AlphaPal.ini");
 
     // Original: Assert(result == 0, result, "Could not open alphapal.ini"); Assert isn't ported yet.
     if (result != NO_ERR)

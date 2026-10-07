@@ -4,10 +4,12 @@
 #include "engine/font.h"
 #include "gui/afont.h"
 #include "gui/aport.h"
-#include "lib/aerror.h"
-#include "lib/cvmath.h"
-#include "lib/file.h"
-#include "lib/packet.h"
+#include "lib/MCFatal.h"
+#include "lib/MCFrameOfRef.h"
+#include "lib/MCVector2D.h"
+#include "lib/MCDice.h"
+#include "lib/MCFile.h"
+#include "lib/MCPacketFile.h"
 #include "logistics/logmain.h"
 #include "network/multplyr.h"
 #include "platform/MCInput.h"
@@ -1603,7 +1605,7 @@ auto MCGuiStartupWindow::DoStatic() -> void
 {
     for (int32_t row = 0; row < Height(); row++)
     {
-        if (RollDice(0x1e) == 0)
+        if (!RollDice(0x1e))
         {
             // Now and then a whole row is copied from a random one.
             if (RollDice(0x32) != 0)
@@ -1672,7 +1674,7 @@ auto MCGuiStartupWindow::Step() -> void
             return;
         }
 
-        if (RollDice(0x1e) == 0)
+        if (!RollDice(0x1e))
         {
             return;
         }
@@ -2009,7 +2011,7 @@ auto MCGuiStartupWindow::Setup() -> int32_t
             return result;
         }
 
-        result = file.Open(ArtFile, static_cast<uint32_t>(ArtFile->GetPacketSize()), 0x32);
+        result = file.Open(ArtFile, static_cast<uint32_t>(ArtFile->GetPacketSize()));
 
         if (result != 0)
         {

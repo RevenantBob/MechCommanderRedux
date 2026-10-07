@@ -1,6 +1,5 @@
 #include "stdafx.h"
 #include "engine/bitflag.h"
-#include "lib/routines.h"
 #include "platform/MCRenderer.h"
 #include "vfx/vfx.h"
 #include "vfx/vfxfuncs.h"
@@ -41,7 +40,7 @@ auto MCBitFlag::ResetAll(uint32_t value) -> void
 {
     if (value == 0)
     {
-        Memclear(FlagData.data(), static_cast<int>(TotalRam));
+        std::memset(FlagData.data(), 0, TotalRam);
         MaskValue = 1;
         return;
     }
@@ -166,7 +165,7 @@ auto MCByteFlag::ResetAll(uint32_t value) -> void
 
     if (value == 0)
     {
-        Memclear(FlagData.data(), static_cast<int>(TotalRam));
+        std::memset(FlagData.data(), 0, TotalRam);
         return;
     }
 

@@ -1,7 +1,7 @@
 #include "stdafx.h"
 #include "engine/font.h"
-#include "lib/cident.h"
-#include "lib/file.h"
+#include "lib/MCIDString.h"
+#include "lib/MCFile.h"
 #include "logistics/logmain.h"
 #include "vfx/vfxfuncs.h"
 
@@ -29,10 +29,10 @@ auto MCFont::Init(char* fontName) -> int32_t
         LetterCache[i] = reinterpret_cast<uint8_t*>(static_cast<intptr_t>(-1));
     }
 
-    MCFullPathFileName fileName;
-    fileName.Init(FontPath, fontName, ".bin");
+    std::string fileName;
+    fileName = GamePath(FontPath, fontName, ".bin");
     MCFile file;
-    int32_t result = file.Open(fileName, READ, 0x32);
+    int32_t result = file.Open(fileName);
 
     if (result != 0)
     {

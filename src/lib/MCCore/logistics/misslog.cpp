@@ -1,9 +1,9 @@
 #include "stdafx.h"
 #include "logistics/misslog.h"
-#include "lib/cident.h"
-#include "lib/file.h"
-#include "lib/inifile.h"
-#include "lib/packet.h"
+#include "lib/MCIDString.h"
+#include "lib/MCFile.h"
+#include "lib/MCFitIniFile.h"
+#include "lib/MCPacketFile.h"
 #include "logistics/logmain.h"
 #include "logistics/purchase.h"
 #include "main/logistics.h"
@@ -104,7 +104,7 @@ namespace
     }
 
     /// <summary>The CRT's <c>DeleteFileA</c> on a game path.</summary>
-    void DeleteFile(const char* fileName)
+    void DeleteFile(std::string_view fileName)
     {
         MCFileSystem::RemoveFile(fileName);
     }
@@ -145,9 +145,9 @@ namespace
     /// Copies file <paramref name="fileName"/> into packet <paramref name="packet"/> of <paramref name="packFile"/>.
     /// Returns the open error, if any.
     /// </summary>
-    int32_t PackFileInto(MCPacketFile& packFile, MCFile& file, const char* fileName, int32_t packet)
+    int32_t PackFileInto(MCPacketFile& packFile, MCFile& file, std::string_view fileName, int32_t packet)
     {
-        const int32_t result = file.Open(fileName, READ, 0x32);
+        const int32_t result = file.Open(fileName);
 
         if (result != 0)
         {
@@ -157,7 +157,7 @@ namespace
         const uint32_t size = file.FileSize();
         std::vector<uint8_t> buffer(size);
         file.Read(buffer.data(), static_cast<int32_t>(size));
-        packFile.WritePacket(packet, buffer.data(), static_cast<int32_t>(size), 2);
+        packFile.WritePacket(packet, buffer, MCPacketStorage::Lzd);
         file.Close();
         return 0;
     }
@@ -169,8 +169,8 @@ namespace
         {
             char name[32];
             ProfileName(name, sizeof(name), i);
-            MCFullPathFileName fileName;
-            fileName.Init(SaveTempPath, name, ".fit");
+            std::string fileName;
+            fileName = GamePath(SaveTempPath, name, ".fit");
             const int32_t result = PackFileInto(packFile, file, fileName, i + 1);
 
             if (result != 0)
@@ -189,8 +189,8 @@ namespace
         {
             char name[32];
             ProfileName(name, sizeof(name), i);
-            MCFullPathFileName fileName;
-            fileName.Init(SaveTempPath, name, ".fit");
+            std::string fileName;
+            fileName = GamePath(SaveTempPath, name, ".fit");
             DeleteFile(fileName);
         }
     }
@@ -445,8 +445,8 @@ void DestroyAllFitFiles(char* path)
 
 auto MCMissionLogisticsBridge::MissionResultsStartingFitWriter(char* fileName) -> int32_t
 {
-    MCFullPathFileName fitName;
-    fitName.Init(SaveTempPath, fileName, ".fit");
+    std::string fitName;
+    fitName = GamePath(SaveTempPath, fileName, ".fit");
     MCFitIniFile file;
     int32_t result = file.Create(fitName);
 
@@ -614,8 +614,8 @@ auto MCMissionLogisticsBridge::MissionResultsStartingFitWriter(char* fileName) -
     file.Close();
 
     // Everything goes into one packet file: the starting fit, then the profiles.
-    MCFullPathFileName packName;
-    packName.Init(SavePath, fileName, ".pkk");
+    std::string packName;
+    packName = GamePath(SavePath, fileName, ".pkk");
     MCPacketFile packFile;
     packFile.Create(packName);
     const auto numProfiles = static_cast<int32_t>(numMechs + numWarriors);
@@ -638,20 +638,20 @@ auto MCMissionLogisticsBridge::MissionResultsStartingFitWriter(char* fileName) -
     packFile.Close();
     DeleteFile(fitName);
     DeleteProfiles(numProfiles);
-    MCFullPathFileName bridgeName;
-    bridgeName.Init(SaveTempPath, "bridge", ".fit");
+    std::string bridgeName;
+    bridgeName = GamePath(SaveTempPath, "bridge", ".fit");
     DeleteFile(bridgeName);
 
     for (int32_t i = 0; i < 12; i++)
     {
         char name[32];
         std::snprintf(name, sizeof(name), "mech%04d", i);
-        MCFullPathFileName mechName;
-        mechName.Init(SaveTempPath, name, ".fit");
+        std::string mechName;
+        mechName = GamePath(SaveTempPath, name, ".fit");
         DeleteFile(mechName);
         std::snprintf(name, sizeof(name), "warr%04d", i);
-        MCFullPathFileName warriorName;
-        warriorName.Init(SaveTempPath, name, ".fit");
+        std::string warriorName;
+        warriorName = GamePath(SaveTempPath, name, ".fit");
         DeleteFile(warriorName);
     }
 
@@ -661,8 +661,8 @@ auto MCMissionLogisticsBridge::MissionResultsStartingFitWriter(char* fileName) -
 auto MCMissionLogisticsBridge::MissionResultsMechProfileWriter(char* fileName, MCBattleMech* mech, int notAssigned)
     -> int32_t
 {
-    MCFullPathFileName fitName;
-    fitName.Init(SaveTempPath, fileName, ".fit");
+    std::string fitName;
+    fitName = GamePath(SaveTempPath, fileName, ".fit");
     MCFitIniFile file;
     const int32_t result = file.Create(fitName);
 
@@ -729,7 +729,7 @@ auto MCMissionLogisticsBridge::MissionResultsMechProfileWriter(char* fileName, M
             const MCCriticalSpace& critical = body.CriticalSpaces[space];
             // Port: the original printed "hit a component" for hit spaces (a debug trace).
             const uint8_t values[2] = {critical.InventoryID, static_cast<uint8_t>(critical.Hit)};
-            file.WriteIdUCharArray(id, values, 2);
+            file.WriteIdUCharArray(id, std::span(values, 2));
         }
     }
 
@@ -769,8 +769,8 @@ auto MCMissionLogisticsBridge::MissionResultsMechProfileWriter(char* fileName, M
 
 auto MCMissionLogisticsBridge::MissionResultsVehicleProfileWriter(char* fileName, MCGroundVehicle* vehicle) -> int32_t
 {
-    MCFullPathFileName fitName;
-    fitName.Init(SaveTempPath, fileName, ".fit");
+    std::string fitName;
+    fitName = GamePath(SaveTempPath, fileName, ".fit");
     MCFitIniFile file;
     const int32_t result = file.Create(fitName);
 
@@ -849,8 +849,8 @@ auto MCMissionLogisticsBridge::MissionResultsVehicleProfileWriter(char* fileName
 
 auto MCMissionLogisticsBridge::MissionResultsWarriorProfileWriter(char* fileName, MCMechWarrior* warrior) -> int32_t
 {
-    MCFullPathFileName fitName;
-    fitName.Init(SaveTempPath, fileName, ".fit");
+    std::string fitName;
+    fitName = GamePath(SaveTempPath, fileName, ".fit");
     MCFitIniFile file;
     const int32_t result = file.Create(fitName);
 
@@ -921,8 +921,8 @@ auto MCMissionLogisticsBridge::MissionResultsWarriorProfileWriter(char* fileName
 auto MCMissionLogisticsBridge::LogisticsStartingFitWriter(char* fileName, int skipFlagged) -> int32_t
 {
     MCLogistics* logistics = Mission->Logistics;
-    MCFullPathFileName fitName;
-    fitName.Init(SaveTempPath, fileName, ".fit");
+    std::string fitName;
+    fitName = GamePath(SaveTempPath, fileName, ".fit");
     MCFitIniFile file;
     int32_t result = file.Create(fitName);
 
@@ -1141,9 +1141,9 @@ auto MCMissionLogisticsBridge::LogisticsStartingFitWriter(char* fileName, int sk
     WriteComponents(file, [logistics](uint8_t id) { return logistics->ComponentInventory->GetItemCount(id); });
     file.Close();
 
-    MCFullPathFileName purchaseName;
-    purchaseName.Init(SavePath, fileName, ".pur");
-    result = WritePurchaseFile(purchaseName);
+    std::string purchaseName;
+    purchaseName = GamePath(SavePath, fileName, ".pur");
+    result = WritePurchaseFile(purchaseName.c_str());
 
     if (result != 0)
     {
@@ -1151,8 +1151,8 @@ auto MCMissionLogisticsBridge::LogisticsStartingFitWriter(char* fileName, int sk
     }
 
     // The starting fit, the profiles and the purchase file go into one packet file.
-    MCFullPathFileName packName;
-    packName.Init(SavePath, fileName, ".pkk");
+    std::string packName;
+    packName = GamePath(SavePath, fileName, ".pkk");
     MCPacketFile packFile;
     packFile.Create(packName);
     const auto numProfiles =
@@ -1191,8 +1191,8 @@ auto MCMissionLogisticsBridge::LogisticsStartingFitWriter(char* fileName, int sk
 
 auto MCMissionLogisticsBridge::LogisticsMechProfileWriter(char* fileName, MCLogMech* mech, int writeRequired) -> int32_t
 {
-    MCFullPathFileName fitName;
-    fitName.Init(SaveTempPath, fileName, ".fit");
+    std::string fitName;
+    fitName = GamePath(SaveTempPath, fileName, ".fit");
     MCFitIniFile file;
     const int32_t result = file.Create(fitName);
 
@@ -1350,7 +1350,7 @@ auto MCMissionLogisticsBridge::LogisticsMechProfileWriter(char* fileName, MCLogM
             std::snprintf(id, sizeof(id), "Component:%d", space);
             const MCLogMech::ItemSlot& slot = mech->ItemSlots[location][space];
             const uint8_t values[2] = {slot.Row, slot.Column};
-            file.WriteIdUCharArray(id, values, 2);
+            file.WriteIdUCharArray(id, std::span(values, 2));
         }
     }
 
@@ -1362,8 +1362,8 @@ auto MCMissionLogisticsBridge::LogisticsMechProfileWriter(char* fileName, MCLogM
 auto MCMissionLogisticsBridge::LogisticsVehicleProfileWriter(char* fileName, MCLogVehicle* vehicle, int writeRequired)
     -> int32_t
 {
-    MCFullPathFileName fitName;
-    fitName.Init(SaveTempPath, fileName, ".fit");
+    std::string fitName;
+    fitName = GamePath(SaveTempPath, fileName, ".fit");
     MCFitIniFile file;
     const int32_t result = file.Create(fitName);
 
@@ -1475,8 +1475,8 @@ auto MCMissionLogisticsBridge::LogisticsVehicleProfileWriter(char* fileName, MCL
 
 auto MCMissionLogisticsBridge::LogisticsWarriorProfileWriter(char* fileName, MCLogWarrior* warrior) -> int32_t
 {
-    MCFullPathFileName fitName;
-    fitName.Init(SaveTempPath, fileName, ".fit");
+    std::string fitName;
+    fitName = GamePath(SaveTempPath, fileName, ".fit");
     MCFitIniFile file;
     const int32_t result = file.Create(fitName);
 
@@ -1561,8 +1561,8 @@ auto MCMissionLogisticsBridge::LogisticsWarriorProfileReader(char*) -> int32_t
 auto MCMissionLogisticsBridge::LogisticsSaveGame(char* fileName) -> int32_t
 {
     MCLogistics* logistics = Mission->Logistics;
-    MCFullPathFileName fitName;
-    fitName.Init(SaveTempPath, fileName, ".fit");
+    std::string fitName;
+    fitName = GamePath(SaveTempPath, fileName, ".fit");
     MCFitIniFile file;
     int32_t result = file.Create(fitName);
 
@@ -1743,17 +1743,17 @@ auto MCMissionLogisticsBridge::LogisticsSaveGame(char* fileName) -> int32_t
     WriteComponents(file, [logistics](uint8_t id) { return logistics->ComponentInventory->GetItemCount(id); });
     file.Close();
 
-    MCFullPathFileName purchaseName;
-    purchaseName.Init(SavePath, fileName, ".pur");
-    result = WritePurchaseFile(purchaseName);
+    std::string purchaseName;
+    purchaseName = GamePath(SavePath, fileName, ".pur");
+    result = WritePurchaseFile(purchaseName.c_str());
 
     if (result != 0)
     {
         return result;
     }
 
-    MCFullPathFileName saveName;
-    saveName.Init(SavePath, fileName, ".sav");
+    std::string saveName;
+    saveName = GamePath(SavePath, fileName, ".sav");
     MCPacketFile packFile;
     result = packFile.Create(saveName);
 

@@ -1,7 +1,7 @@
 #include "stdafx.h"
 #include "gui/abutton.h"
 #include "gui/aport.h"
-#include "lib/aerror.h"
+#include "lib/MCFatal.h"
 #include "vfx/vfxfuncs.h"
 
 namespace

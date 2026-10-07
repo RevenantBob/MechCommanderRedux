@@ -5,7 +5,7 @@
 #include "linkup/fidpgroup.h"
 #include "linkup/filetransferinfo.h"
 #include "linkup/session.h"
-#include "lib/aerror.h"
+#include "lib/MCFatal.h"
 #include "platform/MCSocket.h"
 
 std::unique_ptr<MCBlockStore> LinkUpBlocks;
@@ -301,7 +301,7 @@ void OutputSessionManagerStats()
         // Original behaviour: the line is formatted and dropped (its output call was compiled out).
         std::snprintf(line, sizeof(line), "Messages to player %s - vlist size = %d\\n", player->Name,
                       player->VerifyList.Count);
-        Assert(iterator.Current != nullptr, 0, nullptr);
+        Assert(iterator.Current != nullptr, 0);
         iterator.Current = iterator.Current->Next;
     }
 }
@@ -394,7 +394,7 @@ void MCFidpNetworkProtocol::ClearList(MCFLinkedList<MCFidpNetworkProtocol>& list
 
 MCSessionManager::MCSessionManager(_GUID appGUID)
 {
-    Assert(InstanceExists == 0, 0, nullptr);
+    Assert(InstanceExists == 0, 0);
     TicksPerMS = static_cast<uint32_t>(static_cast<uint32_t>(MCPort::PerformanceFrequency()) / 1000);
     GlobalPointerHolder = nullptr;
     InstanceExists = 1;
@@ -572,7 +572,7 @@ MCFidpMessage* MCSessionManager::GetMessageFromEmptyQueue()
 
 int32_t MCSessionManager::EnumerateConnections()
 {
-    Assert(DirectPlay != nullptr, 0, nullptr);
+    Assert(DirectPlay != nullptr, 0);
     MCFidpNetworkProtocol::ClearList(Connections);
     return static_cast<int32_t>(DirectPlay->EnumConnections(&ThisAppGuid, EnumConnectionsCallback, this, 0));
 }
@@ -633,7 +633,7 @@ int MCSessionManager::AddSession(const DPSESSIONDESC2* desc, uint32_t*, uint32_t
         return 0;
     }
 
-    Assert(desc != nullptr, 0, nullptr);
+    Assert(desc != nullptr, 0);
 
     if (CurrentSession != nullptr && MCSameGuid(CurrentSession->SessionDesc.guidInstance, desc->guidInstance))
     {
@@ -848,7 +848,7 @@ MCFidpSession* MCSessionManager::FindMatchingSession(_GUID* sessionGUID)
 
 int32_t MCSessionManager::JoinSession(_GUID* sessionGUID, char* playerName)
 {
-    Assert(DirectPlay != nullptr, 0, nullptr);
+    Assert(DirectPlay != nullptr, 0);
     MCFidpSession* session = FindMatchingSession(sessionGUID);
 
     if (session == nullptr)
@@ -1130,7 +1130,7 @@ int32_t MCSessionManager::SetCurrentConnection(int type)
         }
     }
 
-    Assert(connection != nullptr, 0, nullptr);
+    Assert(connection != nullptr, 0);
     // Port fix: recreating the DirectPlay object below re-enumerates the connections, which frees the buffer just
     // found (the original went on using it); the port keeps a copy.
     std::vector<uint8_t> copy(static_cast<uint8_t*>(connection),
@@ -1438,8 +1438,8 @@ MCFLinkedList<MCFidpPlayer>* MCSessionManager::GetPlayers(MCFidpSession* session
 void MCSessionManager::EnumeratePlayers(MCFidpSession* session)
 {
     MCFidpPlayer::ClearList(Players);
-    Assert(DirectPlay != nullptr, 0, nullptr);
-    Assert(CurrentConnection >= 0, 0, nullptr);
+    Assert(DirectPlay != nullptr, 0);
+    Assert(CurrentConnection >= 0, 0);
 
     if (session == nullptr)
     {
@@ -1461,8 +1461,8 @@ void MCSessionManager::EnumeratePlayers(MCFidpSession* session)
 MCFLinkedList<MCFidpGroup>* MCSessionManager::GetGroups(MCFidpSession* session)
 {
     MCFidpGroup::ClearList(Groups);
-    Assert(DirectPlay != nullptr, 0, nullptr);
-    Assert(CurrentConnection >= 0, 0, nullptr);
+    Assert(DirectPlay != nullptr, 0);
+    Assert(CurrentConnection >= 0, 0);
 
     if (session == nullptr)
     {
@@ -2530,7 +2530,7 @@ void MCSessionManager::GivePlayerAnID(MCFidpPlayer* player)
     for (int i = 0; i < count; i++)
     {
         numbers[i + 1] = link != nullptr ? link->Data->PlayerNumber : 0;
-        Assert(link != nullptr, 0, nullptr);
+        Assert(link != nullptr, 0);
         link = link->Next;
     }
 

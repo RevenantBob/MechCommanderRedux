@@ -2,7 +2,7 @@
 #include "logistics/logscrn.h"
 #include "gui/afont.h"
 #include "gui/scrlpane.h"
-#include "lib/aerror.h"
+#include "lib/MCFatal.h"
 #include "linkup/dpplayer.h"
 #include "linkup/sessionmanager.h"
 #include "logistics/invblock.h"
@@ -966,7 +966,7 @@ auto MCLogChatWindow::Init(int32_t xPos, int32_t yPos, int32_t width, int32_t he
     }
 
     HistoryPane = pane;
-    Assert(pane != nullptr, 0, "Not enough memory for chat scroll", nullptr);
+    Assert(pane != nullptr, 0, "Not enough memory for chat scroll");
     pane->Init(0xb8, height - FramePort->Height() - 7, 6, 6, static_cast<char*>(nullptr));
     AddChild(pane);
     pane->ShowGuiWindow(-1);
@@ -1146,7 +1146,7 @@ auto MCLogChatWindow::Resize(int32_t height) -> void
     }
 
     HistoryPane = pane;
-    Assert(pane != nullptr, 0, "Not enough memory for chat scroll", nullptr);
+    Assert(pane != nullptr, 0, "Not enough memory for chat scroll");
     pane->Init(0xb8, height - FramePort->Height() - 7, 6, 6, static_cast<char*>(nullptr));
     pane->SetDisplayPort(history, -1, -1);
     AddChild(pane);

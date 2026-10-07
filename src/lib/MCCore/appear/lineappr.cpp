@@ -4,7 +4,7 @@
 #include "color/color.h"
 #include "engine/ceglist.h"
 #include "engine/celine.h"
-#include "lib/inifile.h"
+#include "lib/MCFitIniFile.h"
 #include "object/gameobj.h"
 
 auto MCLineAppearanceType::Init(MCFile* apprFile, uint32_t fileSize) -> int32_t
@@ -15,7 +15,7 @@ auto MCLineAppearanceType::Init(MCFile* apprFile, uint32_t fileSize) -> int32_t
 auto MCLineAppearanceType::LoadIniFile(MCFile* apprFile, uint32_t fileSize) -> int32_t
 {
     MCFitIniFile iniFile;
-    int32_t result = iniFile.Open(apprFile, fileSize, 0x32);
+    int32_t result = iniFile.Open(apprFile, fileSize);
 
     if (result != 0)
     {

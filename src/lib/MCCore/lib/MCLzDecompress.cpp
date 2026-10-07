@@ -1,5 +1,5 @@
 #include "stdafx.h"
-#include "lib/lzdecomp.h"
+#include "lib/MCLz.h"
 
 namespace
 {
@@ -12,24 +12,24 @@ namespace
     /// <summary>One dictionary entry: the code of the string's prefix and its last byte (the original's HashStruct).</summary>
     struct MCHashStruct
     {
-        uint16_t Chain;
-        uint8_t Suffix;
+        uint16_t Chain = 0;
+        uint8_t Suffix = 0;
     };
 }
 
-int32_t LZDecomp(uint8_t* dest, const uint8_t* src, uint32_t srcLen, uint32_t destLen)
+int32_t LZDecomp(std::span<uint8_t> dest, std::span<const uint8_t> packed)
 {
     // The original reads each code as an unaligned 32-bit load, so it stops 3 bytes before the end of the source.
-    if (srcLen < 3)
+    if (packed.size() < 3)
     {
         return 0;
     }
 
-    const uint8_t* srcEnd = src + (srcLen - 3);
-    const uint8_t* srcLimit = src + srcLen;
+    const size_t srcEnd = packed.size() - 3;
+    size_t src = 0;
 
-    static MCHashStruct hashBuffer[1 << MaxBits];
-    std::array<uint8_t, 1 << MaxBits> stack;
+    std::vector<MCHashStruct> hashBuffer(size_t{1} << MaxBits);
+    std::array<uint8_t, size_t{1} << MaxBits> stack{};
 
     uint32_t codeMask = (1u << MinBits) - 1;
     uint32_t maxIndex = 1u << MinBits;
@@ -38,13 +38,18 @@ int32_t LZDecomp(uint8_t* dest, const uint8_t* src, uint32_t srcLen, uint32_t de
     uint32_t bitOffset = 0;
     uint32_t oldChain = 0;
     uint8_t oldSuffix = 0;
-    uint32_t written = 0;
+    size_t written = 0;
 
     auto readCode = [&](uint32_t width) -> uint32_t
     {
         // Port fix: the original's 32-bit load can read a byte past the end of the source.
         uint32_t word = 0;
-        std::memcpy(&word, src, static_cast<size_t>(std::min<ptrdiff_t>(4, srcLimit - src)));
+
+        for (size_t i = 0; i < 4 && src + i < packed.size(); ++i)
+        {
+            word |= static_cast<uint32_t>(packed[src + i]) << (8 * i);
+        }
+
         const uint32_t code = (word >> bitOffset) & ((1u << width) - 1);
         bitOffset += width;
         src += bitOffset >> 3;
@@ -54,7 +59,7 @@ int32_t LZDecomp(uint8_t* dest, const uint8_t* src, uint32_t srcLen, uint32_t de
 
     auto put = [&](uint8_t value)
     {
-        if (written < destLen)
+        if (written < dest.size())
         {
             dest[written] = value;
         }
@@ -98,6 +103,7 @@ int32_t LZDecomp(uint8_t* dest, const uint8_t* src, uint32_t srcLen, uint32_t de
             hashBuffer[code].Suffix = oldSuffix;
             hashBuffer[code].Chain = static_cast<uint16_t>(oldChain);
         }
+
         while (walk > 0xff && depth < stack.size())
         {
             stack[depth++] = hashBuffer[walk].Suffix;
@@ -129,5 +135,5 @@ int32_t LZDecomp(uint8_t* dest, const uint8_t* src, uint32_t srcLen, uint32_t de
         }
     }
 
-    return static_cast<int32_t>(std::min(written, destLen));
+    return static_cast<int32_t>(std::min(written, dest.size()));
 }

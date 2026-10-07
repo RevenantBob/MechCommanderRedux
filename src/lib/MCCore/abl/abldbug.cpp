@@ -11,7 +11,7 @@
 #include "gui/aport.h"
 #include "gui/atextbox.h"
 #include "gui/updisp.h"
-#include "lib/aerror.h"
+#include "lib/MCFatal.h"
 #include "network/multplyr.h"
 #include "platform/MCInput.h"
 #include "vfx/vfxfuncs.h"

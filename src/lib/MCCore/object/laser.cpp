@@ -4,11 +4,13 @@
 #include "engine/ceglist.h"
 #include "engine/cepoly.h"
 #include "engine/crater.h"
-#include "lib/cident.h"
-#include "lib/cvmath.h"
-#include "lib/file.h"
+#include "lib/MCIDString.h"
+#include "lib/MCFrameOfRef.h"
+#include "lib/MCVector2D.h"
+#include "lib/MCDice.h"
+#include "lib/MCFile.h"
 #include "platform/MCRenderer.h"
-#include "lib/inifile.h"
+#include "lib/MCFitIniFile.h"
 #include "logistics/logmain.h"
 #include "main/main.h"
 #include "network/multplyr.h"
@@ -193,7 +195,7 @@ auto MCLaserType::Destroy() -> void
 auto MCLaserType::Init(MCFile* objFile, uint32_t fileSize) -> int32_t
 {
     MCFitIniFile laserFile;
-    int32_t result = laserFile.Open(objFile, fileSize, 50);
+    int32_t result = laserFile.Open(objFile, fileSize);
 
     if (result != 0)
     {
@@ -240,11 +242,11 @@ auto MCLaserType::Init(MCFile* objFile, uint32_t fileSize) -> int32_t
 
     if (laserFile.ReadIdString("LaserEffectShape", shapeName, 79) == 0)
     {
-        MCFullPathFileName shapePath;
-        shapePath.Init(SpritePath, shapeName, ".shp");
+        std::string shapePath;
+        shapePath = GamePath(SpritePath, shapeName, ".shp");
         MCFile shapeFile;
 
-        if ((result = shapeFile.Open(shapePath, READ, 50)) != 0)
+        if ((result = shapeFile.Open(shapePath)) != 0)
         {
             return result;
         }

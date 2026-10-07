@@ -1,9 +1,9 @@
 #include "stdafx.h"
 #include "gui/aport.h"
 #include "gui/asystem.h"
-#include "lib/aerror.h"
-#include "lib/file.h"
-#include "lib/packet.h"
+#include "lib/MCFatal.h"
+#include "lib/MCFile.h"
+#include "lib/MCPacketFile.h"
 #include "logistics/logbri.h"
 #include "ai/move.h"
 #include "vfx/vfxfuncs.h"
@@ -188,7 +188,7 @@ auto MCGuiPort::Init(int32_t artPacket) -> int32_t
 
     MCFile file;
 
-    if (file.Open(ArtFile, static_cast<uint32_t>(ArtFile->GetPacketSize()), 0x32) != 0)
+    if (file.Open(ArtFile, static_cast<uint32_t>(ArtFile->GetPacketSize())) != 0)
     {
         Fatal(0, "Cant open child file.");
     }
@@ -226,18 +226,18 @@ auto MCGuiPort::Init(char* fileName) -> int32_t
     if (CurPlanet == 1)
     {
         std::snprintf(path, sizeof(path), "%sx%s", ArtPath, fileName);
-        opened = file.Open(path, READ, 0x32) == 0;
+        opened = file.Open(path) == 0;
     }
 
     if (!opened)
     {
         std::snprintf(path, sizeof(path), "%s%s", ArtPath, fileName);
 
-        if (file.Open(path, READ, 0x32) != 0)
+        if (file.Open(path) != 0)
         {
             std::snprintf(path, sizeof(path), "%s", fileName);
 
-            if (file.Open(path, READ, 0x32) != 0)
+            if (file.Open(path) != 0)
             {
                 char message[256];
                 std::snprintf(message, sizeof(message), "Error reading '%s'", path);

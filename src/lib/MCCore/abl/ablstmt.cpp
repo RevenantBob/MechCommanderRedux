@@ -7,7 +7,7 @@
 #include "abl/ablrtn.h"
 #include "abl/ablscan.h"
 #include "abl/ablsymt.h"
-#include "lib/aerror.h"
+#include "lib/MCFatal.h"
 
 MCTokenCodeType StatementStartList[] = {TKN_FOR, TKN_IF, TKN_REPEAT, TKN_WHILE, TKN_SWITCH, TKN_IDENTIFIER, TKN_NONE};
 MCTokenCodeType StatementEndList[] = {TKN_SEMICOLON,  TKN_END_IF,       TKN_END_WHILE, TKN_END_FOR,

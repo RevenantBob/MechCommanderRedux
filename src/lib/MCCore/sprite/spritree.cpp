@@ -1,6 +1,6 @@
 #include "stdafx.h"
 #include "sprite/spritree.h"
-#include "lib/inifile.h"
+#include "lib/MCFitIniFile.h"
 #include "main/main.h"
 #include "sprite/sprtmgr.h"
 #include "sprite/vfxshape.h"
@@ -182,7 +182,7 @@ auto MCSpriteTree::LoadIniFile(MCFile* apprFile, uint32_t fileSize) -> int32_t
     constexpr int32_t noGestureRam = static_cast<int32_t>(0xbeef000a);
 
     MCFitIniFile iniFile;
-    int32_t result = iniFile.Open(apprFile, fileSize, 50);
+    int32_t result = iniFile.Open(apprFile, fileSize);
 
     if (result != 0)
     {

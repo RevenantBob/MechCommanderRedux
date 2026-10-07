@@ -6,10 +6,12 @@
 #include "engine/bitflag.h"
 #include "engine/ceglist.h"
 #include "engine/celine.h"
-#include "lib/aerror.h"
-#include "lib/cident.h"
-#include "lib/cvmath.h"
-#include "lib/packet.h"
+#include "lib/MCFatal.h"
+#include "lib/MCIDString.h"
+#include "lib/MCFrameOfRef.h"
+#include "lib/MCVector2D.h"
+#include "lib/MCDice.h"
+#include "lib/MCPacketFile.h"
 #include "logistics/logmain.h"
 #include "main/main.h"
 #include "mission/scenario.h"
@@ -272,8 +274,8 @@ auto MCMapBlockManager::Destroy() -> void
 
 auto MCMapBlockManager::Init(char* fileName, int32_t numBlocks, int32_t blockSize) -> int32_t
 {
-    MCFullPathFileName blockName;
-    blockName.Init(TerrainPath, fileName, ".elv");
+    std::string blockName;
+    blockName = GamePath(TerrainPath, fileName, ".elv");
     BlockFile = new MCPacketFile;
 
     if (BlockFile == nullptr)
@@ -281,7 +283,7 @@ auto MCMapBlockManager::Init(char* fileName, int32_t numBlocks, int32_t blockSiz
         return NO_BLOCK_FILE;
     }
 
-    int32_t result = BlockFile->Open(blockName, READ, 50);
+    int32_t result = BlockFile->Open(blockName);
 
     if (result != 0)
     {

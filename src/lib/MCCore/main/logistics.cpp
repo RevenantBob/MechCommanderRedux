@@ -6,12 +6,11 @@
 #include "gui/asystem.h"
 #include "gui/scrlpane.h"
 #include "gui/updisp.h"
-#include "lib/aerror.h"
-#include "lib/cident.h"
-#include "lib/file.h"
-#include "lib/inifile.h"
-#include "lib/packet.h"
-#include "lib/routines.h"
+#include "lib/MCFatal.h"
+#include "lib/MCIDString.h"
+#include "lib/MCFile.h"
+#include "lib/MCFitIniFile.h"
+#include "lib/MCPacketFile.h"
 #include "linkup/dpmessage.h"
 #include "linkup/dpplayer.h"
 #include "linkup/linkedlist.hpp"
@@ -1173,8 +1172,8 @@ auto MCLogWarriorList::Destroy() -> void
 auto MCLogWarriorList::AddWarrior(char* fileName, int sorted) -> int32_t
 {
     MCFitIniFile file;
-    MCFullPathFileName path;
-    path.Init(WarriorPath, fileName, ".fit");
+    std::string path;
+    path = GamePath(WarriorPath, fileName, ".fit");
     const int32_t result = file.Open(path);
     Assert(result == 0, static_cast<uint32_t>(result), " could not open scenario file ");
     return AddWarrior(&file, sorted);
@@ -1442,7 +1441,7 @@ auto MCLogWarriorList::AddWarrior(MCFitIniFile* file, int sorted) -> int32_t
     // A profile read from its own file is known by the file's base name (one read from a packet keeps none).
     if (file->GetParent() == nullptr)
     {
-        SplitFileName(file->GetFilename(), warrior->FileName, sizeof(warrior->FileName));
+        SplitFileName(file->GetFilename().c_str(), warrior->FileName, sizeof(warrior->FileName));
     }
 
     AddWarrior(warrior, sorted);
@@ -2399,8 +2398,8 @@ auto MCLogMechList::GetMechIndex(MCLogMech* mech) -> int32_t
 auto MCLogMechList::AddMech(char* fileName, int required, int sorted, int widgets) -> MCLogMech*
 {
     MCFitIniFile file;
-    MCFullPathFileName path;
-    path.Init(ProfilePath, fileName, ".fit");
+    std::string path;
+    path = GamePath(ProfilePath, fileName, ".fit");
     const int32_t result = file.Open(path);
     Assert(result == 0, 0, "(addMech) Could not open file");
     MCLogMech* mech = AddMech(&file, required, sorted, widgets);
@@ -2550,19 +2549,19 @@ namespace
 
         if (chassis.Open(&objects, static_cast<uint32_t>(objects.GetPacketSize())) != 0)
         {
-            Fatal(static_cast<int32_t>(0xbeef0006), nullptr, nullptr);
+            Fatal(static_cast<int32_t>(0xbeef0006));
         }
 
         if (chassis.SeekBlock("InternalStructure") != 0)
         {
-            Fatal(static_cast<int32_t>(0xbeef0006), nullptr, nullptr);
+            Fatal(static_cast<int32_t>(0xbeef0006));
         }
 
         for (int32_t location = 0; location < 8; ++location)
         {
             if (chassis.ReadIdUChar(MechLocationBlocks[location], mech->Internals[location].MaxArmor) != 0)
             {
-                Fatal(static_cast<int32_t>(0xbeef0006), nullptr, nullptr);
+                Fatal(static_cast<int32_t>(0xbeef0006));
             }
         }
     }
@@ -3370,8 +3369,8 @@ auto MCLogVehicleList::AddVehicle(char* fileName, int required, int sorted, int 
 {
     (void)widgets; // Original behaviour: vehicles read by name always get their widgets.
     MCFitIniFile file;
-    MCFullPathFileName path;
-    path.Init(ProfilePath, fileName, ".fit");
+    std::string path;
+    path = GamePath(ProfilePath, fileName, ".fit");
     const int32_t result = file.Open(path);
     Assert(result == 0, static_cast<uint32_t>(result), " could not open vehicle Profile file ");
     MCLogVehicle* vehicle = AddVehicle(&file, required, sorted, 1);
@@ -4164,8 +4163,8 @@ namespace
     /// <summary>Opens screen ini <paramref name="name"/><c>.fit</c> under <c>artPath</c>.</summary>
     void OpenScreenFile(MCFitIniFile& file, const char* name, const char* missingError)
     {
-        MCFullPathFileName fileName;
-        fileName.Init(ArtPath, name, ".fit");
+        std::string fileName;
+        fileName = GamePath(ArtPath, name, ".fit");
         const int32_t result = file.Open(fileName);
         Assert(result == 0, static_cast<uint32_t>(result), missingError);
     }
@@ -4204,8 +4203,8 @@ namespace
     /// <summary>Reads a <c>net*.rsp</c> list (one name per line, each a logistics block) from <c>profilePath</c>.</summary>
     void ReadNameList(MCFile& file, const char* name, const char* missingError, MCFLinkedList<char>& list)
     {
-        MCFullPathFileName fileName;
-        fileName.Init(ProfilePath, name, ".rsp");
+        std::string fileName;
+        fileName = GamePath(ProfilePath, name, ".rsp");
         const int32_t result = file.Open(fileName);
         Assert(result == 0, static_cast<uint32_t>(result), missingError);
 
@@ -4534,7 +4533,7 @@ auto MCLogistics::Init() -> void
 
     RangeSortList = new uint32_t[NumRangeSorted];
     // Original behaviour: memclear was given the entry count as the byte count; every entry is read below anyway.
-    Memclear(RangeSortList, NumRangeSorted);
+    std::memset(RangeSortList, 0, NumRangeSorted);
     file.Seek(0, 0);
 
     for (int32_t i = 0; i < NumRangeSorted; ++i)
@@ -5508,8 +5507,8 @@ namespace
             Assert(result == 0, static_cast<uint32_t>(result), " Could not find Purchasing Warrior Status");
         }
 
-        MCFullPathFileName fileName;
-        fileName.Init(WarriorPath, profile, ".fit");
+        std::string fileName;
+        fileName = GamePath(WarriorPath, profile, ".fit");
         result = pilotFile.Open(fileName);
         Assert(result == 0, static_cast<uint32_t>(result), " could not open Purchasing Pilot profile file ");
         result = pilotFile.SeekBlock("General");
@@ -5641,7 +5640,7 @@ auto MCLogistics::SetUpPurchasing(MCPacketFile* file) -> void
     file->SeekPacket(file->GetNumPackets() - 1);
     const int32_t size = file->GetPacketSize();
     Assert(size > 0, static_cast<uint32_t>(size), " Bad Purchase Data in Campaign File ");
-    const int32_t result = purchasing->Open(file, static_cast<uint32_t>(size), 0x32);
+    const int32_t result = purchasing->Open(file, static_cast<uint32_t>(size));
     Assert(result == 0, 0, " could not open mission purchasing file ");
     const MCPurchaseHeader header = ReadPurchaseHeader(*purchasing, true);
     ReadPurchaseGifts(*purchasing, header.NumGifts, MechList, VehicleList);
@@ -6448,14 +6447,14 @@ auto MCLogistics::LoadCampaign(char* campaignFile, char* saveFile, int newCampai
         }
     }
 
-    MCFullPathFileName path;
-    path.Init(SavePath, campaignFile, saveFile);
+    std::string path;
+    path = GamePath(SavePath, campaignFile, saveFile);
     int32_t result = packetFile.Open(path);
-    Assert(result == 0, 0, " campaign file NOT Valid! ", nullptr);
+    Assert(result == 0, 0, " campaign file NOT Valid! ");
     result = packetFile.SeekPacket(0);
-    Assert(result == 0, 0, " could not find initial campaign file ", nullptr);
+    Assert(result == 0, 0, " could not find initial campaign file ");
     result = file.Open(&packetFile, packetFile.GetPacketSize());
-    Assert(result == 0, 0, " could not open initial campaign file ", nullptr);
+    Assert(result == 0, 0, " could not open initial campaign file ");
 
     if (newCampaign == 0)
     {
@@ -6463,7 +6462,7 @@ auto MCLogistics::LoadCampaign(char* campaignFile, char* saveFile, int newCampai
         if (file.SeekBlock("Planet") == 0)
         {
             result = file.ReadIdLong("Setting", CurPlanet);
-            Assert(result == 0, static_cast<uint32_t>(result), " could not find Setting in Planet Block ", nullptr);
+            Assert(result == 0, static_cast<uint32_t>(result), " could not find Setting in Planet Block ");
         }
         else
         {
@@ -6483,12 +6482,12 @@ auto MCLogistics::LoadCampaign(char* campaignFile, char* saveFile, int newCampai
     }
 
     result = file.SeekBlock("General");
-    Assert(result == 0, 0, " could not find General Block in campaign file ", nullptr);
+    Assert(result == 0, 0, " could not find General Block in campaign file ");
 
     if (MPlayer == nullptr)
     {
         result = file.ReadIdString("purchaseFile", PurchaseFile, 0x7f);
-        Assert(result == 0, 0, " cound not read purchasing file in campain file ", nullptr);
+        Assert(result == 0, 0, " cound not read purchasing file in campain file ");
 
         if (PlayerLights != nullptr)
         {
@@ -6512,18 +6511,17 @@ auto MCLogistics::LoadCampaign(char* campaignFile, char* saveFile, int newCampai
 
         std::snprintf(text, sizeof(text), "%s%s.fit", MissionPath, purchaseName);
         result = purchasing.Open(text);
-        Assert(result == 0, 0, " could not open purchasing file ", nullptr);
+        Assert(result == 0, 0, " could not open purchasing file ");
         result = purchasing.SeekBlock("PilotCosts");
-        Assert(result == 0, static_cast<uint32_t>(result), "Could not find PilotCosts block in purchasing file",
-               nullptr);
+        Assert(result == 0, static_cast<uint32_t>(result), "Could not find PilotCosts block in purchasing file");
         result = purchasing.ReadIdLong("Green", PilotCosts[0]);
-        Assert(result == 0, static_cast<uint32_t>(result), "Could not read Green pilot in purchasing file", nullptr);
+        Assert(result == 0, static_cast<uint32_t>(result), "Could not read Green pilot in purchasing file");
         result = purchasing.ReadIdLong("Regular", PilotCosts[1]);
-        Assert(result == 0, static_cast<uint32_t>(result), "Could not read Regular pilot in purchasing file", nullptr);
+        Assert(result == 0, static_cast<uint32_t>(result), "Could not read Regular pilot in purchasing file");
         result = purchasing.ReadIdLong("Veteran", PilotCosts[2]);
-        Assert(result == 0, static_cast<uint32_t>(result), "Could not read Veteran pilot in purchasing file", nullptr);
+        Assert(result == 0, static_cast<uint32_t>(result), "Could not read Veteran pilot in purchasing file");
         result = purchasing.ReadIdLong("Elite", PilotCosts[3]);
-        Assert(result == 0, static_cast<uint32_t>(result), "Could not read Elite pilot in purchasing file.", nullptr);
+        Assert(result == 0, static_cast<uint32_t>(result), "Could not read Elite pilot in purchasing file.");
     }
 
     RepairScreen->SelectedMech = nullptr;
@@ -6542,18 +6540,18 @@ auto MCLogistics::LoadCampaign(char* campaignFile, char* saveFile, int newCampai
         }
 
         result = file.SeekBlock("ResourcePoints");
-        Assert(result == 0, 0, " could not find Resource Points ", nullptr);
+        Assert(result == 0, 0, " could not find Resource Points ");
         uint32_t points = 0;
         result = file.ReadIdULong("numPoints", points);
-        Assert(result == 0, 0, " Could not find resource points in campaign file ", nullptr);
+        Assert(result == 0, 0, " Could not find resource points in campaign file ");
         ResourcePoints = static_cast<int32_t>(points);
     }
     else
     {
         result = file.SeekBlock("Multiplayer");
-        Assert(result == 0, 0, "This is not a multiplayer file!", nullptr);
+        Assert(result == 0, 0, "This is not a multiplayer file!");
         result = file.ReadIdString("MissionName", MpMissionName, 0x7f);
-        Assert(result == 0, 0, "No mission file in save game file!", nullptr);
+        Assert(result == 0, 0, "No mission file in save game file!");
 
         if (file.ReadIdULong("PlanningTime", PlanningTime) != 0)
         {
@@ -6588,14 +6586,14 @@ auto MCLogistics::LoadCampaign(char* campaignFile, char* saveFile, int newCampai
         if (file.SeekBlock("Warriors") == 0)
         {
             result = file.ReadIdULong("NumWarriors", count);
-            Assert(result == 0, 0, " could not read warrior count ", nullptr);
+            Assert(result == 0, 0, " could not read warrior count ");
             numWarriors = count;
 
             for (int32_t index = 0; index < static_cast<int32_t>(count); index++)
             {
                 std::snprintf(name, sizeof(name), "Warrior%d", index);
                 result = file.SeekBlock(name);
-                Assert(result == 0, 0, " could not find warrior block ", nullptr);
+                Assert(result == 0, 0, " could not find warrior block ");
 
                 if (file.ReadIdString("Profile", name, 0x4f) == 0)
                 {
@@ -6605,7 +6603,7 @@ auto MCLogistics::LoadCampaign(char* campaignFile, char* saveFile, int newCampai
                 {
                     uint32_t packet = 0;
                     result = file.ReadIdULong("PacketNum", packet);
-                    Assert(result == 0, 0, " could not find warrior Data ", nullptr);
+                    Assert(result == 0, 0, " could not find warrior Data ");
                     WarriorList->AddWarrior(&packetFile, static_cast<int32_t>(packet + 1), 1);
                 }
             }
@@ -6614,14 +6612,14 @@ auto MCLogistics::LoadCampaign(char* campaignFile, char* saveFile, int newCampai
         if (file.SeekBlock("AssWarriors") == 0)
         {
             result = file.ReadIdULong("NumAssWarriors", count);
-            Assert(result == 0, 0, " could not read Assigned warrior count ", nullptr);
+            Assert(result == 0, 0, " could not read Assigned warrior count ");
             const auto first = static_cast<int32_t>(numWarriors);
 
             for (int32_t index = first; index < first + static_cast<int32_t>(count); index++)
             {
                 std::snprintf(name, sizeof(name), "Warrior%d", index);
                 result = file.SeekBlock(name);
-                Assert(result == 0, 0, " could not find warrior block ", nullptr);
+                Assert(result == 0, 0, " could not find warrior block ");
 
                 if (file.ReadIdString("Profile", name, 0x4f) == 0)
                 {
@@ -6632,7 +6630,7 @@ auto MCLogistics::LoadCampaign(char* campaignFile, char* saveFile, int newCampai
                 {
                     uint32_t packet = 0;
                     result = file.ReadIdULong("PacketNum", packet);
-                    Assert(result == 0, 0, " could not find warrior Data ", nullptr);
+                    Assert(result == 0, 0, " could not find warrior Data ");
                     AssignedWarriorList->AddWarrior(&packetFile, static_cast<int32_t>(packet + 1), 0);
                 }
             }
@@ -6643,14 +6641,14 @@ auto MCLogistics::LoadCampaign(char* campaignFile, char* saveFile, int newCampai
         if (file.SeekBlock("Mechs") == 0)
         {
             result = file.ReadIdULong("NumMechs", count);
-            Assert(result == 0, 0, " could not read mech count ", nullptr);
+            Assert(result == 0, 0, " could not read mech count ");
             numMechs = count;
 
             for (int32_t index = 0; index < static_cast<int32_t>(count); index++)
             {
                 std::snprintf(name, sizeof(name), "Mech%d", index);
                 result = file.SeekBlock(name);
-                Assert(result == 0, 0, " could not find mech block ", nullptr);
+                Assert(result == 0, 0, " could not find mech block ");
 
                 if (file.ReadIdString("Profile", name, 0x4f) == 0)
                 {
@@ -6670,7 +6668,7 @@ auto MCLogistics::LoadCampaign(char* campaignFile, char* saveFile, int newCampai
                 {
                     uint32_t packet = 0;
                     result = file.ReadIdULong("PacketNum", packet);
-                    Assert(result == 0, 0, " could not find Mech Data ", nullptr);
+                    Assert(result == 0, 0, " could not find Mech Data ");
                     int32_t available = 0;
 
                     if (file.ReadIdLong("NumAvailable", available) != 0)
@@ -6689,14 +6687,14 @@ auto MCLogistics::LoadCampaign(char* campaignFile, char* saveFile, int newCampai
         if (file.SeekBlock("AssMechs") == 0)
         {
             result = file.ReadIdULong("NumAssMechs", count);
-            Assert(result == 0, 0, " could not read assigned mech count ", nullptr);
+            Assert(result == 0, 0, " could not read assigned mech count ");
             const auto first = static_cast<int32_t>(numMechs);
 
             for (int32_t index = first; index < first + static_cast<int32_t>(count); index++)
             {
                 std::snprintf(name, sizeof(name), "Mech%d", index);
                 result = file.SeekBlock(name);
-                Assert(result == 0, 0, " could not find mech block ", nullptr);
+                Assert(result == 0, 0, " could not find mech block ");
 
                 if (file.ReadIdString("Profile", name, 0x4f) == 0)
                 {
@@ -6707,7 +6705,7 @@ auto MCLogistics::LoadCampaign(char* campaignFile, char* saveFile, int newCampai
                 {
                     uint32_t packet = 0;
                     result = file.ReadIdULong("PacketNum", packet);
-                    Assert(result == 0, 0, " could not find Mech Data ", nullptr);
+                    Assert(result == 0, 0, " could not find Mech Data ");
                     ForceMechList->AddMech(&packetFile, static_cast<int32_t>(packet + 1));
                 }
             }
@@ -6718,14 +6716,14 @@ auto MCLogistics::LoadCampaign(char* campaignFile, char* saveFile, int newCampai
         if (file.SeekBlock("Vehicles") == 0)
         {
             result = file.ReadIdULong("NumVehicles", count);
-            Assert(result == 0, 0, " could not read vehicle count ", nullptr);
+            Assert(result == 0, 0, " could not read vehicle count ");
             numVehicles = count;
 
             for (int32_t index = 0; index < static_cast<int32_t>(count); index++)
             {
                 std::snprintf(name, sizeof(name), "Vehicle%d", index);
                 result = file.SeekBlock(name);
-                Assert(result == 0, 0, " could not find Vehicle block ", nullptr);
+                Assert(result == 0, 0, " could not find Vehicle block ");
 
                 if (file.ReadIdString("Profile", name, 0x4f) == 0)
                 {
@@ -6745,7 +6743,7 @@ auto MCLogistics::LoadCampaign(char* campaignFile, char* saveFile, int newCampai
                 {
                     uint32_t packet = 0;
                     result = file.ReadIdULong("PacketNum", packet);
-                    Assert(result == 0, 0, " could not find vehicle Data ", nullptr);
+                    Assert(result == 0, 0, " could not find vehicle Data ");
                     int32_t available = 0;
 
                     if (file.ReadIdLong("NumAvailable", available) != 0)
@@ -6757,11 +6755,11 @@ auto MCLogistics::LoadCampaign(char* campaignFile, char* saveFile, int newCampai
                     int assigned = 0;
                     MCFitIniFile vehicleFile;
                     result = packetFile.SeekPacket(static_cast<int32_t>(packet + 1));
-                    Assert(result == 0, 0, " Vehicle Packet Not Found ", nullptr);
+                    Assert(result == 0, 0, " Vehicle Packet Not Found ");
                     result = vehicleFile.Open(&packetFile, packetFile.GetPacketSize());
-                    Assert(result == 0, 0, " Vehicle file could not open ", nullptr);
+                    Assert(result == 0, 0, " Vehicle file could not open ");
                     result = vehicleFile.SeekBlock("General");
-                    Assert(result == 0, static_cast<uint32_t>(result), "Failed General Block in Vehicle", nullptr);
+                    Assert(result == 0, static_cast<uint32_t>(result), "Failed General Block in Vehicle");
 
                     if (vehicleFile.ReadIdBoolean("Assigned", assigned) != 0)
                     {
@@ -6771,7 +6769,7 @@ auto MCLogistics::LoadCampaign(char* campaignFile, char* saveFile, int newCampai
                     for (int32_t copy = 0; copy < available; copy++)
                     {
                         result = packetFile.SeekPacket(static_cast<int32_t>(packet + 1));
-                        Assert(result == 0, 0, " Vehicle Packet Not Found ", nullptr);
+                        Assert(result == 0, 0, " Vehicle Packet Not Found ");
                         MCLogVehicleList* list = assigned == 0 ? VehicleList : ForceVehicleList;
                         list->AddVehicle(&packetFile, static_cast<int32_t>(packet + 1));
                     }
@@ -6782,14 +6780,14 @@ auto MCLogistics::LoadCampaign(char* campaignFile, char* saveFile, int newCampai
         if (file.SeekBlock("AssVehicles") == 0)
         {
             result = file.ReadIdULong("NumAssVehicles", count);
-            Assert(result == 0, 0, " could not read vehicle count ", nullptr);
+            Assert(result == 0, 0, " could not read vehicle count ");
             const auto first = static_cast<int32_t>(numVehicles);
 
             for (int32_t index = first; index < first + static_cast<int32_t>(count); index++)
             {
                 std::snprintf(name, sizeof(name), "Vehicle%d", index);
                 result = file.SeekBlock(name);
-                Assert(result == 0, 0, " could not find Vehicle block ", nullptr);
+                Assert(result == 0, 0, " could not find Vehicle block ");
 
                 if (file.ReadIdString("Profile", name, 0x4f) == 0)
                 {
@@ -6799,7 +6797,7 @@ auto MCLogistics::LoadCampaign(char* campaignFile, char* saveFile, int newCampai
                 {
                     uint32_t packet = 0;
                     result = file.ReadIdULong("PacketNum", packet);
-                    Assert(result == 0, 0, " could not find vehicle Data ", nullptr);
+                    Assert(result == 0, 0, " could not find vehicle Data ");
                     MCLogVehicle* vehicle = ForceVehicleList->AddVehicle(&packetFile, static_cast<int32_t>(packet + 1));
 
                     if (loadForce != 0 || newCampaign != 0)
@@ -6814,24 +6812,24 @@ auto MCLogistics::LoadCampaign(char* campaignFile, char* saveFile, int newCampai
     // Every component the game knows (allcomp.fit), with no copies.
     {
         MCFitIniFile allComponents;
-        MCFullPathFileName allPath;
-        allPath.Init(ObjectPath, "allcomp", ".fit");
+        std::string allPath;
+        allPath = GamePath(ObjectPath, "allcomp", ".fit");
         result = allComponents.Open(allPath);
-        Assert(result == 0, static_cast<uint32_t>(result), " Couldn't find allcomp.fit ", nullptr);
+        Assert(result == 0, static_cast<uint32_t>(result), " Couldn't find allcomp.fit ");
         result = allComponents.SeekBlock("Components");
-        Assert(result == 0, 0, " could not read component block ", nullptr);
+        Assert(result == 0, 0, " could not read component block ");
         uint32_t count = 0;
         result = allComponents.ReadIdULong("NumComponents", count);
-        Assert(result == 0, 0, " could not read component count ", nullptr);
+        Assert(result == 0, 0, " could not read component count ");
 
         for (int32_t index = 0; index < static_cast<int32_t>(count); index++)
         {
             std::snprintf(text, sizeof(text), "Componant%d", index);
             result = allComponents.SeekBlock(text);
-            Assert(result == 0, 0, " could not read component entry in allcomp ", nullptr);
+            Assert(result == 0, 0, " could not read component entry in allcomp ");
             uint8_t masterID = 0;
             result = allComponents.ReadIdUChar("ComponantID", masterID);
-            Assert(result == 0, 0, " could not read component entry in allcomp ", nullptr);
+            Assert(result == 0, 0, " could not read component entry in allcomp ");
             MCLogInventoryStat* stat = ComponentInventory->CreateStat(static_cast<uint8_t>(index), 0, 0, 0, 0xff);
             ComponentInventory->AddItem(masterID, stat, index);
             ComponentInventory->LoadDescription(ComponentInventory->GetIndexFromMasterID(masterID), nullptr);
@@ -6843,7 +6841,7 @@ auto MCLogistics::LoadCampaign(char* campaignFile, char* saveFile, int newCampai
     {
         uint32_t count = 0;
         result = file.ReadIdULong("NumComponents", count);
-        Assert(result == 0, 0, " could not read component count ", nullptr);
+        Assert(result == 0, 0, " could not read component count ");
 
         for (int32_t index = 0; index < static_cast<int32_t>(count); index++)
         {
@@ -6906,8 +6904,8 @@ auto MCLogistics::LoadCampaign(char* campaignFile, char* saveFile, int newCampai
         // Coming back from a mission: apply its results (the "<mission>.pkk" save the mission wrote).
         const char* resultName = CurrentMission - 1 == -1 ? Mission->Scenarios[Mission->CurrentScenario].data()
                                                           : Mission->Scenarios[CurrentMission - 1].data();
-        MCFullPathFileName resultPath;
-        resultPath.Init(SavePath, resultName, ".pkk");
+        std::string resultPath;
+        resultPath = GamePath(SavePath, resultName, ".pkk");
         MCPacketFile resultFile;
         result = resultFile.Open(resultPath);
 
@@ -6917,20 +6915,20 @@ auto MCLogistics::LoadCampaign(char* campaignFile, char* saveFile, int newCampai
         }
 
         result = resultFile.SeekPacket(0);
-        Assert(result == 0, 0, " could not find mission result file ", nullptr);
+        Assert(result == 0, 0, " could not find mission result file ");
         // Port fix: the original reopened the campaign FitIniFile without closing it first.
         file.Close();
         result = file.Open(&resultFile, resultFile.GetPacketSize());
-        Assert(result == 0, 0, " could not open mission result file ", nullptr);
+        Assert(result == 0, 0, " could not open mission result file ");
         result = file.SeekBlock("General");
-        Assert(result == 0, 0, " could not find General Block in mission file ", nullptr);
+        Assert(result == 0, 0, " could not find General Block in mission file ");
         result = file.ReadIdString("purchaseFile", PurchaseFile, 0x7f);
-        Assert(result == 0, 0, " cound not read purchasing file in campain file ", nullptr);
+        Assert(result == 0, 0, " cound not read purchasing file in campain file ");
         result = file.SeekBlock("ResourcePoints");
-        Assert(result == 0, 0, " could not find Resource Points ", nullptr);
+        Assert(result == 0, 0, " could not find Resource Points ");
         uint32_t points = 0;
         result = file.ReadIdULong("numPoints", points);
-        Assert(result == 0, 0, " Could not find resource points in mission file ", nullptr);
+        Assert(result == 0, 0, " Could not find resource points in mission file ");
         ResourcePoints = static_cast<int32_t>(points + static_cast<uint32_t>(ResourcePoints));
 
         uint32_t count = 0;
@@ -6939,23 +6937,23 @@ auto MCLogistics::LoadCampaign(char* campaignFile, char* saveFile, int newCampai
         if (file.SeekBlock("Warriors") == 0)
         {
             result = file.ReadIdULong("NumWarriors", count);
-            Assert(result == 0, 0, " could not read warrior count ", nullptr);
+            Assert(result == 0, 0, " could not read warrior count ");
 
             for (int32_t index = 0; index < static_cast<int32_t>(count); index++)
             {
                 std::snprintf(name, sizeof(name), "Warrior%d", index);
                 result = file.SeekBlock(name);
-                Assert(result == 0, 0, " could not find warrior block ", nullptr);
+                Assert(result == 0, 0, " could not find warrior block ");
 
                 if (file.ReadIdString("Profile", name, 0x4f) == 0)
                 {
-                    Assert(false, 0, " Somehow game write out a profile instead of a packet ! ", nullptr);
+                    Assert(false, 0, " Somehow game write out a profile instead of a packet ! ");
                 }
                 else
                 {
                     uint32_t packet = 0;
                     result = file.ReadIdULong("PacketNum", packet);
-                    Assert(result == 0, 0, " could not find warrior Data ", nullptr);
+                    Assert(result == 0, 0, " could not find warrior Data ");
                     // A pilot not in the list (5) joins it.
                     MCLogWarriorList* pilots = AssignedWarriorList;
 
@@ -6970,13 +6968,13 @@ auto MCLogistics::LoadCampaign(char* campaignFile, char* saveFile, int newCampai
         if (file.SeekBlock("Mechs") == 0)
         {
             result = file.ReadIdULong("NumMechs", count);
-            Assert(result == 0, 0, " could not read mech count ", nullptr);
+            Assert(result == 0, 0, " could not read mech count ");
 
             for (int32_t index = 0; index < static_cast<int32_t>(count); index++)
             {
                 std::snprintf(name, sizeof(name), "Mech%d", index);
                 result = file.SeekBlock(name);
-                Assert(result == 0, 0, " could not find mech block ", nullptr);
+                Assert(result == 0, 0, " could not find mech block ");
 
                 if (file.ReadIdString("Profile", name, 0x4f) == 0)
                 {
@@ -6987,21 +6985,19 @@ auto MCLogistics::LoadCampaign(char* campaignFile, char* saveFile, int newCampai
                 int assigned = 1;
                 uint32_t packet = 0;
                 result = file.ReadIdULong("PacketNum", packet);
-                Assert(result == 0, 0, " could not find Mech Data ", nullptr);
+                Assert(result == 0, 0, " could not find Mech Data ");
                 {
                     MCFitIniFile mechFile;
                     result = resultFile.SeekPacket(static_cast<int32_t>(packet + 1));
-                    Assert(result == 0, static_cast<uint32_t>(result), "could not find mech packet in save file",
-                           nullptr);
+                    Assert(result == 0, static_cast<uint32_t>(result), "could not find mech packet in save file");
                     result = mechFile.Open(&resultFile, resultFile.GetPacketSize());
-                    Assert(result == 0, static_cast<uint32_t>(result), "could not open mech packet in save file",
-                           nullptr);
+                    Assert(result == 0, static_cast<uint32_t>(result), "could not open mech packet in save file");
                     result = mechFile.SeekBlock("General");
                     Assert(result == 0, static_cast<uint32_t>(result),
-                           "could not find [General] block in mech packet in save file", nullptr);
+                           "could not find [General] block in mech packet in save file");
                     result = mechFile.ReadIdBoolean("Assigned", assigned);
                     Assert(result == 0, static_cast<uint32_t>(result),
-                           "could not find Assigned variable in [General] block in mech packet in save file", nullptr);
+                           "could not find Assigned variable in [General] block in mech packet in save file");
                 }
 
                 // An assigned mech replaces its copy in the force; one not there (5), or an unassigned one, is added.
@@ -7068,7 +7064,7 @@ auto MCLogistics::LoadCampaign(char* campaignFile, char* saveFile, int newCampai
             force->GetMechInfo(index, mech);
             MCLogWarrior* pilot = nullptr;
             AssignedWarriorList->GetWarriorInfo(mech->PilotIndex, pilot);
-            Assert(pilot != nullptr, 0, " Warrior in an assigned mech is NULL ", nullptr);
+            Assert(pilot != nullptr, 0, " Warrior in an assigned mech is NULL ");
 
             if (pilot->Ejected == 0 || pilot->Health <= 0.0f)
             {
@@ -7097,7 +7093,7 @@ auto MCLogistics::LoadCampaign(char* campaignFile, char* saveFile, int newCampai
             ForceMechList->GetMechInfo(index, mech);
             MCLogWarrior* pilot = nullptr;
             AssignedWarriorList->GetWarriorInfo(mech->PilotIndex, pilot);
-            Assert(pilot != nullptr, 0, " Warrior in an assigned mech is NULL ", nullptr);
+            Assert(pilot != nullptr, 0, " Warrior in an assigned mech is NULL ");
 
             if (pilot->Health != 0.0f)
             {
@@ -7122,19 +7118,19 @@ auto MCLogistics::LoadCampaign(char* campaignFile, char* saveFile, int newCampai
         if (file.SeekBlock("Components") == 0)
         {
             result = file.ReadIdULong("NumComponents", count);
-            Assert(result == 0, 0, " could not read component count ", nullptr);
+            Assert(result == 0, 0, " could not read component count ");
 
             for (int32_t index = 0; index < static_cast<int32_t>(count); index++)
             {
                 std::snprintf(name, sizeof(name), "Componant%d", index);
                 result = file.SeekBlock(name);
-                Assert(result == 0, static_cast<uint32_t>(result), "Could not find Component Block", nullptr);
+                Assert(result == 0, static_cast<uint32_t>(result), "Could not find Component Block");
                 uint8_t masterID = 0;
                 result = file.ReadIdUChar("ComponantID", masterID);
-                Assert(result == 0, static_cast<uint32_t>(result), "Could not find Component Master ID", nullptr);
+                Assert(result == 0, static_cast<uint32_t>(result), "Could not find Component Master ID");
                 int32_t available = 0;
                 result = file.ReadIdLong("NumAvailable", available);
-                Assert(result == 0, static_cast<uint32_t>(result), "Could not find Component numAvailable", nullptr);
+                Assert(result == 0, static_cast<uint32_t>(result), "Could not find Component numAvailable");
                 ComponentInventory->AddCountToItem(available, masterID);
             }
         }
@@ -7151,20 +7147,20 @@ auto MCLogistics::LoadCampaign(char* campaignFile, char* saveFile, int newCampai
     {
         // The purchase options of this point in the campaign, and an automatic save when a new mission starts.
         MCFitIniFile masterFile;
-        MCFullPathFileName masterPath;
-        masterPath.Init(MissionPath, MissionName, ".fit");
+        std::string masterPath;
+        masterPath = GamePath(MissionPath, MissionName, ".fit");
         result = masterFile.Open(masterPath);
-        Assert(result == 0, 0, " could not open master mission file ", nullptr);
+        Assert(result == 0, 0, " could not open master mission file ");
         result = masterFile.SeekBlock("OpInfo");
-        Assert(result == 0, 0, " could not find operation information in master mission file", nullptr);
+        Assert(result == 0, 0, " could not find operation information in master mission file");
         int32_t operationNumber = 0;
         std::snprintf(text, sizeof(text), "Scenario%iOperation", LastLogisticsMissionState);
         result = masterFile.ReadIdLong(text, operationNumber);
-        Assert(result == 0, 0, " could not find operation number in master mission file ", nullptr);
+        Assert(result == 0, 0, " could not find operation number in master mission file ");
         int32_t missionNumber = 0;
         std::snprintf(text, sizeof(text), "Scenario%iMission", LastLogisticsMissionState);
         result = masterFile.ReadIdLong(text, missionNumber);
-        Assert(result == 0, 0, " could not find mission number in master mission file ", nullptr);
+        Assert(result == 0, 0, " could not find mission number in master mission file ");
         char* oldPurchaseFile = SetUpCampaignPurchasing(PurchaseFile, &packetFile);
 
         if (LastLogisticsMissionState < CurrentMission && loadForce == 0)
@@ -7230,20 +7226,20 @@ auto MCLogistics::PrepareScenario(char* scenarioName, char* startFile) -> int32_
     {
         // The automatic "before the mission" save, named after the operation and mission.
         MCFitIniFile masterFile;
-        MCFullPathFileName masterPath;
-        masterPath.Init(MissionPath, MissionName, ".fit");
+        std::string masterPath;
+        masterPath = GamePath(MissionPath, MissionName, ".fit");
         result = masterFile.Open(masterPath);
-        Assert(result == 0, 0, " could not open master mission file ", nullptr);
+        Assert(result == 0, 0, " could not open master mission file ");
         result = masterFile.SeekBlock("OpInfo");
-        Assert(result == 0, 0, " could not find operation information in master mission file", nullptr);
+        Assert(result == 0, 0, " could not find operation information in master mission file");
         int32_t operationNumber = 0;
         std::snprintf(text, sizeof(text), "Scenario%iOperation", LastLogisticsMissionState);
         result = masterFile.ReadIdLong(text, operationNumber);
-        Assert(result == 0, 0, " could not find operation number in master mission file ", nullptr);
+        Assert(result == 0, 0, " could not find operation number in master mission file ");
         int32_t missionNumber = 0;
         std::snprintf(text, sizeof(text), "Scenario%iMission", LastLogisticsMissionState);
         result = masterFile.ReadIdLong(text, missionNumber);
-        Assert(result == 0, 0, " could not find mission number in master mission file ", nullptr);
+        Assert(result == 0, 0, " could not find mission number in master mission file ");
 
         if (Solo == 0)
         {
@@ -7307,23 +7303,22 @@ auto MCLogistics::PrepareScenario(char* scenarioName, char* startFile) -> int32_
 
     // Copy the mission's scenario file into the start file, block by block, then add the player's force.
     // Port: the original allocated both FitIniFiles (asserting it got the memory).
-    MCFullPathFileName inPath;
-    inPath.Init(MissionPath, scenarioName, ".fit");
+    std::string inPath;
+    inPath = GamePath(MissionPath, scenarioName, ".fit");
     MCFitIniFile in;
     result = in.Open(inPath);
-    Assert(result == 0, static_cast<uint32_t>(result), " could not open logistics scenario file ", nullptr);
-    MCFullPathFileName outPath;
-    outPath.Init(SaveTempPath, startFile, ".fit");
+    Assert(result == 0, static_cast<uint32_t>(result), " could not open logistics scenario file ");
+    std::string outPath;
+    outPath = GamePath(SaveTempPath, startFile, ".fit");
     MCFitIniFile out;
     result = out.Create(outPath);
-    Assert(result == 0, static_cast<uint32_t>(result), " could not open scenario file ", nullptr);
+    Assert(result == 0, static_cast<uint32_t>(result), " could not open scenario file ");
 
     // The values being copied; later reads that are not checked write whatever the last read left in them.
     int32_t longValue = 0;
     uint32_t ulongValue = 0;
     float floatValue = 0.0f;
-    const auto check = [&](bool ok, const char* message)
-    { Assert(ok, static_cast<uint32_t>(result), message, nullptr); };
+    const auto check = [&](bool ok, const char* message) { Assert(ok, static_cast<uint32_t>(result), message); };
     const auto copyBlock = [&](const char* block, const char* findMessage, const char* writeMessage)
     {
         result = in.SeekBlock(block);
@@ -7471,7 +7466,7 @@ auto MCLogistics::PrepareScenario(char* scenarioName, char* startFile) -> int32_
     {
         int32_t strikes = 0;
         result = in.ReadIdLong("NumLargeStrikes", strikes);
-        Assert(result == 0, 0, " Artillery is in neither of the two known states ", nullptr);
+        Assert(result == 0, 0, " Artillery is in neither of the two known states ");
         out.WriteIdLong("NumLargeStrikes", strikes);
         strikes = 0;
         in.ReadIdLong("NumSmallStrikes", strikes);
@@ -7569,7 +7564,7 @@ auto MCLogistics::PrepareScenario(char* scenarioName, char* startFile) -> int32_
     // The computer-controlled parts and their pilots are copied renumbered from 1 (the player's parts are left
     // out; the force is added after them).
     result = in.SeekBlock("Warriors");
-    Assert(result == 0, 0, " Could not find Warriors Block ", nullptr);
+    Assert(result == 0, 0, " Could not find Warriors Block ");
     uint32_t numWarriors = 0;
     result = in.ReadIdULong("NumWarriors", numWarriors);
     check(result == 0, " Could not find NumWarriors in Warriors Block ");
@@ -7610,14 +7605,14 @@ auto MCLogistics::PrepareScenario(char* scenarioName, char* startFile) -> int32_
         pilotMap[numWarriors + warrior] = static_cast<char>(nextWarrior);
         std::snprintf(blockName, sizeof(blockName), "Warrior%d", warrior);
         result = in.SeekBlock(blockName);
-        Assert(result == 0, warrior, " Could not find Warrior Number Block ", nullptr);
+        Assert(result == 0, warrior, " Could not find Warrior Number Block ");
         std::snprintf(blockName, sizeof(blockName), "Warrior%d", nextWarrior++);
         result = out.WriteBlock(blockName);
-        Assert(result > 0, warrior, " Could not find Warrior Number Block ", nullptr);
+        Assert(result > 0, warrior, " Could not find Warrior Number Block ");
         result = in.ReadIdString("Profile", text, 99);
-        Assert(result == 0, 0, " Could not find Warrior Profile in Warrior Number Block ", nullptr);
+        Assert(result == 0, 0, " Could not find Warrior Profile in Warrior Number Block ");
         result = out.WriteIdString("Profile", text);
-        Assert(result > 0, 0, " Could not write Warrior Profile in Warrior Number Block ", nullptr);
+        Assert(result > 0, 0, " Could not write Warrior Profile in Warrior Number Block ");
         result = in.ReadIdString("Brain", text, 0x7f);
         check(result == 0, " Could not find Warrior Brain in Warrior Number Block ");
         result = out.WriteIdString("Brain", text);
@@ -7713,7 +7708,7 @@ auto MCLogistics::PrepareScenario(char* scenarioName, char* startFile) -> int32_
             result = in.ReadIdLong("Carrier", carrierPart);
             check(result == 0, " Could not read carrier in carrier block");
             Assert(carrierPart < firstForcePart, static_cast<uint32_t>(carrierPart),
-                   "Illegal part number for elemental carrier", nullptr);
+                   "Illegal part number for elemental carrier");
             result = out.WriteIdLong("Carrier", carrierPart);
             check(result > 0, " Could not write carrier in carrier block");
 
@@ -7780,9 +7775,9 @@ auto MCLogistics::PrepareScenario(char* scenarioName, char* startFile) -> int32_
     {
         std::snprintf(blockName, sizeof(blockName), "Objective%d", objective);
         result = in.SeekBlock(blockName);
-        Assert(result == 0, objective, " Could not find ObjectiveNumber Block ", nullptr);
+        Assert(result == 0, objective, " Could not find ObjectiveNumber Block ");
         result = out.WriteBlock(blockName);
-        Assert(result > 0, objective, " Could not write ObjectiveNumber Block ", nullptr);
+        Assert(result > 0, objective, " Could not write ObjectiveNumber Block ");
         copyString("Name", 0xff, " Could not find Name in Objective Block ",
                    " Could not write Name in Objective Block ");
         copyULong("Type", " Could not find Type in Objective Block ", " Could not write Type in Objective Block ");
@@ -7845,7 +7840,7 @@ auto MCLogistics::PrepareScenario(char* scenarioName, char* startFile) -> int32_
                 }
             }
 
-            result = out.WriteIdLongArray("Mates", mates, 12);
+            result = out.WriteIdLongArray("Mates", std::span(mates, 12));
             check(result > 0, writeMatesMessage);
             group++;
             std::snprintf(text, sizeof(text), format, group);
@@ -7911,7 +7906,7 @@ auto MCLogistics::PrepareScenario(char* scenarioName, char* startFile) -> int32_
 
         ravenParts[numRaven] = part;
         numRaven++;
-        Assert(numRaven < 5, static_cast<uint32_t>(numRaven), " Too Many Inactive parts.  Only allowed 4!! ", nullptr);
+        Assert(numRaven < 5, static_cast<uint32_t>(numRaven), " Too Many Inactive parts.  Only allowed 4!! ");
         result = in.ReadIdString("ObjectProfile", text, 9);
         check(result == 0, " Could not find ObjectProfile in PartNumber Block ");
 
@@ -7999,7 +7994,7 @@ auto MCLogistics::PrepareScenario(char* scenarioName, char* startFile) -> int32_
 
     if (ravenParts[0] != -1)
     {
-        Assert(ravenLance != -1, 0xffffffff, " No open lance for Raven System Vehicles/Mechs ", nullptr);
+        Assert(ravenLance != -1, 0xffffffff, " No open lance for Raven System Vehicles/Mechs ");
     }
 
     int32_t mechIndex = numRaven - numRavenVehicles - 1;
@@ -8037,12 +8032,12 @@ auto MCLogistics::PrepareScenario(char* scenarioName, char* startFile) -> int32_
                 const int32_t offset = lance != ravenLance ? numRavenVehicles : 0;
                 std::snprintf(blockName, sizeof(blockName), "Warrior%d", warriorNumber++);
                 result = out.WriteBlock(blockName);
-                Assert(result > 0, static_cast<uint32_t>(lance), " Could not write Warrior Number Block ", nullptr);
+                Assert(result > 0, static_cast<uint32_t>(lance), " Could not write Warrior Number Block ");
                 MCFitIniFile crewFile;
                 MCLogVehicle* vehicle = nullptr;
                 ForceVehicleList->GetVehicleInfo(deploy.Vehicle + offset, vehicle);
                 result = out.WriteIdString("Profile", vehicle->Crew);
-                Assert(result > 0, 0, " Could not write Warrior Profile in Warrior Number Block ", nullptr);
+                Assert(result > 0, 0, " Could not write Warrior Profile in Warrior Number Block ");
                 std::snprintf(text, sizeof(text), "%s%s.fit", WarriorPath, vehicle->Crew);
                 result = crewFile.Open(text);
                 check(result == 0, " Could not open vehicle profile");
@@ -8059,13 +8054,13 @@ auto MCLogistics::PrepareScenario(char* scenarioName, char* startFile) -> int32_
                 const int32_t offset = lance != ravenLance ? numRavenMechs : 0;
                 std::snprintf(blockName, sizeof(blockName), "Warrior%d", warriorNumber++);
                 result = out.WriteBlock(blockName);
-                Assert(result > 0, static_cast<uint32_t>(lance), " Could not write Warrior Number Block ", nullptr);
+                Assert(result > 0, static_cast<uint32_t>(lance), " Could not write Warrior Number Block ");
                 const int32_t mech = deploy.Unit + offset;
                 // Original behaviour: the pilot's id is passed where the profile and brain getters take a position.
                 int32_t id = AssignedWarriorList->GetID(ForceMechList->GetMechPilotIndex(mech) + offset);
                 AssignedWarriorList->GetWarriorProfile(static_cast<uint32_t>(id), text);
                 result = out.WriteIdString("Profile", text);
-                Assert(result > 0, 0, " Could not write Warrior Profile in Warrior Number Block ", nullptr);
+                Assert(result > 0, 0, " Could not write Warrior Profile in Warrior Number Block ");
                 id = AssignedWarriorList->GetID(ForceMechList->GetMechPilotIndex(mech) + offset);
                 AssignedWarriorList->GetWarriorBrain(static_cast<uint32_t>(id), text);
                 result = out.WriteIdString("Brain", text);
@@ -8104,7 +8099,7 @@ auto MCLogistics::PrepareScenario(char* scenarioName, char* startFile) -> int32_
                 MCLogVehicle* vehicle = nullptr;
                 ForceVehicleList->GetVehicleInfo(deploy.Vehicle + (lance != ravenLance ? numRavenVehicles : 0),
                                                  vehicle);
-                Assert(vehicle != nullptr, 0, " Could not get vehicle pointer ", nullptr);
+                Assert(vehicle != nullptr, 0, " Could not get vehicle pointer ");
                 result = out.WriteIdULong("ControlDataType", 2);
                 check(result > 0, " Could not write ControlDataType in PartNumber Block ");
                 part = vehicle;
@@ -8113,7 +8108,7 @@ auto MCLogistics::PrepareScenario(char* scenarioName, char* startFile) -> int32_
             {
                 MCLogMech* mech = nullptr;
                 ForceMechList->GetMechInfo((lance != ravenLance ? numRavenMechs : 0) + deploy.Unit, mech);
-                Assert(mech != nullptr, 0, " Could not get mech pointer ", nullptr);
+                Assert(mech != nullptr, 0, " Could not get mech pointer ");
                 result = out.WriteIdULong("ControlDataType", 1);
                 check(result > 0, " Could not write ControlDataType in PartNumber Block ");
                 part = mech;
@@ -8180,14 +8175,14 @@ auto MCLogistics::PrepareScenario(char* scenarioName, char* startFile) -> int32_
     }
 
     result = in.SeekBlock("Warriors");
-    Assert(result == 0, 0, " Could not find Warriors Block ", nullptr);
+    Assert(result == 0, 0, " Could not find Warriors Block ");
     result = out.WriteBlock("Warriors");
-    Assert(result > 0, 0, " Could not write Warriors Block ", nullptr);
+    Assert(result > 0, 0, " Could not write Warriors Block ");
     uint8_t captureChance = 0;
     result = in.ReadIdUChar("CaptureChance", captureChance);
-    Assert(result == 0, 0, " Could not read captureChance in Warriors Block ", nullptr);
+    Assert(result == 0, 0, " Could not read captureChance in Warriors Block ");
     result = out.WriteIdUChar("CaptureChance", captureChance);
-    Assert(result > 0, 0, " Could not write captureChance in Warriors Block ", nullptr);
+    Assert(result > 0, 0, " Could not write captureChance in Warriors Block ");
     result = out.WriteIdULong("NumWarriors", static_cast<uint32_t>(warriorNumber - 1));
     check(result > 0, " Could not write NumWarriors in Warriors Block ");
 
@@ -8222,7 +8217,7 @@ auto MCLogistics::PrepareScenario(char* scenarioName, char* startFile) -> int32_
         firstLance++;
     }
 
-    Assert(firstLance < 3, static_cast<uint32_t>(firstLance), " No Assigned Mechs for this Mission ", nullptr);
+    Assert(firstLance < 3, static_cast<uint32_t>(firstLance), " No Assigned Mechs for this Mission ");
     int32_t groupNumber = 0;
 
     for (int32_t lance = firstLance; lance < 3; lance++)
@@ -8234,7 +8229,7 @@ auto MCLogistics::PrepareScenario(char* scenarioName, char* startFile) -> int32_
 
         std::snprintf(text, sizeof(text), "Commander0Group:%d", groupNumber);
         result = out.WriteBlock(text);
-        Assert(result > 0, static_cast<uint32_t>(lance), " could not write Commander0Groupx Team Block ", nullptr);
+        Assert(result > 0, static_cast<uint32_t>(lance), " could not write Commander0Groupx Team Block ");
 
         for (int32_t& mate : mates)
         {
@@ -8274,7 +8269,7 @@ auto MCLogistics::PrepareScenario(char* scenarioName, char* startFile) -> int32_
             }
         }
 
-        result = out.WriteIdLongArray("Mates", mates, 12);
+        result = out.WriteIdLongArray("Mates", std::span(mates, 12));
         check(result > 0, " could not write Mates in Inner Sphere Team Block ");
         groupNumber++;
     }
@@ -8317,7 +8312,7 @@ auto MCLogistics::PrepareScenario(char* scenarioName, char* startFile) -> int32_
     std::snprintf(text, sizeof(text), "start%d", CurrentMission + 1);
     MCMissionLogisticsBridge bridge;
     result = bridge.LogisticsStartingFitWriter(text, 0);
-    Assert(result == 0, 0, " Could not save logistics data ", nullptr);
+    Assert(result == 0, 0, " Could not save logistics data ");
     return 0;
 }
 
@@ -8797,9 +8792,9 @@ auto MCLogistics::GetCurrentMission() -> void
 {
     // Port: the original allocated the FitIniFile and leaked it when the mission file would not open.
     MCFitIniFile file;
-    MCFullPathFileName path;
+    std::string path;
     char* fileName = MPlayer == nullptr ? Mission->Scenarios[Mission->CurrentScenario].data() : MpMissionName;
-    path.Init(MissionPath, fileName, ".fit");
+    path = GamePath(MissionPath, fileName, ".fit");
 
     if (file.Open(path) != 0)
     {
@@ -8807,9 +8802,9 @@ auto MCLogistics::GetCurrentMission() -> void
     }
 
     int32_t result = file.SeekBlock("Campaign");
-    Assert(result == 0, 0, " Could not find Campaign block in mission file ", nullptr);
+    Assert(result == 0, 0, " Could not find Campaign block in mission file ");
     result = file.ReadIdLong("MaxTonnage", MaxDeployTonnage);
-    Assert(result == 0, 0, " Could not find MaxTonnage variable in mission file ", nullptr);
+    Assert(result == 0, 0, " Could not find MaxTonnage variable in mission file ");
     char briefingFile[0x80];
 
     if (MPlayer == nullptr)
@@ -8825,7 +8820,7 @@ auto MCLogistics::GetCurrentMission() -> void
         result = file.ReadIdString(variable, briefingFile, 0x7f);
     }
 
-    Assert(result == 0, 0, " Could not find BriefingFile variable in mission file ", nullptr);
+    Assert(result == 0, 0, " Could not find BriefingFile variable in mission file ");
 
     // Format the briefing text into a port the width of the mission pane (at least 0xbf high), then copy it into
     // the briefing screen's mission port with a 2-pixel margin.
@@ -8852,7 +8847,7 @@ auto MCLogistics::GetCurrentMission() -> void
     delete textPort;
 
     result = file.ReadIdString("MapFile", text, 0xff);
-    Assert(result == 0, 0, " Could not find MapFile variable in mission file ", nullptr);
+    Assert(result == 0, 0, " Could not find MapFile variable in mission file ");
 
     if (MissionFileName != nullptr)
     {
@@ -8863,7 +8858,7 @@ auto MCLogistics::GetCurrentMission() -> void
 
     int32_t numDropZones = 0;
     result = file.ReadIdLong("NumDropZones", numDropZones);
-    Assert(result == 0, 0, " Could not read NumDropZones variable in mission file ", nullptr);
+    Assert(result == 0, 0, " Could not read NumDropZones variable in mission file ");
 
     if (MPlayer == nullptr)
     {
@@ -8873,7 +8868,7 @@ auto MCLogistics::GetCurrentMission() -> void
         }
     }
 
-    Assert(numDropZones < 7, 0, "Too many drop zones", nullptr);
+    Assert(numDropZones < 7, 0, "Too many drop zones");
 
     for (int32_t zone = 0; zone < numDropZones; zone++)
     {
@@ -8881,7 +8876,7 @@ auto MCLogistics::GetCurrentMission() -> void
         file.SeekBlock(text);
         int32_t numSlots = 0;
         result = file.ReadIdLong("NumSlots", numSlots);
-        Assert(result == 0, 0, " Could not read NumSlots variable in mission file ", nullptr);
+        Assert(result == 0, 0, " Could not read NumSlots variable in mission file ");
 
         // Single player: the zone's slots are the ones the player may fill (a zone is a lance of four).
         // Port fix: the original wrote the marks of a fourth or later zone past localDropSlot, over the drop zone
@@ -8895,9 +8890,9 @@ auto MCLogistics::GetCurrentMission() -> void
         }
 
         result = file.ReadIdFloat("PositionX", DropZonePositions[zone].X);
-        Assert(result == 0, 0, " Could not read PositionX variable in mission file ", nullptr);
+        Assert(result == 0, 0, " Could not read PositionX variable in mission file ");
         result = file.ReadIdFloat("PositionY", DropZonePositions[zone].Y);
-        Assert(result == 0, 0, " Could not read PositionY variable in mission file ", nullptr);
+        Assert(result == 0, 0, " Could not read PositionY variable in mission file ");
 
         for (int32_t slot = 0; slot < 4; slot++)
         {
@@ -8909,13 +8904,13 @@ auto MCLogistics::GetCurrentMission() -> void
             DeploySlotInfo& info = DeploySlotPlacements[zone][slot];
             std::snprintf(text, sizeof(text), "OffsetX%d", slot);
             result = file.ReadIdFloat(text, info.OffsetX);
-            Assert(result == 0, 0, " Could not read OffsetX block in mission file ", nullptr);
+            Assert(result == 0, 0, " Could not read OffsetX block in mission file ");
             std::snprintf(text, sizeof(text), "OffsetY%d", slot);
             result = file.ReadIdFloat(text, info.OffsetY);
-            Assert(result == 0, 0, " Could not read OffsetY block in mission file ", nullptr);
+            Assert(result == 0, 0, " Could not read OffsetY block in mission file ");
             std::snprintf(text, sizeof(text), "Rotation%d", slot);
             result = file.ReadIdFloat(text, info.Rotation);
-            Assert(result == 0, 0, " Could not read Rotation block in mission file ", nullptr);
+            Assert(result == 0, 0, " Could not read Rotation block in mission file ");
         }
     }
 
@@ -9056,7 +9051,7 @@ auto MCLogistics::ReIndexInventory() -> int32_t
             item = item->Next;
         }
 
-        Assert(item != nullptr, 0, "Could not reindex player inventory. Probably an old savegame", nullptr);
+        Assert(item != nullptr, 0, "Could not reindex player inventory. Probably an old savegame");
 
         if (item->Count == 0)
         {
@@ -9273,7 +9268,7 @@ auto MCLogistics::HandleDeployForceMessage(uint32_t playerID, const void* messag
         InitializeMultiplayer();
     }
 
-    Assert(playerID != MPlayer->SessionManager->MyPlayer->Id, 0, "Got a deploy message from ourselves!", nullptr);
+    Assert(playerID != MPlayer->SessionManager->MyPlayer->Id, 0, "Got a deploy message from ourselves!");
     // The sender is a teammate when the message's side is ours.
     const uint32_t homeGroup = MPlayer->HomeTeamGroupID;
 
@@ -9290,7 +9285,7 @@ auto MCLogistics::HandleDeployForceMessage(uint32_t playerID, const void* messag
     }
 
     Assert(homeGroup == MPlayer->InnerSphereGroupID || homeGroup == MPlayer->ClanGroupID, 0,
-           "Local player is not on a team!", nullptr);
+           "Local player is not on a team!");
 
     uint32_t lance = (deploy->Flags >> 4) & 3;
     uint32_t slot = deploy->Flags >> 6;
@@ -9332,7 +9327,7 @@ auto MCLogistics::HandleDeployForceMessage(uint32_t playerID, const void* messag
 
     const int32_t commander = MPlayer->SessionManager->GetPlayer(playerID)->PlayerNumber;
     part->CommanderID = commander;
-    Assert(commander != MPlayer->CheckInId, 0, "Wrong commander!", nullptr);
+    Assert(commander != MPlayer->CheckInId, 0, "Wrong commander!");
     lance = (deploy->Flags >> 4) & 3;
     slot = deploy->Flags >> 6;
     part->DropLance = lance;
@@ -9420,7 +9415,7 @@ auto MCLogistics::SendAddMechMessage(MCLogMech* mech, int lance, int slot) -> vo
     message->Flags = 1;
     const uint32_t homeGroup = MPlayer->HomeTeamGroupID;
     Assert(homeGroup == MPlayer->InnerSphereGroupID || homeGroup == MPlayer->ClanGroupID, 0,
-           "Local player is not on a team!", nullptr);
+           "Local player is not on a team!");
     message->Flags = (MPlayer->HomeTeamGroupID != MPlayer->InnerSphereGroupID ? 2 : 0) + 1;
     MCLogWarrior* pilot = nullptr;
     AssignedWarriorList->GetWarriorInfo(mech->PilotIndex, pilot);
@@ -9553,7 +9548,7 @@ auto MCLogistics::PrepareMultiplayerScenario(char* scenarioName, char* startFile
     {
         MCFile missionFile;
         int32_t result = missionFile.Open(inName);
-        Assert(result == 0, static_cast<uint32_t>(result), "Could not open input mission file", nullptr);
+        Assert(result == 0, static_cast<uint32_t>(result), "Could not open input mission file");
 
         while (missionFile.Eof() == 0)
         {
@@ -9571,26 +9566,26 @@ auto MCLogistics::PrepareMultiplayerScenario(char* scenarioName, char* startFile
     // Port: the original allocated the FitIniFile.
     MCFitIniFile file;
     int32_t result = file.Open(inName);
-    Assert(result == 0, static_cast<uint32_t>(result), "Could not open input mission file", nullptr);
+    Assert(result == 0, static_cast<uint32_t>(result), "Could not open input mission file");
     result = file.SeekBlock("Campaign");
-    Assert(result == 0, static_cast<uint32_t>(result), "Could not find campaign block", nullptr);
+    Assert(result == 0, static_cast<uint32_t>(result), "Could not find campaign block");
     out << "[Campaign]" << '\n';
     result = file.ReadIdString("MapFile", line, 0x1ff);
-    Assert(result == 0, static_cast<uint32_t>(result), "Could not find map file", nullptr);
+    Assert(result == 0, static_cast<uint32_t>(result), "Could not find map file");
     out << "st MapFile = \"" << line << "\"" << '\n';
     int32_t value = 0;
     result = file.ReadIdLong("MaxTonnage", value);
-    Assert(result == 0, static_cast<uint32_t>(result), "Could not find max tonnage", nullptr);
+    Assert(result == 0, static_cast<uint32_t>(result), "Could not find max tonnage");
     // Each player on the local team gets an equal share.
     value /= homePlayers;
     out << "l MaxTonnage = " << value << '\n';
     result = file.ReadIdLong("NumDropZones", value);
-    Assert(result == 0, static_cast<uint32_t>(result), "Could not find numdropzones", nullptr);
+    Assert(result == 0, static_cast<uint32_t>(result), "Could not find numdropzones");
     out << "l NumDropZones = " << value << '\n';
     char variable[0x100];
     std::snprintf(variable, sizeof(variable), "%sBriefingFile", side);
     result = file.ReadIdString(variable, line, 0x1ff);
-    Assert(result == 0, static_cast<uint32_t>(result), "Could not find briefing file", nullptr);
+    Assert(result == 0, static_cast<uint32_t>(result), "Could not find briefing file");
     out << "st BriefingFile = \"" << line << "\"" << '\n' << '\n';
 
     // Each side's artillery, shared out among its players ([0] Inner Sphere, [1] Clans).
@@ -9599,7 +9594,7 @@ auto MCLogistics::PrepareMultiplayerScenario(char* scenarioName, char* startFile
     int32_t sensorStrikes[2];
     int32_t cameraStrikes[2];
     result = file.SeekBlock("ISArtillery");
-    Assert(result == 0, 0, "No [ISArtillery] section in mission file", nullptr);
+    Assert(result == 0, 0, "No [ISArtillery] section in mission file");
     file.ReadIdLong("NumLargeStrikes", value);
     largeStrikes[0] = isPlayers != 0 ? value / isPlayers : 0;
     file.ReadIdLong("NumSmallStrikes", value);
@@ -9609,18 +9604,18 @@ auto MCLogistics::PrepareMultiplayerScenario(char* scenarioName, char* startFile
     file.ReadIdLong("NumCameraStrikes", value);
     cameraStrikes[0] = isPlayers != 0 ? value / isPlayers : 0;
     result = file.SeekBlock("ClanArtillery");
-    Assert(result == 0, 0, "No [Clan Artillery] section in mission file", nullptr);
+    Assert(result == 0, 0, "No [Clan Artillery] section in mission file");
     result = file.ReadIdLong("NumLargeStrikes", value);
-    Assert(result == 0, 0, "No Clan NumLargeStrikes section in mission file", nullptr);
+    Assert(result == 0, 0, "No Clan NumLargeStrikes section in mission file");
     largeStrikes[1] = clanPlayers != 0 ? value / clanPlayers : 0;
     result = file.ReadIdLong("NumSmallStrikes", value);
-    Assert(result == 0, 0, "No Clan NumSmallStrikes section in mission file", nullptr);
+    Assert(result == 0, 0, "No Clan NumSmallStrikes section in mission file");
     smallStrikes[1] = clanPlayers != 0 ? value / clanPlayers : 0;
     result = file.ReadIdLong("NumSensorStrikes", value);
-    Assert(result == 0, 0, "No Clan NumSensorStrikes section in mission file", nullptr);
+    Assert(result == 0, 0, "No Clan NumSensorStrikes section in mission file");
     sensorStrikes[1] = clanPlayers != 0 ? value / clanPlayers : 0;
     result = file.ReadIdLong("NumCameraStrikes", value);
-    Assert(result == 0, 0, "No Clan NumCameraStrikes section in mission file", nullptr);
+    Assert(result == 0, 0, "No Clan NumCameraStrikes section in mission file");
     cameraStrikes[1] = clanPlayers != 0 ? value / clanPlayers : 0;
 
     // A commander block per player with its side's share.
@@ -9669,7 +9664,7 @@ auto MCLogistics::PrepareMultiplayerScenario(char* scenarioName, char* startFile
             MCLogMech* mech = nullptr;
             ForceMechList->GetMechInfo(deploy.Unit, mech);
             MCDropSlot* slot = (&DropSlots[0][0])[index];
-            Assert(slot->Part == nullptr, 0, "local/remote mech conflict", nullptr);
+            Assert(slot->Part == nullptr, 0, "local/remote mech conflict");
             slot->Part = mech;
             part = mech;
         }
@@ -9678,7 +9673,7 @@ auto MCLogistics::PrepareMultiplayerScenario(char* scenarioName, char* startFile
             MCLogVehicle* vehicle = nullptr;
             ForceVehicleList->GetVehicleInfo(deploy.Vehicle, vehicle);
             MCDropSlot* slot = (&DropSlots[0][0])[index];
-            Assert(slot->Part == nullptr, 0, "local/remote vehicle conflict", nullptr);
+            Assert(slot->Part == nullptr, 0, "local/remote vehicle conflict");
             slot->Part = vehicle;
             part = vehicle;
         }
@@ -9694,8 +9689,8 @@ auto MCLogistics::PrepareMultiplayerScenario(char* scenarioName, char* startFile
     const int32_t controlType = MPlayer->IsServer != 0 ? 2 : 3;
     const uint32_t numHome = static_cast<uint32_t>(MPlayer->PlayersOnHomeTeam()->Count);
     const uint32_t numEnemy = static_cast<uint32_t>(MPlayer->PlayersOnEnemyTeam()->Count);
-    Assert(numEnemy != 0, numEnemy, " No Enemy Team ", nullptr);
-    Assert(numHome != 0, numHome, " No Home Team ", nullptr);
+    Assert(numEnemy != 0, numEnemy, " No Enemy Team ");
+    Assert(numHome != 0, numHome, " No Home Team ");
     const int32_t homeSlotsPerPlayer = 12 / static_cast<int32_t>(numHome);
     const int32_t enemySlotsPerPlayer = 12 / static_cast<int32_t>(numEnemy);
     // Each part's commander, by part number (ended by 0xff).
@@ -10233,7 +10228,7 @@ auto MCLogistics::FindMPMechList(uint32_t playerID, int teammate, int* listIndex
         log.WriteFile("nomechlist.log");
     }
 
-    Assert(found != nullptr, 0, " Could not find a List to add mech to.  Save nomechlist.log file!!!!!!!!! ", nullptr);
+    Assert(found != nullptr, 0, " Could not find a List to add mech to.  Save nomechlist.log file!!!!!!!!! ");
     return found;
 }
 
@@ -10251,7 +10246,7 @@ auto MCLogistics::FindMPVehicleList(uint32_t playerID, int teammate) -> MCLogVeh
         }
     }
 
-    Assert(found != nullptr, 0, " Could not find a List to add vehicle to ", nullptr);
+    Assert(found != nullptr, 0, " Could not find a List to add vehicle to ");
     return found;
 }
 

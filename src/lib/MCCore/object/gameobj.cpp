@@ -3,8 +3,8 @@
 #include "ai/move.h"
 #include "camera/camera.h"
 #include "camera/camlist.h"
-#include "lib/aerror.h"
-#include "lib/file.h"
+#include "lib/MCFatal.h"
+#include "lib/MCFile.h"
 #include "main/main.h"
 #include "mission/scenario.h"
 #include "network/multplyr.h"
@@ -1632,7 +1632,7 @@ auto MCBigGameObject::GetMechClass() -> MCMechClass
 
 auto MCBigGameObject::DecrementAttackers() -> void
 {
-    Assert(NumAttackers > 0, 0, nullptr);
+    Assert(NumAttackers > 0, 0);
     NumAttackers--;
 }
 

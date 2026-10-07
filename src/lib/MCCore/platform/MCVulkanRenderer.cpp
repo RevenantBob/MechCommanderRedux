@@ -3,7 +3,7 @@
 #include "platform/MCFrameLog.h"
 #include "platform/MCSoftwareRenderer.h"
 #include "platform/MCVulkanShaders.h"
-#include "lib/aerror.h"
+#include "lib/MCFatal.h"
 #include "vfx/vfxint.h"
 
 namespace

@@ -3,7 +3,7 @@
 #include "gameos/soundrenderer.h"
 #include "gameos/soundresource.h"
 #include "gameos/soundtimer.h"
-#include "lib/aerror.h"
+#include "lib/MCFatal.h"
 #include "platform/MCAudio.h"
 
 namespace

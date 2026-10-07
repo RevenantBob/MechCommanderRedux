@@ -8,11 +8,13 @@
 #include "engine/ceglist.h"
 #include "engine/cellip.h"
 #include "engine/cevfx.h"
-#include "lib/aerror.h"
-#include "lib/cident.h"
-#include "lib/cvmath.h"
-#include "lib/file.h"
-#include "lib/inifile.h"
+#include "lib/MCFatal.h"
+#include "lib/MCIDString.h"
+#include "lib/MCFrameOfRef.h"
+#include "lib/MCVector2D.h"
+#include "lib/MCDice.h"
+#include "lib/MCFile.h"
+#include "lib/MCFitIniFile.h"
 #include "logistics/logmain.h"
 #include "main/main.h"
 #include "network/multplyr.h"
@@ -51,10 +53,10 @@ namespace
             return 0;
         }
 
-        MCFullPathFileName shadowPath;
-        shadowPath.Init(SpritePath, shadowName, ".shp");
+        std::string shadowPath;
+        shadowPath = GamePath(SpritePath, shadowName, ".shp");
         MCFile shadowFile;
-        const int32_t result = shadowFile.Open(shadowPath, READ, 50);
+        const int32_t result = shadowFile.Open(shadowPath);
 
         if (result != 0)
         {
@@ -119,7 +121,7 @@ auto MCTreeType::Destroy() -> void
 auto MCTreeType::Init(MCFile* objFile, uint32_t fileSize) -> int32_t
 {
     MCFitIniFile treeFile;
-    int32_t result = treeFile.Open(objFile, fileSize, 50);
+    int32_t result = treeFile.Open(objFile, fileSize);
 
     if (result != 0)
     {

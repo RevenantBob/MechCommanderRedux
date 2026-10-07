@@ -1,8 +1,8 @@
 #include "stdafx.h"
 #include "gui/afont.h"
 #include "gui/asystem.h"
-#include "lib/aerror.h"
-#include "lib/file.h"
+#include "lib/MCFatal.h"
+#include "lib/MCFile.h"
 #include "logistics/logmain.h"
 #include "platform/MCRenderer.h"
 #include "vfx/vfxfuncs.h"
@@ -29,7 +29,7 @@ auto MCGuiFont::Init(char* fileName) -> int32_t
     char path[128];
     std::snprintf(path, sizeof(path), "%s%s", FontPath, fileName);
 
-    if (file.Open(path, READ, 0x32) != 0)
+    if (file.Open(path) != 0)
     {
         char message[256];
         std::snprintf(message, sizeof(message), "Unable to find '%s'", path);

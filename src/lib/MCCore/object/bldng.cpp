@@ -7,10 +7,12 @@
 #include "engine/ceglist.h"
 #include "engine/cellip.h"
 #include "engine/cevfx.h"
-#include "lib/aerror.h"
-#include "lib/cident.h"
-#include "lib/cvmath.h"
-#include "lib/inifile.h"
+#include "lib/MCFatal.h"
+#include "lib/MCIDString.h"
+#include "lib/MCFrameOfRef.h"
+#include "lib/MCVector2D.h"
+#include "lib/MCDice.h"
+#include "lib/MCFitIniFile.h"
 #include "logistics/logmain.h"
 #include "main/main.h"
 #include "mission/scenario.h"
@@ -124,7 +126,7 @@ auto MCBuildingType::Destroy() -> void
 auto MCBuildingType::Init(MCFile* objFile, uint32_t fileSize) -> int32_t
 {
     MCFitIniFile bldgFile;
-    int32_t result = bldgFile.Open(objFile, fileSize, 50);
+    int32_t result = bldgFile.Open(objFile, fileSize);
 
     if (result != 0)
     {
@@ -992,10 +994,10 @@ auto MCBuilding::CreateBuildingMarines() -> void
         }
 
         marine->SetAwake(1);
-        MCFullPathFileName profileName;
-        profileName.Init(ProfilePath, MarineProfileName, ".fit");
+        std::string profileName;
+        profileName = GamePath(ProfilePath, MarineProfileName, ".fit");
         MCFitIniFile profileFile;
-        const int32_t result = profileFile.Open(profileName, READ, 50);
+        const int32_t result = profileFile.Open(profileName);
 
         if (result != 0)
         {

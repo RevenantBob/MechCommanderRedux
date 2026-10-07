@@ -1,7 +1,9 @@
 #include "stdafx.h"
 #include "object/baseobj.h"
-#include "lib/aerror.h"
-#include "lib/cvmath.h"
+#include "lib/MCFatal.h"
+#include "lib/MCFrameOfRef.h"
+#include "lib/MCVector2D.h"
+#include "lib/MCDice.h"
 #include "object/objtype.h"
 #include "object/objwtch.h"
 

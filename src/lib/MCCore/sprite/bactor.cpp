@@ -3,7 +3,7 @@
 #include "camera/camera.h"
 #include "engine/ceglist.h"
 #include "engine/cevfx.h"
-#include "lib/inifile.h"
+#include "lib/MCFitIniFile.h"
 #include "main/main.h"
 #include "object/bldng.h"
 #include "object/team.h"
@@ -97,7 +97,7 @@ auto MCVfxBuildingAppearanceType::RemoveShape(MCShape* shape) -> void
 auto MCVfxBuildingAppearanceType::LoadIniFile(MCFile* apprFile, uint32_t fileSize) -> int32_t
 {
     MCFitIniFile iniFile;
-    int32_t result = iniFile.Open(apprFile, fileSize, 50);
+    int32_t result = iniFile.Open(apprFile, fileSize);
 
     if (result != 0)
     {

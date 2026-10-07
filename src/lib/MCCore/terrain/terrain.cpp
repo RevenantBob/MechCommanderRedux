@@ -7,10 +7,12 @@
 #include "engine/celine.h"
 #include "gui/asystem.h"
 #include "iface/iface.h"
-#include "lib/aerror.h"
-#include "lib/cident.h"
-#include "lib/cvmath.h"
-#include "lib/inifile.h"
+#include "lib/MCFatal.h"
+#include "lib/MCIDString.h"
+#include "lib/MCFrameOfRef.h"
+#include "lib/MCVector2D.h"
+#include "lib/MCDice.h"
+#include "lib/MCFitIniFile.h"
 #include "logistics/logmain.h"
 #include "mission/scenario.h"
 #include "object/elemntl.h"
@@ -344,10 +346,10 @@ auto MCTerrain::Init(char* fileName) -> int32_t
     std::strncpy(TerrainName, fileName, nameLength);
     TerrainName[nameLength] = '\0';
 
-    MCFullPathFileName fitName;
-    fitName.Init(TerrainPath, fileName, ".fit");
+    std::string fitName;
+    fitName = GamePath(TerrainPath, fileName, ".fit");
     MCFitIniFile terrainFile;
-    int32_t result = terrainFile.Open(fitName, READ, 50);
+    int32_t result = terrainFile.Open(fitName);
 
     if (result != 0)
     {

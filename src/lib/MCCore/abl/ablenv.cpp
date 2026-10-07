@@ -8,8 +8,8 @@
 #include "abl/ablrtn.h"
 #include "abl/ablscan.h"
 #include "abl/ablsymt.h"
-#include "lib/aerror.h"
-#include "lib/file.h"
+#include "lib/MCFatal.h"
+#include "lib/MCFile.h"
 
 int32_t MaxWatchesPerModule = 20;
 int32_t MaxBreakPointsPerModule = 20;

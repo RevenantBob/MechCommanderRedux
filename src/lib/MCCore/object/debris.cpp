@@ -4,9 +4,11 @@
 #include "camera/camera.h"
 #include "camera/camlist.h"
 #include "gui/asystem.h"
-#include "lib/cvmath.h"
-#include "lib/file.h"
-#include "lib/inifile.h"
+#include "lib/MCFrameOfRef.h"
+#include "lib/MCVector2D.h"
+#include "lib/MCDice.h"
+#include "lib/MCFile.h"
+#include "lib/MCFitIniFile.h"
 #include "main/main.h"
 #include "sprite/armactor.h"
 #include "terrain/terrain.h"
@@ -49,7 +51,7 @@ auto MCDebrisType::Destroy() -> void
 auto MCDebrisType::Init(MCFile* objFile, uint32_t fileSize) -> int32_t
 {
     MCFitIniFile debrisFile;
-    int32_t result = debrisFile.Open(objFile, fileSize, 50);
+    int32_t result = debrisFile.Open(objFile, fileSize);
 
     if (result != 0)
     {

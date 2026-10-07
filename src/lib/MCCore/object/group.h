@@ -1,7 +1,9 @@
 #pragma once
 
 #include "ai/tacordr.h"
-#include "lib/cvmath.h"
+#include "lib/MCFrameOfRef.h"
+#include "lib/MCVector2D.h"
+#include "lib/MCDice.h"
 
 class MCGameObject;
 class MCMechWarrior;

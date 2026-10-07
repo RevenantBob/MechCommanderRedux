@@ -2,8 +2,8 @@
 #include "gameos/soundresource.h"
 #include "gameos/soundchannel.h"
 #include "gameos/soundrenderer.h"
-#include "lib/aerror.h"
-#include "lib/file.h"
+#include "lib/MCFatal.h"
+#include "lib/MCFile.h"
 #include "platform/MCFileSystem.h"
 
 MCSRLinkedList MSoundResources;
@@ -314,7 +314,7 @@ void MCSoundResource::Open()
     char message[1024];
     MCFile* file = new MCFile();
     Stream = file;
-    int32_t result = file->Open(FileName, READ, 50);
+    int32_t result = file->Open(FileName);
 
     if (result != 0)
     {

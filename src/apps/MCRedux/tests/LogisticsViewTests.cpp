@@ -3,7 +3,7 @@
 #include "ScreenInput.h"
 #include "TestGame.h"
 #include "gui/asystem.h"
-#include "lib/inifile.h"
+#include "lib/MCFitIniFile.h"
 #include "gui/scrlpane.h"
 #include "logistics/logdlg.h"
 #include "logistics/loggen.h"

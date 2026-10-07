@@ -1,6 +1,6 @@
 #include "stdafx.h"
 #include "object/smokmgr.h"
-#include "lib/inifile.h"
+#include "lib/MCFitIniFile.h"
 #include "object/object.h"
 #include "object/objtype.h"
 

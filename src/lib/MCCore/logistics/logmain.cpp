@@ -2,10 +2,10 @@
 #include "logistics/logmain.h"
 #include "gui/afont.h"
 #include "gui/asystem.h"
-#include "lib/aerror.h"
-#include "lib/cident.h"
-#include "lib/file.h"
-#include "lib/inifile.h"
+#include "lib/MCFatal.h"
+#include "lib/MCIDString.h"
+#include "lib/MCFile.h"
+#include "lib/MCFitIniFile.h"
 #include "linkup/dpplayer.h"
 #include "linkup/linkedlist.hpp"
 #include "linkup/session.h"
@@ -378,7 +378,7 @@ void ConnectScreen()
     {
         auto* player = new MCMultiPlayer;
         MPlayer = player;
-        Assert(player != nullptr, 0, " Unable to create MultiPlayer object ", nullptr);
+        Assert(player != nullptr, 0, " Unable to create MultiPlayer object ");
         MPlayer->Init(0x7d000, 0x100, 100);
     }
 
@@ -845,11 +845,11 @@ void SaveGameCallback()
 void ClearForSaveGameCallback()
 {
     MCFileScrollPane* pane = GlobalLogPtr->SaveScreen->FilePane;
-    MCFullPathFileName fileName;
-    fileName.Init(pane->StartDirectory, pane->FileNames[pane->SelectedFile], ".sav");
+    std::string fileName;
+    fileName = GamePath(pane->StartDirectory, pane->FileNames[pane->SelectedFile], ".sav");
 
     // The original cleared the file's read-only attribute first.
-    if (MCFileSystem::RemoveFile(static_cast<char*>(fileName)))
+    if (MCFileSystem::RemoveFile(fileName))
     {
         SaveGameCallback();
     }
@@ -905,10 +905,10 @@ void SaveGame()
             CLoadString(ThisInstance, 0x37c, format, 0x95);
             char candidate[0x68];
             std::snprintf(candidate, sizeof(candidate), format, i);
-            MCFullPathFileName candidatePath;
-            candidatePath.Init(directory, candidate, ".sav");
+            std::string candidatePath;
+            candidatePath = GamePath(directory, candidate, ".sav");
 
-            if (FileExists(candidatePath) == 0)
+            if (!FileExists(candidatePath))
             {
                 GlobalLogPtr->LogisticsBlocks->Free(*slot);
                 *slot = HeapCopy(candidate);
@@ -919,10 +919,10 @@ void SaveGame()
 
     // Port fix (OB-084): the original tested the old, freed name here (the empty entry's text); the name now in
     // the slot is tested instead.
-    MCFullPathFileName savePathName;
-    savePathName.Init(pane->StartDirectory, *slot, ".sav");
+    std::string savePathName;
+    savePathName = GamePath(pane->StartDirectory, *slot, ".sav");
 
-    if (FileExists(savePathName) == 0)
+    if (!FileExists(savePathName))
     {
         SaveGameCallback();
         return;
@@ -952,10 +952,10 @@ void DeleteCallbackTrue()
         return;
     }
 
-    MCFullPathFileName fileName;
-    fileName.Init(pane->StartDirectory, pane->FileNames[pane->SelectedFile], LoadingSolo == 0 ? ".sav" : ".sol");
+    std::string fileName;
+    fileName = GamePath(pane->StartDirectory, pane->FileNames[pane->SelectedFile], LoadingSolo == 0 ? ".sav" : ".sol");
     // The original cleared the file's read-only attribute first.
-    MCFileSystem::RemoveFile(static_cast<char*>(fileName));
+    MCFileSystem::RemoveFile(fileName);
     pane->SetSelectedFile(-1);
 
     if (LoadingSolo == 0)
@@ -1541,7 +1541,7 @@ void Go()
     }
 
     const uint32_t players = session->SessionDesc.dwCurrentPlayers;
-    Assert(static_cast<int32_t>(players) <= maxPlayers, players, " How'd we get too many players? ", nullptr);
+    Assert(static_cast<int32_t>(players) <= maxPlayers, players, " How'd we get too many players? ");
     GOCallback();
 }
 
@@ -1610,7 +1610,7 @@ void Dial()
 
     MPlayer->SessionManager->ConnectModem(ElementText(screen, 5), modem);
     const int32_t result = DialModemSession();
-    Assert(result != 1, 0, "Not currently connected to a modem", nullptr);
+    Assert(result != 1, 0, "Not currently connected to a modem");
 
     switch (result)
     {

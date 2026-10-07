@@ -7,7 +7,7 @@
 #include "abl/ablscan.h"
 #include "abl/ablstmt.h"
 #include "abl/ablsymt.h"
-#include "lib/aerror.h"
+#include "lib/MCFatal.h"
 
 MCTokenCodeType FollowRoutineList[] = {TKN_SEMICOLON, TKN_EOF, TKN_NONE};
 MCTokenCodeType FollowDeclarationList[] = {TKN_SEMICOLON, TKN_IDENTIFIER, TKN_EOF, TKN_NONE};

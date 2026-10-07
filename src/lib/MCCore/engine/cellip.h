@@ -1,7 +1,9 @@
 #pragma once
 
 #include "engine/celement.h"
-#include "lib/cvmath.h"
+#include "lib/MCFrameOfRef.h"
+#include "lib/MCVector2D.h"
+#include "lib/MCDice.h"
 
 /// <summary>An ellipse outline around a screen point (<c>AG_ellipse_draw</c>).</summary>
 /// <remarks>Original source: <c>engine\cellip.cpp</c>, 0x20 bytes.</remarks>

@@ -15,7 +15,8 @@ public:
 };
 
 /// <summary>A singly linked list with head and tail.</summary>
-/// <remarks>Original source: <c>lib\llist.cpp</c>.</remarks>
+/// <remarks>Kept until its last users (camera, sound, linkup, logistics, network, objtype) move to std containers in
+/// their own steps; then it goes.</remarks>
 class MCLinkedList
 {
 public:
@@ -50,8 +51,8 @@ public:
     /// <summary>
     /// Steps <paramref name="link"/> through the list: from null to the head, then to each next link.
     /// </summary>
-    /// <returns>Nonzero while <paramref name="link"/> is a link.</returns>
-    int Traverse(MCLink*& link);
+    /// <returns>Whether <paramref name="link"/> is a link.</returns>
+    bool Traverse(MCLink*& link);
 
     /// <summary>The number of links.</summary>
     uint32_t Count();

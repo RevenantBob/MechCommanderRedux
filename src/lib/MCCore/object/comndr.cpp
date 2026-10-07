@@ -1,6 +1,6 @@
 #include "stdafx.h"
 #include "object/comndr.h"
-#include "lib/aerror.h"
+#include "lib/MCFatal.h"
 #include "object/group.h"
 #include "object/mover.h"
 #include "terrain/terrain.h"

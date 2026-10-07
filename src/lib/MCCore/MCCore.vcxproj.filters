@@ -237,46 +237,37 @@
     <ClCompile Include="iface\statwin.cpp">
       <Filter>iface</Filter>
     </ClCompile>
-    <ClCompile Include="lib\aerror.cpp">
+    <ClCompile Include="lib\MCDice.cpp">
       <Filter>lib</Filter>
     </ClCompile>
-    <ClCompile Include="lib\cident.cpp">
+    <ClCompile Include="lib\MCFastFile.cpp">
       <Filter>lib</Filter>
     </ClCompile>
-    <ClCompile Include="lib\cvmath.cpp">
+    <ClCompile Include="lib\MCFastFileSet.cpp">
       <Filter>lib</Filter>
     </ClCompile>
-    <ClCompile Include="lib\fastfile.cpp">
+    <ClCompile Include="lib\MCFatal.cpp">
       <Filter>lib</Filter>
     </ClCompile>
-    <ClCompile Include="lib\ffile.cpp">
+    <ClCompile Include="lib\MCFile.cpp">
       <Filter>lib</Filter>
     </ClCompile>
-    <ClCompile Include="lib\file.cpp">
+    <ClCompile Include="lib\MCFitIniFile.cpp">
       <Filter>lib</Filter>
     </ClCompile>
-    <ClCompile Include="lib\hbtime.cpp">
+    <ClCompile Include="lib\MCLinkedList.cpp">
       <Filter>lib</Filter>
     </ClCompile>
-    <ClCompile Include="lib\inifile.cpp">
+    <ClCompile Include="lib\MCLzCompress.cpp">
       <Filter>lib</Filter>
     </ClCompile>
-    <ClCompile Include="lib\llist.cpp">
+    <ClCompile Include="lib\MCLzDecompress.cpp">
       <Filter>lib</Filter>
     </ClCompile>
-    <ClCompile Include="lib\lzcomp.cpp">
+    <ClCompile Include="lib\MCPacketFile.cpp">
       <Filter>lib</Filter>
     </ClCompile>
-    <ClCompile Include="lib\lzdecomp.cpp">
-      <Filter>lib</Filter>
-    </ClCompile>
-    <ClCompile Include="lib\packet.cpp">
-      <Filter>lib</Filter>
-    </ClCompile>
-    <ClCompile Include="lib\pqueue.cpp">
-      <Filter>lib</Filter>
-    </ClCompile>
-    <ClCompile Include="lib\routines.cpp">
+    <ClCompile Include="lib\MCPriorityQueue.cpp">
       <Filter>lib</Filter>
     </ClCompile>
     <ClCompile Include="linkup\dpdialog.cpp">
@@ -865,46 +856,46 @@
     <ClInclude Include="iface\statwin.h">
       <Filter>iface</Filter>
     </ClInclude>
-    <ClInclude Include="lib\aerror.h">
+    <ClInclude Include="lib\MCDice.h">
       <Filter>lib</Filter>
     </ClInclude>
-    <ClInclude Include="lib\cident.h">
+    <ClInclude Include="lib\MCFastFile.h">
       <Filter>lib</Filter>
     </ClInclude>
-    <ClInclude Include="lib\cvmath.h">
+    <ClInclude Include="lib\MCFastFileSet.h">
       <Filter>lib</Filter>
     </ClInclude>
-    <ClInclude Include="lib\fastfile.h">
+    <ClInclude Include="lib\MCFatal.h">
       <Filter>lib</Filter>
     </ClInclude>
-    <ClInclude Include="lib\ffile.h">
+    <ClInclude Include="lib\MCFile.h">
       <Filter>lib</Filter>
     </ClInclude>
-    <ClInclude Include="lib\file.h">
+    <ClInclude Include="lib\MCFitIniFile.h">
       <Filter>lib</Filter>
     </ClInclude>
-    <ClInclude Include="lib\hbtime.h">
+    <ClInclude Include="lib\MCFrameOfRef.h">
       <Filter>lib</Filter>
     </ClInclude>
-    <ClInclude Include="lib\inifile.h">
+    <ClInclude Include="lib\MCIDString.h">
       <Filter>lib</Filter>
     </ClInclude>
-    <ClInclude Include="lib\llist.h">
+    <ClInclude Include="lib\MCLinkedList.h">
       <Filter>lib</Filter>
     </ClInclude>
-    <ClInclude Include="lib\lzcomp.h">
+    <ClInclude Include="lib\MCLz.h">
       <Filter>lib</Filter>
     </ClInclude>
-    <ClInclude Include="lib\lzdecomp.h">
+    <ClInclude Include="lib\MCPacketFile.h">
       <Filter>lib</Filter>
     </ClInclude>
-    <ClInclude Include="lib\packet.h">
+    <ClInclude Include="lib\MCPriorityQueue.h">
       <Filter>lib</Filter>
     </ClInclude>
-    <ClInclude Include="lib\pqueue.h">
+    <ClInclude Include="lib\MCVector2D.h">
       <Filter>lib</Filter>
     </ClInclude>
-    <ClInclude Include="lib\routines.h">
+    <ClInclude Include="lib\MCVector3D.h">
       <Filter>lib</Filter>
     </ClInclude>
     <ClInclude Include="linkup\dpdialog.h">

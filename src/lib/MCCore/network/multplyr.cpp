@@ -7,10 +7,12 @@
 #include "gui/asystem.h"
 #include "gui/updisp.h"
 #include "iface/parser.h"
-#include "lib/aerror.h"
-#include "lib/cvmath.h"
-#include "lib/file.h"
-#include "lib/inifile.h"
+#include "lib/MCFatal.h"
+#include "lib/MCFrameOfRef.h"
+#include "lib/MCVector2D.h"
+#include "lib/MCDice.h"
+#include "lib/MCFile.h"
+#include "lib/MCFitIniFile.h"
 #include "linkup/dpmessage.h"
 #include "linkup/dpplayer.h"
 #include "linkup/fidpgroup.h"
@@ -342,7 +344,7 @@ auto MCMultiPlayer::InitUpdateFrequencies() -> void
     MoverUpdateFrequency = -1.0f;
     TurretUpdateFrequency = -1.0f;
     WorldStateUpdateFrequency = -1.0f;
-    int32_t result = prefsFile.Open("prefs.cfg", READ, 0x32);
+    int32_t result = prefsFile.Open("prefs.cfg");
     Assert(result == 0, 0, "Could not open prefs.cfg");
 
     if (prefsFile.SeekBlock("Multiplayer") == 0)
@@ -913,7 +915,7 @@ auto MCMultiPlayer::JoinSession(char* newSessionName, char* newPlayerName) -> in
 
 auto MCMultiPlayer::ProcessReceiveList() -> int32_t
 {
-    Assert(SessionManager != nullptr, 0, nullptr);
+    Assert(SessionManager != nullptr, 0);
     SessionManager->ProcessMessages();
     return 0;
 }
@@ -1016,7 +1018,7 @@ auto MCMultiPlayer::SendPlayerSetup(uint32_t toID, uint32_t setupServerID, uint3
 
 auto MCMultiPlayer::SendPlayerCheckInReceipt(int32_t playerCheckInId) -> int32_t
 {
-    Assert(IsServer == 0, 0, nullptr);
+    Assert(IsServer == 0, 0);
     auto* receipt = static_cast<MCMPLongMessage*>(StartGuaranteedMessage(MsgBuffer, MPMSG_PLAYER_CHECK_IN_RECEIPT));
     receipt->Value = playerCheckInId;
     SessionManager->SendMessageToServerGuaranteed(receipt, 0xc);
@@ -2886,7 +2888,7 @@ auto GetCheckSum(char* fileName) -> uint32_t
 {
     MCFile file;
 
-    if (file.Open(fileName, READ, 0x32) != 0)
+    if (file.Open(fileName) != 0)
     {
         return 0;
     }

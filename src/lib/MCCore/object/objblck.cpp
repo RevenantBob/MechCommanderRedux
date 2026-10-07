@@ -1,10 +1,12 @@
 #include "stdafx.h"
 #include "object/objblck.h"
-#include "lib/aerror.h"
-#include "lib/cident.h"
-#include "lib/cvmath.h"
-#include "lib/file.h"
-#include "lib/packet.h"
+#include "lib/MCFatal.h"
+#include "lib/MCIDString.h"
+#include "lib/MCFrameOfRef.h"
+#include "lib/MCVector2D.h"
+#include "lib/MCDice.h"
+#include "lib/MCFile.h"
+#include "lib/MCPacketFile.h"
 #include "logistics/logmain.h"
 #include "network/multplyr.h"
 #include "object/bldng.h"
@@ -147,9 +149,9 @@ auto MCObjectBlockManager::Init(const char* fileName) -> int32_t
         return static_cast<int32_t>(0xbaaa0014);
     }
 
-    MCFullPathFileName objPath;
-    objPath.Init(TerrainPath, fileName, ".obj");
-    int32_t result = ObjectFile->Open(objPath, READ, 50);
+    std::string objPath;
+    objPath = GamePath(TerrainPath, fileName, ".obj");
+    int32_t result = ObjectFile->Open(objPath);
 
     if (result != 0)
     {
@@ -179,11 +181,11 @@ auto MCObjectBlockManager::Init(const char* fileName) -> int32_t
     }
 
     // The misc terrain objects: 16-byte records of block, vertex, kind and whether it starts destroyed.
-    MCFullPathFileName bdgPath;
-    bdgPath.Init(TerrainPath, fileName, ".bdg");
+    std::string bdgPath;
+    bdgPath = GamePath(TerrainPath, fileName, ".bdg");
     MCFile bdgFile;
 
-    if (bdgFile.Open(bdgPath, READ, 50) == 0)
+    if (bdgFile.Open(bdgPath) == 0)
     {
         const int32_t numRecords = bdgFile.ReadLong();
 

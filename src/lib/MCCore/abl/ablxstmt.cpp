@@ -7,7 +7,7 @@
 #include "abl/ablrtn.h"
 #include "abl/ablxexpr.h"
 #include "abl/ablxstd.h"
-#include "lib/aerror.h"
+#include "lib/MCFatal.h"
 
 int32_t MaxLoopIterations = 100001;
 int32_t ProfileLogFunctionTimeLimit = 5;

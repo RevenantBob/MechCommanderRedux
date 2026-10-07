@@ -9,9 +9,9 @@
 #include "engine/cellip.h"
 #include "engine/cepoly.h"
 #include "engine/cevfx.h"
-#include "lib/aerror.h"
-#include "lib/cident.h"
-#include "lib/packet.h"
+#include "lib/MCFatal.h"
+#include "lib/MCIDString.h"
+#include "lib/MCPacketFile.h"
 #include "logistics/logmain.h"
 #include "main/main.h"
 #include "mission/scenario.h"
@@ -312,22 +312,22 @@ auto MCMechActor::Init(MCAppearanceType* tree, MCGameObject* obj) -> int32_t
 
         if (Shadows != nullptr)
         {
-            MCFullPathFileName shadowName;
-            shadowName.Init(SpritePath, "shadow", ".pak");
-            int32_t result = Shadows->Open(shadowName, READ, 50);
+            std::string shadowName;
+            shadowName = GamePath(SpritePath, "shadow", ".pak");
+            int32_t result = Shadows->Open(shadowName);
 
             if (result != 0)
             {
-                MCFullPathFileName cdName;
-                cdName.Init(CDspritePath, "shadow", ".pak");
-                result = Shadows->Open(cdName, READ, 50);
+                std::string cdName;
+                cdName = GamePath(CDspritePath, "shadow", ".pak");
+                result = Shadows->Open(cdName);
             }
 
             if (result == 0)
             {
                 if (Shadows->GetNumPackets() > 0x7f)
                 {
-                    Fatal(-1, " Too Many shadow Shapes ", nullptr);
+                    Fatal(-1, " Too Many shadow Shapes ");
                 }
 
                 NumShadows = Shadows->GetNumPackets();
