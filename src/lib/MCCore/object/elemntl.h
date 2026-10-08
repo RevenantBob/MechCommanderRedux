@@ -1,7 +1,8 @@
 #pragma once
 
 #include "object/mover.h"
-#include "object/objtype.h"
+#include "object/MCObjectType.h"
+#include "object/MCWeaponShotInfo.h"
 
 class MCDynamicsType;
 class MCFile;
@@ -39,7 +40,7 @@ public:
     /// <summary>Frees the name and the dynamics type.</summary>
     void Destroy() override;
     /// <summary>Makes an <see cref="MCElemental"/> of this type and gives it the next object id.</summary>
-    MCBaseObject* CreateInstance() override;
+    std::unique_ptr<MCBaseObject> CreateInstance() override;
     /// <summary>
     /// Knocks the elemental aside: an enemy mech or vehicle ramming it (a marine: any), a building (with damage by its
     /// tonnage), a tree, a train car.

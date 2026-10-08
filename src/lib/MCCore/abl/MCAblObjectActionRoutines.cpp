@@ -1,7 +1,7 @@
 #include "stdafx.h"
 #include "abl/MCAblRoutineList.h"
 #include "abl/MCAblDebugger.h"
-#include "ai/move.h"
+#include "ai/MCMoveSystem.h"
 #include "gui/asystem.h"
 #include "gui/atextbox.h"
 #include "iface/iface.h"
@@ -17,19 +17,18 @@
 #include "object/artlry.h"
 #include "object/bldng.h"
 #include "object/bridge.h"
-#include "object/cmponent.h"
-#include "object/comndr.h"
-#include "object/contact.h"
-#include "object/gameobj.h"
+#include "object/MCMasterComponent.h"
+#include "object/MCForces.h"
+#include "object/MCContactSystem.h"
+#include "object/MCBigGameObject.h"
 #include "object/gate.h"
-#include "object/group.h"
+#include "object/MCMoverGroup.h"
 #include "object/gvehicl.h"
 #include "object/mover.h"
-#include "object/object.h"
-#include "object/objque.h"
-#include "object/objtype.h"
+#include "object/MCObjectSystem.h"
+#include "object/MCObjectQueue.h"
+#include "object/MCObjectType.h"
 #include "object/tbldng.h"
-#include "object/team.h"
 #include "object/terrobj.h"
 #include "object/train.h"
 #include "object/turret.h"
@@ -99,9 +98,9 @@ auto ExecHbSetSensorRange(MCAblRuntime& abl) -> void
         {
             switch (object->ObjectClass)
             {
-                case BATTLEMECH:
-                case GROUNDVEHICLE:
-                case ELEMENTAL:
+                case MCObjectClass::BattleMech:
+                case MCObjectClass::GroundVehicle:
+                case MCObjectClass::Elemental:
                 {
                     if (static_cast<MCMover*>(object)->SensorSystem)
                     {
@@ -109,13 +108,13 @@ auto ExecHbSetSensorRange(MCAblRuntime& abl) -> void
                     }
                     break;
                 }
-                case ARTILLERY:
+                case MCObjectClass::Artillery:
                 {
                     static_cast<MCArtillery*>(object)->SensorRange = range;
                     static_cast<MCArtillery*>(object)->SensorSystem->SetRange(range);
                     break;
                 }
-                case BUILDING:
+                case MCObjectClass::Building:
                 {
                     if (static_cast<MCBuilding*>(object)->SensorSystem)
                     {
@@ -260,7 +259,7 @@ auto ExecHbSetAnimation(MCAblRuntime& abl) -> void
 
         if (object)
         {
-            if (object->ObjectClass == BUILDING)
+            if (object->ObjectClass == MCObjectClass::Building)
             {
                 auto* buildingAppearance =
                     static_cast<MCVfxBuildingAppearance*>(static_cast<MCBuilding*>(object)->Appearance);
@@ -276,7 +275,7 @@ auto ExecHbSetAnimation(MCAblRuntime& abl) -> void
 
                 buildingAppearance->CurrentFrame = 0;
             }
-            else if (object->ObjectClass == TREEBUILDING)
+            else if (object->ObjectClass == MCObjectClass::TreeBuilding)
             {
                 static_cast<MCVfxAppearance*>(static_cast<MCTreeBuilding*>(object)->Appearance)
                     ->SetTypeId(static_cast<MCActorState>(state), static_cast<uint8_t>(subState));
@@ -322,16 +321,16 @@ auto ExecHbSetRevealed(MCAblRuntime& abl) -> void
 
     if (teamId == 1)
     {
-        InnerSphereTeam->ScanBattlefield();
+        InnerSphereTeam()->ScanBattlefield();
     }
     else
     {
-        ClanTeam->ScanBattlefield();
+        ClanTeam()->ScanBattlefield();
     }
 
-    if (AlliedTeam)
+    if (AlliedTeam())
     {
-        AlliedTeam->ScanBattlefield();
+        AlliedTeam()->ScanBattlefield();
     }
 
     abl.GetCodeToken();
@@ -358,17 +357,16 @@ auto ExecHbGetSalvage(MCAblRuntime& abl) -> void
         itemCounts[i] = -1;
     }
 
-    MCBaseObject* object = ObjectList->FindObjectFromPart(partId);
+    MCBaseObject* object = ObjectList()->FindObjectFromPart(partId);
 
     if (object)
     {
-        int32_t i = 0;
+        const std::span<const MCSalvageItem> salvage = static_cast<MCGameObject*>(object)->GetSalvage();
 
-        for (MCSalvageItem* item = static_cast<MCGameObject*>(object)->GetSalvage(); item && i < listSize;
-             item = item->Next, i++)
+        for (size_t i = 0; i < salvage.size() && i < static_cast<size_t>(listSize); i++)
         {
-            itemIds[i] = item->ItemId;
-            itemCounts[i] = item->NumItems;
+            itemIds[i] = salvage[i].ItemId;
+            itemCounts[i] = salvage[i].NumItems;
         }
     }
 
@@ -390,11 +388,11 @@ auto ExecHbRefit(MCAblRuntime& abl) -> void
 
         if (pilot)
         {
-            MCBaseObject* target = ObjectList->FindObjectFromPart(targetId);
+            MCBaseObject* target = ObjectList()->FindObjectFromPart(targetId);
 
-            if (target && target->ObjectClass == BATTLEMECH)
+            if (target && target->ObjectClass == MCObjectClass::BattleMech)
             {
-                pilot->OrderRefit(1, static_cast<MCGameObject*>(target), params);
+                pilot->OrderRefit(MCOrderOrigin::Commander, static_cast<MCGameObject*>(target), params);
             }
         }
     }
@@ -409,7 +407,7 @@ auto ExecHbSetCaptured(MCAblRuntime& abl) -> void
     abl.ExecExpression();
     int32_t partId = abl.Top().Integer;
     abl.Pop();
-    MCBaseObject* object = ObjectList->FindObjectFromPart(partId);
+    MCBaseObject* object = ObjectList()->FindObjectFromPart(partId);
 
     if (object)
     {
@@ -433,12 +431,13 @@ auto ExecHbCaptureObject(MCAblRuntime& abl) -> void
 
     if (abl.Brain.Object && IsMover(abl.Brain.Object))
     {
-        target = ObjectList->FindObjectFromPart(targetId);
+        target = ObjectList()->FindObjectFromPart(targetId);
     }
 
     if (target)
     {
-        abl.Brain.Object->GetPilot()->OrderCapture(1, static_cast<MCGameObject*>(target), params);
+        abl.Brain.Object->GetPilot()->OrderCapture(MCOrderOrigin::Commander, static_cast<MCGameObject*>(target),
+                                                   params);
     }
 
     abl.GetCodeToken();
@@ -452,7 +451,7 @@ auto ExecHbSetCaptureable(MCAblRuntime& abl) -> void
     int32_t partId = abl.Top().Integer;
     abl.Pop();
     int32_t captureable = abl.NextInteger() == 1 ? 1 : 0;
-    MCBaseObject* object = ObjectList->FindObjectFromPart(partId);
+    MCBaseObject* object = ObjectList()->FindObjectFromPart(partId);
 
     if (object)
     {
@@ -463,16 +462,16 @@ auto ExecHbSetCaptureable(MCAblRuntime& abl) -> void
 
         switch (object->ObjectClass)
         {
-            case GROUNDVEHICLE:
+            case MCObjectClass::GroundVehicle:
                 static_cast<MCGroundVehicle*>(object)->Captureable = captureable;
                 break;
-            case BUILDING:
+            case MCObjectClass::Building:
                 static_cast<MCBuilding*>(object)->Captureable = captureable;
                 break;
-            case TREEBUILDING:
+            case MCObjectClass::TreeBuilding:
                 static_cast<MCTreeBuilding*>(object)->Captureable = captureable;
                 break;
-            case TURRET:
+            case MCObjectClass::Turret:
                 // Original behaviour (OB-044): a turret's flag goes where tree buildings keep theirs, +0x110,
                 // which is the turret's lastFireTime.
                 static_cast<MCTurret*>(object)->LastFireTime = std::bit_cast<float>(captureable);
@@ -508,7 +507,7 @@ auto ExecHbIsCaptured(MCAblRuntime& abl) -> MCAblType*
     }
     else
     {
-        MCBaseObject* object = ObjectList->FindObjectFromPart(partId);
+        MCBaseObject* object = ObjectList()->FindObjectFromPart(partId);
 
         if (object && static_cast<MCGameObject*>(object)->IsCaptured())
         {
@@ -527,7 +526,7 @@ auto ExecHbIsCapturable(MCAblRuntime& abl) -> MCAblType*
     abl.GetCodeToken();
     abl.ExecExpression();
     int captureable = 0;
-    MCBaseObject* object = ObjectList->FindObjectFromPart(abl.Top().Integer);
+    MCBaseObject* object = ObjectList()->FindObjectFromPart(abl.Top().Integer);
 
     if (object)
     {
@@ -545,22 +544,22 @@ auto ExecHbWasEverCapturable(MCAblRuntime& abl) -> MCAblType*
     abl.GetCodeToken();
     abl.ExecExpression();
     int32_t captureable = 0;
-    MCBaseObject* object = ObjectList->FindObjectFromPart(abl.Top().Integer);
+    MCBaseObject* object = ObjectList()->FindObjectFromPart(abl.Top().Integer);
 
     if (object)
     {
         switch (object->ObjectClass)
         {
-            case GROUNDVEHICLE:
+            case MCObjectClass::GroundVehicle:
                 captureable = static_cast<MCGroundVehicle*>(object)->Captureable;
                 break;
-            case BUILDING:
+            case MCObjectClass::Building:
                 captureable = static_cast<MCBuilding*>(object)->Captureable;
                 break;
-            case TREEBUILDING:
+            case MCObjectClass::TreeBuilding:
                 captureable = static_cast<MCTreeBuilding*>(object)->Captureable;
                 break;
-            case TURRET:
+            case MCObjectClass::Turret:
                 // Original behaviour (OB-044): reads the turret's lastFireTime bits.
                 captureable = std::bit_cast<int32_t>(static_cast<MCTurret*>(object)->LastFireTime);
                 break;
@@ -604,21 +603,21 @@ auto ExecHbSetBuildingName(MCAblRuntime& abl) -> void
     int32_t partId = abl.Top().Integer;
     abl.Pop();
     uint32_t stringId = static_cast<uint32_t>(abl.NextInteger());
-    MCBaseObject* object = ObjectList->FindObjectFromPart(partId);
+    MCBaseObject* object = ObjectList()->FindObjectFromPart(partId);
 
     if (object && static_cast<MCGameObject*>(object)->IsBuilding())
     {
-        if (object->ObjectClass == BUILDING)
+        if (object->ObjectClass == MCObjectClass::Building)
         {
             SetNameFromResource(static_cast<MCBuilding*>(object)->Name, stringId);
         }
 
-        if (object->ObjectClass == TREEBUILDING)
+        if (object->ObjectClass == MCObjectClass::TreeBuilding)
         {
             SetNameFromResource(static_cast<MCTreeBuilding*>(object)->Name, stringId);
         }
 
-        if (object->ObjectClass == TURRET)
+        if (object->ObjectClass == MCObjectClass::Turret)
         {
             SetNameFromResource(static_cast<MCTurret*>(object)->Name, stringId);
         }
@@ -633,7 +632,7 @@ namespace
     auto CallStrike(int32_t strikeType, int32_t targetId, MCVector3D& position, int forClansOnPoint,
                     int forClansOnTarget, float delay) -> void
     {
-        MCGameObject* target = static_cast<MCGameObject*>(ObjectList->FindObjectFromPart(targetId));
+        MCGameObject* target = static_cast<MCGameObject*>(ObjectList()->FindObjectFromPart(targetId));
 
         if (!target)
         {
@@ -709,14 +708,15 @@ auto ExecHbLoadElementals(MCAblRuntime& abl) -> void
     int32_t carrierId = abl.Top().Integer;
     abl.Pop();
 
-    if (abl.Brain.Object && abl.Brain.Object->ObjectClass == ELEMENTAL)
+    if (abl.Brain.Object && abl.Brain.Object->ObjectClass == MCObjectClass::Elemental)
     {
-        MCBaseObject* carrier = ObjectList->FindObjectFromPart(carrierId);
+        MCBaseObject* carrier = ObjectList()->FindObjectFromPart(carrierId);
 
-        if (carrier && carrier->ObjectClass == GROUNDVEHICLE &&
+        if (carrier && carrier->ObjectClass == MCObjectClass::GroundVehicle &&
             static_cast<MCGroundVehicle*>(carrier)->ElementalCarrier != 0)
         {
-            abl.Brain.Object->GetPilot()->OrderLoadIntoCarrier(1, static_cast<MCGameObject*>(carrier), 0);
+            abl.Brain.Object->GetPilot()->OrderLoadIntoCarrier(MCOrderOrigin::Commander,
+                                                               static_cast<MCGameObject*>(carrier), 0);
         }
     }
 
@@ -731,10 +731,10 @@ auto ExecHbDeployElementals(MCAblRuntime& abl) -> void
     uint32_t params = static_cast<uint32_t>(abl.Top().Integer);
     abl.Pop();
 
-    if (abl.Brain.Object && abl.Brain.Object->ObjectClass == GROUNDVEHICLE &&
+    if (abl.Brain.Object && abl.Brain.Object->ObjectClass == MCObjectClass::GroundVehicle &&
         static_cast<MCGroundVehicle*>(abl.Brain.Object)->ElementalCarrier != 0)
     {
-        abl.Brain.Object->GetPilot()->OrderDeployElementals(1, params);
+        abl.Brain.Object->GetPilot()->OrderDeployElementals(MCOrderOrigin::Commander, params);
     }
 
     abl.GetCodeToken();
@@ -751,7 +751,7 @@ auto ExecHbAddPrisoner(MCAblRuntime& abl) -> MCAblType*
     abl.ExecExpression();
     int32_t pilotIndex = abl.Top().Integer;
     int32_t result = -1;
-    MCBaseObject* object = ObjectList->FindObjectFromPart(buildingId);
+    MCBaseObject* object = ObjectList()->FindObjectFromPart(buildingId);
 
     if (object && static_cast<MCGameObject*>(object)->IsBuilding() && Scenario)
     {
@@ -774,11 +774,11 @@ auto ExecHbAddPrisoner(MCAblRuntime& abl) -> MCAblType*
             // Original behaviour (OB-046): the prisoner goes into every empty slot, not just the first.
             MCMechWarrior** prisonSlots = nullptr;
 
-            if (object->ObjectClass == BUILDING)
+            if (object->ObjectClass == MCObjectClass::Building)
             {
                 prisonSlots = static_cast<MCBuilding*>(object)->PrisonSlots;
             }
-            else if (object->ObjectClass == TREEBUILDING)
+            else if (object->ObjectClass == MCObjectClass::TreeBuilding)
             {
                 prisonSlots = static_cast<MCTreeBuilding*>(object)->PrisonSlots;
             }
@@ -810,9 +810,9 @@ auto ExecHbSetTrainSpeed(MCAblRuntime& abl) -> void
     int32_t partId = abl.Top().Integer;
     abl.Pop();
     float speed = abl.NextReal();
-    MCBaseObject* object = ObjectList->FindObjectFromPart(partId);
+    MCBaseObject* object = ObjectList()->FindObjectFromPart(partId);
 
-    if (object && object->ObjectClass == TRAINCAR)
+    if (object && object->ObjectClass == MCObjectClass::TrainCar)
     {
         MCTrain* train = static_cast<MCTrainCar*>(object)->Train;
 
@@ -837,9 +837,9 @@ namespace
         abl.ExecExpression();
         int32_t partId = abl.Top().Integer;
         abl.Pop();
-        MCBaseObject* object = ObjectList->FindObjectFromPart(partId);
+        MCBaseObject* object = ObjectList()->FindObjectFromPart(partId);
 
-        if (object && object->ObjectClass == GATE)
+        if (object && object->ObjectClass == MCObjectClass::Gate)
         {
             static_cast<MCGate*>(object)->BlownOpen = blownOpen;
             static_cast<MCGate*>(object)->LockedClosed = lockedClosed;
@@ -874,9 +874,9 @@ auto ExecHbIsGateOpen(MCAblRuntime& abl) -> MCAblType*
 
     if (!IsGroupId(partId))
     {
-        MCBaseObject* object = ObjectList->FindObjectFromPart(partId);
+        MCBaseObject* object = ObjectList()->FindObjectFromPart(partId);
 
-        if (object && object->ObjectClass == GATE)
+        if (object && object->ObjectClass == MCObjectClass::Gate)
         {
             abl.Top().Integer = static_cast<MCGate*>(object)->IsOpen != 0 ? 1 : 0;
         }
@@ -973,7 +973,7 @@ auto ExecHbGetUnitStatus(MCAblRuntime& abl) -> MCAblType*
     abl.GetCodeToken();
     abl.GetCodeToken();
     abl.ExecExpression();
-    MCBaseObject* baseObject = ObjectList->FindObjectFromPart(abl.Top().Integer);
+    MCBaseObject* baseObject = ObjectList()->FindObjectFromPart(abl.Top().Integer);
     abl.Top().Integer = 0;
 
     if (baseObject)
@@ -984,14 +984,14 @@ auto ExecHbGetUnitStatus(MCAblRuntime& abl) -> MCAblType*
 
         switch (object->ObjectClass)
         {
-            case BATTLEMECH:
-            case GROUNDVEHICLE:
+            case MCObjectClass::BattleMech:
+            case MCObjectClass::GroundVehicle:
             {
                 MCMover* mover = static_cast<MCMover*>(object);
                 float weaponShare;
                 float armorStatus;
 
-                if (object->ObjectClass == BATTLEMECH)
+                if (object->ObjectClass == MCObjectClass::BattleMech)
                 {
                     weaponShare = mover->WeaponEffectiveness / mover->MaxWeaponEffectiveness;
                     armorStatus = MechStatus(mover);
@@ -1019,13 +1019,13 @@ auto ExecHbGetUnitStatus(MCAblRuntime& abl) -> MCAblType*
                 break;
             }
 
-            case BUILDING:
+            case MCObjectClass::Building:
                 status = HealthLeft(object, static_cast<MCBuildingType*>(object->GetObjectType())->DmgLevel);
                 break;
-            case TREEBUILDING:
+            case MCObjectClass::TreeBuilding:
                 status = HealthLeft(object, static_cast<MCTreeBuildingType*>(object->GetObjectType())->DmgLevel);
                 break;
-            case MISCTERRAINOBJECT:
+            case MCObjectClass::MiscTerrainObject:
             {
                 uint32_t damageLevel = 0;
                 // Original behaviour: a kind getDamageLevel doesn't list divides 0 by 0.
@@ -1034,15 +1034,15 @@ auto ExecHbGetUnitStatus(MCAblRuntime& abl) -> MCAblType*
                 break;
             }
 
-            case TRAINCAR:
+            case MCObjectClass::TrainCar:
                 // Original behaviour (OB-047): a train car reports the damage taken, not the health left.
                 status = DamageTaken(object, static_cast<MCTrainCarType*>(object->GetObjectType())->Damage);
                 break;
-            case TURRET:
+            case MCObjectClass::Turret:
                 status = 1.0 - DamageTaken(object, static_cast<int32_t>(
                                                        static_cast<MCTurretType*>(object->GetObjectType())->DmgLevel));
                 break;
-            case GATE:
+            case MCObjectClass::Gate:
                 status = 1.0 - DamageTaken(object, static_cast<int32_t>(
                                                        static_cast<MCGateType*>(object->GetObjectType())->DmgLevel));
                 break;
@@ -1129,9 +1129,9 @@ auto ExecHbRepair(MCAblRuntime& abl) -> void
     int32_t partId = abl.Top().Integer;
     abl.Pop();
     float points = abl.NextReal();
-    MCBaseObject* object = ObjectList->FindObjectFromPart(partId);
+    MCBaseObject* object = ObjectList()->FindObjectFromPart(partId);
 
-    if (object && object->ObjectClass == BATTLEMECH)
+    if (object && object->ObjectClass == MCObjectClass::BattleMech)
     {
         // Fills internal structure first, then armor, location by location, skipping destroyed ones.
         MCMover* mech = static_cast<MCMover*>(object);
@@ -1187,7 +1187,7 @@ auto ExecHbGetRepairState(MCAblRuntime& abl) -> MCAblType*
     // The percentage of internal structure and armor left, over the locations that aren't destroyed.
     double sum = 0.0;
     int32_t maximum = 0;
-    MCBaseObject* object = ObjectList->FindObjectFromPart(partId);
+    MCBaseObject* object = ObjectList()->FindObjectFromPart(partId);
 
     if (object && IsMover(object))
     {
@@ -1240,15 +1240,15 @@ auto ExecHbIsTeamTargeting(MCAblRuntime& abl) -> MCAblType*
 
     if (teamId == 500)
     {
-        team = InnerSphereTeam;
+        team = InnerSphereTeam();
     }
     else if (teamId == 0x1f6)
     {
-        team = AlliedTeam;
+        team = AlliedTeam();
     }
     else if (teamId == 0x1f5)
     {
-        team = ClanTeam;
+        team = ClanTeam();
     }
 
     int targeting = 0;
@@ -1276,9 +1276,10 @@ auto ExecHbGetFixed(MCAblRuntime& abl) -> MCAblType*
     // -1 ordered, 0 order refused, 1 bay out of points, 2 wrong kind of bay, 3 already this bay's, 4 bay busy,
     // 5 already being fixed, 6 needs nothing, 7 not a mech or vehicle, 8 not a repair bay, 9 other side.
     int32_t result = -1;
-    MCBaseObject* bayObject = ObjectList->FindObjectFromPart(bayId);
+    MCBaseObject* bayObject = ObjectList()->FindObjectFromPart(bayId);
 
-    if (!bayObject || bayObject->ObjectClass != TREEBUILDING || static_cast<MCTreeBuilding*>(bayObject)->CanRefit == 0)
+    if (!bayObject || bayObject->ObjectClass != MCObjectClass::TreeBuilding ||
+        static_cast<MCTreeBuilding*>(bayObject)->CanRefit == 0)
     {
         result = 8;
     }
@@ -1288,9 +1289,10 @@ auto ExecHbGetFixed(MCAblRuntime& abl) -> MCAblType*
 
         if (bay->GetRefitPoints() > 0.0f)
         {
-            MCBaseObject* moverObject = ObjectList->FindObjectFromPart(moverId);
+            MCBaseObject* moverObject = ObjectList()->FindObjectFromPart(moverId);
 
-            if (!moverObject || (moverObject->ObjectClass != BATTLEMECH && moverObject->ObjectClass != GROUNDVEHICLE))
+            if (!moverObject || (moverObject->ObjectClass != MCObjectClass::BattleMech &&
+                                 moverObject->ObjectClass != MCObjectClass::GroundVehicle))
             {
                 result = 7;
             }
@@ -1309,7 +1311,7 @@ auto ExecHbGetFixed(MCAblRuntime& abl) -> MCAblType*
                 else
                 {
                     // A mech bay fixes mechs only, a vehicle bay vehicles only.
-                    bool rightBay = (mover->ObjectClass == BATTLEMECH) == (bay->MechBay != 0);
+                    bool rightBay = (mover->ObjectClass == MCObjectClass::BattleMech) == (bay->MechBay != 0);
 
                     if (!rightBay)
                     {
@@ -1325,7 +1327,7 @@ auto ExecHbGetFixed(MCAblRuntime& abl) -> MCAblType*
                     }
                     else
                     {
-                        result = mover->GetPilot()->OrderGetFixed(1, bay, params) != 0 ? -1 : 0;
+                        result = mover->GetPilot()->OrderGetFixed(MCOrderOrigin::Commander, bay, params) != 0 ? -1 : 0;
                     }
                 }
             }

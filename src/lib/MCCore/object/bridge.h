@@ -1,7 +1,8 @@
 #pragma once
 
-#include "object/gameobj.h"
-#include "object/objtype.h"
+#include "object/MCBigGameObject.h"
+#include "object/MCObjectType.h"
+#include "object/MCWeaponShotInfo.h"
 
 class MCAppearance;
 class MCFile;
@@ -27,7 +28,7 @@ public:
     void Init();
 
     /// <summary>Makes a <see cref="MCMiscTerrainObject"/> of this type and gives it the next object id.</summary>
-    MCBaseObject* CreateInstance() override;
+    std::unique_ptr<MCBaseObject> CreateInstance() override;
     void Destroy() override;
     /// <summary>
     /// Reads the damage levels and effect ids from the "BridgeData" block, loads the ForestEdges shape file into the

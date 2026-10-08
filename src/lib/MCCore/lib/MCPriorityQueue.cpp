@@ -6,6 +6,15 @@ MCPriorityQueue::MCPriorityQueue(int32_t maxItems, int32_t keyMinimum)
 {
 }
 
+void MCPriorityQueue::Reserve(int32_t maxItems)
+{
+    if (maxItems + 2 > _Capacity)
+    {
+        _Slots.resize(static_cast<size_t>(maxItems) + 3);
+        _Capacity = maxItems + 2;
+    }
+}
+
 void MCPriorityQueue::UpHeap(int32_t curIndex)
 {
     const MCPQNode startNode = _Slots[curIndex];

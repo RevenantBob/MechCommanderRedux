@@ -1,7 +1,7 @@
 #pragma once
 
-#include "object/gameobj.h"
-#include "object/objtype.h"
+#include "object/MCBigGameObject.h"
+#include "object/MCObjectType.h"
 
 class MCAppearance;
 class MCFile;
@@ -17,7 +17,7 @@ public:
     ~MCLightType() override { Destroy(); }
 
     /// <summary>Makes a <see cref="MCLight"/> of this type and gives it the next object id.</summary>
-    MCBaseObject* CreateInstance() override;
+    std::unique_ptr<MCBaseObject> CreateInstance() override;
     void Destroy() override;
     /// <summary>Reads OneShotFlag and AltitudeOffset from the "LightData" block, then the common type data.</summary>
     int32_t Init(MCFile* objFile, uint32_t fileSize) override;

@@ -9,7 +9,7 @@
 #include "main/main.h"
 #include "object/artlry.h"
 #include "object/gvehicl.h"
-#include "object/team.h"
+#include "object/MCForces.h"
 #include "object/train.h"
 #include "object/turret.h"
 #include "sprite/MCShape.h"
@@ -67,7 +67,7 @@ auto MCGVAppearance::RecalcBounds(MCCamera* cam) -> int
     float x = pos.X;
     float y = pos.Y;
 
-    if (obj->ObjectClass == TURRET)
+    if (obj->ObjectClass == MCObjectClass::Turret)
     {
         const float camScale = MCZoomScale(cam);
         x = static_cast<float>(static_cast<MCTurret*>(obj)->TileOffsetX) * camScale + x;
@@ -107,34 +107,34 @@ auto MCGVAppearance::Render(int32_t depthFixup) -> int32_t
 {
     MCGameObject* obj = Owner;
     ScreenPos = obj->GetScreenPos(Eye->CameraId - 1);
-    const int32_t objectClass = obj->ObjectClass;
+    const MCObjectClass objectClass = obj->ObjectClass;
     const float scale = MCZoomScale(Eye);
 
-    if (objectClass == TURRET)
+    if (objectClass == MCObjectClass::Turret)
     {
         ScreenPos.X = static_cast<float>(static_cast<MCTurret*>(obj)->TileOffsetX) * scale + ScreenPos.X;
         ScreenPos.Y = static_cast<float>(static_cast<MCTurret*>(obj)->TileOffsetY) * scale + ScreenPos.Y;
     }
 
     // The body's and the turret's facings.
-    if (objectClass == GROUNDVEHICLE)
+    if (objectClass == MCObjectClass::GroundVehicle)
     {
         const double body = MCActorFacing(obj) + 5.0;
         BodyRotation = static_cast<float>(body);
         TurretRotation = static_cast<float>(body + static_cast<MCGroundVehicle*>(obj)->TurretRotation);
     }
-    else if (objectClass == TURRET)
+    else if (objectClass == MCObjectClass::Turret)
     {
         const float rotation = static_cast<MCTurret*>(obj)->TurretRotation;
         TurretRotation = rotation;
         BodyRotation = rotation;
     }
-    else if (objectClass == TRAINCAR)
+    else if (objectClass == MCObjectClass::TrainCar)
     {
         BodyRotation = static_cast<float>(MCActorFacing(obj) + 10.0);
         TurretRotation = 0.0f;
     }
-    else if (objectClass == CAMERADRONE)
+    else if (objectClass == MCObjectClass::CameraDrone)
     {
         TurretRotation = 0.0f;
         // Faithful: 45 and -134 swap (-135 is left as it is).
@@ -241,7 +241,7 @@ auto MCGVAppearance::Render(int32_t depthFixup) -> int32_t
             }
             else if (alignment == 1)
             {
-                DrawSelectBrackets(selectedObj->GetAlignment() == HomeTeam->Alignment ? 0xfc : 0xfb);
+                DrawSelectBrackets(selectedObj->GetAlignment() == HomeTeam()->Alignment ? 0xfc : 0xfb);
             }
         }
 
@@ -343,21 +343,22 @@ auto MCGVAppearance::DrawBars() -> void
     // How much of the unit is left, per class.
     MCGameObject* obj = Owner;
     float health = 0.0f; // Port fix: the original leaves this unset for other classes.
-    const int32_t objectClass = obj->ObjectClass;
+    const MCObjectClass objectClass = obj->ObjectClass;
 
-    if (objectClass == BATTLEMECH || objectClass == GROUNDVEHICLE || objectClass == ELEMENTAL || objectClass == MOVER)
+    if (objectClass == MCObjectClass::BattleMech || objectClass == MCObjectClass::GroundVehicle ||
+        objectClass == MCObjectClass::Elemental || objectClass == MCObjectClass::Mover)
     {
         health = static_cast<MCMover*>(obj)->GetTotalEffectiveness();
         auto* vehicle = static_cast<MCGroundVehicle*>(obj);
 
-        if (obj->ObjectClass == GROUNDVEHICLE && vehicle->Refitter != 0)
+        if (obj->ObjectClass == MCObjectClass::GroundVehicle && vehicle->Refitter != 0)
         {
             // A refit vehicle shows the refit points left against the turret's full armor.
             const auto capacity = static_cast<float>(vehicle->Armor[GROUNDVEHICLE_LOCATION_TURRET].MaxArmor);
             health = static_cast<float>(vehicle->GetRefitPoints() / capacity * health);
         }
     }
-    else if (objectClass == TURRET)
+    else if (objectClass == MCObjectClass::Turret)
     {
         int32_t damage = static_cast<int32_t>(obj->GetDamage());
         const auto dmgLevel = static_cast<int32_t>(static_cast<MCTurretType*>(obj->GetObjectType())->DmgLevel);
@@ -369,7 +370,7 @@ auto MCGVAppearance::DrawBars() -> void
 
         health = 1.0f - static_cast<float>(damage) / static_cast<float>(dmgLevel);
     }
-    else if (objectClass == TRAINCAR)
+    else if (objectClass == MCObjectClass::TrainCar)
     {
         int32_t damage = static_cast<int32_t>(obj->GetDamage());
         const int32_t dmgLevel = static_cast<MCTrainCarType*>(obj->GetObjectType())->Damage;
@@ -382,7 +383,7 @@ auto MCGVAppearance::DrawBars() -> void
         // Original behaviour (OB-054): the damage taken, not the health left.
         health = static_cast<float>(damage) / static_cast<float>(dmgLevel);
     }
-    else if (objectClass == CAMERADRONE)
+    else if (objectClass == MCObjectClass::CameraDrone)
     {
         health = 1.0f;
 

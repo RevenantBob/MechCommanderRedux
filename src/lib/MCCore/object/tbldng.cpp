@@ -20,13 +20,13 @@
 #include "mission/scenario.h"
 #include "network/multplyr.h"
 #include "object/bldng.h"
-#include "object/contact.h"
+#include "object/MCContactSystem.h"
 #include "object/fire.h"
 #include "object/mover.h"
-#include "object/object.h"
-#include "object/objevnt.h"
-#include "object/objque.h"
-#include "object/team.h"
+#include "object/MCObjectSystem.h"
+#include "object/MCObjectEvent.h"
+#include "object/MCObjectQueue.h"
+#include "object/MCForces.h"
 #include "object/warrior.h"
 #include "sound/soundsys.h"
 #include "sprite/MCVfxAppearance.h"
@@ -35,6 +35,9 @@
 #include "terrain/MCTacticalMap.h"
 #include "vfx/MCVfxFunctions.h"
 #include "platform/MCRenderer.h"
+#include "object/MCObjectType.h"
+#include "object/MCObjectTypeManager.h"
+#include "object/MCWeaponShotInfo.h"
 
 namespace
 {
@@ -69,7 +72,7 @@ namespace
         }
 
         const uint32_t size = shadowFile.FileSize();
-        shadow = static_cast<uint8_t*>(MCObjectTypeManager::ObjectTypeCache.Allocate(size));
+        shadow = static_cast<uint8_t*>(ObjectTypeManager()->TypeData.Allocate(size));
         shadowFile.Read(shadow, static_cast<int32_t>(size));
         MCRenderer::RegisterData(shadow, size, MCDataKind::Shapes);
         shadowFile.Close();
@@ -120,9 +123,9 @@ auto MCTreeBuildingType::Init() -> void
     MechBay = 0;
 }
 
-auto MCTreeBuildingType::CreateInstance() -> MCBaseObject*
+auto MCTreeBuildingType::CreateInstance() -> std::unique_ptr<MCBaseObject>
 {
-    auto* newBuilding = new MCTreeBuilding;
+    auto newBuilding = std::make_unique<MCTreeBuilding>();
 
     if (newBuilding == nullptr)
     {
@@ -140,9 +143,9 @@ auto MCTreeBuildingType::CreateInstance() -> MCBaseObject*
 
 auto MCTreeBuildingType::Destroy() -> void
 {
-    MCObjectTypeManager::ObjectTypeCache.Free(NormalShadow);
+    ObjectTypeManager()->TypeData.Free(NormalShadow);
     NormalShadow = nullptr;
-    MCObjectTypeManager::ObjectTypeCache.Free(DestroyedShadow);
+    ObjectTypeManager()->TypeData.Free(DestroyedShadow);
     DestroyedShadow = nullptr;
 }
 
@@ -474,11 +477,15 @@ auto MCTreeBuilding::Update() -> int32_t
     CellRow = VertexNumber / verticesBlockSide + (BlockNumber / MCTerrain::BlocksMapSide) * verticesBlockSide;
     VertexWorldY = static_cast<float>(halfMap - CellRow) * MCTerrain::MetersPerVertex;
     const auto inBounds = [&]
-    { return CellRow < 0 || GameMap->Height <= CellRow || CellColumn < 0 || GameMap->Width <= CellColumn ? 0u : 1u; };
+    {
+        return CellRow < 0 || GameMap()->Height <= CellRow || CellColumn < 0 || GameMap()->Width <= CellColumn ? 0u
+                                                                                                               : 1u;
+    };
+
     Assert(inBounds(), 0, " tbldg MapTile Out of Bounds ");
     Assert(inBounds(), 0, " Map Tile out of bounds ");
-    const MCMapTile& tile = GameMap->Map[GameMap->Width * CellRow + CellColumn];
-    const int32_t elevationLevel = static_cast<int32_t>((tile.Cells >> 7) & 0x3f) + GameMap->BaseElevation;
+    const MCMapTile& tile = GameMap()->Map[GameMap()->Width * CellRow + CellColumn];
+    const int32_t elevationLevel = static_cast<int32_t>((tile.Cells >> 7) & 0x3f) + GameMap()->BaseElevation;
     auto* treeAppearance = static_cast<MCVfxAppearance*>(Appearance);
     treeAppearance->Visible = 1;
     CellElevation = static_cast<float>(elevationLevel) * MCTerrain::MetersPerElevLevel;
@@ -504,15 +511,15 @@ auto MCTreeBuilding::SetAlignment(int32_t align) -> void
 
     if (Alignment == -1)
     {
-        SensorSystem->SetTeam(ClanTeam);
+        SensorSystem->SetTeam(ClanTeam());
     }
     else if (Alignment == 1)
     {
-        SensorSystem->SetTeam(InnerSphereTeam);
+        SensorSystem->SetTeam(InnerSphereTeam());
     }
     else if (Alignment == 0)
     {
-        SensorSystem->SetTeam(AlliedTeam);
+        SensorSystem->SetTeam(AlliedTeam());
     }
 }
 
@@ -563,22 +570,22 @@ auto MCTreeBuilding::LightOnFire(float timeToBurn) -> void
 
     if (FireObject == nullptr)
     {
-        MCGameObject* newFire = CreateObject(static_cast<int32_t>(type->BlownEffectId));
+        std::unique_ptr<MCGameObject> newFire = CreateObject(static_cast<int32_t>(type->BlownEffectId));
 
         if (newFire != nullptr)
         {
             newFire->SetPosition(Position);
 
-            if (newFire->ObjectClass == FIRE)
+            if (newFire->ObjectClass == MCObjectClass::Fire)
             {
-                FireObject = static_cast<MCFire*>(newFire);
+                FireObject = static_cast<MCFire*>(newFire.release());
                 FireObject->SetPotentialContact(3);
                 FireObject->BurningObject = this;
                 FireObject->SetTonnage(40.0f);
             }
             else
             {
-                DestroyObject(newFire);
+                DestroyObject(newFire.get());
             }
         }
     }
@@ -677,7 +684,7 @@ auto MCTreeBuilding::Render() -> void
         }
     }
 
-    if (GetContactType(HomeTeam->Id) == 2)
+    if (GetContactType(HomeTeam()->Id) == 2)
     {
         // A sensor contact: a blip sized by tonnage.
         uint8_t* shape;
@@ -842,7 +849,7 @@ auto MCTreeBuilding::Destroy() -> void
 
     if (SensorSystem != nullptr)
     {
-        SensorSystemManager->FreeSensor(SensorSystem);
+        SensorSystemManager()->FreeSensor(SensorSystem);
         SensorSystem = nullptr;
     }
 
@@ -858,7 +865,7 @@ auto MCTreeBuilding::SetSensorData(MCTeam* newTeam, float range, int setTeam) ->
 
     if (SensorSystem == nullptr)
     {
-        SensorSystem = SensorSystemManager->NewSensor();
+        SensorSystem = SensorSystemManager()->NewSensor();
 
         if (SensorSystem == nullptr)
         {
@@ -920,7 +927,7 @@ auto MCTreeBuilding::Init(MCObjectType* objType) -> int32_t
     }
 
     auto* type = static_cast<MCTreeBuildingType*>(this->ObjType);
-    ObjectClass = TREEBUILDING;
+    ObjectClass = MCObjectClass::TreeBuilding;
     HitOnce = 0;
     SoundHandle = 0xffffffff;
 
@@ -941,7 +948,7 @@ auto MCTreeBuilding::Init(MCObjectType* objType) -> int32_t
     Name = nameBuffer;
 
     // Original behaviour (OB-016): with no team (TeamID -1) this reads TeamTable[-1], which in MCX.EXE is homeTeam.
-    TypeTeam = type->TeamId == -1 ? HomeTeam : TeamTable[type->TeamId];
+    TypeTeam = type->TeamId == -1 ? HomeTeam() : TeamById(type->TeamId);
     const float range = type->SensorRange;
 
     if (-1.0 < range)
@@ -950,19 +957,19 @@ auto MCTreeBuilding::Init(MCObjectType* objType) -> int32_t
         {
             case 0:
             {
-                SetSensorData(InnerSphereTeam, range, 0);
+                SetSensorData(InnerSphereTeam(), range, 0);
                 SetAlignment(1);
                 break;
             }
             case 1:
             {
-                SetSensorData(ClanTeam, range, 0);
+                SetSensorData(ClanTeam(), range, 0);
                 SetAlignment(-1);
                 break;
             }
             case 2:
             {
-                SetSensorData(AlliedTeam, range, 0);
+                SetSensorData(AlliedTeam(), range, 0);
                 SetAlignment(0);
                 break;
             }
@@ -1009,7 +1016,7 @@ auto MCTreeBuilding::CreateBuildingMarines() -> void
 
         MCMechWarrior* warrior = Scenario->Warriors[i];
 
-        if (warrior == nullptr || warrior->Alignment == HomeTeam->Alignment)
+        if (warrior == nullptr || warrior->Alignment == HomeTeam()->Alignment)
         {
             continue;
         }
@@ -1024,7 +1031,8 @@ auto MCTreeBuilding::CreateBuildingMarines() -> void
             }
         }
 
-        auto* marine = static_cast<MCMover*>(CreateObject(DefaultPilotId));
+        std::unique_ptr<MCMover> newMarine = CreateObjectAs<MCMover>(DefaultPilotId);
+        MCMover* marine = newMarine.get();
 
         if (marine == nullptr)
         {
@@ -1053,7 +1061,7 @@ auto MCTreeBuilding::CreateBuildingMarines() -> void
         warrior->SetVehicle(marine);
         warrior->Lobotomy();
         marine->SetControl(2, 3, -1);
-        marine->SetTeam(ClanTeam);
+        marine->SetTeam(ClanTeam());
         // A random direction, set 1.5 extent radii out on the ground (z stays the unscaled unit component).
         const float extent = ObjType->ExtentRadius;
         MCVector3D offset;
@@ -1079,7 +1087,7 @@ auto MCTreeBuilding::CreateBuildingMarines() -> void
         marinePosition.Z = offset.Z + Position.Z;
         marine->SetPosition(marinePosition);
         marine->SetLastValidPosition(Position + offset);
-        GameObjectMap->AddObject(marine);
+        GameObjectMap()->AddObject(marine);
         auto* marineAppearance = static_cast<MCElementalActor*>(marine->GetAppearance());
 
         if (marineAppearance != nullptr)
@@ -1091,18 +1099,18 @@ auto MCTreeBuilding::CreateBuildingMarines() -> void
         marine->IdNumber = 2500000;
         marine->SetPartId(0xfff - NumMarines++);
         marine->SetAlignment(GetAlignment());
-        MCObjectQueueNode* list = GetAlignment() == -1 ? ClanMechList : InnerSphereMechList;
+        MCObjectList* list = GetAlignment() == -1 ? ClanMechList() : InnerSphereMechList();
 
         if (list != nullptr)
         {
-            list->AddNode(marine);
+            list->Add(std::move(newMarine));
         }
 
         marine->SetPotentialContact(0);
         marine->SetExists(1);
         warrior->ClearAttackOrders();
         warrior->ClearMoveOrders();
-        warrior->OrderMoveToPoint(0, 1, 0, MCVector3D(0.0f, 0.0f, 0.0f), -1, 1);
+        warrior->OrderMoveToPoint(0, 1, MCOrderOrigin::Player, MCVector3D(0.0f, 0.0f, 0.0f), -1, 1);
 
         if (++marinesMade == marinesWanted)
         {
@@ -1150,8 +1158,9 @@ auto MCTreeBuilding::HandleWeaponHit(MCWeaponShotInfo* shotInfo, int addMultipla
 
     MCGameObject* attacker = shotInfo->Attacker;
 
-    if (attacker != nullptr && (attacker->ObjectClass == BATTLEMECH || attacker->ObjectClass == GROUNDVEHICLE ||
-                                attacker->ObjectClass == ELEMENTAL || attacker->ObjectClass == MOVER))
+    if (attacker != nullptr &&
+        (attacker->ObjectClass == MCObjectClass::BattleMech || attacker->ObjectClass == MCObjectClass::GroundVehicle ||
+         attacker->ObjectClass == MCObjectClass::Elemental || attacker->ObjectClass == MCObjectClass::Mover))
     {
         attacker->GetPilot()->TriggerAlarm(12, static_cast<uint32_t>(PartId));
     }
@@ -1179,24 +1188,24 @@ auto MCTreeBuilding::HandleWeaponHit(MCWeaponShotInfo* shotInfo, int addMultipla
     {
         if (type->BlownEffectId != 0xffffffff)
         {
-            MCGameObject* newFire = CreateObject(static_cast<int32_t>(type->BlownEffectId));
+            std::unique_ptr<MCGameObject> newFire = CreateObject(static_cast<int32_t>(type->BlownEffectId));
 
             if (newFire != nullptr)
             {
                 newFire->SetPosition(Position);
 
-                if (newFire->ObjectClass == FIRE)
+                if (newFire->ObjectClass == MCObjectClass::Fire)
                 {
-                    FireObject = static_cast<MCFire*>(newFire);
+                    FireObject = static_cast<MCFire*>(newFire.release());
                     FireObject->SetPotentialContact(3);
                     FireObject->BurningObject = this;
                     FireObject->SetTonnage(40.0f);
                     FireObject->Update();
                     Burning = 1;
                 }
-                else if (ObjectList->Head != nullptr)
+                else
                 {
-                    ObjectList->Head->AddNode(newFire);
+                    AddToDefaultList(std::move(newFire));
                 }
             }
         }

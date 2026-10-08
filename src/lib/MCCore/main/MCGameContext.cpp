@@ -3,10 +3,15 @@
 #include "appear/MCAppearanceTypeList.h"
 #include "abl/MCAblRuntime.h"
 #include "abl/MCAblSymbolTable.h"
+#include "ai/MCMoveSystem.h"
 #include "camera/MCCameraList.h"
 #include "color/MCPalette.h"
 #include "engine/MCCraterManager.h"
 #include "engine/MCElementBuffer.h"
+#include "object/MCCollisionSystem.h"
+#include "object/MCContactSystem.h"
+#include "object/MCForces.h"
+#include "object/MCObjectSystem.h"
 #include "lib/MCFastFileSet.h"
 #include "sprite/MCSpriteManager.h"
 #include "terrain/MCTerrain.h"
@@ -75,7 +80,36 @@ MCGameContext::MCGameContext(MCGameContext* parent) : _Parent(parent)
 {
 }
 
-MCGameContext::~MCGameContext() = default;
+MCGameContext::~MCGameContext()
+{
+    // The objects go first, while every system they reach for is still here. Then each slot is emptied, last to first,
+    // so a system going finds the ones after it gone (null, or the parent's), never deleted ones.
+    if (_ObjectSystem != nullptr)
+    {
+        _ObjectSystem->Unload();
+    }
+
+    _AblRuntime.reset();
+    _AblSymbols.reset();
+    _ObjectSystem.reset();
+    _CollisionSystem.reset();
+    _ContactSystem.reset();
+    _Forces.reset();
+    _MoveSystem.reset();
+    _CameraList.reset();
+    _Terrain.reset();
+    _AppearanceTypeList.reset();
+    _SpriteManager.reset();
+    _CraterManager.reset();
+    _ElementList.reset();
+    _Palette.reset();
+    _FastFiles.reset();
+    _Net.reset();
+    _Audio.reset();
+    _Files.reset();
+    _Random.reset();
+    _Clock.reset();
+}
 
 MCClock& MCGameContext::Clock() const
 {
@@ -147,6 +181,56 @@ MCCameraList* MCGameContext::CameraList() const
     return FindSystem(_CameraList, _Parent, &MCGameContext::CameraList);
 }
 
+MCMoveSystem* MCGameContext::MoveSystem() const
+{
+    return FindSystem(_MoveSystem, _Parent, &MCGameContext::MoveSystem);
+}
+
+std::unique_ptr<MCMoveSystem> MCGameContext::SetMoveSystem(std::unique_ptr<MCMoveSystem> moveSystem)
+{
+    return std::exchange(_MoveSystem, std::move(moveSystem));
+}
+
+MCForces* MCGameContext::Forces() const
+{
+    return FindSystem(_Forces, _Parent, &MCGameContext::Forces);
+}
+
+std::unique_ptr<MCForces> MCGameContext::SetForces(std::unique_ptr<MCForces> forces)
+{
+    return std::exchange(_Forces, std::move(forces));
+}
+
+MCContactSystem* MCGameContext::ContactSystem() const
+{
+    return FindSystem(_ContactSystem, _Parent, &MCGameContext::ContactSystem);
+}
+
+std::unique_ptr<MCContactSystem> MCGameContext::SetContactSystem(std::unique_ptr<MCContactSystem> contactSystem)
+{
+    return std::exchange(_ContactSystem, std::move(contactSystem));
+}
+
+MCCollisionSystem* MCGameContext::CollisionSystem() const
+{
+    return FindSystem(_CollisionSystem, _Parent, &MCGameContext::CollisionSystem);
+}
+
+std::unique_ptr<MCCollisionSystem> MCGameContext::SetCollisionSystem(std::unique_ptr<MCCollisionSystem> collisionSystem)
+{
+    return std::exchange(_CollisionSystem, std::move(collisionSystem));
+}
+
+MCObjectSystem* MCGameContext::ObjectSystem() const
+{
+    return FindSystem(_ObjectSystem, _Parent, &MCGameContext::ObjectSystem);
+}
+
+std::unique_ptr<MCObjectSystem> MCGameContext::SetObjectSystem(std::unique_ptr<MCObjectSystem> objectSystem)
+{
+    return std::exchange(_ObjectSystem, std::move(objectSystem));
+}
+
 MCAblSymbolTable* MCGameContext::AblSymbols() const
 {
     return FindSystem(_AblSymbols, _Parent, &MCGameContext::AblSymbols);
@@ -203,12 +287,13 @@ std::unique_ptr<MCCraterManager> MCGameContext::SetCraterManager(std::unique_ptr
     return std::exchange(_CraterManager, std::move(craterManager));
 }
 
-MCTestContextScope::MCTestContextScope() : _Previous(&MCGameContext::Current()), _Context(_Previous)
+MCTestContextScope::MCTestContextScope() : _Previous(&MCGameContext::Current()), _Context(new MCGameContext(_Previous))
 {
-    MCGameContext::SetCurrent(&_Context);
+    MCGameContext::SetCurrent(_Context.get());
 }
 
 MCTestContextScope::~MCTestContextScope()
 {
+    _Context.reset();
     MCGameContext::SetCurrent(_Previous);
 }

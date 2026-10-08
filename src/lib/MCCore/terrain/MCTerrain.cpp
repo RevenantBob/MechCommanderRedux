@@ -1,6 +1,6 @@
 #include "stdafx.h"
 #include "terrain/MCTerrain.h"
-#include "ai/move.h"
+#include "ai/MCMoveSystem.h"
 #include "camera/MCCamera.h"
 #include "engine/MCByteFlag.h"
 #include "gui/asystem.h"
@@ -10,8 +10,8 @@
 #include "logistics/logmain.h"
 #include "main/MCGameContext.h"
 #include "mission/scenario.h"
-#include "object/objblck.h"
-#include "object/team.h"
+#include "object/MCObjectBlockManager.h"
+#include "object/MCForces.h"
 #include "platform/MCDisplay.h"
 #include "platform/MCInput.h"
 #include "terrain/MCGroundMesh.h"
@@ -64,7 +64,7 @@ namespace
     /// <summary>Whether (tileRow, tileCol) is on the map.</summary>
     bool TileOnMap(int32_t tileRow, int32_t tileCol)
     {
-        return tileRow >= 0 && tileRow < GameMap->Height && tileCol >= 0 && tileCol < GameMap->Width;
+        return tileRow >= 0 && tileRow < GameMap()->Height && tileCol >= 0 && tileCol < GameMap()->Width;
     }
 
     /// <summary>
@@ -294,12 +294,15 @@ auto MCTerrain::Load(std::string_view fileName) -> std::expected<void, std::stri
     MapBlocks = std::move(*blocks);
     MapTopLeft3d100.Z = MapBlocks->GetTopLeftElevation();
 
-    ObjectBlocks = std::make_unique<MCObjectBlockManager>();
+    std::expected<std::unique_ptr<MCObjectBlockManager>, std::string> objectBlocks =
+        MCObjectBlockManager::Create(fileName);
 
-    if (ObjectBlocks->Init(std::string(fileName).c_str()) != 0)
+    if (!objectBlocks.has_value())
     {
-        return std::unexpected("could not read the terrain's object blocks");
+        return std::unexpected(objectBlocks.error());
     }
+
+    ObjectBlocks = std::move(*objectBlocks);
 
     TacticalMap = MCMakeGui<MCTacticalMap>();
 
@@ -465,13 +468,13 @@ auto MCTerrain::MarkSeen(const MCVector3D& looker, const MCVector3D& /*lookVecto
     const int32_t row = static_cast<int32_t>(std::floor(static_cast<float>(gridY)));
 
     Assert(TileOnMap(row, col), 0, " Map Tile out of bounds ");
-    const uint32_t cellsA = GameMap->Map[GameMap->Width * row + col].Cells;
+    const uint32_t cellsA = GameMap()->Map[GameMap()->Width * row + col].Cells;
     Assert(TileOnMap(row, col + 1), 0, " Map Tile out of bounds ");
-    const uint32_t cellsB = GameMap->Map[GameMap->Width * row + col + 1].Cells;
+    const uint32_t cellsB = GameMap()->Map[GameMap()->Width * row + col + 1].Cells;
     Assert(TileOnMap(row + 1, col + 1), 0, " Map Tile out of bounds ");
-    const uint32_t cellsC = GameMap->Map[GameMap->Width * (row + 1) + col + 1].Cells;
+    const uint32_t cellsC = GameMap()->Map[GameMap()->Width * (row + 1) + col + 1].Cells;
     Assert(TileOnMap(row + 1, col), 0, " Map Tile out of bounds ");
-    const uint32_t cellsD = GameMap->Map[GameMap->Width * (row + 1) + col].Cells;
+    const uint32_t cellsD = GameMap()->Map[GameMap()->Width * (row + 1) + col].Cells;
 
     // The highest of the four corners sets the sight radius.
     const uint32_t level =
@@ -502,7 +505,7 @@ auto MCTerrain::MarkRadiusSeen(const MCVector3D& looker, const MCVector3D& /*loo
 
 auto MCTerrain::HomeVisibleBits() const -> MCByteFlag*
 {
-    return HomeTeam->Alignment != -1 ? ISVisibleBits.get() : ClanVisibleBits.get();
+    return HomeTeam()->Alignment != -1 ? ISVisibleBits.get() : ClanVisibleBits.get();
 }
 
 auto MCTerrain::MarkBlockUsed(int32_t blockNum) -> void

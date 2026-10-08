@@ -5,9 +5,10 @@
 #include "lib/MCFitIniFile.h"
 #include "logistics/logmain.h"
 #include "main/logistics.h"
-#include "object/cmponent.h"
+#include "object/MCMasterComponent.h"
 #include "object/mech.h"
-#include "object/objtype.h"
+#include "object/MCObjectType.h"
+#include "object/MCObjectTypeManager.h"
 
 namespace
 {
@@ -22,10 +23,9 @@ namespace
         {
             MCTestGame::OpenFastFiles();
 
-            if (MasterComponentList == nullptr)
+            if (MasterComponentList.empty())
             {
-                std::string components = GamePath(ObjectPath, "compbas", ".csv");
-                InitMasterComponentListExcel(components.data(), 0xff, 1.0f, 0.0f);
+                InitMasterComponentListExcel(GamePath(ObjectPath, "compbas", ".csv"), 0xff, 1.0f, 0.0f);
             }
 
             MCPort::StrCopy(ProfilePath, 80, "data\\missions\\profiles\\");
@@ -71,9 +71,9 @@ namespace
     }
 
     /// <summary>The first master component of <paramref name="form"/>, or -1.</summary>
-    int32_t FindComponent(int32_t form, int32_t first, int32_t last)
+    int32_t FindComponent(MCComponentForm form, int32_t first, int32_t last)
     {
-        for (int32_t id = first; id <= last && id < NumMasterComponents; ++id)
+        for (int32_t id = first; id <= last && id < NumMasterComponents(); ++id)
         {
             if (MasterComponentList[id].Form == form)
             {
@@ -249,9 +249,9 @@ TEST_CASE("game: logistics spreads weapons over the arms and side torsos")
     REQUIRE(mech->GetWeaponLarge(largeID) != 0);
     int32_t smallID = -1;
 
-    for (int32_t id = 100; id < NumMasterComponents && smallID < 0; ++id)
+    for (int32_t id = 100; id < NumMasterComponents() && smallID < 0; ++id)
     {
-        if (MasterComponentList[id].Form == COMPONENT_FORM_WEAPON_ENERGY &&
+        if (MasterComponentList[id].Form == MCComponentForm::WeaponEnergy &&
             mech->GetWeaponLarge(static_cast<uint8_t>(id)) == 0)
         {
             smallID = id;
@@ -347,7 +347,7 @@ TEST_CASE("game: logistics puts each jump jet in one slot of the leg with fewer"
     MCLogMechList mechs;
     MCLogMech* mech = mechs.AddMech(const_cast<char*>("PM100100"), 0, 1, 0);
     REQUIRE(mech != nullptr);
-    const int32_t jetID = FindComponent(COMPONENT_FORM_JUMPJET, 0, 99);
+    const int32_t jetID = FindComponent(MCComponentForm::JumpJet, 0, 99);
     REQUIRE(jetID >= 0);
     const auto jet = static_cast<uint8_t>(jetID);
 

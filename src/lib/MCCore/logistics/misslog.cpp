@@ -9,13 +9,13 @@
 #include "main/logistics.h"
 #include "mission/mission.h"
 #include "mission/scenario.h"
-#include "object/cmponent.h"
+#include "object/MCMasterComponent.h"
 #include "object/gvehicl.h"
 #include "object/mech.h"
-#include "object/object.h"
-#include "object/objque.h"
-#include "object/objtype.h"
-#include "object/team.h"
+#include "object/MCObjectSystem.h"
+#include "object/MCObjectQueue.h"
+#include "object/MCObjectType.h"
+#include "object/MCForces.h"
 #include "object/warrior.h"
 #include "platform/MCFileSystem.h"
 #include "terrain/MCTerrain.h"
@@ -98,9 +98,10 @@ namespace
     constexpr const char* VehicleLocationNames[5] = {"Front", "Left", "Right", "Rear", "Turret"};
 
     /// <summary>The master component forms a profile lists as weapons (FacesForward); form 10 is ammo.</summary>
-    bool IsWeaponForm(int32_t form)
+    bool IsWeaponForm(MCComponentForm form)
     {
-        return form == 6 || form == 7 || form == 8 || form == 9;
+        return form == MCComponentForm::Weapon || form == MCComponentForm::WeaponEnergy ||
+               form == MCComponentForm::WeaponBallistic || form == MCComponentForm::WeaponMissile;
     }
 
     /// <summary>The CRT's <c>DeleteFileA</c> on a game path.</summary>
@@ -423,9 +424,9 @@ namespace
     /// Whether a mission unit goes back to logistics: a player mech still under player control, not one that
     /// only joins on a win (NotMineYet) unless the mission was won.
     /// </summary>
-    bool ReturnsFromMission(int32_t objectClass, int32_t alignment, int32_t netPlayerId, int notMineYet)
+    bool ReturnsFromMission(MCObjectClass objectClass, int32_t alignment, int32_t netPlayerId, int notMineYet)
     {
-        return objectClass == BATTLEMECH && alignment == HomeTeam->Alignment && netPlayerId != -1 &&
+        return objectClass == MCObjectClass::BattleMech && alignment == HomeTeam()->Alignment && netPlayerId != -1 &&
                (notMineYet == 0 || ScenarioResult > 3);
     }
 }
@@ -510,14 +511,14 @@ auto MCMissionLogisticsBridge::MissionResultsStartingFitWriter(char* fileName) -
     auto mechReturns = [](MCBaseObject* object)
     {
         auto* mech = static_cast<MCBattleMech*>(object);
-        return object->ObjectClass == BATTLEMECH &&
+        return object->ObjectClass == MCObjectClass::BattleMech &&
                ReturnsFromMission(object->ObjectClass, mech->GetAlignment(), mech->NetPlayerId, mech->NotMineYet);
     };
 
     MCTacticalMap* tacMap = TacticalMap();
     uint32_t numMechs = 0;
 
-    for (MCBaseObject* object = InnerSphereMechList->Head; object != nullptr; object = object->Next)
+    for (MCBaseObject* object : *InnerSphereMechList())
     {
         if (mechReturns(object))
         {
@@ -527,7 +528,7 @@ auto MCMissionLogisticsBridge::MissionResultsStartingFitWriter(char* fileName) -
 
     for (size_t i = 0; i < tacMap->Salvage.size(); i++)
     {
-        if (tacMap->Salvage[i] != nullptr && tacMap->Salvage[i]->ObjectClass == BATTLEMECH)
+        if (tacMap->Salvage[i] != nullptr && tacMap->Salvage[i]->ObjectClass == MCObjectClass::BattleMech)
         {
             ++numMechs;
         }
@@ -537,7 +538,7 @@ auto MCMissionLogisticsBridge::MissionResultsStartingFitWriter(char* fileName) -
     int32_t mechIndex = 0;
     packet = numWarriors;
 
-    for (MCBaseObject* object = InnerSphereMechList->Head; object != nullptr; object = object->Next)
+    for (MCBaseObject* object : *InnerSphereMechList())
     {
         if (!mechReturns(object))
         {
@@ -562,7 +563,7 @@ auto MCMissionLogisticsBridge::MissionResultsStartingFitWriter(char* fileName) -
     {
         MCGameObject* salvage = tacMap->Salvage[i];
 
-        if (salvage == nullptr || salvage->ObjectClass != BATTLEMECH)
+        if (salvage == nullptr || salvage->ObjectClass != MCObjectClass::BattleMech)
         {
             continue;
         }
@@ -600,11 +601,11 @@ auto MCMissionLogisticsBridge::MissionResultsStartingFitWriter(char* fileName) -
                                 continue;
                             }
 
-                            for (MCSalvageItem* item = salvage->GetSalvage(); item != nullptr; item = item->Next)
+                            for (const MCSalvageItem& item : salvage->GetSalvage())
                             {
-                                if (item->ItemId == id)
+                                if (item.ItemId == id)
                                 {
-                                    count += item->NumItems;
+                                    count += item.NumItems;
                                 }
                             }
                         }
@@ -1269,9 +1270,9 @@ auto MCMissionLogisticsBridge::LogisticsMechProfileWriter(char* fileName, MCLogM
     for (MCLogInventoryItem* entry = mech->Inventory->GetItemInfo(0); entry != nullptr; entry = entry->Next)
     {
         const uint8_t masterID = entry->MasterID;
-        const int32_t form = MasterComponentList[masterID].Form;
+        const MCComponentForm form = MasterComponentList[masterID].Form;
 
-        if (IsWeaponForm(form) || form == 10)
+        if (IsWeaponForm(form) || form == MCComponentForm::Ammo)
         {
             continue;
         }
@@ -1314,7 +1315,7 @@ auto MCMissionLogisticsBridge::LogisticsMechProfileWriter(char* fileName, MCLogM
     {
         const uint8_t masterID = entry->MasterID;
 
-        if (MasterComponentList[masterID].Form != 10)
+        if (MasterComponentList[masterID].Form != MCComponentForm::Ammo)
         {
             continue;
         }
@@ -1418,9 +1419,9 @@ auto MCMissionLogisticsBridge::LogisticsVehicleProfileWriter(char* fileName, MCL
 
     for (MCLogInventoryItem* entry = vehicle->Inventory->GetItemInfo(0); entry != nullptr; entry = entry->Next)
     {
-        const int32_t form = MasterComponentList[entry->MasterID].Form;
+        const MCComponentForm form = MasterComponentList[entry->MasterID].Form;
 
-        if (IsWeaponForm(form) || form == 10)
+        if (IsWeaponForm(form) || form == MCComponentForm::Ammo)
         {
             continue;
         }
@@ -1453,7 +1454,7 @@ auto MCMissionLogisticsBridge::LogisticsVehicleProfileWriter(char* fileName, MCL
 
     for (MCLogInventoryItem* entry = vehicle->Inventory->GetItemInfo(0); entry != nullptr; entry = entry->Next)
     {
-        if (MasterComponentList[entry->MasterID].Form != 10)
+        if (MasterComponentList[entry->MasterID].Form != MCComponentForm::Ammo)
         {
             continue;
         }

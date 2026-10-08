@@ -18,7 +18,7 @@
 #include "main/main.h"
 #include "mission/mission.h"
 #include "mission/scenario.h"
-#include "object/gameobj.h"
+#include "object/MCBigGameObject.h"
 #include "platform/MCAudio.h"
 #include "platform/MCSmacker.h"
 #include "sound/radio.h"

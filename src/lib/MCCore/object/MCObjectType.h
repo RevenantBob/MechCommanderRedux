@@ -1,0 +1,95 @@
+#pragma once
+
+#include "lib/MCVector3D.h"
+
+class MCBaseObject;
+class MCFile;
+class MCFitIniFile;
+class MCGameObject;
+
+/// <summary>
+/// The id the next object made gets (<see cref="MCBaseObject::IdNumber"/>); every <c>CreateInstance</c> takes it and
+/// counts up.
+/// </summary>
+extern uint32_t NextIdNumber;
+
+/// <summary>
+/// The common part of every object type: what it looks like, what it leaves behind when destroyed or when it
+/// explodes, its size, icon and alignment. A type is loaded once from the object packet file (<c>OBJECT.PAK</c>) and
+/// shared, reference counted, by every object made from it.
+/// </summary>
+/// <remarks>
+/// Original source: <c>object\objtype.h</c>, <c>object\objtype.cpp</c>. The FIT block is "ObjectType".
+/// </remarks>
+class MCObjectType
+{
+public:
+    MCObjectType() = default;
+    virtual ~MCObjectType() { Destroy(); }
+    MCObjectType(const MCObjectType&) = delete;
+    MCObjectType& operator=(const MCObjectType&) = delete;
+
+    /// <summary>
+    /// Reads the type from its packet (<paramref name="objFile"/>, <paramref name="fileSize"/> bytes); the base reads
+    /// nothing.
+    /// </summary>
+    virtual int32_t Init(MCFile* objFile, uint32_t fileSize) { return 0; }
+    /// <summary>A type's teardown, which its destructor calls (none here).</summary>
+    virtual void Destroy() {}
+    /// <summary>Makes a new object of this type and gives it the next id number.</summary>
+    virtual std::unique_ptr<MCBaseObject> CreateInstance();
+    /// <summary>
+    /// What happens when <paramref name="collidee"/> (of this type) and <paramref name="collider"/> touch. Nonzero
+    /// lets the collision proceed.
+    /// </summary>
+    virtual int HandleCollision(MCGameObject* collidee, MCGameObject* collider) { return 1; }
+    /// <summary>
+    /// <paramref name="collidee"/> (of this type) was destroyed by <paramref name="collider"/>: makes the type's
+    /// explosion at its position.
+    /// </summary>
+    virtual int HandleDestruction(MCGameObject* collidee, MCGameObject* collider);
+
+    /// <summary>Sets every field to its default (no objects, appearance or icon); the types' own inits re-run it.</summary>
+    void Init()
+    {
+        TypeClass = -1;
+        DestroyedObject = -1;
+        ExplosionObject = -1;
+        AppearName = 0;
+        ExtentRadius = 0.0f;
+        KeepMe = 0;
+        IconNumber = -1;
+    }
+
+    /// <summary>
+    /// Reads the "ObjectType" block: Type, Appearance, ExplosionObject, DestroyedObject, ExtentRadius, and the
+    /// optional KeepMe, IconNumber and Alignment.
+    /// </summary>
+    int32_t Init(MCFitIniFile* typeFile);
+    /// <summary>
+    /// Makes the type's explosion object at <paramref name="position"/>; with a nonzero <paramref name="radius"/>
+    /// it also gets that radius and <paramref name="damage"/>. The explosion goes on the end of the first object list.
+    /// </summary>
+    void CreateExplosion(MCVector3D& position, float damage, float radius);
+
+    /// <summary>The type's number: its packet in the object file.</summary>
+    int32_t ObjTypeNum = 0;
+    /// <summary>How many objects of this type exist; the type is freed when the last goes (unless kept).</summary>
+    int32_t NumUsers = 0;
+    /// <summary>The FIT's "Type".</summary>
+    int32_t TypeClass = -1;
+    /// <summary>The type number of what the object leaves when destroyed (-1: nothing).</summary>
+    int32_t DestroyedObject = -1;
+    /// <summary>The type number of the explosion the object makes (-1: none).</summary>
+    int32_t ExplosionObject = -1;
+    /// <summary>The appearance type id (FIT "Appearance").</summary>
+    uint32_t AppearName = 0;
+    /// <summary>The object's extent (collision) radius.</summary>
+    float ExtentRadius = 0.0f;
+    /// <summary>Nonzero keeps the type loaded when no object uses it.</summary>
+    int32_t KeepMe = 0;
+    /// <summary>The object's icon (-1: none).</summary>
+    int32_t IconNumber = -1;
+    /// <summary>The alignment (team side) objects of this type start with (FIT "Alignment").</summary>
+    int32_t TeamId = 0;
+};

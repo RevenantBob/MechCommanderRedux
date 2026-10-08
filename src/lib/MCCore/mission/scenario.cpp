@@ -3,8 +3,8 @@
 #include "platform/MCInput.h"
 #include "platform/MCDisplay.h"
 #include "abl/MCAblRuntime.h"
-#include "ai/move.h"
-#include "ai/tacordr.h"
+#include "ai/MCMoveSystem.h"
+#include "ai/MCTacticalOrder.h"
 #include "appear/MCAppearanceType.h"
 #include "appear/MCAppearanceTypeList.h"
 #include "camera/MCCamera.h"
@@ -21,7 +21,6 @@
 #include "lib/MCFile.h"
 #include "lib/MCFitIniFile.h"
 #include "lib/MCPacketFile.h"
-#include "lib/MCPriorityQueue.h"
 #include "logistics/logbri.h"
 #include "logistics/logmain.h"
 #include "main/honorb.h"
@@ -30,22 +29,21 @@
 #include "network/multplyr.h"
 #include "object/artlry.h"
 #include "object/bldng.h"
-#include "object/cmponent.h"
-#include "object/collsn.h"
-#include "object/comndr.h"
-#include "object/contact.h"
+#include "object/MCMasterComponent.h"
+#include "object/MCCollisionSystem.h"
+#include "object/MCForces.h"
+#include "object/MCContactSystem.h"
 #include "object/elemntl.h"
 #include "object/fire.h"
-#include "object/group.h"
+#include "object/MCMoverGroup.h"
 #include "object/gvehicl.h"
 #include "object/mech.h"
 #include "object/mover.h"
-#include "object/object.h"
-#include "object/objque.h"
-#include "object/objtype.h"
+#include "object/MCObjectSystem.h"
+#include "object/MCObjectQueue.h"
+#include "object/MCObjectType.h"
 #include "object/smoke.h"
 #include "object/smokmgr.h"
-#include "object/team.h"
 #include "object/train.h"
 #include "object/warrior.h"
 #include "sound/soundsys.h"
@@ -58,6 +56,7 @@
 #include "terrain/MCTacticalMap.h"
 #include "vfx/MCVfxFunctions.h"
 #include "platform/MCRenderer.h"
+#include "object/MCObjectTypeManager.h"
 
 MCScenario* Scenario = nullptr;
 float ActualTime = 0.0f;
@@ -69,12 +68,10 @@ float PartCreateTime = -1.0f;
 int CollisionSwitch = 1;
 int32_t TonnageDivisor = 5;
 int32_t ResourcesPerTonDivided = 200;
-MCCollisionSystem* CollisionSystem = nullptr;
 MCBaseObject* MoverRoster[0xe00] = {};
 int32_t MineLayThrottle = 0;
 int32_t MineSweepThrottle = 0;
 float MineWaitTime = 0.0f;
-MCTeam* TeamTable[3] = {};
 MCTrainManager* TrainManager = nullptr;
 int32_t VisualRangeTable[256] = {};
 int32_t GlobalPlayerWeapons[2] = {};
@@ -139,31 +136,6 @@ namespace
         frame.J = frame.J * c - oldI * s;
     }
 
-    /// <summary>A team with its (inlined) constructor: <c>Team::init()</c>.</summary>
-    MCTeam* NewTeam()
-    {
-        auto* team = new MCTeam;
-
-        if (team != nullptr)
-        {
-            team->MCTeam::Init();
-        }
-
-        return team;
-    }
-
-    /// <summary>A team's (inlined) destructor: <c>Team::destroy</c>, then free it.</summary>
-    void DeleteTeam(MCTeam* team)
-    {
-        if (team == nullptr)
-        {
-            return;
-        }
-
-        team->MCTeam::Destroy();
-        delete team;
-    }
-
     /// <summary>A warrior with its (inlined) constructor: every tactical order cleared, then <c>init()</c>.</summary>
     MCMechWarrior* NewWarrior()
     {
@@ -173,11 +145,11 @@ namespace
         {
             for (MCTacticalOrder& order : warrior->TacOrder)
             {
-                order.Init();
+                order.Reset();
             }
 
-            warrior->LastTacOrder.Init();
-            warrior->CurTacOrder.Init();
+            warrior->LastTacOrder.Reset();
+            warrior->CurTacOrder.Reset();
             warrior->Init();
         }
 
@@ -188,12 +160,9 @@ namespace
     void DeleteWarrior(MCMechWarrior* warrior)
     {
         warrior->Destroy();
-        warrior->CurTacOrder.Destroy();
-        warrior->LastTacOrder.Destroy();
 
         for (int32_t i = NUM_ORDERSTATES - 1; i >= 0; --i)
         {
-            warrior->TacOrder[i].Destroy();
         }
 
         delete warrior;
@@ -421,27 +390,7 @@ auto MCScenario::Init(char* scenarioName, char* terrainName) -> int32_t
     Turn = 0;
 
     // The objects placed now but brought into play later by the script.
-    auto* objectQueue = new MCObjectQueue;
-
-    if (objectQueue != nullptr)
-    {
-        MCObjectQueueNode* node = objectQueue->FindList(DefaultListId);
-
-        if (node == nullptr)
-        {
-            node = new MCObjectQueueNode(DefaultListId);
-
-            if (node != nullptr)
-            {
-                objectQueue->AddList(node);
-            }
-        }
-
-        objectQueue->Tail = node;
-        objectQueue->Head = node;
-    }
-
-    ScenarioObjectList = objectQueue;
+    ScenarioObjectList = std::make_unique<MCObjectQueue>();
     std::memset(CreatedPartRoster, 0, sizeof(CreatedPartRoster));
     CurrentCreatorPart = 0;
 
@@ -486,7 +435,7 @@ auto MCScenario::Init(char* scenarioName, char* terrainName) -> int32_t
     RequireOk(result, " Could not find Visual Range Table ");
     UpdateDisplay(0, 1, 30, 1, 2);
 
-    if (MasterComponentList == nullptr)
+    if (MasterComponentList.empty())
     {
         std::string componentName;
         componentName = GamePath(ObjectPath, "compbas", ".csv");
@@ -615,12 +564,10 @@ auto MCScenario::Init(char* scenarioName, char* terrainName) -> int32_t
     if (CurPlanet == 1)
     {
         // On this planet overlay types 1-15 cost nothing to cross, at every move level.
-        for (int32_t level = 0; level < NUM_MOVE_LEVELS; level++)
+        for (int32_t level = 0; level < NumMoveLevels; level++)
         {
-            for (int32_t i = 0; i < 15 * MAPCELL_DIM * MAPCELL_DIM; i++)
-            {
-                OverlayWeightTable[level * OVERLAY_WEIGHT_LEVEL_SIZE + MAPCELL_DIM * MAPCELL_DIM + i] = 0;
-            }
+            const auto first = OverlayWeightTable.begin() + level * OverlayWeightLevelSize + MapCellDim * MapCellDim;
+            std::fill(first, first + 15 * MapCellDim * MapCellDim, 0);
         }
     }
 
@@ -652,39 +599,8 @@ auto MCScenario::Init(char* scenarioName, char* terrainName) -> int32_t
     result = ScenarioFile->ReadIdBoolean("AlliedTeam", haveAlliedTeam);
     RequireOk(result, " Could not find AlliedTeam in Teams Block ");
 
-    if (ClanTeam != nullptr)
-    {
-        DeleteTeam(ClanTeam);
-    }
-
-    ClanTeam = NewTeam();
-    ClanTeam->Alignment = -1;
-    ClanTeam->Init(1, 0x80);
-    TeamTable[1] = ClanTeam;
-
-    if (AlliedTeam != nullptr)
-    {
-        DeleteTeam(AlliedTeam);
-        AlliedTeam = nullptr;
-    }
-
-    if (haveAlliedTeam != 0)
-    {
-        AlliedTeam = NewTeam();
-        AlliedTeam->Alignment = 1;
-        AlliedTeam->Init(2, 0x80);
-        TeamTable[2] = AlliedTeam;
-    }
-
-    if (InnerSphereTeam != nullptr)
-    {
-        DeleteTeam(InnerSphereTeam);
-    }
-
-    InnerSphereTeam = NewTeam();
-    InnerSphereTeam->Alignment = 1;
-    InnerSphereTeam->Init(0, 0x80);
-    TeamTable[0] = InnerSphereTeam;
+    // The clan, allied (when the scenario has one) and Inner Sphere teams.
+    MCGameContext::Current().SetForces(std::make_unique<MCForces>(haveAlliedTeam != 0));
     UpdateDisplay(0, 1, 30, 1, 10);
 
     result = ScenarioFile->SeekBlock("Artillery");
@@ -698,65 +614,40 @@ auto MCScenario::Init(char* scenarioName, char* terrainName) -> int32_t
     ScenarioFile->ReadIdLong("NumSensorStrikes", NumSensorStrikes);
     ScenarioFile->ReadIdLong("NumCameraStrikes", NumCameraStrikes);
 
+    MCForces* forces = Forces();
+
     if (MPlayer == nullptr)
     {
-        HomeTeam = InnerSphereTeam;
-        NumCommanders = (AlliedTeam == nullptr) ? 2 : 3;
-
-        for (int32_t i = 0; i < NumCommanders; i++)
-        {
-            auto* commander = new MCCommander;
-
-            if (commander != nullptr)
-            {
-                commander->Init();
-            }
-
-            CommanderTable[i] = commander;
-            CommanderTable[i]->SetId(i);
-        }
-
-        HomeCommander = CommanderTable[0];
-        CommanderTable[0]->SetNumSmallStrikes(NumSmallStrikes);
-        HomeCommander->SetNumLargeStrikes(NumLargeStrikes);
-        HomeCommander->SetNumSensorStrikes(NumSensorStrikes);
-        HomeCommander->SetNumCameraDrones(NumCameraStrikes);
-        CommanderTable[1]->SetNumSmallStrikes(999);
-        CommanderTable[1]->SetNumLargeStrikes(999);
-        CommanderTable[1]->SetNumSensorStrikes(999);
-        CommanderTable[1]->SetNumCameraDrones(999);
+        forces->PlayerTeam = InnerSphereTeam();
+        forces->MakeCommanders(AlliedTeam() == nullptr ? 2 : 3);
+        forces->PlayerCommander = CommanderById(0);
+        CommanderById(0)->SetNumSmallStrikes(NumSmallStrikes);
+        HomeCommander()->SetNumLargeStrikes(NumLargeStrikes);
+        HomeCommander()->SetNumSensorStrikes(NumSensorStrikes);
+        HomeCommander()->SetNumCameraDrones(NumCameraStrikes);
+        CommanderById(1)->SetNumSmallStrikes(999);
+        CommanderById(1)->SetNumLargeStrikes(999);
+        CommanderById(1)->SetNumSensorStrikes(999);
+        CommanderById(1)->SetNumCameraDrones(999);
     }
     else
     {
-        NumCommanders = MAX_COMMANDERS;
-
-        for (int32_t i = 0; i < NumCommanders; i++)
-        {
-            auto* commander = new MCCommander;
-
-            if (commander != nullptr)
-            {
-                commander->Init();
-            }
-
-            CommanderTable[i] = commander;
-            CommanderTable[i]->SetId(i);
-        }
+        forces->MakeCommanders(MCForces::MaxCommanders);
 
         if (MPlayer->HomeTeam == 0)
         {
-            HomeTeam = InnerSphereTeam;
+            forces->PlayerTeam = InnerSphereTeam();
         }
         else if (MPlayer->HomeTeam == 1)
         {
-            HomeTeam = ClanTeam;
+            forces->PlayerTeam = ClanTeam();
         }
         else
         {
             Fatal(0, " Must Be Clan or InnerSphere in Multiplayer! ");
         }
 
-        HomeCommander = CommanderTable[MPlayer->CheckInId];
+        forces->PlayerCommander = CommanderById(MPlayer->CheckInId);
     }
 
     UpdateDisplay(0, 1, 30, 1, 13);
@@ -876,9 +767,9 @@ auto MCScenario::Init(char* scenarioName, char* terrainName) -> int32_t
     RequireOk(result, " could not Find NumObjects in ObjectSystem Block ");
     result = ScenarioFile->ReadIdString("ObjectFileName", ObjectFileName, 79);
     RequireOk(result, " could not Find ObjectFileName in ObjectSystem Block ");
-    result = StartObjects(ObjectFileName, static_cast<int32_t>(ObjectTypeHeapSize),
-                          static_cast<int32_t>(ObjectHeapSize), static_cast<int32_t>(NumObjects));
-    RequireOk(result, " could not Start ObjectSystem ");
+    // The type and object heap sizes and NumObjects (the watchers' count, which the original ignored too) are read,
+    // then ignored.
+    MCObjectSystem::Start(ObjectFileName);
 
     result = ScenarioFile->SeekBlock("SpriteSystem");
     RequireOk(result, " could not Find SpriteSystem Block ");
@@ -936,14 +827,14 @@ auto MCScenario::Init(char* scenarioName, char* terrainName) -> int32_t
 
     MCGameContext::Current().SetAppearanceTypeList(std::move(*typeList));
 
-    SensorSystemManager = new MCSensorSystemManager;
-    Assert(SensorSystemManager != nullptr, 0, " Unable to init sensor system manager ");
-    result = SensorSystemManager->Init(gameSystemFile);
-    RequireOk(result, " could not start Sensor System Manager ");
+    std::expected<std::unique_ptr<MCContactSystem>, std::string> contacts = MCContactSystem::Create(*ScenarioFile);
 
-    PotentialContactManager = new MCPotentialContactManager;
-    result = PotentialContactManager->Init(ScenarioFile);
-    RequireOk(result, " could not start PotentialContactManager ");
+    if (!contacts)
+    {
+        Fatal(0, std::format(" could not start PotentialContactManager: {} ", contacts.error()));
+    }
+
+    MCGameContext::Current().SetContactSystem(std::move(*contacts));
     UpdateDisplay(0, 1, 20, 1, 25);
 
     SmokeManager = new MCSmokeManager;
@@ -956,15 +847,15 @@ auto MCScenario::Init(char* scenarioName, char* terrainName) -> int32_t
 
     UpdateDisplay(0, 1, 30, 1, 35);
 
-    CollisionSystem = new MCCollisionSystem;
+    std::expected<std::unique_ptr<MCCollisionSystem>, std::string> collisions =
+        MCCollisionSystem::Create(*ScenarioFile);
 
-    if (CollisionSystem == nullptr)
+    if (!collisions)
     {
-        Assert(0, static_cast<uint32_t>(result), " no RAM for Collision System ");
+        Fatal(0, std::format(" could not start Collision System: {} ", collisions.error()));
     }
 
-    result = CollisionSystem->Init(ScenarioFile);
-    RequireOk(result, " could not start Collision System ");
+    MCGameContext::Current().SetCollisionSystem(std::move(*collisions));
     UpdateDisplay(0, 1, 30, 1, 37);
 
     //---------------------------------------------------------------------------------------------------------------
@@ -978,46 +869,15 @@ auto MCScenario::Init(char* scenarioName, char* terrainName) -> int32_t
         LoadTerrain(TerrainFileName);
         UpdateDisplay(0, 1, 30, 1, 50);
 
-        GameMap = new MCScenarioMap;
-
-        if (GameMap == nullptr)
-        {
-            Assert(0, static_cast<uint32_t>(result), " no RAM for Game Map ");
-        }
-
-        std::string mapFileName;
-        mapFileName = GamePath(TerrainPath, TerrainFileName, ".dat");
-        auto* mapFile = new MCFile;
-        Assert(mapFile != nullptr, static_cast<uint32_t>(result), " no RAM for Map File");
-        result = mapFile->Open(mapFileName);
+        // The movement maps: the terrain's .dat (the scenario map) and .gmm (the global map).
+        MCFile mapFile;
+        result = mapFile.Open(GamePath(TerrainPath, TerrainFileName, ".dat"));
         RequireOk(result, " could not start Game Map ");
-        GameMap->Init(mapFile);
-        mapFile->Close();
-        delete mapFile;
-        UpdateDisplay(0, 1, 30, 1, 60);
-
-        GameObjectMap = new MCObjectMap;
-        Assert(GameObjectMap != nullptr, static_cast<uint32_t>(result), " no RAM for Game Object Map ");
-        GameObjectMap->Init(GameMap);
-        PathManager = new MCMovePathManager;
-
-        if (PathManager != nullptr)
-        {
-            PathManager->Init();
-        }
-
-        PathFindMap = new MCMoveMap;
-        Assert(PathFindMap != nullptr, static_cast<uint32_t>(result), " no RAM for Path Find Map ");
-        PathFindMap->Init(SimpleMovePathRange * 2 + 1, SimpleMovePathRange * 2 + 1);
-        GlobalMoveMap = new MCGlobalMap;
-
-        auto* globalMapFile = new MCFile;
-        std::string globalMapFileName;
-        globalMapFileName = GamePath(TerrainPath, TerrainFileName, ".gmm");
-        result = globalMapFile->Open(globalMapFileName);
+        MCFile globalMapFile;
+        result = globalMapFile.Open(GamePath(TerrainPath, TerrainFileName, ".gmm"));
         RequireOk(result, " Could not open global Map ");
-        GlobalMoveMap->Init(globalMapFile);
-        delete globalMapFile;
+        MCGameContext::Current().SetMoveSystem(MCMoveSystem::Load(mapFile, globalMapFile, SimpleMovePathRange * 2 + 1));
+        UpdateDisplay(0, 1, 30, 1, 60);
         UpdateDisplay(0, 1, 30, 1, 65);
         Terrain()->UpdateAllObjects();
         UpdateDisplay(0, 1, 30, 1, 70);
@@ -1352,7 +1212,7 @@ auto MCScenario::Init(char* scenarioName, char* terrainName) -> int32_t
                 RequireOk(result, " Could not find a car in train block");
                 Assert(carPart <= static_cast<int32_t>(NumParts), 0, "Illegal part number for train car");
                 auto* car = static_cast<MCTrainCar*>(Parts[carPart].Object);
-                Assert(car->ObjectClass == TRAINCAR, 0, "Car in train block isn't a traincar!");
+                Assert(car->ObjectClass == MCObjectClass::TrainCar, 0, "Car in train block isn't a traincar!");
                 train->AddCar(car);
                 car->SetPartId(trainNumber, carNumber);
 
@@ -1409,8 +1269,9 @@ auto MCScenario::Init(char* scenarioName, char* terrainName) -> int32_t
             Assert(partNumber < static_cast<int32_t>(NumParts), static_cast<uint32_t>(partNumber),
                    "Illegal part number for elemental carrier");
             auto* carrier = static_cast<MCGroundVehicle*>(Parts[partNumber].Object);
-            Assert(carrier != nullptr && carrier->ObjectClass == GROUNDVEHICLE && carrier->ElementalCarrier != 0, 0,
-                   "Illegal carrier object");
+            Assert(carrier != nullptr && carrier->ObjectClass == MCObjectClass::GroundVehicle &&
+                       carrier->ElementalCarrier != 0,
+                   0, "Illegal carrier object");
 
             for (int32_t i = 0; i < 10; i++)
             {
@@ -1423,7 +1284,8 @@ auto MCScenario::Init(char* scenarioName, char* terrainName) -> int32_t
                 }
 
                 auto* elemental = static_cast<MCElemental*>(Parts[partNumber].Object);
-                Assert(elemental != nullptr && elemental->ObjectClass == ELEMENTAL, 0, "Illegal elemental object");
+                Assert(elemental != nullptr && elemental->ObjectClass == MCObjectClass::Elemental, 0,
+                       "Illegal elemental object");
                 carrier->Elementals[i] = elemental;
                 elemental->Transport = carrier;
             }
@@ -1452,7 +1314,7 @@ auto MCScenario::Init(char* scenarioName, char* terrainName) -> int32_t
             Assert(number <= static_cast<int32_t>(NumParts), static_cast<uint32_t>(number),
                    "Illegal part number for elemental carrier");
             auto* bus = static_cast<MCGroundVehicle*>(Parts[number].Object);
-            Assert(bus != nullptr && bus->ObjectClass == GROUNDVEHICLE, 0, "Illegal bus object");
+            Assert(bus != nullptr && bus->ObjectClass == MCObjectClass::GroundVehicle, 0, "Illegal bus object");
 
             for (int32_t seat = 0; seat < 4 && seat < static_cast<int32_t>(bus->Seats); seat++)
             {
@@ -1488,8 +1350,8 @@ auto MCScenario::Init(char* scenarioName, char* terrainName) -> int32_t
 
     if (MPlayer == nullptr)
     {
-        InnerSphereTeam->FirstObjective = 0;
-        InnerSphereTeam->NumObjectives = NumObjectives;
+        InnerSphereTeam()->FirstObjective = 0;
+        InnerSphereTeam()->NumObjectives = NumObjectives;
     }
     else
     {
@@ -1501,10 +1363,10 @@ auto MCScenario::Init(char* scenarioName, char* terrainName) -> int32_t
         RequireOk(result, " Could not find NumClanObjectives in Objective Block ");
         Assert(numInnerSphereObjectives + numClanObjectives == NumObjectives, static_cast<uint32_t>(result),
                " Incorrect # of objectives ");
-        InnerSphereTeam->FirstObjective = 0;
-        InnerSphereTeam->NumObjectives = numInnerSphereObjectives;
-        ClanTeam->FirstObjective = static_cast<int32_t>(numInnerSphereObjectives);
-        ClanTeam->NumObjectives = numClanObjectives;
+        InnerSphereTeam()->FirstObjective = 0;
+        InnerSphereTeam()->NumObjectives = numInnerSphereObjectives;
+        ClanTeam()->FirstObjective = static_cast<int32_t>(numInnerSphereObjectives);
+        ClanTeam()->NumObjectives = numClanObjectives;
     }
 
     if (NumObjectives != 0)
@@ -1554,9 +1416,9 @@ auto MCScenario::Init(char* scenarioName, char* terrainName) -> int32_t
 
     //---------------------------------------------------------------------------------------------------------------
     // Each commander's support strikes and groups ("Commander%dGroup:%d": the part numbers of its mates).
-    for (int32_t commanderId = 0; commanderId < NumCommanders; commanderId++)
+    for (int32_t commanderId = 0; commanderId < NumCommanders(); commanderId++)
     {
-        MCCommander* commander = CommanderTable[commanderId];
+        MCCommander* commander = CommanderById(commanderId);
         int32_t groupId = 0;
         UpdateDisplay(0, 1, 30, 1, 98);
         char blockName[64];
@@ -1577,12 +1439,12 @@ auto MCScenario::Init(char* scenarioName, char* terrainName) -> int32_t
         while (groupResult == 0)
         {
             bool pointChosen = false;
-            int32_t mates[MAX_MOVERGROUP_COUNT];
-            groupResult = ScenarioFile->ReadIdLongArray("Mates", mates, MAX_MOVERGROUP_COUNT);
+            int32_t mates[MCMoverGroup::MaxMovers];
+            groupResult = ScenarioFile->ReadIdLongArray("Mates", mates, MCMoverGroup::MaxMovers);
             Assert(groupResult == 0, static_cast<uint32_t>(groupResult),
                    " could not find Mates in Group in Scenario File ");
 
-            for (int32_t i = 0; i < MAX_MOVERGROUP_COUNT; i++)
+            for (int32_t i = 0; i < MCMoverGroup::MaxMovers; i++)
             {
                 if (mates[i] <= 0)
                 {
@@ -1590,7 +1452,7 @@ auto MCScenario::Init(char* scenarioName, char* terrainName) -> int32_t
                 }
 
                 MCPart& mate = Parts[mates[i]];
-                const int32_t partId = 0x200 + commanderId * 0x180 + groupId * MAX_MOVERGROUP_COUNT + i;
+                const int32_t partId = 0x200 + commanderId * 0x180 + groupId * MCMoverGroup::MaxMovers + i;
                 mate.Object->SetPartId(partId);
 
                 if (mate.Exists == 0)
@@ -1612,7 +1474,7 @@ auto MCScenario::Init(char* scenarioName, char* terrainName) -> int32_t
 
             if (MPlayer == nullptr && commanderId == 1)
             {
-                CommanderTable[1]->GetGroup(groupId)->SetDisbandOnNoPoint(0);
+                CommanderById(1)->GetGroup(groupId)->SetDisbandOnNoPoint(0);
             }
 
             groupId++;
@@ -1621,28 +1483,28 @@ auto MCScenario::Init(char* scenarioName, char* terrainName) -> int32_t
         }
     }
 
-    ClanTeam->BuildRoster(this);
-    InnerSphereTeam->BuildRoster(this);
+    ClanTeam()->BuildRoster(this);
+    InnerSphereTeam()->BuildRoster(this);
 
-    if (AlliedTeam != nullptr)
+    if (AlliedTeam() != nullptr)
     {
-        AlliedTeam->BuildRoster(this);
+        AlliedTeam()->BuildRoster(this);
     }
 
     if (MPlayer == nullptr)
     {
-        HomeCommander->SetNetPlayerId(0);
+        HomeCommander()->SetNetPlayerId(0);
     }
 
-    HomeCommander->AddToGui(1);
+    HomeCommander()->AddToGui(1);
 
     if (MPlayer != nullptr)
     {
-        for (int32_t i = 0; i < NumCommanders; i++)
+        for (int32_t i = 0; i < NumCommanders(); i++)
         {
-            if (CommanderTable[i] != HomeCommander)
+            if (CommanderById(i) != HomeCommander())
             {
-                CommanderTable[i]->AddToGui(0);
+                CommanderById(i)->AddToGui(0);
             }
         }
     }
@@ -1663,17 +1525,17 @@ auto MCScenario::Init(char* scenarioName, char* terrainName) -> int32_t
     }
 
     // The 'Mechs start with the damage their loadouts carried over.
-    for (MCBaseObject* object = InnerSphereMechList->Head; object != nullptr; object = object->Next)
+    for (MCBaseObject* object : *InnerSphereMechList())
     {
-        if (object->ObjectClass == BATTLEMECH)
+        if (object->ObjectClass == MCObjectClass::BattleMech)
         {
             static_cast<MCBattleMech*>(object)->DamageLoadedComponents();
         }
     }
 
-    for (MCBaseObject* object = ClanMechList->Head; object != nullptr; object = object->Next)
+    for (MCBaseObject* object : *ClanMechList())
     {
-        if (object->ObjectClass == BATTLEMECH)
+        if (object->ObjectClass == MCObjectClass::BattleMech)
         {
             static_cast<MCBattleMech*>(object)->DamageLoadedComponents();
         }
@@ -1731,27 +1593,27 @@ auto MCScenario::Run() -> int32_t
     Update();
     CameraList()->Update();
     Terrain()->Update();
-    PathManager->Update();
+    PathManager()->Update();
 
     if (TrainManager != nullptr)
     {
         TrainManager->UpdateTrains();
     }
 
-    ObjectList->Update();
-    ClanTeam->UpdateSensors();
+    ObjectList()->Update();
+    ClanTeam()->UpdateSensors();
 
-    if (AlliedTeam != nullptr)
+    if (AlliedTeam() != nullptr)
     {
-        AlliedTeam->UpdateSensors();
+        AlliedTeam()->UpdateSensors();
     }
 
-    InnerSphereTeam->UpdateSensors();
-    PotentialContactManager->UpdateStatus();
+    InnerSphereTeam()->UpdateSensors();
+    PotentialContactManager()->UpdateStatus();
 
     if (CollisionSwitch != 0)
     {
-        CollisionSystem->CheckObjects();
+        CollisionSystem()->CheckObjects();
     }
 
     if (Turn < 2)
@@ -1811,15 +1673,8 @@ auto MCScenario::Destroy() -> void
 
     EndingScenario = 1;
 
-    Assert(CollisionSystem != nullptr, 0, " collisionSystem already NULL ");
-
-    if (CollisionSystem != nullptr)
-    {
-        CollisionSystem->Destroy();
-        delete CollisionSystem;
-    }
-
-    CollisionSystem = nullptr;
+    Assert(CollisionSystem() != nullptr, 0, " collisionSystem already NULL ");
+    MCGameContext::Current().SetCollisionSystem(nullptr);
 
     Assert(ElementList() != nullptr, 0, " ElementList already NULL ");
     MCGameContext::Current().SetElementList(nullptr);
@@ -1831,47 +1686,10 @@ auto MCScenario::Destroy() -> void
     MCGameContext::Current().SetTerrain(nullptr);
 
     Assert(ScenarioObjectList != nullptr, 0, " scenarioObjectList already NULL ");
-
-    if (ScenarioObjectList != nullptr)
-    {
-        while (MCObjectQueueNode* node = ScenarioObjectList->Head)
-        {
-            MCObjectQueueNode* next = node->Next;
-            node->Destroy();
-            delete node;
-            ScenarioObjectList->Head = next;
-        }
-
-        ScenarioObjectList->Tail = nullptr;
-        ScenarioObjectList->Head = nullptr;
-        delete ScenarioObjectList;
-    }
-
-    ScenarioObjectList = nullptr;
-    StopObjects();
-
-    if (SensorSystemManager != nullptr)
-    {
-        SensorSystemManager->Destroy();
-        delete SensorSystemManager;
-        SensorSystemManager = nullptr;
-        MCSensorSystem::SortList = nullptr;
-        ContactSortList = nullptr;
-    }
-
-    if (PotentialContactManager != nullptr)
-    {
-        PotentialContactManager->Destroy();
-        delete PotentialContactManager;
-        PotentialContactManager = nullptr;
-    }
-
-    if (ObjectTypeManager != nullptr)
-    {
-        ObjectTypeManager->Destroy();
-        delete ObjectTypeManager;
-        ObjectTypeManager = nullptr;
-    }
+    ScenarioObjectList.reset();
+    // The objects, their watchers and types; then the sensors and contacts.
+    MCObjectSystem::Stop();
+    MCGameContext::Current().SetContactSystem(nullptr);
 
     if (TrainManager != nullptr)
     {
@@ -1887,26 +1705,8 @@ auto MCScenario::Destroy() -> void
     Assert(Objectives != nullptr, 0, " parts already NULL ");
     Objectives.reset();
 
-    for (int32_t i = 0; i < NumCommanders; i++)
-    {
-        if (CommanderTable[i] != nullptr)
-        {
-            CommanderTable[i]->MCCommander::Destroy();
-            delete CommanderTable[i];
-        }
-
-        CommanderTable[i] = nullptr;
-    }
-
-    DeleteTeam(ClanTeam);
-    ClanTeam = nullptr;
-    DeleteTeam(AlliedTeam);
-    AlliedTeam = nullptr;
-    DeleteTeam(InnerSphereTeam);
-    InnerSphereTeam = nullptr;
-    TeamTable[0] = nullptr;
-    TeamTable[1] = nullptr;
-    TeamTable[2] = nullptr;
+    // The commanders, then the teams.
+    MCGameContext::Current().SetForces(nullptr);
 
     for (int32_t i = 0; i < 6; i++)
     {
@@ -1938,40 +1738,7 @@ auto MCScenario::Destroy() -> void
         MCGameContext::Current().SetPalette(std::move(OldPalette));
     }
 
-    if (GameMap != nullptr)
-    {
-        GameMap->Destroy();
-        delete GameMap;
-        GameMap = nullptr;
-    }
-
-    if (GameObjectMap != nullptr)
-    {
-        GameObjectMap->Destroy();
-        delete GameObjectMap;
-        GameObjectMap = nullptr;
-    }
-
-    if (GlobalMoveMap != nullptr)
-    {
-        GlobalMoveMap->Destroy();
-        delete GlobalMoveMap;
-        GlobalMoveMap = nullptr;
-    }
-
-    if (PathFindMap != nullptr)
-    {
-        PathFindMap->Destroy();
-        delete PathFindMap;
-        PathFindMap = nullptr;
-    }
-
-    if (PathManager != nullptr)
-    {
-        PathManager->Destroy();
-        delete PathManager;
-        PathManager = nullptr;
-    }
+    MCGameContext::Current().SetMoveSystem(nullptr);
 
     MCFire::MaxFiresList.reset();
 
@@ -1979,12 +1746,6 @@ auto MCScenario::Destroy() -> void
 
     ScenarioBrain.reset();
 
-    if (OpenList != nullptr)
-    {
-        delete OpenList;
-    }
-
-    OpenList = nullptr;
     AblClose();
     MCRenderer::UnregisterData(WaypointMarkers);
     std::free(WaypointMarkers);
@@ -2020,7 +1781,8 @@ auto MCScenario::CreatePartObject(int32_t partNumber) -> void
         return;
     }
 
-    MCGameObject* object = CreateObject(static_cast<int32_t>(part.ObjNumber));
+    std::unique_ptr<MCGameObject> created = CreateObject(static_cast<int32_t>(part.ObjNumber));
+    MCGameObject* object = created.get();
     part.Object = object;
 
     if (object == nullptr)
@@ -2077,20 +1839,20 @@ auto MCScenario::CreatePartObject(int32_t partNumber) -> void
 
     if (part.TeamId == 0)
     {
-        team = InnerSphereTeam;
+        team = InnerSphereTeam();
     }
     else if (part.TeamId == 1)
     {
-        team = ClanTeam;
+        team = ClanTeam();
     }
     else if (part.TeamId == 2)
     {
-        team = AlliedTeam;
+        team = AlliedTeam();
     }
 
     const MCObjectClass objectClass = object->ObjectClass;
 
-    if (objectClass == BATTLEMECH)
+    if (objectClass == MCObjectClass::BattleMech)
     {
         auto* mech = static_cast<MCBattleMech*>(object);
         mech->SetPilot(Warriors[part.Pilot]);
@@ -2102,7 +1864,7 @@ auto MCScenario::CreatePartObject(int32_t partNumber) -> void
         const int32_t paintScheme = (part.PaintScheme == -1) ? Warriors[part.Pilot]->PaintScheme : part.PaintScheme;
         static_cast<MCMechActor*>(mech->Appearance)->FadeTableIndex = paintScheme;
     }
-    else if (objectClass == GROUNDVEHICLE || objectClass == ELEMENTAL)
+    else if (objectClass == MCObjectClass::GroundVehicle || objectClass == MCObjectClass::Elemental)
     {
         auto* mover = static_cast<MCMover*>(object);
         mover->SetPilot(Warriors[part.Pilot]);
@@ -2111,7 +1873,7 @@ auto MCScenario::CreatePartObject(int32_t partNumber) -> void
 
         // The original tests +0x8b8 of both: a vehicle's gvAppearance flag, and an elemental's field there, which
         // MCX.EXE only ever sets to 0.
-        if (objectClass == GROUNDVEHICLE && static_cast<MCGroundVehicle*>(mover)->GvAppearance != 0)
+        if (objectClass == MCObjectClass::GroundVehicle && static_cast<MCGroundVehicle*>(mover)->GvAppearance != 0)
         {
             static_cast<MCGVAppearance*>(mover->Appearance)->FadeTableIndex =
                 (part.PaintScheme == -1) ? Warriors[part.Pilot]->PaintScheme : part.PaintScheme;
@@ -2122,7 +1884,8 @@ auto MCScenario::CreatePartObject(int32_t partNumber) -> void
     MCVector3D position(part.Position[0], part.Position[1], part.Position[2]);
     object->SetPosition(position);
 
-    if (objectClass == BATTLEMECH || objectClass == GROUNDVEHICLE || objectClass == ELEMENTAL || objectClass == MOVER)
+    if (objectClass == MCObjectClass::BattleMech || objectClass == MCObjectClass::GroundVehicle ||
+        objectClass == MCObjectClass::Elemental || objectClass == MCObjectClass::Mover)
     {
         static_cast<MCMover*>(object)->SetLastValidPosition(position);
     }
@@ -2133,7 +1896,7 @@ auto MCScenario::CreatePartObject(int32_t partNumber) -> void
     RotateAboutK(frame, static_cast<float>(std::sin(radians)), static_cast<float>(std::cos(radians)));
     object->SetFrame(frame);
 
-    if (objectClass == BATTLEMECH)
+    if (objectClass == MCObjectClass::BattleMech)
     {
         auto* actor = static_cast<MCMechActor*>(object->GetAppearance());
 
@@ -2142,12 +1905,12 @@ auto MCScenario::CreatePartObject(int32_t partNumber) -> void
             actor->SetGesture(part.GestureId);
         }
 
-        if (part.Alignment == HomeTeam->Alignment)
+        if (part.Alignment == HomeTeam()->Alignment)
         {
             actor->PreloadGestures();
         }
     }
-    else if (objectClass == ELEMENTAL)
+    else if (objectClass == MCObjectClass::Elemental)
     {
         auto* actor = static_cast<MCElementalActor*>(object->GetAppearance());
 
@@ -2177,51 +1940,38 @@ auto MCScenario::CreatePartObject(int32_t partNumber) -> void
         object->SetCommanderId(part.CommanderId);
         object->SetAlignment(part.Alignment);
 
-        if (MCObjectQueueNode* node = ScenarioObjectList->Head)
-        {
-            node->AddNode(object);
-        }
-
+        ScenarioObjectList->DefaultList().Add(std::move(created));
         return;
     }
 
-    if (objectClass < BATTLEMECH || ELEMENTAL < objectClass)
+    if (objectClass < MCObjectClass::BattleMech || MCObjectClass::Elemental < objectClass)
     {
         object->SetExists(1);
 
-        if (MCObjectQueueNode* node = ObjectList->Head)
-        {
-            node->AddNode(object);
-        }
+        ObjectList()->DefaultList().Add(std::move(created));
     }
     else
     {
         object->SetCommanderId(part.CommanderId);
         object->SetAlignment(part.Alignment);
-        MCObjectQueueNode* list = (part.Alignment == -1) ? ClanMechList : InnerSphereMechList;
+        MCObjectList* list = (part.Alignment == -1) ? ClanMechList() : InnerSphereMechList();
 
         if (list != nullptr)
         {
-            list->AddNode(object);
+            list->Add(std::move(created));
         }
 
-        object->SetPotentialContact(objectClass == ELEMENTAL ? 2 : 1);
+        object->SetPotentialContact(objectClass == MCObjectClass::Elemental ? 2 : 1);
         object->SetExists(1);
     }
 
-    GameObjectMap->AddObject(object);
+    GameObjectMap()->AddObject(object);
 }
 
 auto MCScenario::CreateScenarioObject(int32_t partId) -> void
 {
-    MCObjectQueue* queue = ScenarioObjectList;
-    MCBaseObject* object = nullptr;
-    object = queue->Traverse(object);
-
-    while (object != nullptr && object->PartId != partId)
-    {
-        object = queue->Traverse(object);
-    }
+    MCBaseObject* object =
+        ScenarioObjectList->FindIf([partId](MCBaseObject* candidate) { return candidate->PartId == partId; });
 
     if (object == nullptr)
     {
@@ -2234,34 +1984,28 @@ auto MCScenario::CreateScenarioObject(int32_t partId) -> void
     }
 
     // Take it out of the scenario list.
-    for (MCObjectQueueNode* node = queue->Head; node != nullptr; node = node->Next)
+    std::unique_ptr<MCBaseObject> taken;
+
+    for (const std::unique_ptr<MCObjectList>& node : ScenarioObjectList->Lists())
     {
-        MCBaseObject* prev = nullptr;
-        MCBaseObject* current = node->Head;
+        taken = node->Release(object);
 
-        while (current != nullptr && current != object)
+        if (taken != nullptr)
         {
-            prev = current;
-            current = current->Next;
-        }
-
-        if (current != nullptr)
-        {
-            node->RemoveNode(prev, current);
             break;
         }
     }
 
     auto* gameObject = static_cast<MCGameObject*>(object);
-    MCObjectQueueNode* list = (gameObject->GetAlignment() != -1) ? InnerSphereMechList : ClanMechList;
+    MCObjectList* list = (gameObject->GetAlignment() != -1) ? InnerSphereMechList() : ClanMechList();
 
     if (list != nullptr)
     {
-        list->AddNode(object);
+        list->Add(std::move(taken));
     }
 
-    gameObject->SetPotentialContact(object->ObjectClass == ELEMENTAL ? 2 : 1);
-    GameObjectMap->AddObject(gameObject);
+    gameObject->SetPotentialContact(object->ObjectClass == MCObjectClass::Elemental ? 2 : 1);
+    GameObjectMap()->AddObject(gameObject);
     gameObject->SetExists(1);
 
     for (int32_t i = 0; i < CurrentCreatorPart; i++)
@@ -2286,9 +2030,7 @@ auto MCScenario::DestroyPartObject(int32_t partNumber) -> void
 
     object->GetObjectType()->HandleDestruction(object, nullptr);
 
-    for (MCObjectQueueNode* node = ObjectList->Head; node != nullptr && node->Remove(object) == 0; node = node->Next)
-    {
-    }
+    ObjectList()->Remove(object);
 
     part.Destroyed = 1;
     part.Active = 0;

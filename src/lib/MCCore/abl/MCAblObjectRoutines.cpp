@@ -1,7 +1,7 @@
 #include "stdafx.h"
 #include "abl/MCAblRoutineList.h"
 #include "abl/MCAblDebugger.h"
-#include "ai/move.h"
+#include "ai/MCMoveSystem.h"
 #include "gui/asystem.h"
 #include "gui/atextbox.h"
 #include "iface/iface.h"
@@ -17,19 +17,18 @@
 #include "object/artlry.h"
 #include "object/bldng.h"
 #include "object/bridge.h"
-#include "object/cmponent.h"
-#include "object/comndr.h"
-#include "object/contact.h"
-#include "object/gameobj.h"
+#include "object/MCMasterComponent.h"
+#include "object/MCForces.h"
+#include "object/MCContactSystem.h"
+#include "object/MCBigGameObject.h"
 #include "object/gate.h"
-#include "object/group.h"
+#include "object/MCMoverGroup.h"
 #include "object/gvehicl.h"
 #include "object/mover.h"
-#include "object/object.h"
-#include "object/objque.h"
-#include "object/objtype.h"
+#include "object/MCObjectSystem.h"
+#include "object/MCObjectQueue.h"
+#include "object/MCObjectType.h"
 #include "object/tbldng.h"
-#include "object/team.h"
 #include "object/terrobj.h"
 #include "object/train.h"
 #include "object/turret.h"
@@ -40,6 +39,7 @@
 #include "sprite/MCVfxBuildingAppearance.h"
 #include "terrain/MCTacticalMap.h"
 #include "terrain/MCTerrain.h"
+#include "object/MCWeaponShotInfo.h"
 
 // Object queries: distances, existence, status, sides, areas, activity, type ids, armor, pilots and damage.
 
@@ -98,13 +98,7 @@ namespace
     /// <summary>Takes <paramref name="object"/> out of the object list (it gets destroyed with it).</summary>
     auto RemoveFromObjectList(MCBaseObject* object) -> void
     {
-        for (MCObjectQueueNode* node = ObjectList->Head; node; node = node->Next)
-        {
-            if (node->Remove(object))
-            {
-                break;
-            }
-        }
+        ObjectList()->Remove(object);
     }
 
 }
@@ -168,7 +162,7 @@ auto ExecHbObjectSuicide(MCAblRuntime& abl) -> void
     }
     else
     {
-        MCBaseObject* object = ObjectList->FindObjectFromPart(partId);
+        MCBaseObject* object = ObjectList()->FindObjectFromPart(partId);
 
         if (object)
         {
@@ -194,11 +188,11 @@ auto ExecHbObjectCreate(MCAblRuntime& abl) -> MCAblType*
             if (CreatedPartRoster[i].Created == 0)
             {
                 Scenario->CreateScenarioObject(partId);
-                InnerSphereTeam->ScanBattlefield();
+                InnerSphereTeam()->ScanBattlefield();
 
-                if (AlliedTeam)
+                if (AlliedTeam())
                 {
-                    AlliedTeam->ScanBattlefield();
+                    AlliedTeam()->ScanBattlefield();
                 }
 
                 abl.Top().Integer = partId;
@@ -305,30 +299,30 @@ auto ExecHbObjectStatusCount(MCAblRuntime& abl) -> MCAblType*
     }
     else if (partId < 0x21)
     {
-        CommanderTable[0]->GetGroup(partId - 1)->StatusCount(counts);
+        CommanderById(0)->GetGroup(partId - 1)->StatusCount(counts);
     }
     else if (partId >= 0x149 && partId < 0x169)
     {
-        CommanderTable[2]->GetGroup(partId - 0x149)->StatusCount(counts);
+        CommanderById(2)->GetGroup(partId - 0x149)->StatusCount(counts);
     }
     else if (partId >= 0xa5 && partId < 0xc5)
     {
-        CommanderTable[1]->GetGroup(partId - 0xa5)->StatusCount(counts);
+        CommanderById(1)->GetGroup(partId - 0xa5)->StatusCount(counts);
     }
     else if (partId == 500)
     {
-        InnerSphereTeam->StatusCount(counts);
+        InnerSphereTeam()->StatusCount(counts);
     }
     else if (partId == 0x1f6)
     {
-        if (AlliedTeam)
+        if (AlliedTeam())
         {
-            AlliedTeam->StatusCount(counts);
+            AlliedTeam()->StatusCount(counts);
         }
     }
     else if (partId == 0x1f5)
     {
-        ClanTeam->StatusCount(counts);
+        ClanTeam()->StatusCount(counts);
     }
 
     abl.GetCodeToken();
@@ -344,14 +338,14 @@ auto ExecHbObjectVisible(MCAblRuntime& abl) -> MCAblType*
     abl.Pop();
     abl.GetCodeToken();
     abl.ExecExpression();
-    MCGameObject* target = static_cast<MCGameObject*>(ObjectList->FindObjectFromPart(abl.Top().Integer));
+    MCGameObject* target = static_cast<MCGameObject*>(ObjectList()->FindObjectFromPart(abl.Top().Integer));
     abl.Top().Integer = 0;
 
     if (target)
     {
         if (!IsGroupId(lookerId))
         {
-            MCGameObject* looker = static_cast<MCGameObject*>(ObjectList->FindObjectFromPart(lookerId));
+            MCGameObject* looker = static_cast<MCGameObject*>(ObjectList()->FindObjectFromPart(lookerId));
 
             if (looker)
             {
@@ -360,8 +354,8 @@ auto ExecHbObjectVisible(MCAblRuntime& abl) -> MCAblType*
         }
         else
         {
-            for (MCBaseObject* looker = ObjectList->FindObjectInGroup(nullptr, lookerId); looker;
-                 looker = ObjectList->FindObjectInGroup(looker, lookerId))
+            for (MCBaseObject* looker = ObjectList()->FindObjectInGroup(nullptr, lookerId); looker;
+                 looker = ObjectList()->FindObjectInGroup(looker, lookerId))
             {
                 if (static_cast<MCGameObject*>(looker)->LineOfSight(target))
                 {
@@ -381,7 +375,7 @@ auto ExecHbObjectSide(MCAblRuntime& abl) -> MCAblType*
     abl.GetCodeToken();
     abl.GetCodeToken();
     abl.ExecExpression();
-    MCBaseObject* object = ObjectList->FindObjectFromPart(abl.Top().Integer);
+    MCBaseObject* object = ObjectList()->FindObjectFromPart(abl.Top().Integer);
 
     if (object && object->GetObjectType())
     {
@@ -423,7 +417,7 @@ auto ExecHbObjectClass(MCAblRuntime& abl) -> MCAblType*
     abl.GetCodeToken();
     abl.GetCodeToken();
     abl.ExecExpression();
-    MCBaseObject* object = ObjectList->FindObjectFromPart(abl.Top().Integer);
+    MCBaseObject* object = ObjectList()->FindObjectFromPart(abl.Top().Integer);
     abl.Top().Integer = object ? static_cast<int32_t>(object->ObjectClass) : -1;
     abl.GetCodeToken();
     return IntegerTypePtr;
@@ -552,14 +546,14 @@ auto ExecHbSetObjActive(MCAblRuntime& abl) -> MCAblType*
     else
     {
         // Original behaviour: the walk stops at the first member already in the wanted state.
-        MCBaseObject* object = ObjectList->FindObjectInGroup(nullptr, partId);
+        MCBaseObject* object = ObjectList()->FindObjectInGroup(nullptr, partId);
 
         while (object && static_cast<MCGameObject*>(object)->GetAwake() != active)
         {
             object->SetAwake(active);
             TheInterface->ActivateMech(object->PartId);
             numChanged++;
-            object = ObjectList->FindObjectInGroup(object, partId);
+            object = ObjectList()->FindObjectInGroup(object, partId);
         }
     }
 
@@ -582,7 +576,7 @@ auto ExecHbObjWithdraw(MCAblRuntime& abl) -> MCAblType*
     {
         if (abl.Brain.Warrior)
         {
-            abl.Brain.Warrior->OrderWithdraw(0, 1, nowhere);
+            abl.Brain.Warrior->OrderWithdraw(0, MCOrderOrigin::Commander, nowhere);
         }
         else
         {
@@ -591,7 +585,7 @@ auto ExecHbObjWithdraw(MCAblRuntime& abl) -> MCAblType*
     }
     else if (abl.Brain.Group)
     {
-        abl.Brain.Group->OrderWithdraw(1, nowhere);
+        abl.Brain.Group->OrderWithdraw(MCOrderOrigin::Commander, nowhere);
     }
     else
     {
@@ -612,7 +606,7 @@ auto ExecHbObjInWithdraw(MCAblRuntime& abl) -> MCAblType*
 
     if (!IsGroupId(partId))
     {
-        MCBaseObject* object = ObjectList->FindObjectFromPart(partId);
+        MCBaseObject* object = ObjectList()->FindObjectFromPart(partId);
 
         if (object && object->GetObjectType() && !static_cast<MCGameObject*>(object)->IsWithdrawing())
         {
@@ -621,8 +615,8 @@ auto ExecHbObjInWithdraw(MCAblRuntime& abl) -> MCAblType*
     }
     else
     {
-        for (MCBaseObject* object = ObjectList->FindObjectInGroup(nullptr, partId); object && abl.Top().Integer == 1;
-             object = ObjectList->FindObjectInGroup(object, partId))
+        for (MCBaseObject* object = ObjectList()->FindObjectInGroup(nullptr, partId); object && abl.Top().Integer == 1;
+             object = ObjectList()->FindObjectInGroup(object, partId))
         {
             if (!static_cast<MCGameObject*>(object)->IsWithdrawing())
             {
@@ -642,7 +636,7 @@ auto ExecHbObjTypeId(MCAblRuntime& abl) -> MCAblType*
     abl.ExecExpression();
     int32_t partId = abl.Top().Integer;
     abl.Top().Integer = -1;
-    MCBaseObject* object = ObjectList->FindObjectFromPart(partId);
+    MCBaseObject* object = ObjectList()->FindObjectFromPart(partId);
 
     if (object && object->GetObjectType())
     {
@@ -691,7 +685,7 @@ auto ExecHbGetWeaponAmmo(MCAblRuntime& abl) -> MCAblType*
     abl.ExecExpression();
     // The weapon index goes through a float on its way to the call.
     float weaponIndex = static_cast<float>(abl.Top().Integer);
-    MCBaseObject* object = ObjectList->FindObjectFromPart(partId);
+    MCBaseObject* object = ObjectList()->FindObjectFromPart(partId);
 
     if (object && IsMover(object))
     {
@@ -711,7 +705,7 @@ auto ExecHbGetSensors(MCAblRuntime& abl) -> MCAblType*
     abl.GetCodeToken();
     abl.GetCodeToken();
     abl.ExecExpression();
-    MCBaseObject* object = ObjectList->FindObjectFromPart(abl.Top().Integer);
+    MCBaseObject* object = ObjectList()->FindObjectFromPart(abl.Top().Integer);
 
     if (object && IsMover(object) && static_cast<MCMover*>(object)->SensorSystem)
     {
@@ -762,7 +756,7 @@ auto ExecHbGetArmorPts(MCAblRuntime& abl) -> MCAblType*
     abl.GetCodeToken();
     abl.GetCodeToken();
     abl.ExecExpression();
-    MCBaseObject* object = ObjectList->FindObjectFromPart(abl.Top().Integer);
+    MCBaseObject* object = ObjectList()->FindObjectFromPart(abl.Top().Integer);
 
     if (object && IsMover(object))
     {
@@ -790,7 +784,7 @@ auto ExecHbGetMaxArmor(MCAblRuntime& abl) -> MCAblType*
     abl.GetCodeToken();
     abl.GetCodeToken();
     abl.ExecExpression();
-    MCBaseObject* object = ObjectList->FindObjectFromPart(abl.Top().Integer);
+    MCBaseObject* object = ObjectList()->FindObjectFromPart(abl.Top().Integer);
 
     if (object && IsMover(object))
     {
@@ -818,7 +812,7 @@ auto ExecHbGetPilotId(MCAblRuntime& abl) -> MCAblType*
     abl.GetCodeToken();
     abl.GetCodeToken();
     abl.ExecExpression();
-    MCBaseObject* object = ObjectList->FindObjectFromPart(abl.Top().Integer);
+    MCBaseObject* object = ObjectList()->FindObjectFromPart(abl.Top().Integer);
 
     if (object && IsMover(object))
     {
@@ -838,7 +832,7 @@ auto ExecHbGetPilotWounds(MCAblRuntime& abl) -> MCAblType*
     abl.GetCodeToken();
     abl.GetCodeToken();
     abl.ExecExpression();
-    MCBaseObject* object = ObjectList->FindObjectFromPart(abl.Top().Integer);
+    MCBaseObject* object = ObjectList()->FindObjectFromPart(abl.Top().Integer);
 
     if (object && IsMover(object))
     {
@@ -867,7 +861,7 @@ auto ExecHbSetPilotWounds(MCAblRuntime& abl) -> MCAblType*
         wounds = 6;
     }
 
-    MCBaseObject* object = ObjectList->FindObjectFromPart(partId);
+    MCBaseObject* object = ObjectList()->FindObjectFromPart(partId);
 
     if (object && IsMover(object))
     {
@@ -891,8 +885,8 @@ auto ExecHbGetObjActive(MCAblRuntime& abl) -> MCAblType*
     {
         int32_t numAwake = 0;
 
-        for (MCBaseObject* object = ObjectList->FindObjectInGroup(nullptr, partId); object && abl.Top().Integer == 0;
-             object = ObjectList->FindObjectInGroup(object, partId))
+        for (MCBaseObject* object = ObjectList()->FindObjectInGroup(nullptr, partId); object && abl.Top().Integer == 0;
+             object = ObjectList()->FindObjectInGroup(object, partId))
         {
             if (static_cast<MCGameObject*>(object)->GetAwake())
             {
@@ -927,8 +921,9 @@ namespace
             return false;
         }
 
-        return static_cast<MCGameObject*>(object)->IsBuilding() || object->ObjectClass == TERRAINOBJECT ||
-               object->ObjectClass == MISCTERRAINOBJECT;
+        return static_cast<MCGameObject*>(object)->IsBuilding() ||
+               object->ObjectClass == MCObjectClass::TerrainObject ||
+               object->ObjectClass == MCObjectClass::MiscTerrainObject;
     }
 
     /// <summary>Applies <paramref name="shotInfo"/> to <paramref name="target"/> as the game's weapon hits do: in
@@ -957,7 +952,7 @@ auto ExecHbGetObjDamage(MCAblRuntime& abl) -> MCAblType*
     abl.GetCodeToken();
     abl.GetCodeToken();
     abl.ExecExpression();
-    MCBaseObject* baseObject = ObjectList->FindObjectFromPart(abl.Top().Integer);
+    MCBaseObject* baseObject = ObjectList()->FindObjectFromPart(abl.Top().Integer);
 
     if (!IsDamageableScenery(baseObject))
     {
@@ -986,7 +981,7 @@ auto ExecHbGetObjDmgPts(MCAblRuntime& abl) -> MCAblType*
     abl.GetCodeToken();
     abl.GetCodeToken();
     abl.ExecExpression();
-    MCBaseObject* object = ObjectList->FindObjectFromPart(abl.Top().Integer);
+    MCBaseObject* object = ObjectList()->FindObjectFromPart(abl.Top().Integer);
 
     if (IsDamageableScenery(object))
     {
@@ -1006,7 +1001,7 @@ auto ExecHbGetMaxDmg(MCAblRuntime& abl) -> MCAblType*
     abl.GetCodeToken();
     abl.GetCodeToken();
     abl.ExecExpression();
-    MCBaseObject* object = ObjectList->FindObjectFromPart(abl.Top().Integer);
+    MCBaseObject* object = ObjectList()->FindObjectFromPart(abl.Top().Integer);
     uint32_t damageLevel = 0;
 
     if (IsDamageableScenery(object))
@@ -1033,7 +1028,7 @@ auto ExecHbSetObjDamage(MCAblRuntime& abl) -> void
         percent = 100;
     }
 
-    MCBaseObject* baseObject = ObjectList->FindObjectFromPart(partId);
+    MCBaseObject* baseObject = ObjectList()->FindObjectFromPart(partId);
 
     if (baseObject && baseObject->GetObjectType() && percent > 0)
     {

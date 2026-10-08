@@ -16,14 +16,15 @@
 #include "main/main.h"
 #include "mission/scenario.h"
 #include "object/mech.h"
-#include "object/object.h"
-#include "object/objque.h"
-#include "object/objtype.h"
-#include "object/team.h"
+#include "object/MCObjectSystem.h"
+#include "object/MCObjectQueue.h"
+#include "object/MCObjectType.h"
+#include "object/MCForces.h"
 #include "platform/MCRenderer.h"
 #include "sprite/MCSpriteManager.h"
 #include "terrain/MCTerrain.h"
 #include "vfx/MCVfxFunctions.h"
+#include "object/MCObjectTypeManager.h"
 
 MCCamera* Eye = nullptr;
 bool LeaveSwoopyOff = false;
@@ -74,7 +75,7 @@ namespace
         const int32_t result = shapeFile.Open(GamePath(ArtPath, name, ".shp"));
         Assert(result == 0, static_cast<uint32_t>(result), errorMessage);
         const uint32_t size = shapeFile.FileSize();
-        auto* shape = static_cast<uint8_t*>(MCObjectTypeManager::ObjectCache.Allocate(size));
+        auto* shape = static_cast<uint8_t*>(ObjectTypeManager()->ObjectData.Allocate(size));
         shapeFile.Read(shape, static_cast<int32_t>(size));
         shapeFile.Close();
         MCRenderer::RegisterData(shape, size, MCDataKind::Shapes);
@@ -491,7 +492,7 @@ auto MCCamera::Update() -> void
         // The target's facing: its frame turned by the torso (a mech) plus 45 degrees.
         float torso = 0.0f;
 
-        if (target->ObjectClass == BATTLEMECH)
+        if (target->ObjectClass == MCObjectClass::BattleMech)
         {
             torso = static_cast<MCBattleMech*>(target)->TorsoRotation;
         }
@@ -695,7 +696,7 @@ auto MCCamera::Render() -> void
     }
 
     CraterManager()->Render();
-    ObjectList->Render();
+    ObjectList()->Render();
     ElementList()->Sort();
     ElementList()->Draw();
 
@@ -816,12 +817,12 @@ auto MCCamera::ChangeTarget(int32_t newPartNumber, int32_t objectId, bool jumpTo
     {
         if (objectId != -1)
         {
-            TargetObject = ObjectList->FindObjectId(objectId);
+            TargetObject = ObjectList()->FindObjectId(objectId);
         }
     }
     else if (Scenario != nullptr)
     {
-        TargetObject = ObjectList->FindObjectFromPart(newPartNumber);
+        TargetObject = ObjectList()->FindObjectFromPart(newPartNumber);
     }
 
     MCBaseObject* target = TargetObject;

@@ -2,7 +2,8 @@
 
 #include "gui/awindow.h"
 #include "object/mover.h"
-#include "object/objtype.h"
+#include "object/MCObjectType.h"
+#include "object/MCWeaponShotInfo.h"
 
 class MCDynamicsType;
 class MCFile;
@@ -114,7 +115,7 @@ public:
     /// <summary>Frees the name and the dynamics type.</summary>
     void Destroy() override;
     /// <summary>Makes a <see cref="MCBattleMech"/> of this type and gives it the next object id.</summary>
-    MCBaseObject* CreateInstance() override;
+    std::unique_ptr<MCBaseObject> CreateInstance() override;
     int HandleCollision(MCGameObject* collidee, MCGameObject* collider) override;
     int HandleDestruction(MCGameObject* collidee, MCGameObject* collider) override;
     /// <summary>Reads the appearance's hot spots (weapon mounts, jump jets).</summary>

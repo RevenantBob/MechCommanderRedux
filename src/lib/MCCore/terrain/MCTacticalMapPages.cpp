@@ -14,16 +14,16 @@
 #include "mission/scenario.h"
 #include "object/artlry.h"
 #include "object/bldng.h"
-#include "object/cmponent.h"
-#include "object/contact.h"
-#include "object/gameobj.h"
+#include "object/MCMasterComponent.h"
+#include "object/MCContactSystem.h"
+#include "object/MCBigGameObject.h"
 #include "object/gvehicl.h"
 #include "object/mover.h"
-#include "object/object.h"
-#include "object/objque.h"
-#include "object/objtype.h"
+#include "object/MCObjectSystem.h"
+#include "object/MCObjectQueue.h"
+#include "object/MCObjectType.h"
 #include "object/tbldng.h"
-#include "object/team.h"
+#include "object/MCForces.h"
 #include "object/warrior.h"
 #include "terrain/MCTacticalMapLayout.h"
 #include "terrain/MCTerrain.h"
@@ -51,8 +51,8 @@ namespace
     /// <summary>A mech, vehicle, elemental or other mover (the classes that have a pilot and a sensor).</summary>
     bool IsMoverClass(const MCGameObject* obj)
     {
-        return obj->ObjectClass == BATTLEMECH || obj->ObjectClass == GROUNDVEHICLE || obj->ObjectClass == ELEMENTAL ||
-               obj->ObjectClass == MOVER;
+        return obj->ObjectClass == MCObjectClass::BattleMech || obj->ObjectClass == MCObjectClass::GroundVehicle ||
+               obj->ObjectClass == MCObjectClass::Elemental || obj->ObjectClass == MCObjectClass::Mover;
     }
 
     /// <summary>The MFD pixel of <paramref name="world"/> on the map pane (the map's position, less the pane's corner).</summary>
@@ -239,22 +239,23 @@ auto MCTacticalMap::DrawInfoPage() -> void
     else
     {
         // Armor: the part diagram, over the home side's or the enemy's background.
-        MCGuiPort* background = InfoViewBackgrounds[obj->GetTeam() == HomeTeam ? 0 : 2].get();
+        MCGuiPort* background = InfoViewBackgrounds[obj->GetTeam() == HomeTeam() ? 0 : 2].get();
 
         if (background != nullptr)
         {
             VfxPaneCopy(background->Frame(), 0, 0, DisplayPort->Frame(), 6, 0x5d, -1);
         }
 
-        const int32_t shape = obj->ObjectClass == BATTLEMECH ? mover->NumArmorLocations + 1 + mover->NumBodyLocations
-                                                             : mover->NumBodyLocations;
+        const int32_t shape = obj->ObjectClass == MCObjectClass::BattleMech
+                                  ? mover->NumArmorLocations + 1 + mover->NumBodyLocations
+                                  : mover->NumBodyLocations;
         AGShapeDraw(Port()->Frame(), PartShapes.Data(), shape, 0x22, 0x65);
         DrawParts();
     }
 
     DrawBar();
 
-    if (obj->ObjectClass == BATTLEMECH)
+    if (obj->ObjectClass == MCObjectClass::BattleMech)
     {
         if (showPilot)
         {
@@ -295,7 +296,7 @@ auto MCTacticalMap::DrawInfoPage() -> void
         line.resize(std::min<size_t>(line.size(), 63));
         WriteText(BlueFont, Port()->Frame(), 0x47 - TextWidth(BlueFont, line) / 2, 0x54, line);
     }
-    else if (obj->ObjectClass == GROUNDVEHICLE)
+    else if (obj->ObjectClass == MCObjectClass::GroundVehicle)
     {
         FillBox(6, 0x2a, 0x88, 0x4c, 0x10);
         std::string line = mover->GetIfaceName();
@@ -444,11 +445,11 @@ auto MCTacticalMap::DrawObjects() -> void
     // original did both here.)
 
     // The home side's pending objectives that have a position: a numbered dot.
-    const auto numObjectives = static_cast<int32_t>(HomeTeam->NumObjectives);
+    const auto numObjectives = static_cast<int32_t>(HomeTeam()->NumObjectives);
 
     for (int32_t i = 0; i < numObjectives; i++)
     {
-        const MCScenarioObjective& objective = Scenario->Objectives[HomeTeam->FirstObjective + i];
+        const MCScenarioObjective& objective = Scenario->Objectives[HomeTeam()->FirstObjective + i];
 
         if (objective.Position[0] == -99.0f || objective.Position[1] == -99.0f || objective.Position[2] == -99.0f ||
             objective.Status != 0 || !MarkersLit)
@@ -463,15 +464,15 @@ auto MCTacticalMap::DrawObjects() -> void
     }
 
     // The sensor contacts: a dot (dark when not identified), and with the ranges on, the unit's sensor range.
-    const int32_t homeAlignment = HomeTeam->Alignment;
+    const int32_t homeAlignment = HomeTeam()->Alignment;
     std::array<MCGameObject*, 256> contacts{};
-    int32_t numContacts = HomeTeam->GetSensorContacts(contacts.data());
+    int32_t numContacts = HomeTeam()->GetSensorContacts(contacts.data());
 
     for (int32_t i = 0; i < numContacts; i++)
     {
         MCGameObject* obj = contacts[static_cast<size_t>(i)];
         int tagged = 0;
-        obj->GetContactType(HomeTeam->Id, tagged);
+        obj->GetContactType(HomeTeam()->Id, tagged);
 
         if (obj->GetAwake() == 0 || obj->IsDisabled() != 0 || obj->InTransport() != 0)
         {
@@ -495,14 +496,14 @@ auto MCTacticalMap::DrawObjects() -> void
     }
 
     // The contacts in line of sight (mechs and vehicles).
-    numContacts = HomeTeam->GetLosContacts(contacts.data());
+    numContacts = HomeTeam()->GetLosContacts(contacts.data());
 
     for (int32_t i = 0; i < numContacts; i++)
     {
         MCGameObject* obj = contacts[static_cast<size_t>(i)];
 
-        if (obj->ObjectClass <= 1 || obj->ObjectClass >= 4 || obj->GetAwake() == 0 || obj->IsDisabled() != 0 ||
-            obj->InTransport() != 0 || obj->GetPilot()->Status == 2)
+        if (static_cast<int32_t>(obj->ObjectClass) <= 1 || obj->ObjectClass >= MCObjectClass::Elemental ||
+            obj->GetAwake() == 0 || obj->IsDisabled() != 0 || obj->InTransport() != 0 || obj->GetPilot()->Status == 2)
         {
             continue;
         }
@@ -519,11 +520,9 @@ auto MCTacticalMap::DrawObjects() -> void
     if (ShowRanges)
     {
         // The home side's other sensors (not artillery's), then the enemy's revealed sensor buildings.
-        for (int32_t i = 0; i < HomeTeam->NumSensors; i++)
+        for (MCSensorSystem* sensor : HomeTeam()->Sensors())
         {
-            MCSensorSystem* sensor = HomeTeam->Sensors[i];
-
-            if (sensor->Enabled() == 0 || sensor->Owner->ObjectClass == ARTILLERY)
+            if (sensor->Enabled() == 0 || sensor->Owner->ObjectClass == MCObjectClass::Artillery)
             {
                 continue;
             }
@@ -541,12 +540,10 @@ auto MCTacticalMap::DrawObjects() -> void
             AGEllipseDraw(&MapPane, xPos, yPos, radius, radius, color);
         }
 
-        MCTeam* enemy = HomeTeam == InnerSphereTeam ? ClanTeam : InnerSphereTeam;
+        MCTeam* enemy = HomeTeam() == InnerSphereTeam() ? ClanTeam() : InnerSphereTeam();
 
-        for (int32_t i = 0; i < enemy->NumSensors; i++)
+        for (MCSensorSystem* sensor : enemy->Sensors())
         {
-            MCSensorSystem* sensor = enemy->Sensors[i];
-
             if (sensor->Owner->IsBuilding() == 0 || sensor->Enabled() == 0 || sensor->Owner->IsRevealed() == 0)
             {
                 continue;
@@ -567,10 +564,10 @@ auto MCTacticalMap::DrawObjects() -> void
     }
 
     // The home side's mechs; the selected ones last, on top.
-    MCObjectQueueNode* mechList = HomeTeam == InnerSphereTeam ? InnerSphereMechList : ClanMechList;
+    MCObjectList* mechList = HomeTeam() == InnerSphereTeam() ? InnerSphereMechList() : ClanMechList();
     std::vector<std::pair<int32_t, int32_t>> selected;
 
-    for (MCBaseObject* node = mechList->Head; node != nullptr; node = node->Next)
+    for (MCBaseObject* node : *mechList)
     {
         auto* obj = static_cast<MCGameObject*>(node);
 
@@ -597,22 +594,22 @@ auto MCTacticalMap::DrawObjects() -> void
     }
 
     // Artillery strikes: the home side's, and the enemy's in their last 4 seconds, blinking.
-    MCObjectQueueNode* defaultList = ObjectList->FindList(DefaultListId);
+    MCObjectList* defaultList = ObjectList()->FindList(MCObjectQueue::DefaultListName);
 
     if (defaultList == nullptr)
     {
         return;
     }
 
-    for (MCBaseObject* node = defaultList->Head; node != nullptr; node = node->Next)
+    for (MCBaseObject* node : *defaultList)
     {
-        if (node->ObjectClass != ARTILLERY)
+        if (node->ObjectClass != MCObjectClass::Artillery)
         {
             continue;
         }
 
         auto* strike = static_cast<MCArtillery*>(node);
-        const bool ours = strike->GetAlignment() == HomeTeam->Alignment;
+        const bool ours = strike->GetAlignment() == HomeTeam()->Alignment;
 
         if (!ours && strike->TimeToImpact >= 4.0)
         {
@@ -679,7 +676,7 @@ auto MCTacticalMap::AddSalvageString(MCGameObject* obj) -> void
         text->Print(line.data(), color);
     };
 
-    if (obj->ObjectClass == BATTLEMECH)
+    if (obj->ObjectClass == MCObjectClass::BattleMech)
     {
         // A mech: its name, its undamaged weapons, and its sensor if undamaged.
         auto* mech = static_cast<MCMover*>(obj);
@@ -704,14 +701,14 @@ auto MCTacticalMap::AddSalvageString(MCGameObject* obj) -> void
             print(std::format("    {}", MasterComponentList[sensor.MasterID].Abbreviation), 0x1f);
         }
     }
-    else if (obj->ObjectClass == GROUNDVEHICLE)
+    else if (obj->ObjectClass == MCObjectClass::GroundVehicle)
     {
         // A vehicle: its name and its salvage.
         print(static_cast<MCMover*>(obj)->GetIfaceName(), 0xb);
 
-        for (MCSalvageItem* item = obj->GetSalvage(); item != nullptr; item = item->Next)
+        for (const MCSalvageItem& item : obj->GetSalvage())
         {
-            print(std::format("    {} {}", item->NumItems, MasterComponentList[item->ItemId].Abbreviation), 0x1f);
+            print(std::format("    {} {}", item.NumItems, MasterComponentList[item.ItemId].Abbreviation), 0x1f);
         }
     }
     else
@@ -725,20 +722,20 @@ auto MCTacticalMap::AddSalvageString(MCGameObject* obj) -> void
         // A building or tree building: its name, its salvage.
         std::string name;
 
-        if (obj->ObjectClass == BUILDING)
+        if (obj->ObjectClass == MCObjectClass::Building)
         {
             name = static_cast<MCBuilding*>(obj)->Name;
         }
-        else if (obj->ObjectClass == TREEBUILDING)
+        else if (obj->ObjectClass == MCObjectClass::TreeBuilding)
         {
             name = static_cast<MCTreeBuilding*>(obj)->Name;
         }
 
         print(name, 0xb);
 
-        for (MCSalvageItem* item = obj->GetSalvage(); item != nullptr; item = item->Next)
+        for (const MCSalvageItem& item : obj->GetSalvage())
         {
-            print(std::format("    {} {}", item->NumItems, MasterComponentList[item->ItemId].Abbreviation), 0x1f);
+            print(std::format("    {} {}", item.NumItems, MasterComponentList[item.ItemId].Abbreviation), 0x1f);
         }
     }
 
@@ -783,7 +780,7 @@ auto MCTacticalMap::DrawParts() -> void
     // The armor locations: a mech's front ones (0..7) or, in the rear view, its rear ones over the rear diagram;
     // other units all of theirs.
     int16_t first = 0;
-    int16_t end = mover->ObjectClass == BATTLEMECH ? 8 : mover->NumArmorLocations;
+    int16_t end = mover->ObjectClass == MCObjectClass::BattleMech ? 8 : mover->NumArmorLocations;
 
     if (DataDisplayMode == 1)
     {
@@ -799,7 +796,7 @@ auto MCTacticalMap::DrawParts() -> void
     }
 
     // A mech's front view also shows its internal structure.
-    if (mover->ObjectClass == BATTLEMECH && DataDisplayMode == 0)
+    if (mover->ObjectClass == MCObjectClass::BattleMech && DataDisplayMode == 0)
     {
         for (int16_t i = 0; i < mover->NumBodyLocations; i++)
         {

@@ -1,6 +1,6 @@
 #include "stdafx.h"
 #include "object/artlry.h"
-#include "ai/move.h"
+#include "ai/MCMoveSystem.h"
 #include "appear/MCAppearanceType.h"
 #include "appear/MCAppearanceTypeList.h"
 #include "camera/MCCamera.h"
@@ -21,16 +21,15 @@
 #include "main/main.h"
 #include "mission/scenario.h"
 #include "network/multplyr.h"
-#include "object/collsn.h"
-#include "object/comndr.h"
-#include "object/contact.h"
+#include "object/MCCollisionSystem.h"
+#include "object/MCForces.h"
+#include "object/MCContactSystem.h"
 #include "object/explode.h"
 #include "object/gate.h"
 #include "object/mech.h"
-#include "object/object.h"
-#include "object/objevnt.h"
-#include "object/objque.h"
-#include "object/team.h"
+#include "object/MCObjectSystem.h"
+#include "object/MCObjectEvent.h"
+#include "object/MCObjectQueue.h"
 #include "object/turret.h"
 #include "sound/soundsys.h"
 #include "sprite/MCGVAppearance.h"
@@ -38,6 +37,8 @@
 #include "terrain/MCTerrain.h"
 #include "terrain/MCTacticalMap.h"
 #include "vfx/MCVfxFunctions.h"
+#include "object/MCObjectType.h"
+#include "object/MCWeaponShotInfo.h"
 
 namespace
 {
@@ -63,31 +64,17 @@ namespace
         frame.J = frame.J * c - oldI * s;
     }
 
-    /// <summary>The object list named <paramref name="listName"/>, or null.</summary>
-    MCObjectQueueNode* FindObjectList(const char* listName)
-    {
-        for (MCObjectQueueNode* list = ObjectList->Head; list != nullptr; list = list->Next)
-        {
-            if (list->operator==(listName) != 0)
-            {
-                return list;
-            }
-        }
-
-        return nullptr;
-    }
-
     /// <summary>Runs a collision check between the strike and every object of the list.</summary>
-    void CollideWithList(MCArtillery* strike, MCObjectQueueNode* list)
+    void CollideWithList(MCArtillery* strike, MCObjectList* list)
     {
         if (list == nullptr)
         {
             return;
         }
 
-        MCBaseObject* object = list->Head;
-
-        while (object != nullptr)
+        // Port fix (OB-015): every object is checked; the original only stepped to the next one after an
+        // object with a type, so one without hung the game.
+        for (MCBaseObject* object : *list)
         {
             auto* other = static_cast<MCGameObject*>(object);
 
@@ -99,24 +86,20 @@ namespace
 
                 switch (other->ObjectClass)
                 {
-                    case BUILDING:
-                    case TREE:
-                    case TERRAINOBJECT:
-                    case MISCTERRAINOBJECT:
-                    case TREEBUILDING:
-                    case CAMERADRONE:
+                    case MCObjectClass::Building:
+                    case MCObjectClass::Tree:
+                    case MCObjectClass::TerrainObject:
+                    case MCObjectClass::MiscTerrainObject:
+                    case MCObjectClass::TreeBuilding:
+                    case MCObjectClass::CameraDrone:
                         other->GetBlockAndVertexNumber(otherBlock, otherVertex);
                         break;
                     default:
                         break;
                 }
 
-                CollisionSystem->DetectStaticCollision(strike, other);
+                CollisionSystem()->DetectStaticCollision(strike, other);
             }
-
-            // Port fix (OB-015): the original only steps to the next object after one with a type, so an object
-            // without one hangs the game here.
-            object = object->Next;
         }
     }
 
@@ -211,7 +194,7 @@ int32_t NumCameraDrones = 0;
 
 void CallArtillery(int32_t commanderId, int32_t strikeType, MCVector3D location, int32_t seconds, int randomOffset)
 {
-    MCCommander* commander = CommanderTable[commanderId];
+    MCCommander* commander = CommanderById(commanderId);
 
     switch (strikeType)
     {
@@ -279,18 +262,15 @@ void CallArtillery(int32_t commanderId, int32_t strikeType, MCVector3D location,
         }
     }
 
-    auto* strike = static_cast<MCArtillery*>(CreateObject(ArtilleryTypeTable[strikeType]));
+    std::unique_ptr<MCArtillery> newStrike = CreateObjectAs<MCArtillery>(ArtilleryTypeTable[strikeType]);
+    MCArtillery* strike = newStrike.get();
     strike->RandomOffset = randomOffset;
-    strike->SetAlignment(CommanderTable[commanderId]->GetTeam()->Alignment);
-
-    if (ObjectList->Head != nullptr && strike != nullptr)
-    {
-        ObjectList->Head->AddNode(strike);
-    }
+    strike->SetAlignment(CommanderById(commanderId)->GetTeam()->Alignment);
+    AddToDefaultList(std::move(newStrike));
 
     strike->SetPosition(location);
 
-    if (CommanderTable[commanderId] == HomeCommander)
+    if (CommanderById(commanderId) == HomeCommander())
     {
         for (const MCGuiOwned<MCArtilleryButton>& button : TheInterface->TacticalMap->ArtilleryButtons)
         {
@@ -369,9 +349,9 @@ auto MCArtilleryChunk::EqualTo(MCArtilleryChunk* chunk) -> int
 // ArtilleryType
 //---------------------------------------------------------------------------
 
-auto MCArtilleryType::CreateInstance() -> MCBaseObject*
+auto MCArtilleryType::CreateInstance() -> std::unique_ptr<MCBaseObject>
 {
-    auto* newStrike = new MCArtillery;
+    auto newStrike = std::make_unique<MCArtillery>();
 
     if (newStrike == nullptr)
     {
@@ -601,11 +581,11 @@ auto MCArtilleryType::HandleCollision(MCGameObject* collidee, MCGameObject* coll
     const auto distance = static_cast<float>(std::sqrt(dx * dx + dy * dy) * MetersPerWorldUnit);
 
     // A turret or gate counts as hit from anywhere within its little extent of the major range.
-    if (collider->ObjectClass == TURRET || collider->ObjectClass == GATE)
+    if (collider->ObjectClass == MCObjectClass::Turret || collider->ObjectClass == MCObjectClass::Gate)
     {
         // TurretType and GateType both keep littleExtent at +0x58.
         const double extent =
-            collider->ObjectClass == TURRET
+            collider->ObjectClass == MCObjectClass::Turret
                 ? static_cast<double>(static_cast<MCTurretType*>(collider->ObjType)->LittleExtent) * MetersPerWorldUnit
                 : static_cast<double>(static_cast<MCGateType*>(collider->ObjType)->LittleExtent) * MetersPerWorldUnit;
 
@@ -632,10 +612,10 @@ auto MCArtilleryType::HandleCollision(MCGameObject* collidee, MCGameObject* coll
         {
             MCWeaponShotInfo shot;
             shot.Init(nullptr, -3, static_cast<MCArtilleryType*>(collidee->GetObjectType())->NominalDamage, 0, 0.0f);
-            const int32_t colliderClass = collider->ObjectClass;
+            const MCObjectClass colliderClass = collider->ObjectClass;
 
-            if (colliderClass == BATTLEMECH || colliderClass == GROUNDVEHICLE || colliderClass == ELEMENTAL ||
-                colliderClass == MOVER)
+            if (colliderClass == MCObjectClass::BattleMech || colliderClass == MCObjectClass::GroundVehicle ||
+                colliderClass == MCObjectClass::Elemental || colliderClass == MCObjectClass::Mover)
             {
                 const int32_t hitTable = static_cast<float>(MinArtilleryHeadRange) < distance ? 4 : 2;
                 shot.HitLocation = collider->CalcHitLocation(collidee, -1, hitTable, 0);
@@ -693,7 +673,7 @@ auto MCArtillery::Init(MCObjectType* objType) -> int32_t
 
     SetExists(1);
     JustCreated = 1;
-    ObjectClass = ARTILLERY;
+    ObjectClass = MCObjectClass::Artillery;
     HasImpacted = 0;
     TimeToImpact = -1.0f;
     auto* type = static_cast<MCArtilleryType*>(objType);
@@ -714,7 +694,7 @@ auto MCArtillery::Destroy() -> void
     if (SensorSystem != nullptr)
     {
         SensorSystem->SetTeam(nullptr);
-        SensorSystemManager->FreeSensor(SensorSystem);
+        SensorSystemManager()->FreeSensor(SensorSystem);
         SensorSystem = nullptr;
     }
 
@@ -832,7 +812,8 @@ auto MCArtillery::Update() -> int32_t
             Fatal(0, " Artillery.update: Too many camera drones ");
         }
 
-        auto* drone = static_cast<MCCameraDrone*>(CreateObject(CAMERA_DRONE_TYPE));
+        std::unique_ptr<MCCameraDrone> newDrone = CreateObjectAs<MCCameraDrone>(CAMERA_DRONE_TYPE);
+        MCCameraDrone* drone = newDrone.get();
         const int32_t partId = NumCameraDrones + FIRST_CAMERA_DRONE_PART_ID;
         NumCameraDrones++;
         drone->LaunchTime = ScenarioTime;
@@ -841,12 +822,8 @@ auto MCArtillery::Update() -> int32_t
         drone->SetPosition(here);
         drone->SpiralDirection = -1;
         drone->SetAlignment(Alignment);
-        GameObjectMap->AddObject(drone);
-
-        if (ObjectList->Head != nullptr && drone != nullptr)
-        {
-            ObjectList->Head->AddNode(drone);
-        }
+        GameObjectMap()->AddObject(drone);
+        AddToDefaultList(std::move(newDrone));
 
         drone->FindNextTargetTile();
         return 0;
@@ -871,7 +848,7 @@ auto MCArtillery::Render() -> void
     }
 
     // The home side sees its own strikes count down; everyone sees one in its last four seconds.
-    const int32_t homeAlignment = HomeTeam->Alignment;
+    const int32_t homeAlignment = HomeTeam()->Alignment;
 
     if (GetAlignment() != homeAlignment && !(TimeToImpact < 4.0))
     {
@@ -953,24 +930,24 @@ auto MCArtillery::HandleStaticCollision() -> void
     int32_t centerC = 0;
     int32_t cellR = 0;
     int32_t cellC = 0;
-    GameMap->WorldToMapPos(GetPosition(), centerR, centerC, cellR, cellC);
+    GameMap()->WorldToMapPos(GetPosition(), centerR, centerC, cellR, cellC);
 
     for (int32_t tileR = centerR - 1; tileR < centerR + 2; tileR++)
     {
         for (int32_t tileC = centerC - 1; tileC < centerC + 2; tileC++)
         {
-            if (tileR * 3 <= -3 || tileR >= GameMap->Height || tileC * 3 <= -3 || tileC >= GameMap->Width)
+            if (tileR * 3 <= -3 || tileR >= GameMap()->Height || tileC * 3 <= -3 || tileC >= GameMap()->Width)
             {
                 continue;
             }
 
-            const uint32_t overlay = GameMap->Map[GameMap->Width * tileR + tileC].Overlay;
+            const uint32_t overlay = GameMap()->Map[GameMap()->Width * tileR + tileC].Overlay;
 
             if ((overlay & 0x6000) == 0x4000)
             {
                 MCVector3D minePos;
-                MapTileCellToWorldPos(tileR, tileC, 1, 1, minePos);
-                GameMap->Map[GameMap->Width * tileR + tileC].Overlay |= 0x6000;
+                minePos = MapTileCellToWorldPos(tileR, tileC, 1, 1);
+                GameMap()->Map[GameMap()->Width * tileR + tileC].Overlay |= 0x6000;
 
                 if (MPlayer != nullptr)
                 {
@@ -983,8 +960,8 @@ auto MCArtillery::HandleStaticCollision() -> void
             if (((overlay >> 11) & 3) == 2)
             {
                 MCVector3D minePos;
-                MapTileCellToWorldPos(tileR, tileC, 1, 1, minePos);
-                GameMap->Map[GameMap->Width * tileR + tileC].Overlay |= 0x1800;
+                minePos = MapTileCellToWorldPos(tileR, tileC, 1, 1);
+                GameMap()->Map[GameMap()->Width * tileR + tileC].Overlay |= 0x1800;
 
                 if (MPlayer != nullptr)
                 {
@@ -1007,9 +984,9 @@ auto MCArtillery::HandleStaticCollision() -> void
         {
             char listName[12];
             std::sprintf(listName, "TBlk%d", block);
-            CollideWithList(this, FindObjectList(listName));
+            CollideWithList(this, ObjectList()->FindList(listName));
             std::sprintf(listName, "RBlk%d", block);
-            CollideWithList(this, FindObjectList(listName));
+            CollideWithList(this, ObjectList()->FindList(listName));
         }
     }
 }
@@ -1058,15 +1035,15 @@ auto MCArtillery::SetJustCreated() -> void
 
     if (SensorRange != 0.0f)
     {
-        SensorSystem = SensorSystemManager->NewSensor();
+        SensorSystem = SensorSystemManager()->NewSensor();
 
         if (Alignment == -1)
         {
-            SetSensorData(ClanTeam, -1.0f, -1.0f);
+            SetSensorData(ClanTeam(), -1.0f, -1.0f);
         }
         else if (Alignment == 1)
         {
-            SetSensorData(InnerSphereTeam, -1.0f, -1.0f);
+            SetSensorData(InnerSphereTeam(), -1.0f, -1.0f);
         }
     }
 }
@@ -1136,9 +1113,9 @@ auto MCArtillery::DrawSelectBox(uint8_t /*color*/) -> void
 // CameraDroneType
 //---------------------------------------------------------------------------
 
-auto MCCameraDroneType::CreateInstance() -> MCBaseObject*
+auto MCCameraDroneType::CreateInstance() -> std::unique_ptr<MCBaseObject>
 {
-    auto* newDrone = new MCCameraDrone;
+    auto newDrone = std::make_unique<MCCameraDrone>();
 
     if (newDrone == nullptr)
     {
@@ -1257,7 +1234,7 @@ auto MCCameraDrone::Init(MCObjectType* objType) -> int32_t
         return result;
     }
 
-    ObjectClass = CAMERADRONE;
+    ObjectClass = MCObjectClass::CameraDrone;
     auto* type = static_cast<MCCameraDroneType*>(objType);
     MaxVelocity = type->MaxVelocity;
     HitPoints = type->MaxDamage;
@@ -1348,14 +1325,14 @@ auto MCCameraDrone::Update() -> int32_t
 
     int32_t tileR = 0;
     int32_t tileC = 0;
-    GameMap->WorldToMapTilePos(Position, tileR, tileC);
+    GameMap()->WorldToMapTilePos(Position, tileR, tileC);
 
-    if (tileR < 0 || tileR >= GameMap->Height || tileC < 0 || tileC >= GameMap->Width)
+    if (tileR < 0 || tileR >= GameMap()->Height || tileC < 0 || tileC >= GameMap()->Width)
     {
         return 0;
     }
 
-    GameObjectMap->UpdateObject(this, 0);
+    GameObjectMap()->UpdateObject(this);
     const uint8_t seenBy = Alignment == 1 ? 1 : 2;
     MCFrameOfRef lookFrame = GetFrame();
     Terrain()->MarkRadiusSeen(Position, lookFrame.J, 360.0f, Scenario->MaxVisualRange * 0.5f, seenBy);

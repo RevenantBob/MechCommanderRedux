@@ -15,7 +15,7 @@
 #include "main/logistics.h"
 #include "main/main.h"
 #include "network/multplyr.h"
-#include "object/cmponent.h"
+#include "object/MCMasterComponent.h"
 #include "sound/soundsys.h"
 #include "vfx/MCVfxFunctions.h"
 #include "vfx/MCAgShape.h"
@@ -424,7 +424,7 @@ namespace
         uint8_t masterID = item->MasterID;
         MCMasterComponent& component = MasterComponentList[masterID];
         bool withAmmo =
-            component.Form == COMPONENT_FORM_WEAPON_BALLISTIC || component.Form == COMPONENT_FORM_WEAPON_MISSILE;
+            component.Form == MCComponentForm::WeaponBallistic || component.Form == MCComponentForm::WeaponMissile;
         double tons = component.Tonnage;
 
         if (withAmmo)
@@ -472,11 +472,11 @@ auto MechSellCallback(int confirmed, int32_t) -> void
         for (MCLogInventoryItem* item = GlobalMechPtr->Inventory->Items; item != nullptr; item = item->Next)
         {
             uint8_t masterID = item->MasterID;
-            int32_t form = MasterComponentList[masterID].Form;
+            MCComponentForm form = MasterComponentList[masterID].Form;
 
-            if (form != COMPONENT_FORM_SENSOR && form != COMPONENT_FORM_WEAPON_ENERGY &&
-                form != COMPONENT_FORM_WEAPON_BALLISTIC && form != COMPONENT_FORM_WEAPON_MISSILE &&
-                form != COMPONENT_FORM_ECM && form != COMPONENT_FORM_PROBE && form != COMPONENT_FORM_JAMMER)
+            if (form != MCComponentForm::Sensor && form != MCComponentForm::WeaponEnergy &&
+                form != MCComponentForm::WeaponBallistic && form != MCComponentForm::WeaponMissile &&
+                form != MCComponentForm::Ecm && form != MCComponentForm::Probe && form != MCComponentForm::Jammer)
             {
                 continue;
             }
@@ -1751,12 +1751,12 @@ auto MCCompInventoryBlock::Init(MCLogInventoryItem* newItem) -> void
 {
     Item = newItem;
     MCInventoryBlock::Init(0, 0, GlobalLogPtr->PurchaseScreen->Lport());
-    MCMasterComponent* list = MasterComponentList.get();
+    MCMasterComponent* list = MasterComponentList.data();
     MCMasterComponent& component = list[Item->MasterID];
-    int32_t form = component.Form;
+    MCComponentForm form = component.Form;
     Tonnage = component.Tonnage;
 
-    if (form == COMPONENT_FORM_WEAPON_BALLISTIC || form == COMPONENT_FORM_WEAPON_MISSILE)
+    if (form == MCComponentForm::WeaponBallistic || form == MCComponentForm::WeaponMissile)
     {
         Tonnage = list[component.AmmoMasterId].Tonnage + Tonnage;
     }
@@ -1765,8 +1765,8 @@ auto MCCompInventoryBlock::Init(MCLogInventoryItem* newItem) -> void
     CLoadString(ThisInstance, 0x6e, text, 0xfe);
     std::snprintf(WeightText, sizeof(WeightText), "%.1f %s", static_cast<double>(Tonnage), text);
 
-    if (form == COMPONENT_FORM_WEAPON_ENERGY || form == COMPONENT_FORM_WEAPON_BALLISTIC ||
-        form == COMPONENT_FORM_WEAPON_MISSILE)
+    if (form == MCComponentForm::WeaponEnergy || form == MCComponentForm::WeaponBallistic ||
+        form == MCComponentForm::WeaponMissile)
     {
         // Weapons: the long range as a word, damage and recycle time.
         float range = component.WeaponRange[3];
@@ -1786,7 +1786,7 @@ auto MCCompInventoryBlock::Init(MCLogInventoryItem* newItem) -> void
     {
         CLoadString(ThisInstance, 0x6c, text, 0xfe);
 
-        if (form == COMPONENT_FORM_PROBE)
+        if (form == MCComponentForm::Probe)
         {
             SetText(RangeText, text);
         }
@@ -1796,7 +1796,7 @@ auto MCCompInventoryBlock::Init(MCLogInventoryItem* newItem) -> void
             // the range; for a heap address that is a denormal, so it read "0.0 m".
             float range = 0.0f;
 
-            if (form == COMPONENT_FORM_ECM || form == COMPONENT_FORM_SENSOR)
+            if (form == MCComponentForm::Ecm || form == MCComponentForm::Sensor)
             {
                 range = component.RangeOrHeat;
             }
@@ -1814,13 +1814,13 @@ auto MCCompInventoryBlock::Init(MCLogInventoryItem* newItem) -> void
     float range = 0.0f;
     Tonnage = again.Tonnage;
 
-    if (form == COMPONENT_FORM_WEAPON_BALLISTIC || form == COMPONENT_FORM_WEAPON_ENERGY ||
-        form == COMPONENT_FORM_WEAPON_MISSILE)
+    if (form == MCComponentForm::WeaponBallistic || form == MCComponentForm::WeaponEnergy ||
+        form == MCComponentForm::WeaponMissile)
     {
         range = again.WeaponRange[3];
     }
 
-    if (form == COMPONENT_FORM_WEAPON_BALLISTIC || form == COMPONENT_FORM_WEAPON_MISSILE)
+    if (form == MCComponentForm::WeaponBallistic || form == MCComponentForm::WeaponMissile)
     {
         Tonnage = MasterComponentList[again.AmmoMasterId].Tonnage + Tonnage;
     }
@@ -1833,7 +1833,7 @@ auto MCCompInventoryBlock::Init(MCLogInventoryItem* newItem) -> void
     std::snprintf(text, sizeof(text), "%slogart\\%s", ArtPath, background);
     icon->Init(text);
     own->Init(text);
-    WriteText(YellowDropFont, icon, 0x26, 7, again.Name);
+    WriteText(YellowDropFont, icon, 0x26, 7, again.Name.c_str());
     CLoadString(ThisInstance, 0x37d, text, 0xfe);
     WriteText(BlueDropFont, icon, 0x26, 0x15, text);
     std::snprintf(text, sizeof(text), "%slogart\\lscicc%02d.tga", ArtPath, Item->RangeIndex);
@@ -1924,7 +1924,7 @@ auto MCCompInventoryBlock::HandleEvent(MCGuiEvent* event) -> void
         MCMasterComponent& component = MasterComponentList[sold->MasterID];
         int32_t price = SalePrice(component.ResourcePoints);
         GlobalCompPtr = sold;
-        GlobalLogPtr->PurchaseDialog->Init(5, -price, sold->Count, component.Name, nullptr, picture);
+        GlobalLogPtr->PurchaseDialog->Init(5, -price, sold->Count, component.Name.c_str(), nullptr, picture);
         delete picture;
         GlobalLogPtr->PurchaseDialog->SetPort(GlobalLogPtr->CurrentScreen->Lport());
         GlobalLogPtr->PurchaseDialog->SetCallback(CompSellCallback);
@@ -2118,7 +2118,7 @@ auto MCCompInventoryBlock::DrawBackground() -> void
         // On the repair screen: can it go on the selected mech?
         MCLogMech* selected = GlobalLogPtr->RepairScreen->SelectedMech;
         uint32_t masterID = Item->MasterID;
-        int32_t form = MasterComponentList[masterID].Form;
+        MCComponentForm form = MasterComponentList[masterID].Form;
 
         if (selected == nullptr)
         {
@@ -2131,7 +2131,7 @@ auto MCCompInventoryBlock::DrawBackground() -> void
         else
         {
             // One ECM, sensor or probe per mech.
-            if (form == COMPONENT_FORM_ECM || form == COMPONENT_FORM_SENSOR || form == COMPONENT_FORM_PROBE)
+            if (form == MCComponentForm::Ecm || form == MCComponentForm::Sensor || form == MCComponentForm::Probe)
             {
                 for (MCLogInventoryItem* mounted = selected->Inventory->Items; mounted != nullptr;
                      mounted = mounted->Next)

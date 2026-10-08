@@ -5,7 +5,7 @@
 #include "engine/MCVfxElement.h"
 #include "main/main.h"
 #include "object/bldng.h"
-#include "object/team.h"
+#include "object/MCForces.h"
 #include "sprite/MCShape.h"
 #include "sprite/MCSpriteMath.h"
 #include "terrain/MCTerrain.h"
@@ -22,7 +22,7 @@ namespace
     /// <summary>The building <paramref name="obj"/> is, or null for any other class.</summary>
     auto AsBuilding(MCGameObject* obj) -> MCBuilding*
     {
-        return obj != nullptr && obj->ObjectClass == BUILDING ? static_cast<MCBuilding*>(obj) : nullptr;
+        return obj != nullptr && obj->ObjectClass == MCObjectClass::Building ? static_cast<MCBuilding*>(obj) : nullptr;
     }
 }
 
@@ -242,7 +242,7 @@ auto MCVfxBuildingAppearance::Render(int32_t) -> int32_t
 
     if (obj != nullptr && obj->Selected != 0)
     {
-        const int32_t homeAlignment = HomeTeam->Alignment;
+        const int32_t homeAlignment = HomeTeam()->Alignment;
         RecalcBounds(Eye);
 
         if (obj->GetAlignment() != homeAlignment && obj->GetAlignment() != 0 && static_cast<uint8_t>(obj->Status) != 2)

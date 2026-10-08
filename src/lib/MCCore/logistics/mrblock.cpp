@@ -18,7 +18,7 @@
 #include "main/main.h"
 #include "mission/mission.h"
 #include "network/multplyr.h"
-#include "object/cmponent.h"
+#include "object/MCMasterComponent.h"
 #include "sound/soundsys.h"
 #include "vfx/MCVfxFunctions.h"
 
@@ -111,25 +111,27 @@ namespace
         return port;
     }
 
-    int32_t ComponentForm(uint8_t masterID)
+    MCComponentForm ComponentForm(uint8_t masterID)
     {
         return MasterComponentList[masterID].Form;
     }
 
-    bool IsWeapon(int32_t form)
+    bool IsWeapon(MCComponentForm form)
     {
-        return form == 7 || form == 8 || form == 9;
+        return form == MCComponentForm::WeaponEnergy || form == MCComponentForm::WeaponBallistic ||
+               form == MCComponentForm::WeaponMissile;
     }
 
-    bool IsEquipment(int32_t form)
+    bool IsEquipment(MCComponentForm form)
     {
-        return form == 2 || form == 0x10 || form == 0x11;
+        return form == MCComponentForm::Sensor || form == MCComponentForm::Ecm || form == MCComponentForm::Probe;
     }
 
-    /// <summary>A weapon with its own ammo (forms 8 and 9): moving it moves an ammo item too.</summary>
+    /// <summary>A weapon with its own ammo (ballistic and missile): moving it moves an ammo item too.</summary>
     bool UsesAmmo(uint8_t masterID)
     {
-        return ComponentForm(masterID) == 8 || ComponentForm(masterID) == 9;
+        return ComponentForm(masterID) == MCComponentForm::WeaponBallistic ||
+               ComponentForm(masterID) == MCComponentForm::WeaponMissile;
     }
 
     /// <summary>
@@ -323,12 +325,12 @@ auto RefitItemCallback() -> void
     {
         switch (ComponentForm(item->MasterID))
         {
-            case 2:
-            case 7:
-            case 8:
-            case 9:
-            case 0x10:
-            case 0x11:
+            case MCComponentForm::Sensor:
+            case MCComponentForm::WeaponEnergy:
+            case MCComponentForm::WeaponBallistic:
+            case MCComponentForm::WeaponMissile:
+            case MCComponentForm::Ecm:
+            case MCComponentForm::Probe:
             {
                 // Every damaged copy the player could not replace leaves the mech.
                 MCLogInventoryStat* stat = item->Stats;
@@ -451,7 +453,7 @@ auto MCMechRepairBlock::Init(MCLogMech* logMech) -> void
 
     MCLogInventoryItem* item = Mech->Inventory->Items;
 
-    while (ComponentForm(item->MasterID) != 4)
+    while (ComponentForm(item->MasterID) != MCComponentForm::Engine)
     {
         item = item->Next;
     }
@@ -1368,18 +1370,18 @@ auto MCMechRepairBlock::HandleEvent(MCGuiEvent* event) -> void
 
             for (MCLogInventoryItem* item = Mech->Inventory->Items; item != nullptr; item = item->Next)
             {
-                int32_t form = ComponentForm(item->MasterID);
+                MCComponentForm form = ComponentForm(item->MasterID);
 
                 for (MCLogInventoryStat* stat = item->Stats; stat != nullptr; stat = stat->Next)
                 {
                     switch (form)
                     {
-                        case 2:
-                        case 7:
-                        case 8:
-                        case 9:
-                        case 0x10:
-                        case 0x11:
+                        case MCComponentForm::Sensor:
+                        case MCComponentForm::WeaponEnergy:
+                        case MCComponentForm::WeaponBallistic:
+                        case MCComponentForm::WeaponMissile:
+                        case MCComponentForm::Ecm:
+                        case MCComponentForm::Probe:
                         {
                             if (stat->Hits == 0)
                             {
@@ -1411,7 +1413,7 @@ auto MCMechRepairBlock::HandleEvent(MCGuiEvent* event) -> void
 
                         default:
                         {
-                            if (form != 4 && stat->Hits != 0)
+                            if (form != MCComponentForm::Engine && stat->Hits != 0)
                             {
                                 stat->Hits = 0;
                             }
@@ -1686,9 +1688,9 @@ auto MCMechRepairBlock::ItemsDamaged() const -> bool
     // Any weapon or equipment copy damaged.
     for (MCLogInventoryItem* item = Mech->Inventory->Items; item != nullptr; item = item->Next)
     {
-        int32_t form = ComponentForm(item->MasterID);
+        MCComponentForm form = ComponentForm(item->MasterID);
 
-        if (!IsWeapon(form) && !IsEquipment(form) && form != 0x12)
+        if (!IsWeapon(form) && !IsEquipment(form) && form != MCComponentForm::Jammer)
         {
             continue;
         }
@@ -2270,7 +2272,7 @@ auto MCMechRepairBlock::SetEngineSlider(int32_t value) -> void
 
     MCLogInventoryItem* item = Mech->Inventory->GetItemInfo(0);
 
-    while (ComponentForm(item->MasterID) != 4)
+    while (ComponentForm(item->MasterID) != MCComponentForm::Engine)
     {
         item = item->Next;
     }
@@ -2868,7 +2870,7 @@ auto MCMechRepairBlock::SetInventory(MCScrollPane* pane) -> void
 
     for (MCLogInventoryItem* item = Mech->Inventory->Items; item != nullptr; item = item->Next)
     {
-        int32_t form = ComponentForm(item->MasterID);
+        MCComponentForm form = ComponentForm(item->MasterID);
 
         if (IsWeapon(form) || IsEquipment(form))
         {
@@ -2947,7 +2949,8 @@ auto MCMechRepairBlock::DrawWeaponList(MCLogPort* content) -> void
     {
         const MCMasterComponent& component = MasterComponentList[inventory->GetMasterIDFromIndex(entry)];
         char name[64];
-        std::snprintf(name, sizeof(name), "%c %s", component.TechBase != 1 ? glyph + 0x5e : glyph, component.Name);
+        std::snprintf(name, sizeof(name), "%c %s", component.TechBase != 1 ? glyph + 0x5e : glyph,
+                      component.Name.c_str());
 
         if (ItemHits[hitsIndex] == 0)
         {
@@ -2985,7 +2988,7 @@ auto MCMechRepairBlock::DrawWeaponList(MCLogPort* content) -> void
         ++line;
         const MCMasterComponent& component = MasterComponentList[inventory->GetMasterIDFromIndex(Equipment[i])];
         MCGuiFont* font = ItemHits[weapons + i] == 0 ? BlueFont : GreyFont;
-        WriteText(font, frame, 2, (GreenFont->Height() + 2) * line + 5, component.Name);
+        WriteText(font, frame, 2, (GreenFont->Height() + 2) * line + 5, component.Name.c_str());
     }
 }
 
@@ -3474,9 +3477,9 @@ auto MCVehicleRepairBlock::PaintRow(MCLogPort* port, int32_t top, bool briefing,
 
     for (int32_t index = 0; index < inventory->NumItems; ++index)
     {
-        int32_t form = MasterComponentList[inventory->GetMasterIDFromIndex(index)].Form;
+        MCComponentForm form = MasterComponentList[inventory->GetMasterIDFromIndex(index)].Form;
 
-        if (IsEquipment(form) || IsWeapon(form) || form == 6)
+        if (IsEquipment(form) || IsWeapon(form) || form == MCComponentForm::Weapon)
         {
             MCLogInventoryItem* item = logVehicle->Inventory->GetItemInfo(index);
             std::snprintf(text, sizeof(text), "%d %s", item->Count, item->Name);

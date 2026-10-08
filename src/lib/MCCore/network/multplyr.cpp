@@ -3,8 +3,9 @@
 #include "abl/MCAblDebugger.h"
 #include "abl/MCAblRoutines.h"
 #include "abl/MCAblRuntime.h"
-#include "ai/move.h"
-#include "ai/tacordr.h"
+#include "ai/MCMoveSystem.h"
+#include "ai/MCRefit.h"
+#include "ai/MCTacticalOrder.h"
 #include "gui/asystem.h"
 #include "gui/updisp.h"
 #include "iface/parser.h"
@@ -30,14 +31,14 @@
 #include "mission/scenario.h"
 #include "object/artlry.h"
 #include "object/bldng.h"
-#include "object/comndr.h"
+#include "object/MCForces.h"
 #include "object/explode.h"
-#include "object/gameobj.h"
-#include "object/group.h"
+#include "object/MCBigGameObject.h"
+#include "object/MCMoverGroup.h"
 #include "object/mech.h"
 #include "object/mover.h"
-#include "object/object.h"
-#include "object/objque.h"
+#include "object/MCObjectSystem.h"
+#include "object/MCObjectQueue.h"
 #include "object/tbldng.h"
 #include "object/terrobj.h"
 #include "object/tree.h"
@@ -45,6 +46,8 @@
 #include "object/warrior.h"
 #include "sound/soundsys.h"
 #include "terrain/MCTerrain.h"
+#include "object/MCWeaponHitChunk.h"
+#include "object/MCWeaponShotInfo.h"
 
 MCMultiPlayer* MPlayer = nullptr;
 int IsMPlayerGame = 0;
@@ -694,10 +697,10 @@ auto MCMultiPlayer::AddLightOnFireChunk(MCGameObject* object, int32_t seconds) -
     {
         switch (object->ObjectClass)
         {
-            case 0x10:
-            case 0x15:
-            case 0x18:
-            case 0x1b:
+            case MCObjectClass::Building:
+            case MCObjectClass::Tree:
+            case MCObjectClass::MiscTerrainObject:
+            case MCObjectClass::TreeBuilding:
             {
                 chunk.BuildTerrainFire(object, seconds);
                 break;
@@ -1214,7 +1217,7 @@ auto MCMultiPlayer::SendPlayerOrder(uint32_t toID, MCTacticalOrder* order, int q
     // The client clears its own movers' order queues for a stop order; the server sends the orders themselves.
     for (int32_t i = 0; i < numMovers; i++)
     {
-        auto* mover = static_cast<MCMover*>(ObjectList->FindObjectFromPart(moverParts[i]));
+        auto* mover = static_cast<MCMover*>(ObjectList()->FindObjectFromPart(moverParts[i]));
 
         if (mover == nullptr || mover == order->Target)
         {
@@ -1226,25 +1229,23 @@ auto MCMultiPlayer::SendPlayerOrder(uint32_t toID, MCTacticalOrder* order, int q
         if (fromGroup == 0)
         {
             MCTacticalOrder clearOrder;
-            clearOrder.Init();
+            clearOrder.Reset();
             clearOrder.SetId(mover->GetPilot());
 
-            if (order->Code == TACTICAL_ORDER_STOP)
+            if (order->Code == MCTacticalOrderCode::Stop)
             {
                 mover->GetPilot()->ClearTacOrderQueue();
             }
-
-            clearOrder.Destroy();
         }
     }
 
-    if (order->Code == TACTICAL_ORDER_MOVETO_POINT || order->Code == TACTICAL_ORDER_JUMPTO_POINT)
+    if (order->Code == MCTacticalOrderCode::MoveToPoint || order->Code == MCTacticalOrderCode::JumpToPoint)
     {
         message->OrderParam1 = std::bit_cast<uint32_t>(order->MoveParams.WayPath.Points[0]);
         message->OrderParam2 = std::bit_cast<uint32_t>(order->MoveParams.WayPath.Points[1]);
     }
 
-    order->Pack(nullptr, nullptr);
+    order->Pack();
     message->PackedOrder[0] = order->Data[0];
     message->PackedOrder[1] = order->Data[1];
     uint8_t flags = queued != 0 ? 1 : 0;
@@ -1265,15 +1266,13 @@ auto MCMultiPlayer::SendPlayerOrder(uint32_t toID, MCTacticalOrder* order, int q
             if (fromGroup == 0)
             {
                 MCTacticalOrder clearOrder;
-                clearOrder.Init();
+                clearOrder.Reset();
                 clearOrder.SetId(groupMovers[j]->GetPilot());
 
-                if (order->Code == TACTICAL_ORDER_STOP)
+                if (order->Code == MCTacticalOrderCode::Stop)
                 {
                     groupMovers[j]->GetPilot()->ClearTacOrderQueue();
                 }
-
-                clearOrder.Destroy();
             }
         }
     }
@@ -1417,7 +1416,7 @@ auto MCMultiPlayer::SendTurretUpdate(uint32_t toID) -> int32_t
 
             // A mover's roster index, or (a building) its part id less 0x48, which handleAppTurretUpdate can't
             // tell from a roster index.
-            if (targetClass == 2 || targetClass == 3 || targetClass == 4 || targetClass == 8)
+            if (IsMoverClass(targetClass))
             {
                 MsgBuffer[4 + i] = static_cast<uint8_t>(static_cast<MCMover*>(target)->NetRosterIndex);
             }
@@ -2319,7 +2318,7 @@ auto HandleAppPlayerOrder(uint32_t fromID, const void* msg) -> void
         return;
     }
 
-    MCCommander* commander = CommanderTable[message->CheckInId];
+    MCCommander* commander = CommanderById(message->CheckInId);
 
     if (MPlayer->IsServer == 0)
     {
@@ -2327,7 +2326,7 @@ auto HandleAppPlayerOrder(uint32_t fromID, const void* msg) -> void
     }
 
     MCTacticalOrder order;
-    order.Init();
+    order.Reset();
     order.Data[0] = message->PackedOrder[0];
     order.Data[1] = message->PackedOrder[1];
     order.Unpack();
@@ -2338,9 +2337,9 @@ auto HandleAppPlayerOrder(uint32_t fromID, const void* msg) -> void
     order.SetWayPoint(0, wayPoint);
 
     // A jump-attack (method 1) becomes a jump to the target's position, as Parser::SendTacOrder does locally.
-    if (order.Code == TACTICAL_ORDER_ATTACK_OBJECT && order.AttackParams.Method == 1)
+    if (order.Code == MCTacticalOrderCode::AttackObject && order.AttackParams.Method == 1)
     {
-        order.Code = TACTICAL_ORDER_JUMPTO_OBJECT;
+        order.Code = MCTacticalOrderCode::JumpToObject;
         order.MoveParams.Wait = 0;
         order.MoveParams.WayPath.Mode[0] = 0;
 
@@ -2350,20 +2349,20 @@ auto HandleAppPlayerOrder(uint32_t fromID, const void* msg) -> void
         }
     }
 
-    if (order.Code == TACTICAL_ORDER_JUMPTO_OBJECT)
+    if (order.Code == MCTacticalOrderCode::JumpToObject)
     {
-        order.Code = TACTICAL_ORDER_JUMPTO_POINT;
+        order.Code = MCTacticalOrderCode::JumpToPoint;
         Assert(order.Target != nullptr, 0, " JumpToObject is NULL ");
         order.SetWayPoint(0, order.Target->GetPosition());
     }
 
     MCMover* movers[12];
     MCMover* point = nullptr;
-    int32_t numMovers = order.GetGroup(message->CheckInId, movers, &point, 0);
+    int32_t numMovers = order.GetGroup(message->CheckInId, movers, &point);
     MCVector3D jumpGoals[72];
     int32_t numGoals = 0;
 
-    if (order.Code == TACTICAL_ORDER_JUMPTO_POINT)
+    if (order.Code == MCTacticalOrderCode::JumpToPoint)
     {
         numGoals = numMovers;
 
@@ -2371,7 +2370,7 @@ auto HandleAppPlayerOrder(uint32_t fromID, const void* msg) -> void
         {
             if ((message->Flags & (2 << groupId)) != 0)
             {
-                numGoals += commander->GetGroup(groupId)->NumMovers;
+                numGoals += commander->GetGroup(groupId)->NumMovers();
             }
         }
 
@@ -2404,7 +2403,7 @@ auto HandleAppPlayerOrder(uint32_t fromID, const void* msg) -> void
                 order.SelectionIndex = mover->SelectionIndex;
             }
 
-            if (order.Code == TACTICAL_ORDER_JUMPTO_POINT)
+            if (order.Code == MCTacticalOrderCode::JumpToPoint)
             {
                 order.SetWayPoint(0, jumpGoals[i]);
             }
@@ -2424,16 +2423,14 @@ auto HandleAppPlayerOrder(uint32_t fromID, const void* msg) -> void
 
         MCVector3D* destinations = nullptr;
 
-        if (order.Code == TACTICAL_ORDER_JUMPTO_POINT)
+        if (order.Code == MCTacticalOrderCode::JumpToPoint)
         {
             destinations = &jumpGoals[goalIndex];
-            goalIndex += commander->GetGroup(groupId)->NumMovers;
+            goalIndex += commander->GetGroup(groupId)->NumMovers();
         }
 
         commander->GetGroup(groupId)->HandleTacticalOrder(order, 1, destinations, fromGroup);
     }
-
-    order.Destroy();
 }
 
 auto HandleAppPlayerMoverGroup(uint32_t fromID, const void* msg) -> void
@@ -2473,7 +2470,7 @@ auto HandleAppPlayerMoverGroup(uint32_t fromID, const void* msg) -> void
     }
 
     Assert(i < numMovers, 0, " handleAppPlayerMoverGroup: bad pointMover ");
-    CommanderTable[message->CheckInId]->SetGroup(message->GroupId, numMovers, movers, pointIndex);
+    CommanderById(message->CheckInId)->SetGroup(message->GroupId, numMovers, movers, pointIndex);
 }
 
 auto HandleAppPlayerArtillery(uint32_t fromID, const void* msg) -> void
@@ -2698,7 +2695,7 @@ auto HandleAppWeaponHitUpdate(uint32_t fromID, const void* msg) -> void
             }
             else if (chunk.TargetType == 1 || chunk.TargetType == 2)
             {
-                static_cast<MCGameObject*>(ObjectList->FindObjectFromPart(chunk.TargetId))
+                static_cast<MCGameObject*>(ObjectList()->FindObjectFromPart(chunk.TargetId))
                     ->HandleWeaponHit(&shotInfo, 0);
             }
             else
@@ -2716,7 +2713,7 @@ auto HandleAppWeaponHitUpdate(uint32_t fromID, const void* msg) -> void
             }
             else if (chunk.TargetType == 1 || chunk.TargetType == 2)
             {
-                target = static_cast<MCMover*>(ObjectList->FindObjectFromPart(chunk.TargetId));
+                target = static_cast<MCMover*>(ObjectList()->FindObjectFromPart(chunk.TargetId));
             }
             else
             {
@@ -2766,7 +2763,7 @@ auto HandleAppWorldStateUpdate(uint32_t fromID, const void* msg) -> void
                     layout = 3;
                 }
 
-                MCMapTile& tile = GameMap->Map[tileR * GameMap->Width + tileC];
+                MCMapTile& tile = GameMap()->Map[tileR * GameMap()->Width + tileC];
 
                 if (chunk.Param1 == 1)
                 {
@@ -2780,7 +2777,7 @@ auto HandleAppWorldStateUpdate(uint32_t fromID, const void* msg) -> void
                 if (chunk.Param2 > 3)
                 {
                     MCVector3D position;
-                    MapCellToWorldPos(chunk.TileRow, chunk.TileCol, position);
+                    position = MapCellToWorldPos(chunk.TileRow, chunk.TileCol);
                     position.Z = Terrain()->GetTerrainElevation(position);
 
                     if (chunk.Param2 == 4)
@@ -2799,31 +2796,31 @@ auto HandleAppWorldStateUpdate(uint32_t fromID, const void* msg) -> void
 
             case WSCHUNK_TERRAIN_FIRE:
             {
-                auto* object = static_cast<MCGameObject*>(ObjectList->FindObjectFromPart(chunk.ObjectWid));
+                auto* object = static_cast<MCGameObject*>(ObjectList()->FindObjectFromPart(chunk.ObjectWid));
 
                 if (object != nullptr && object->GetObjectType() != nullptr)
                 {
                     switch (object->ObjectClass)
                     {
-                        case 0x10:
+                        case MCObjectClass::Building:
                         {
                             static_cast<MCBuilding*>(object)->LightOnFire(static_cast<float>(chunk.Param1));
                             break;
                         }
 
-                        case 0x15:
+                        case MCObjectClass::Tree:
                         {
                             static_cast<MCTree*>(object)->LightOnFire(static_cast<float>(chunk.Param1));
                             break;
                         }
 
-                        case 0x18:
+                        case MCObjectClass::MiscTerrainObject:
                         {
                             static_cast<MCTerrainObject*>(object)->LightOnFire(static_cast<float>(chunk.Param1));
                             break;
                         }
 
-                        case 0x1b:
+                        case MCObjectClass::TreeBuilding:
                         {
                             static_cast<MCTreeBuilding*>(object)->LightOnFire(static_cast<float>(chunk.Param1));
                             break;
@@ -2847,7 +2844,7 @@ auto HandleAppWorldStateUpdate(uint32_t fromID, const void* msg) -> void
             case 7:
             {
                 MCVector3D location;
-                MapCellToWorldPos(chunk.TileRow, chunk.TileCol, location);
+                location = MapCellToWorldPos(chunk.TileRow, chunk.TileCol);
                 location.Z = Terrain()->GetTerrainElevation(location);
                 CallArtillery(chunk.Type - WSCHUNK_ARTILLERY, chunk.Param1, location, chunk.Param2, 0);
                 break;

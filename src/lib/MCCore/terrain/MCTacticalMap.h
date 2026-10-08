@@ -3,7 +3,7 @@
 #include "gui/abutton.h"
 #include "gui/asystem.h"
 #include "gui/MCGuiOwned.h"
-#include "object/objwtch.h"
+#include "object/MCObjectWatcher.h"
 #include "platform/MCRegisteredBlock.h"
 #include "platform/MCWin32Defs.h"
 #include "terrain/MCArtilleryButton.h"

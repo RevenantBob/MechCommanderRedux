@@ -28,13 +28,13 @@
 #include "main/main.h"
 #include "mission/scenario.h"
 #include "network/multplyr.h"
-#include "object/cmponent.h"
-#include "object/contact.h"
+#include "object/MCMasterComponent.h"
+#include "object/MCContactSystem.h"
 #include "object/mover.h"
-#include "object/object.h"
-#include "object/objque.h"
-#include "object/objtype.h"
-#include "object/team.h"
+#include "object/MCObjectSystem.h"
+#include "object/MCObjectQueue.h"
+#include "object/MCObjectType.h"
+#include "object/MCForces.h"
 #include "object/warrior.h"
 #include "sound/soundsys.h"
 #include "terrain/MCTerrain.h"
@@ -44,6 +44,7 @@
 #include "platform/MCInput.h"
 #include "platform/MCSmacker.h"
 #include "platform/MCWin32Defs.h"
+#include "object/MCObjectTypeManager.h"
 
 uint32_t ResultsStepTicks = 20;
 int32_t StevesOrderLut[4] = {MWS_GUNNERY, MWS_PILOTING, MWS_JUMPING, MWS_SENSORS};
@@ -425,7 +426,7 @@ auto MCMission::Init(char* missionName) -> int32_t
 
     //---------------------------------------------------------------------------------------------------------------
     // The component list, which logistics needs before any scenario has loaded it.
-    if (MasterComponentList == nullptr)
+    if (MasterComponentList.empty())
     {
         std::string gameSystemName;
         gameSystemName = GamePath(MissionPath, "gamesys", ".fit");
@@ -1571,7 +1572,8 @@ namespace
     /// <summary>Whether the home side lost a multiplayer game with result <paramref name="result"/>.</summary>
     auto HomeSideLost(uint32_t result) -> bool
     {
-        return result == 3 || (result == 1 && HomeTeam->Alignment == -1) || (result == 2 && HomeTeam->Alignment == 1);
+        return result == 3 || (result == 1 && HomeTeam()->Alignment == -1) ||
+               (result == 2 && HomeTeam()->Alignment == 1);
     }
 
     /// <summary>The kills of <paramref name="warrior"/>, all kinds together.</summary>
@@ -2374,7 +2376,7 @@ auto MCMissionResultsScreen::DrawMPPilotList() -> void
             continue;
         }
 
-        const bool homeSide = warrior->Alignment == HomeTeam->Alignment;
+        const bool homeSide = warrior->Alignment == HomeTeam()->Alignment;
 
         if (homeSide != (_MpShowHomeSide != 0))
         {
@@ -2437,7 +2439,7 @@ auto MCMissionResultsScreen::DrawMPSummary() -> void
         auto* bestMover = static_cast<MCMover*>(best->Vehicle);
         MedWhiteFont->WriteString(Port()->Frame(), 0x70, 0x40, reinterpret_cast<uint8_t*>(bestMover->NetName.get()),
                                   0x68);
-        CLoadString(ThisInstance, best->Alignment == HomeTeam->Alignment ? 0xb6 : 0xb7, text, 0xfe);
+        CLoadString(ThisInstance, best->Alignment == HomeTeam()->Alignment ? 0xb6 : 0xb7, text, 0xfe);
         MedWhiteFont->WriteString(Port()->Frame(), 0x70, 0x4d, reinterpret_cast<uint8_t*>(text), -1);
         std::snprintf(text, sizeof(text), "%i", _PilotResults[0].OldRank);
         MedWhiteFont->WriteString(Port()->Frame(), 0xca, 0x4d, reinterpret_cast<uint8_t*>(text), -1);
@@ -2525,9 +2527,7 @@ auto MCMissionResultsScreen::Activate() -> int32_t
         _EnemyMechsDestroyed = 0;
         _EnemyMechsHit = 0;
 
-        MCBaseObject* current = nullptr;
-
-        while (ClanMechList->Traverse(current) != nullptr)
+        for (MCBaseObject* current : *ClanMechList())
         {
             auto* object = static_cast<MCGameObject*>(current);
 
@@ -2535,16 +2535,14 @@ auto MCMissionResultsScreen::Activate() -> int32_t
             {
                 _EnemyMechsHit++;
 
-                if (object->ObjectClass == BATTLEMECH)
+                if (object->ObjectClass == MCObjectClass::BattleMech)
                 {
                     _EnemyMechsDestroyed++;
                 }
             }
         }
 
-        current = nullptr;
-
-        while (InnerSphereMechList->Traverse(current) != nullptr)
+        for (MCBaseObject* current : *InnerSphereMechList())
         {
             auto* object = static_cast<MCGameObject*>(current);
 
@@ -2552,7 +2550,8 @@ auto MCMissionResultsScreen::Activate() -> int32_t
             {
                 _PlayerMechsHit++;
 
-                if (object->ObjectClass == BATTLEMECH && static_cast<MCMover*>(object)->NetPlayerId != -1)
+                if (object->ObjectClass == MCObjectClass::BattleMech &&
+                    static_cast<MCMover*>(object)->NetPlayerId != -1)
                 {
                     _PlayerMechsDestroyed++;
                 }
@@ -2573,8 +2572,8 @@ auto MCMissionResultsScreen::Activate() -> int32_t
 
             auto* vehicle = static_cast<MCMover*>(warrior->Vehicle);
 
-            if (vehicle != nullptr && vehicle->GetAwake() && vehicle->ObjectClass == BATTLEMECH &&
-                warrior->Alignment == HomeTeam->Alignment && vehicle->NetPlayerId != -1)
+            if (vehicle != nullptr && vehicle->GetAwake() && vehicle->ObjectClass == MCObjectClass::BattleMech &&
+                warrior->Alignment == HomeTeam()->Alignment && vehicle->NetPlayerId != -1)
             {
                 _NumPilotResults++;
             }
@@ -2596,14 +2595,14 @@ auto MCMissionResultsScreen::Activate() -> int32_t
 
             auto* vehicle = static_cast<MCMover*>(warrior->Vehicle);
 
-            if (vehicle == nullptr || vehicle->ObjectClass != BATTLEMECH || !vehicle->GetAwake())
+            if (vehicle == nullptr || vehicle->ObjectClass != MCObjectClass::BattleMech || !vehicle->GetAwake())
             {
                 continue;
             }
 
             if (!warrior->OnHomeTeam())
             {
-                if (warrior->Status == 4 && warrior->Alignment != HomeTeam->Alignment)
+                if (warrior->Status == 4 && warrior->Alignment != HomeTeam()->Alignment)
                 {
                     _EnemyPilotsKilled++;
                 }
@@ -2756,11 +2755,11 @@ auto MCMissionResultsScreen::Activate() -> int32_t
 
             if (vehicle->IsDisabled())
             {
-                if (warrior->Team == HomeTeam)
+                if (warrior->Team == HomeTeam())
                 {
                     _PlayerMechsHit++;
 
-                    if (vehicle->ObjectClass == BATTLEMECH)
+                    if (vehicle->ObjectClass == MCObjectClass::BattleMech)
                     {
                         _PlayerMechsDestroyed++;
                     }
@@ -2769,7 +2768,7 @@ auto MCMissionResultsScreen::Activate() -> int32_t
                 {
                     _EnemyMechsHit++;
 
-                    if (vehicle->ObjectClass == BATTLEMECH)
+                    if (vehicle->ObjectClass == MCObjectClass::BattleMech)
                     {
                         _EnemyMechsDestroyed++;
                     }
@@ -2779,7 +2778,7 @@ auto MCMissionResultsScreen::Activate() -> int32_t
             MCMissionPilotResult& entry = _PilotResults[filled];
             entry.Warrior = warrior;
 
-            if (warrior->Status == 4 && warrior->Team != HomeTeam)
+            if (warrior->Status == 4 && warrior->Team != HomeTeam())
             {
                 _EnemyPilotsKilled++;
             }
@@ -2895,8 +2894,8 @@ auto MCMissionResultsScreen::DrawMPObjectives() -> void
     // first, so the secondary header below is never drawn.
     for (uint32_t type = 0; type < 1; type++)
     {
-        const int32_t first = HomeTeam->FirstObjective;
-        const int32_t end = first + static_cast<int32_t>(HomeTeam->NumObjectives);
+        const int32_t first = HomeTeam()->FirstObjective;
+        const int32_t end = first + static_cast<int32_t>(HomeTeam()->NumObjectives);
 
         for (int32_t i = first; i < end; i++)
         {

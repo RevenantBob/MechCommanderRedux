@@ -14,42 +14,30 @@
 #include "main/main.h"
 #include "mission/scenario.h"
 #include "network/multplyr.h"
-#include "object/collsn.h"
+#include "object/MCCollisionSystem.h"
 #include "object/gate.h"
-#include "object/object.h"
-#include "object/objque.h"
+#include "object/MCObjectSystem.h"
+#include "object/MCObjectQueue.h"
 #include "object/turret.h"
 #include "sound/soundsys.h"
 #include "sprite/MCVfxAppearance.h"
 #include "terrain/MCTerrain.h"
+#include "object/MCObjectType.h"
+#include "object/MCWeaponShotInfo.h"
 
 namespace
 {
-    /// <summary>The object list named <paramref name="listName"/>, or null.</summary>
-    MCObjectQueueNode* FindObjectList(const char* listName)
-    {
-        for (MCObjectQueueNode* list = ObjectList->Head; list != nullptr; list = list->Next)
-        {
-            if (list->operator==(listName) != 0)
-            {
-                return list;
-            }
-        }
-
-        return nullptr;
-    }
-
     /// <summary>Runs a collision check between the explosion and every object of the list.</summary>
-    void CollideWithList(MCExplosion* explosion, MCObjectQueueNode* list)
+    void CollideWithList(MCExplosion* explosion, MCObjectList* list)
     {
         if (list == nullptr)
         {
             return;
         }
 
-        MCBaseObject* object = list->Head;
-
-        while (object != nullptr)
+        // Port fix (OB-015): every object is checked; the original only stepped to the next one after an
+        // object with a type, so one without hung the game.
+        for (MCBaseObject* object : *list)
         {
             auto* other = static_cast<MCGameObject*>(object);
 
@@ -61,24 +49,20 @@ namespace
 
                 switch (other->ObjectClass)
                 {
-                    case BUILDING:
-                    case TREE:
-                    case TERRAINOBJECT:
-                    case MISCTERRAINOBJECT:
-                    case TREEBUILDING:
-                    case CAMERADRONE:
+                    case MCObjectClass::Building:
+                    case MCObjectClass::Tree:
+                    case MCObjectClass::TerrainObject:
+                    case MCObjectClass::MiscTerrainObject:
+                    case MCObjectClass::TreeBuilding:
+                    case MCObjectClass::CameraDrone:
                         other->GetBlockAndVertexNumber(otherBlock, otherVertex);
                         break;
                     default:
                         break;
                 }
 
-                CollisionSystem->DetectStaticCollision(explosion, other);
+                CollisionSystem()->DetectStaticCollision(explosion, other);
             }
-
-            // Port fix (OB-015): the original only steps to the next object after one with a type, so an object
-            // without one hangs the game here.
-            object = object->Next;
         }
     }
 
@@ -111,9 +95,9 @@ MCExplosionType::MCExplosionType()
     DamageChunkSize = 0.0f;
 }
 
-auto MCExplosionType::CreateInstance() -> MCBaseObject*
+auto MCExplosionType::CreateInstance() -> std::unique_ptr<MCBaseObject>
 {
-    auto* newExplosion = new MCExplosion;
+    auto newExplosion = std::make_unique<MCExplosion>();
 
     if (newExplosion == nullptr)
     {
@@ -197,10 +181,10 @@ auto MCExplosionType::HandleCollision(MCGameObject* collidee, MCGameObject* coll
 
     switch (collider->ObjectClass)
     {
-        case BATTLEMECH:
-        case GROUNDVEHICLE:
-        case ELEMENTAL:
-        case MOVER:
+        case MCObjectClass::BattleMech:
+        case MCObjectClass::GroundVehicle:
+        case MCObjectClass::Elemental:
+        case MCObjectClass::Mover:
         {
             // Movers take the damage in chunks, each on a location of its own.
             shot.Init(nullptr, -1, chunk, 0, 0.0f);
@@ -214,7 +198,7 @@ auto MCExplosionType::HandleCollision(MCGameObject* collidee, MCGameObject* coll
             return 0;
         }
 
-        case TURRET:
+        case MCObjectClass::Turret:
         {
             if (!ReachesExtent(collidee, collider, static_cast<MCTurretType*>(collider->ObjType)->LittleExtent))
             {
@@ -233,7 +217,7 @@ auto MCExplosionType::HandleCollision(MCGameObject* collidee, MCGameObject* coll
             return 0;
         }
 
-        case GATE:
+        case MCObjectClass::Gate:
         {
             if (!ReachesExtent(collidee, collider, static_cast<MCGateType*>(collider->ObjType)->LittleExtent))
             {
@@ -353,9 +337,9 @@ auto MCExplosion::HandleStaticCollision() -> void
         {
             char listName[12];
             std::sprintf(listName, "TBlk%d", block);
-            CollideWithList(this, FindObjectList(listName));
+            CollideWithList(this, ObjectList()->FindList(listName));
             std::sprintf(listName, "RBlk%d", block);
-            CollideWithList(this, FindObjectList(listName));
+            CollideWithList(this, ObjectList()->FindList(listName));
         }
     }
 }
@@ -468,7 +452,7 @@ auto MCExplosion::Init(MCObjectType* objType) -> int32_t
         return result;
     }
 
-    ObjectClass = EXPLOSION;
+    ObjectClass = MCObjectClass::Explosion;
     const auto* explType = static_cast<MCExplosionType*>(objType);
 
     if (explType->ExplosionRadius != 0)
@@ -479,7 +463,7 @@ auto MCExplosion::Init(MCObjectType* objType) -> int32_t
 
     if (static_cast<int32_t>(explType->LightObjectId) != -1)
     {
-        Light = CreateObject(static_cast<int32_t>(explType->LightObjectId));
+        Light = CreateObject(static_cast<int32_t>(explType->LightObjectId)).release();
     }
 
     DamageChunkSize = explType->DamageChunkSize;
@@ -493,7 +477,7 @@ void CreateExplosion(int32_t objectTypeId, MCVector3D& position, float damage, f
         return;
     }
 
-    MCGameObject* explosion = CreateObject(objectTypeId);
+    std::unique_ptr<MCGameObject> explosion = CreateObject(objectTypeId);
 
     if (explosion == nullptr)
     {
@@ -508,8 +492,5 @@ void CreateExplosion(int32_t objectTypeId, MCVector3D& position, float damage, f
         explosion->SetExplDmg(damage);
     }
 
-    if (ObjectList->Head != nullptr)
-    {
-        ObjectList->Head->AddNode(explosion);
-    }
+    AddToDefaultList(std::move(explosion));
 }

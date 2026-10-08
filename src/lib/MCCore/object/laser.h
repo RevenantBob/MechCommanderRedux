@@ -1,8 +1,9 @@
 #pragma once
 
-#include "object/gameobj.h"
-#include "object/objtype.h"
-#include "object/objwtch.h"
+#include "object/MCBigGameObject.h"
+#include "object/MCObjectType.h"
+#include "object/MCObjectWatcher.h"
+#include "object/MCWeaponShotInfo.h"
 
 class MCFile;
 class MCGameObject;
@@ -27,7 +28,7 @@ public:
     /// <summary>Resets the common type data and this type's fields.</summary>
     void Init();
     /// <summary>Makes a <see cref="MCLaser"/> of this type and gives it the next object id.</summary>
-    MCBaseObject* CreateInstance() override;
+    std::unique_ptr<MCBaseObject> CreateInstance() override;
     /// <summary>Frees the stage arrays (when the type cache is up).</summary>
     void Destroy() override;
     /// <summary>

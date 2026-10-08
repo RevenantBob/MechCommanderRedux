@@ -1,6 +1,6 @@
 #include "stdafx.h"
 #include "object/fire.h"
-#include "ai/move.h"
+#include "ai/MCMoveSystem.h"
 #include "appear/MCAppearanceType.h"
 #include "appear/MCAppearanceTypeList.h"
 #include "camera/MCCamera.h"
@@ -20,48 +20,36 @@
 #include "network/multplyr.h"
 #include "object/bldng.h"
 #include "object/bridge.h"
-#include "object/collsn.h"
-#include "object/object.h"
-#include "object/objque.h"
+#include "object/MCCollisionSystem.h"
+#include "object/MCObjectSystem.h"
+#include "object/MCObjectQueue.h"
 #include "object/tbldng.h"
-#include "object/team.h"
+#include "object/MCForces.h"
 #include "object/tree.h"
 #include "sound/soundsys.h"
 #include "sprite/MCVfxAppearance.h"
 #include "terrain/MCTerrain.h"
 #include "terrain/MCTacticalMap.h"
 #include "vfx/MCVfxFunctions.h"
+#include "object/MCObjectType.h"
+#include "object/MCWeaponShotInfo.h"
 
 namespace
 {
     /// <summary>Terrain objects of class 6 in a MiscTerrainObject are forests: a fire there damages them.</summary>
     constexpr int32_t FOREST_TERRAIN_OBJECT = 6;
 
-    /// <summary>The object list named <paramref name="listName"/>, or null.</summary>
-    MCObjectQueueNode* FindObjectList(const char* listName)
-    {
-        for (MCObjectQueueNode* list = ObjectList->Head; list != nullptr; list = list->Next)
-        {
-            if (list->operator==(listName) != 0)
-            {
-                return list;
-            }
-        }
-
-        return nullptr;
-    }
-
     /// <summary>Runs a collision check between the fire and every object of the list.</summary>
-    void CollideWithList(MCFire* fire, MCObjectQueueNode* list)
+    void CollideWithList(MCFire* fire, MCObjectList* list)
     {
         if (list == nullptr)
         {
             return;
         }
 
-        MCBaseObject* object = list->Head;
-
-        while (object != nullptr)
+        // Port fix (OB-015): every object is checked; the original only stepped to the next one after an
+        // object with a type, so one without hung the game.
+        for (MCBaseObject* object : *list)
         {
             auto* other = static_cast<MCGameObject*>(object);
 
@@ -73,24 +61,20 @@ namespace
 
                 switch (other->ObjectClass)
                 {
-                    case BUILDING:
-                    case TREE:
-                    case TERRAINOBJECT:
-                    case MISCTERRAINOBJECT:
-                    case TREEBUILDING:
-                    case CAMERADRONE:
+                    case MCObjectClass::Building:
+                    case MCObjectClass::Tree:
+                    case MCObjectClass::TerrainObject:
+                    case MCObjectClass::MiscTerrainObject:
+                    case MCObjectClass::TreeBuilding:
+                    case MCObjectClass::CameraDrone:
                         other->GetBlockAndVertexNumber(otherBlock, otherVertex);
                         break;
                     default:
                         break;
                 }
 
-                CollisionSystem->DetectStaticCollision(fire, other);
+                CollisionSystem()->DetectStaticCollision(fire, other);
             }
-
-            // Port fix (OB-015): the original only steps to the next object after one with a type, so an object
-            // without one hangs the game here.
-            object = object->Next;
         }
     }
 
@@ -133,9 +117,9 @@ auto MCFireType::Init() -> void
     FireRandomDelay = nullptr;
 }
 
-auto MCFireType::CreateInstance() -> MCBaseObject*
+auto MCFireType::CreateInstance() -> std::unique_ptr<MCBaseObject>
 {
-    auto* newFire = new MCFire;
+    auto newFire = std::make_unique<MCFire>();
 
     if (newFire == nullptr)
     {
@@ -294,7 +278,7 @@ auto MCFireType::HandleCollision(MCGameObject*, MCGameObject* collider) -> int
 
     switch (collider->ObjectClass)
     {
-        case BUILDING:
+        case MCObjectClass::Building:
         {
             if (RollDice(10) != 0)
             {
@@ -309,7 +293,7 @@ auto MCFireType::HandleCollision(MCGameObject*, MCGameObject* collider) -> int
             }
             break;
         }
-        case TREE:
+        case MCObjectClass::Tree:
         {
             if (RollDice(10) != 0)
             {
@@ -322,7 +306,7 @@ auto MCFireType::HandleCollision(MCGameObject*, MCGameObject* collider) -> int
             }
             break;
         }
-        case MISCTERRAINOBJECT:
+        case MCObjectClass::MiscTerrainObject:
         {
             if (RollDice(10) != 0)
             {
@@ -335,7 +319,7 @@ auto MCFireType::HandleCollision(MCGameObject*, MCGameObject* collider) -> int
             }
             break;
         }
-        case TREEBUILDING:
+        case MCObjectClass::TreeBuilding:
         {
             if (RollDice(10) != 0)
             {
@@ -401,9 +385,9 @@ auto MCFire::HandleStaticCollision() -> void
         {
             char listName[12];
             std::sprintf(listName, "TBlk%d", block);
-            CollideWithList(this, FindObjectList(listName));
+            CollideWithList(this, ObjectList()->FindList(listName));
             std::sprintf(listName, "RBlk%d", block);
-            CollideWithList(this, FindObjectList(listName));
+            CollideWithList(this, ObjectList()->FindList(listName));
         }
     }
 }
@@ -505,7 +489,7 @@ auto MCFire::IsRevealed() -> int
     int32_t tileC = 0;
     int32_t cellR = 0;
     int32_t cellC = 0;
-    GameMap->WorldToMapPos(Position, tileR, tileC, cellR, cellC);
+    GameMap()->WorldToMapPos(Position, tileR, tileC, cellR, cellC);
     MCByteFlag* visibleBits = Terrain()->HomeVisibleBits();
     // Faithful: tile coordinates are looked up in the vertex-resolution visibility bits.
     const auto row = static_cast<uint32_t>(tileR);
@@ -534,24 +518,15 @@ auto MCFire::Update() -> int32_t
 {
     if (JustCreated != 0)
     {
-        // Make sure the fire is in the object lists: if no list holds it, append it to the first.
+        // Make sure the fire is in the object lists: if no list holds it, the first takes it over from the object
+        // that made it (which let go of it).
         JustCreated = 0;
         SetPotentialContact(3);
-        MCBaseObject* current = nullptr;
 
-        do
+        if (ObjectList()->FindIf([this](MCBaseObject* object) { return object == this; }) == nullptr)
         {
-            ObjectList->Traverse(current);
-
-            if (current == nullptr)
-            {
-                if (ObjectList->Head != nullptr)
-                {
-                    ObjectList->Head->AddNode(this);
-                }
-                break;
-            }
-        } while (current != this);
+            AddToDefaultList(std::unique_ptr<MCGameObject>(this));
+        }
     }
 
     if (BurningOut != 0)
@@ -629,7 +604,7 @@ auto MCFire::Update() -> int32_t
     // Put the burning object out; a burnt forest takes its damage.
     if (BurningObject != nullptr)
     {
-        if (BurningObject->ObjectClass == MISCTERRAINOBJECT &&
+        if (BurningObject->ObjectClass == MCObjectClass::MiscTerrainObject &&
             static_cast<MCMiscTerrainObject*>(BurningObject)->TerrainObjectKind == FOREST_TERRAIN_OBJECT)
         {
             const auto* forestType = static_cast<MCMiscTerrainObjectType*>(BurningObject->GetObjectType());
@@ -655,7 +630,7 @@ auto MCFire::Update() -> int32_t
 auto MCFire::Render() -> void
 {
     int tagged = 0;
-    const int32_t contactType = GetContactType(HomeTeam->Id, tagged);
+    const int32_t contactType = GetContactType(HomeTeam()->Id, tagged);
     const int revealed = BurningObject != nullptr ? BurningObject->IsRevealed() : IsRevealed();
     const auto* fireType = static_cast<MCFireType*>(ObjType);
 
@@ -864,7 +839,7 @@ auto MCFire::Init(MCObjectType* objType) -> int32_t
             static_cast<float>((static_cast<double>(RandomNumber(fireType->FireRandomDelay[i])) + delay) * 0.1);
     }
 
-    ObjectClass = FIRE;
+    ObjectClass = MCObjectClass::Fire;
     CollisionsOn = 0;
     BurningOut = 0;
     BlipFrame = 0;
@@ -891,7 +866,7 @@ auto MCFire::Init(MCObjectType* objType) -> int32_t
 
     if (static_cast<int32_t>(fireType->LightObjectId) != -1)
     {
-        Light = CreateObject(static_cast<int32_t>(fireType->LightObjectId));
+        Light = CreateObject(static_cast<int32_t>(fireType->LightObjectId)).release();
     }
 
     return 0;

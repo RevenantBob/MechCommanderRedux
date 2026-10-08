@@ -1,6 +1,6 @@
 #include "stdafx.h"
 #include "object/mover.h"
-#include "ai/move.h"
+#include "ai/MCMoveSystem.h"
 #include "appear/MCAppearance.h"
 #include "engine/MCByteFlag.h"
 #include "lib/MCFatal.h"
@@ -12,23 +12,26 @@
 #include "mission/mission.h"
 #include "mission/scenario.h"
 #include "network/multplyr.h"
-#include "object/cmponent.h"
-#include "object/contact.h"
-#include "object/group.h"
-#include "object/control.h"
-#include "object/dyn.h"
+#include "object/MCMasterComponent.h"
+#include "object/MCContactSystem.h"
+#include "object/MCMoverGroup.h"
+#include "object/MCControl.h"
+#include "object/MCDynamics.h"
 #include "object/elemntl.h"
 #include "object/mech.h"
-#include "object/objevnt.h"
-#include "object/objque.h"
-#include "object/objtype.h"
-#include "object/object.h"
-#include "object/sortlist.h"
-#include "object/team.h"
+#include "object/MCObjectEvent.h"
+#include "object/MCObjectQueue.h"
+#include "object/MCObjectType.h"
+#include "object/MCObjectSystem.h"
+#include "object/MCSortList.h"
+#include "object/MCForces.h"
 #include "object/warrior.h"
 #include "sound/soundsys.h"
 #include "terrain/MCTerrain.h"
 #include "terrain/MCTacticalMap.h"
+#include "object/MCWeaponChunkDebug.h"
+#include "object/MCWeaponFireChunk.h"
+#include "object/MCWeaponShotInfo.h"
 
 float DelayedOrderTime = 1.0f;
 int32_t StatusChunkUnpackErr = 0;
@@ -95,8 +98,8 @@ namespace
     bool IsMover(const MCBaseObject* object)
     {
         const MCObjectClass objectClass = object->ObjectClass;
-        return objectClass == BATTLEMECH || objectClass == GROUNDVEHICLE || objectClass == ELEMENTAL ||
-               objectClass == MOVER;
+        return objectClass == MCObjectClass::BattleMech || objectClass == MCObjectClass::GroundVehicle ||
+               objectClass == MCObjectClass::Elemental || objectClass == MCObjectClass::Mover;
     }
 
     /// <summary>Checks a chunk's target the way pack and unpack both do, setting StatusChunkUnpackErr.</summary>
@@ -125,7 +128,7 @@ namespace
 
             case 2:
             {
-                if (ObjectList->FindObjectFromPart(chunk->TargetId) == nullptr)
+                if (ObjectList()->FindObjectFromPart(chunk->TargetId) == nullptr)
                 {
                     StatusChunkUnpackErr = 3;
                 }
@@ -133,7 +136,7 @@ namespace
             }
             case 3:
             {
-                if (ObjectList->FindObjectFromPart(chunk->TargetId) == nullptr)
+                if (ObjectList()->FindObjectFromPart(chunk->TargetId) == nullptr)
                 {
                     StatusChunkUnpackErr = 4;
                 }
@@ -148,7 +151,7 @@ namespace
     /// <summary>Appends one chunk's fields to ChunkDebugMsg (DebugStatusChunk does it for each of its two).</summary>
     void AppendStatusChunk(const MCStatusChunk* chunk)
     {
-        char line[512];
+        std::string line;
         const int8_t targetType = static_cast<int8_t>(chunk->TargetType);
         MCBaseObject* target = nullptr;
         bool haveTarget = false;
@@ -160,7 +163,7 @@ namespace
         }
         else if (targetType == 2 || targetType == 3)
         {
-            target = ObjectList->FindObjectFromPart(chunk->TargetId);
+            target = ObjectList()->FindObjectFromPart(chunk->TargetId);
             haveTarget = true;
         }
 
@@ -170,13 +173,12 @@ namespace
         {
             if (IsMover(target))
             {
-                std::snprintf(line, sizeof(line), "target = %s (%d)\n",
-                              static_cast<MCMover*>(target)->DebugStatus.c_str(), target->PartId);
+                line = std::format("target = {} ({})\n", static_cast<MCMover*>(target)->DebugStatus, target->PartId);
             }
             else
             {
-                std::snprintf(line, sizeof(line), "target = objClass %d (%d)\n", static_cast<int>(target->ObjectClass),
-                              target->PartId);
+                line =
+                    std::format("target = objClass {} ({})\n", static_cast<int>(target->ObjectClass), target->PartId);
             }
         }
         else if (!haveTarget && targetType == 4)
@@ -185,22 +187,21 @@ namespace
             const float halfSide = WorldUnitsMapSide * 0.5f;
             MCVector3D point;
             point.X =
-                static_cast<float>((chunk->TargetCellRC[1] + 0.5f) * static_cast<double>(MetersPerCell) - halfSide);
+                static_cast<float>((chunk->TargetCellRC[1] + 0.5f) * static_cast<double>(MetersPerCell()) - halfSide);
             point.Y = static_cast<float>(
-                (static_cast<double>(halfSide) - chunk->TargetCellRC[0] * static_cast<double>(MetersPerCell)) -
-                static_cast<double>(MetersPerCell) * 0.5f);
+                (static_cast<double>(halfSide) - chunk->TargetCellRC[0] * static_cast<double>(MetersPerCell())) -
+                static_cast<double>(MetersPerCell()) * 0.5f);
             point.Z = 0.0f;
-            const float elevation = GameMap->GetTerrainElevation(point);
-            std::snprintf(line, sizeof(line), "target point = (%f, %f, %f)\n", static_cast<double>(point.X),
-                          static_cast<double>(point.Y), static_cast<double>(elevation));
+            const float elevation = GameMap()->GetTerrainElevation(point);
+            line = std::format("target point = ({:f}, {:f}, {:f})\n", point.X, point.Y, elevation);
         }
         else if (targetType == 0)
         {
-            std::snprintf(line, sizeof(line), "target = NONE\n");
+            line = "target = NONE\n";
         }
         else
         {
-            std::strcat(ChunkDebugMsg, "target = ???\n");
+            ChunkDebugMsg += "target = ???\n";
             appendLine = false;
 
             if (targetType == 2)
@@ -211,7 +212,7 @@ namespace
 
                 for (int32_t i = 0; i < 8; i++)
                 {
-                    MCBaseObject* object = ObjectList->FindObjectFromPart(firstId + i);
+                    MCBaseObject* object = ObjectList()->FindObjectFromPart(firstId + i);
 
                     if (object == nullptr)
                     {
@@ -219,14 +220,13 @@ namespace
                     }
 
                     numObjects++;
-                    std::snprintf(line, sizeof(line), "    %d: objClass %d (%d)\n", i,
-                                  static_cast<int>(object->ObjectClass), object->PartId);
-                    std::strcat(ChunkDebugMsg, line);
+                    ChunkDebugMsg += std::format("    {}: objClass {} ({})\n", i, static_cast<int>(object->ObjectClass),
+                                                 object->PartId);
                 }
 
                 if (numObjects > 0)
                 {
-                    std::snprintf(line, sizeof(line), "    There are %d terrain objects in this tile.\n", numObjects);
+                    line = std::format("    There are {} terrain objects in this tile.\n", numObjects);
                     appendLine = true;
                 }
             }
@@ -234,31 +234,21 @@ namespace
 
         if (appendLine)
         {
-            std::strcat(ChunkDebugMsg, line);
+            ChunkDebugMsg += line;
         }
 
-        std::snprintf(line, sizeof(line), "bodyState = %d\n", static_cast<int>(chunk->BodyState));
-        std::strcat(ChunkDebugMsg, line);
-        std::snprintf(line, sizeof(line), "targetType = %d\n", static_cast<int>(targetType));
-        std::strcat(ChunkDebugMsg, line);
-        std::snprintf(line, sizeof(line), "targetId = %d\n", chunk->TargetId);
-        std::strcat(ChunkDebugMsg, line);
-        std::snprintf(line, sizeof(line), "targetBlockOrTrainNumber = %d\n", chunk->TargetBlockOrTrainNumber);
-        std::strcat(ChunkDebugMsg, line);
-        std::snprintf(line, sizeof(line), "targetVertexOrCarNumber = %d\n", chunk->TargetVertexOrCarNumber);
-        std::strcat(ChunkDebugMsg, line);
-        std::snprintf(line, sizeof(line), "targetItemNumber = %d\n",
-                      static_cast<int>(static_cast<int8_t>(chunk->TargetItemNumber)));
-        std::strcat(ChunkDebugMsg, line);
-        std::snprintf(line, sizeof(line), "targetCellRC = (%d, %d)\n", static_cast<int>(chunk->TargetCellRC[0]),
-                      static_cast<int>(chunk->TargetCellRC[1]));
-        std::strcat(ChunkDebugMsg, line);
-        std::snprintf(line, sizeof(line), "ejectOrderGiven = %c\n", chunk->EjectOrderGiven != 0 ? 'T' : 'F');
-        std::strcat(ChunkDebugMsg, line);
-        std::snprintf(line, sizeof(line), "jumpOrder = %c\n", chunk->JumpOrder != 0 ? 'T' : 'F');
-        std::strcat(ChunkDebugMsg, line);
-        std::snprintf(line, sizeof(line), "data = %x\n", chunk->Data);
-        std::strcat(ChunkDebugMsg, line);
+        ChunkDebugMsg += std::format("bodyState = {}\n", static_cast<int>(chunk->BodyState));
+        ChunkDebugMsg += std::format("targetType = {}\n", static_cast<int>(targetType));
+        ChunkDebugMsg += std::format("targetId = {}\n", chunk->TargetId);
+        ChunkDebugMsg += std::format("targetBlockOrTrainNumber = {}\n", chunk->TargetBlockOrTrainNumber);
+        ChunkDebugMsg += std::format("targetVertexOrCarNumber = {}\n", chunk->TargetVertexOrCarNumber);
+        ChunkDebugMsg +=
+            std::format("targetItemNumber = {}\n", static_cast<int>(static_cast<int8_t>(chunk->TargetItemNumber)));
+        ChunkDebugMsg += std::format("targetCellRC = ({}, {})\n", static_cast<int>(chunk->TargetCellRC[0]),
+                                     static_cast<int>(chunk->TargetCellRC[1]));
+        ChunkDebugMsg += std::format("ejectOrderGiven = {}\n", chunk->EjectOrderGiven != 0 ? 'T' : 'F');
+        ChunkDebugMsg += std::format("jumpOrder = {}\n", chunk->JumpOrder != 0 ? 'T' : 'F');
+        ChunkDebugMsg += std::format("data = {:x}\n", chunk->Data);
     }
 
     /// <summary>
@@ -276,7 +266,7 @@ namespace
             mover->GetJumpRange(&numOffsets, &jumpCost);
         }
 
-        if (mover->ObjectClass != ELEMENTAL)
+        if (mover->ObjectClass != MCObjectClass::Elemental)
         {
             return;
         }
@@ -295,7 +285,7 @@ namespace
             }
         }
 
-        JumpOnBlocked = 1;
+        PathFindMap()->JumpOnBlocked = true;
     }
 
     /// <summary>The move level the local path finders use: the seconds a cell takes at <paramref name="speed"/>
@@ -324,12 +314,12 @@ namespace
 
                 if (row < 0)
                 {
-                    row += MAPCELL_DIM;
+                    row += MapCellDim;
                     rowTile--;
                 }
-                else if (row >= MAPCELL_DIM)
+                else if (row >= MapCellDim)
                 {
-                    row -= MAPCELL_DIM;
+                    row -= MapCellDim;
                     rowTile++;
                 }
 
@@ -338,24 +328,24 @@ namespace
 
                 if (col < 0)
                 {
-                    col += MAPCELL_DIM;
+                    col += MapCellDim;
                     colTile--;
                 }
-                else if (col >= MAPCELL_DIM)
+                else if (col >= MapCellDim)
                 {
-                    col -= MAPCELL_DIM;
+                    col -= MapCellDim;
                     colTile++;
                 }
 
-                const int32_t index = GameMap->Width * rowTile + colTile;
+                const int32_t index = GameMap()->Width * rowTile + colTile;
 
                 // Port fix: the original reads and writes before or past the map for a cell on its first or last row.
-                if (index < 0 || index >= GameMap->Width * GameMap->Height)
+                if (index < 0 || index >= GameMap()->Width * GameMap()->Height)
                 {
                     continue;
                 }
 
-                if (visit(GameMap->Map[index], row, col))
+                if (visit(GameMap()->Map[index], row, col))
                 {
                     return true;
                 }
@@ -602,13 +592,8 @@ auto LoadMoverGameSystem(MCFitIniFile* sysFile, float maxVisualRange) -> int32_t
         return result;
     }
 
-    for (int32_t i = 0; i < NUM_OVERLAY_TYPES; i++)
-    {
-        OverlayWeightIndex[i] = i * MAPCELL_DIM * MAPCELL_DIM;
-    }
-
     result =
-        sysFile->ReadIdLongArray("OverlayCellCosts", OverlayWeightTable, NUM_MOVE_LEVELS * OVERLAY_WEIGHT_LEVEL_SIZE);
+        sysFile->ReadIdLongArray("OverlayCellCosts", OverlayWeightTable.data(), NumMoveLevels * OverlayWeightLevelSize);
 
     if (result != 0)
     {
@@ -1076,37 +1061,22 @@ auto LoadMoverGameSystem(MCFitIniFile* sysFile, float maxVisualRange) -> int32_t
 
 auto DebugStatusChunk(MCMover* mover, MCStatusChunk* chunk1, MCStatusChunk* chunk2) -> void
 {
-    char line[512];
-    ChunkDebugMsg[0] = '\0';
-
-    if (mover == nullptr)
-    {
-        std::strcat(ChunkDebugMsg, "\nmover = ???\n");
-    }
-    else
-    {
-        std::snprintf(line, sizeof(line), "\nmover = %s (%d)\n", mover->DebugStatus.c_str(), mover->PartId);
-        std::strcat(ChunkDebugMsg, line);
-    }
+    ChunkDebugMsg = mover == nullptr ? std::string("\nmover = ???\n")
+                                     : std::format("\nmover = {} ({})\n", mover->DebugStatus, mover->PartId);
 
     if (chunk1 != nullptr)
     {
-        std::strcat(ChunkDebugMsg, "\nCHUNK1\n");
+        ChunkDebugMsg += "\nCHUNK1\n";
         AppendStatusChunk(chunk1);
     }
 
     if (chunk2 != nullptr)
     {
-        std::strcat(ChunkDebugMsg, "\nCHUNK2\n");
+        ChunkDebugMsg += "\nCHUNK2\n";
         AppendStatusChunk(chunk2);
     }
 
-    auto* file = new MCFile;
-    file->Create("stchunk.dbg");
-    file->WriteString(ChunkDebugMsg);
-    file->Close();
-    delete file;
-    ExceptionGameMsg = ChunkDebugMsg;
+    SaveChunkDebugMsg("stchunk.dbg");
 }
 
 auto GetMoverFromPartId(int32_t partId) -> MCMover*
@@ -1197,7 +1167,6 @@ auto MCMover::Init() -> void
     // The base objects' fields (their inits are inline and not called).
     IdNumber = 0;
     Position.Y = 0.0f;
-    Next = nullptr;
     PartId = -1;
     ObjType = nullptr;
     Position.Z = 0.0f;
@@ -1206,7 +1175,7 @@ auto MCMover::Init() -> void
     CollisionsOn = 0;
     Alignment = 0;
     Status = 0;
-    ObjectClass = MOVER;
+    ObjectClass = MCObjectClass::Mover;
 
     if (MPlayer == nullptr)
     {
@@ -1264,7 +1233,7 @@ auto MCMover::Init() -> void
     NetRosterIndex = -1;
     NewMoveChunk = 0;
     StatusChunk.Init();
-    MoveChunk.Init();
+    MoveChunk.Reset();
     NumWeaponFireChunks[1] = 0;
     NumWeaponFireChunks[0] = 0;
     NumCriticalHitChunks[1] = 0;
@@ -1281,14 +1250,7 @@ auto MCMover::Init() -> void
 
     if (SortList == nullptr)
     {
-        SortList = new MCSortList;
-
-        if (SortList == nullptr)
-        {
-            Fatal(0, " Unable to create Mover::sortList ");
-        }
-
-        SortList->Init(100);
+        SortList = new MCSortList(100);
     }
 
     CrashAvoidSelf = 1;
@@ -1377,7 +1339,7 @@ auto MCMover::SetPosition(MCVector3D& newPosition) -> void
 
     if (ObjPosition != nullptr)
     {
-        GameObjectMap->UpdateObject(this, 0);
+        GameObjectMap()->UpdateObject(this);
     }
 }
 
@@ -1394,7 +1356,7 @@ auto MCMover::SetAwake(int awake) -> void
 
     if (Pilot != nullptr && static_cast<uint8_t>(Status) == 5)
     {
-        Pilot->OrderPowerUp(0, 2);
+        Pilot->OrderPowerUp(0, MCOrderOrigin::Self);
     }
 }
 
@@ -1511,11 +1473,11 @@ auto MCMover::GetFireArc() -> float
 {
     switch (ObjectClass)
     {
-        case BATTLEMECH:
+        case MCObjectClass::BattleMech:
             return FireArc[0];
-        case GROUNDVEHICLE:
+        case MCObjectClass::GroundVehicle:
             return FireArc[1];
-        case ELEMENTAL:
+        case MCObjectClass::Elemental:
             return FireArc[2];
         default:
             return 60.0f;
@@ -1528,7 +1490,7 @@ auto MCMover::Destroy() -> void
 
     if (SensorSystem != nullptr)
     {
-        SensorSystemManager->FreeSensor(SensorSystem);
+        SensorSystemManager()->FreeSensor(SensorSystem);
         SensorSystem = nullptr;
     }
 
@@ -1590,7 +1552,7 @@ auto MCMover::Destroy() -> void
 
     if (PotentialContact != nullptr)
     {
-        PotentialContactManager->Remove(PotentialContact);
+        PotentialContactManager()->Remove(PotentialContact);
         PotentialContact = nullptr;
     }
 
@@ -1621,7 +1583,6 @@ auto MCMover::Destroy() -> void
     {
         if (SortList != nullptr)
         {
-            SortList->Destroy();
             delete SortList;
         }
 
@@ -1728,15 +1689,15 @@ auto MCMover::RelativePosition(float angle, float distance, uint32_t flags) -> M
         int32_t tileC;
         int32_t cellR;
         int32_t cellC;
-        GameMap->WorldToMapPos(point, tileR, tileC, cellR, cellC);
+        GameMap()->WorldToMapPos(point, tileR, tileC, cellR, cellC);
 
         // Port fix: the walk can leave the map, where the original reads outside it. Off the map is impassable.
-        if (!GameMap->OnMap(tileR, tileC))
+        if (!GameMap()->OnMap(tileR, tileC))
         {
             return 0u;
         }
 
-        return GameMap->Map[GameMap->Width * tileR + tileC].GetCellPassable(cellR, cellC);
+        return GameMap()->Map[GameMap()->Width * tileR + tileC].GetCellPassable(cellR, cellC);
     };
 
     uint32_t passable = cellPassable();
@@ -1770,7 +1731,7 @@ auto MCMover::RelativePosition(float angle, float distance, uint32_t flags) -> M
     MCVector3D result;
     result.X = previous.X;
     result.Y = previous.Y;
-    result.Z = GameMap->GetTerrainElevation(ground);
+    result.Z = GameMap()->GetTerrainElevation(ground);
     return result;
 }
 
@@ -1780,9 +1741,9 @@ auto MCMover::LineOfFire(MCGameObject* target) -> int
     int32_t tileC;
     int32_t cellR;
     int32_t cellC;
-    GameMap->WorldToMapPos(target->GetPosition(), tileR, tileC, cellR, cellC);
+    GameMap()->WorldToMapPos(target->GetPosition(), tileR, tileC, cellR, cellC);
     target->ClearLineOfFire();
-    const int result = GameMap->LineOfFire(Position, target->GetPosition());
+    const int result = GameMap()->LineOfFire(Position, target->GetPosition());
     target->RestoreLineOfFire();
     return result;
 }
@@ -1793,8 +1754,8 @@ auto MCMover::LineOfFire(MCVector3D point) -> int
     int32_t tileC;
     int32_t cellR;
     int32_t cellC;
-    GameMap->WorldToMapPos(point, tileR, tileC, cellR, cellC);
-    return GameMap->LineOfFire(Position, point);
+    GameMap()->WorldToMapPos(point, tileR, tileC, cellR, cellC);
+    return GameMap()->LineOfFire(Position, point);
 }
 
 auto MCMover::LineOfSensor(MCGameObject* target, int32_t& sensorResult, int32_t& losResult) -> void
@@ -1811,7 +1772,7 @@ auto MCMover::LineOfSensor(MCGameObject* target, int32_t& sensorResult, int32_t&
     end.Z = static_cast<float>(static_cast<double>(WorldUnitsPerMeter) * 10.0 + targetPosition.Z);
     SetUseMe(0);
     target->SetUseMe(0);
-    GameMap->LineOfSensor(start, end, sensorResult, losResult);
+    GameMap()->LineOfSensor(start, end, sensorResult, losResult);
     SetUseMe(1);
     target->SetUseMe(1);
 }
@@ -1884,19 +1845,18 @@ auto MCMover::HandleTacticalOrder(MCTacticalOrder tacOrder, int32_t priority, in
 {
     if (queuePlayerOrder != 0)
     {
-        tacOrder.Pack(nullptr, nullptr);
+        tacOrder.Pack();
     }
 
     // A client checks the order survives packing (the result isn't used).
     if (MPlayer != nullptr && MPlayer->IsServer == 0)
     {
-        tacOrder.Pack(nullptr, nullptr);
+        tacOrder.Pack();
         MCTacticalOrder check;
-        check.Init();
+        check.Reset();
         check.Data[0] = tacOrder.Data[0];
         check.Data[1] = tacOrder.Data[1];
         check.Unpack();
-        check.Destroy();
     }
 
     int32_t radioMessageId = -1;
@@ -1905,25 +1865,25 @@ auto MCMover::HandleTacticalOrder(MCTacticalOrder tacOrder, int32_t priority, in
 
     switch (tacOrder.Code)
     {
-        case TACTICAL_ORDER_WAIT:
-        case TACTICAL_ORDER_ESCORT:
-        case TACTICAL_ORDER_FOLLOW:
-        case TACTICAL_ORDER_GUARD:
-        case TACTICAL_ORDER_STOP:
-        case TACTICAL_ORDER_POWERUP:
-        case TACTICAL_ORDER_POWERDOWN:
-        case TACTICAL_ORDER_WAYPOINTS_DONE:
-        case TACTICAL_ORDER_EJECT:
-        case TACTICAL_ORDER_ATTACK_POINT:
-        case TACTICAL_ORDER_HOLD_FIRE:
-        case TACTICAL_ORDER_WITHDRAW:
-        case TACTICAL_ORDER_CAPTURE:
-        case TACTICAL_ORDER_REFIT:
-        case TACTICAL_ORDER_GETFIXED:
-        case TACTICAL_ORDER_LOAD_INTO_CARRIER:
-        case TACTICAL_ORDER_DEPLOY_ELEMENTALS:
+        case MCTacticalOrderCode::Wait:
+        case MCTacticalOrderCode::Escort:
+        case MCTacticalOrderCode::Follow:
+        case MCTacticalOrderCode::Guard:
+        case MCTacticalOrderCode::Stop:
+        case MCTacticalOrderCode::PowerUp:
+        case MCTacticalOrderCode::PowerDown:
+        case MCTacticalOrderCode::WayPointsDone:
+        case MCTacticalOrderCode::Eject:
+        case MCTacticalOrderCode::AttackPoint:
+        case MCTacticalOrderCode::HoldFire:
+        case MCTacticalOrderCode::Withdraw:
+        case MCTacticalOrderCode::Capture:
+        case MCTacticalOrderCode::Refit:
+        case MCTacticalOrderCode::GetFixed:
+        case MCTacticalOrderCode::LoadIntoCarrier:
+        case MCTacticalOrderCode::DeployElementals:
             break;
-        case TACTICAL_ORDER_MOVETO_POINT:
+        case MCTacticalOrderCode::MoveToPoint:
         {
             // A group member's delayed start.
             const int32_t delay = SelectionIndex;
@@ -1941,11 +1901,11 @@ auto MCMover::HandleTacticalOrder(MCTacticalOrder tacOrder, int32_t priority, in
             break;
         }
 
-        case TACTICAL_ORDER_JUMPTO_POINT:
-        case TACTICAL_ORDER_JUMPTO_OBJECT:
+        case MCTacticalOrderCode::JumpToPoint:
+        case MCTacticalOrderCode::JumpToObject:
         {
             // Only mechs jump, not onto their own side, within range, onto an open cell.
-            int canJumpThere = ObjectClass == BATTLEMECH ? 1 : 0;
+            int canJumpThere = ObjectClass == MCObjectClass::BattleMech ? 1 : 0;
             MCGameObject* target = tacOrder.Target;
 
             if (target != nullptr && IsMover(target) && target->GetTeam() == GetTeam())
@@ -1963,16 +1923,16 @@ auto MCMover::HandleTacticalOrder(MCTacticalOrder tacOrder, int32_t priority, in
 
             bool cellOpen = true;
 
-            if (ObjectClass == BATTLEMECH)
+            if (ObjectClass == MCObjectClass::BattleMech)
             {
                 int32_t tileR;
                 int32_t tileC;
                 int32_t cellR;
                 int32_t cellC;
-                GameMap->WorldToMapPos(tacOrder.GetWayPoint(0), tileR, tileC, cellR, cellC);
+                GameMap()->WorldToMapPos(tacOrder.GetWayPoint(0), tileR, tileC, cellR, cellC);
                 // Port fix: the player's jump point can be off the map, where the original reads outside it.
-                cellOpen = GameMap->OnMap(tileR, tileC) &&
-                           GameMap->Map[GameMap->Width * tileR + tileC].GetCellPassable(cellR, cellC) != 0;
+                cellOpen = GameMap()->OnMap(tileR, tileC) &&
+                           GameMap()->Map[GameMap()->Width * tileR + tileC].GetCellPassable(cellR, cellC) != 0;
             }
 
             if (!cellOpen || canJumpThere == 0)
@@ -1985,17 +1945,17 @@ auto MCMover::HandleTacticalOrder(MCTacticalOrder tacOrder, int32_t priority, in
             break;
         }
 
-        case TACTICAL_ORDER_MOVETO_OBJECT:
-        case TACTICAL_ORDER_TRAVERSE_PATH:
-        case TACTICAL_ORDER_PATROL_PATH:
+        case MCTacticalOrderCode::MoveToObject:
+        case MCTacticalOrderCode::TraversePath:
+        case MCTacticalOrderCode::PatrolPath:
             checkCanMove = true;
             break;
-        case TACTICAL_ORDER_ATTACK_OBJECT:
+        case MCTacticalOrderCode::AttackObject:
         {
             // An attack by jumping (method 1) becomes a jump onto the target.
             if (tacOrder.AttackParams.Method == 1)
             {
-                tacOrder.Code = TACTICAL_ORDER_JUMPTO_OBJECT;
+                tacOrder.Code = MCTacticalOrderCode::JumpToObject;
                 tacOrder.MoveParams.Wait = 0;
                 tacOrder.MoveParams.WayPath.Mode[0] = 0;
 
@@ -2012,7 +1972,6 @@ auto MCMover::HandleTacticalOrder(MCTacticalOrder tacOrder, int32_t priority, in
             std::snprintf(message, sizeof(message), "Mover::handleTacticalOrder->Bad TacOrder Code (%d)",
                           static_cast<int>(tacOrder.Code));
             Assert(0, 1, message);
-            tacOrder.Destroy();
             return 1;
         }
     }
@@ -2039,29 +1998,26 @@ auto MCMover::HandleTacticalOrder(MCTacticalOrder tacOrder, int32_t priority, in
     {
         switch (tacOrder.Origin)
         {
-            case 0:
+            case MCOrderOrigin::Player:
             {
                 if (queuePlayerOrder != 0)
                 {
                     vehiclePilot->AddQueuedTacOrder(tacOrder);
                     vehiclePilot->TacOrderQueueExecuting = 1;
-                    tacOrder.Destroy();
                     return 0;
                 }
 
                 vehiclePilot->SetPlayerTacOrder(tacOrder, 0);
                 break;
             }
-            case 1:
+            case MCOrderOrigin::Commander:
             {
                 vehiclePilot->SetGeneralTacOrder(tacOrder);
-                tacOrder.Destroy();
                 return 0;
             }
-            case 2:
+            case MCOrderOrigin::Self:
             {
                 vehiclePilot->SetAlarmTacOrder(tacOrder, priority);
-                tacOrder.Destroy();
                 return 0;
             }
             default:
@@ -2069,7 +2025,6 @@ auto MCMover::HandleTacticalOrder(MCTacticalOrder tacOrder, int32_t priority, in
         }
     }
 
-    tacOrder.Destroy();
     return 0;
 }
 
@@ -2292,7 +2247,7 @@ auto MCMover::UpdateWeaponFireChunks(int32_t which) -> int32_t
                 }
                 else
                 {
-                    target = ObjectList->FindObjectFromPart(chunk.TargetId);
+                    target = ObjectList()->FindObjectFromPart(chunk.TargetId);
                     missing = chunk.TargetType == 1
                                   ? " Mover.updateWeaponFireChunks: NULL Terrain Target (save wfchunk.dbg file) "
                                   : " Mover.updateWeaponFireChunks: NULL Special Target (save wfchunk.dbg file) ";
@@ -2316,12 +2271,12 @@ auto MCMover::UpdateWeaponFireChunks(int32_t which) -> int32_t
                 const float halfSide = WorldUnitsMapSide * 0.5f;
                 MCVector3D point;
                 point.X =
-                    static_cast<float>((chunk.TargetCell[1] + 0.5f) * static_cast<double>(MetersPerCell) - halfSide);
+                    static_cast<float>((chunk.TargetCell[1] + 0.5f) * static_cast<double>(MetersPerCell()) - halfSide);
                 point.Y = static_cast<float>(
-                    (static_cast<double>(halfSide) - chunk.TargetCell[0] * static_cast<double>(MetersPerCell)) -
-                    static_cast<double>(MetersPerCell) * 0.5f);
+                    (static_cast<double>(halfSide) - chunk.TargetCell[0] * static_cast<double>(MetersPerCell())) -
+                    static_cast<double>(MetersPerCell()) * 0.5f);
                 point.Z = 0.0f;
-                point.Z = GameMap->GetTerrainElevation(point);
+                point.Z = GameMap()->GetTerrainElevation(point);
                 HandleWeaponFire(weaponIndex, nullptr, &point, chunk.Hit, 0.0f, chunk.NumMissiles,
                                  chunk.NumMissilesPastAms, 0, 0);
                 break;
@@ -2485,7 +2440,7 @@ auto MCMover::IsRevealed() -> int
 
 auto MCMover::EnemyRevealed() -> int
 {
-    MCByteFlag* bits = HomeTeam->Alignment != -1 ? Terrain()->ClanVisibleBits.get() : Terrain()->ISVisibleBits.get();
+    MCByteFlag* bits = HomeTeam()->Alignment != -1 ? Terrain()->ClanVisibleBits.get() : Terrain()->ISVisibleBits.get();
     return TileVisible(bits, ObjPosition);
 }
 
@@ -2595,15 +2550,15 @@ auto MCMover::CalcOffsetMoveGoal(MCVector3D target, MCVector3D offset, MCVector3
         int32_t tileC;
         int32_t cellR;
         int32_t cellC;
-        GameMap->WorldToMapPos(point, tileR, tileC, cellR, cellC);
+        GameMap()->WorldToMapPos(point, tileR, tileC, cellR, cellC);
 
         // Port fix: the walk can leave the map, where the original reads outside it. Off the map is impassable.
-        if (!GameMap->OnMap(tileR, tileC))
+        if (!GameMap()->OnMap(tileR, tileC))
         {
             return 0u;
         }
 
-        return GameMap->Map[GameMap->Width * tileR + tileC].GetCellPassable(cellR, cellC);
+        return GameMap()->Map[GameMap()->Width * tileR + tileC].GetCellPassable(cellR, cellC);
     };
 
     // Off a blocked cell: step on until the point before was open (so one step past the first open cell).
@@ -2634,7 +2589,7 @@ auto MCMover::CalcOffsetMoveGoal(MCVector3D target, MCVector3D offset, MCVector3
     ground.Z = 0.0f;
     goal.X = x;
     goal.Y = y;
-    goal.Z = GameMap->GetTerrainElevation(ground);
+    goal.Z = GameMap()->GetTerrainElevation(ground);
     return 0;
 }
 
@@ -2691,7 +2646,7 @@ auto MCMover::CalcMoveGoal(MCGameObject* target, MCVector3D moveGoal, int32_t is
         step.Y = static_cast<float>(stepLength * (dy / lengthF));
         step.Z = 0.0f;
         // The original takes the elevation of the step itself, not of the point it reaches.
-        const float elevation = GameMap->GetTerrainElevation(step);
+        const float elevation = GameMap()->GetTerrainElevation(step);
         MCVector3D stepGoal;
         stepGoal.X = step.X + Position.X;
         stepGoal.Y = step.Y + Position.Y;
@@ -2705,13 +2660,13 @@ auto MCMover::CalcMoveGoal(MCGameObject* target, MCVector3D moveGoal, int32_t is
     int32_t tileC;
     int32_t cellR;
     int32_t cellC;
-    GameMap->WorldToMapPos(moveGoal, tileR, tileC, cellR, cellC);
-    const int32_t goalCellR = tileR * MAPCELL_DIM + cellR;
-    const int32_t goalCellC = tileC * MAPCELL_DIM + cellC;
+    GameMap()->WorldToMapPos(moveGoal, tileR, tileC, cellR, cellC);
+    const int32_t goalCellR = tileR * MapCellDim + cellR;
+    const int32_t goalCellC = tileC * MapCellDim + cellC;
     const int32_t mapTileR0 = tileR - 6;
     const int32_t mapTileC0 = tileC - 6;
-    const int32_t mapCellR0 = mapTileR0 * MAPCELL_DIM;
-    const int32_t mapCellC0 = mapTileC0 * MAPCELL_DIM;
+    const int32_t mapCellR0 = mapTileR0 * MapCellDim;
+    const int32_t mapCellC0 = mapTileC0 * MapCellDim;
 
     if (target == nullptr)
     {
@@ -2721,7 +2676,8 @@ auto MCMover::CalcMoveGoal(MCGameObject* target, MCVector3D moveGoal, int32_t is
 
     const MCObjectClass targetClass = target->ObjectClass;
 
-    if (targetClass == BATTLEMECH || targetClass == GROUNDVEHICLE || targetClass == ELEMENTAL || targetClass == MOVER)
+    if (targetClass == MCObjectClass::BattleMech || targetClass == MCObjectClass::GroundVehicle ||
+        targetClass == MCObjectClass::Elemental || targetClass == MCObjectClass::Mover)
     {
         // The facing is computed and dropped.
         MCVector3D targetPosition = target->GetPosition();
@@ -2729,7 +2685,7 @@ auto MCMover::CalcMoveGoal(MCGameObject* target, MCVector3D moveGoal, int32_t is
         target->RelFacingTo(targetPosition, -1);
     }
 
-    const int32_t* overlayWeights = &OverlayWeightTable[OverlayWeightClass * OVERLAY_WEIGHT_LEVEL_SIZE];
+    const int32_t* overlayWeights = &OverlayWeightTable[OverlayWeightClass * OverlayWeightLevelSize];
 
     // Adds amount to the square of cells within radius of the goal.
     auto addSquare = [&](int32_t radius, int32_t amount)
@@ -2753,8 +2709,8 @@ auto MCMover::CalcMoveGoal(MCGameObject* target, MCVector3D moveGoal, int32_t is
         }
     };
 
-    const int32_t orderCode = Pilot->CurTacOrder.Code;
-    const bool attacking = orderCode == TACTICAL_ORDER_ATTACK_OBJECT || orderCode == TACTICAL_ORDER_GUARD;
+    const MCTacticalOrderCode orderCode = Pilot->CurTacOrder.Code;
+    const bool attacking = orderCode == MCTacticalOrderCode::AttackObject || orderCode == MCTacticalOrderCode::Guard;
     int32_t attackRange = -5;
 
     if (attacking)
@@ -2845,9 +2801,9 @@ auto MCMover::CalcMoveGoal(MCGameObject* target, MCVector3D moveGoal, int32_t is
     int32_t myTileC;
     int32_t myCellR;
     int32_t myCellC;
-    GameMap->WorldToMapPos(Position, myTileR, myTileC, myCellR, myCellC);
-    int32_t myRow = myCellR + (myTileR - mapTileR0) * MAPCELL_DIM;
-    int32_t myCol = myCellC + (myTileC - mapTileC0) * MAPCELL_DIM;
+    GameMap()->WorldToMapPos(Position, myTileR, myTileC, myCellR, myCellC);
+    int32_t myRow = myCellR + (myTileR - mapTileR0) * MapCellDim;
+    int32_t myCol = myCellC + (myTileC - mapTileC0) * MapCellDim;
 
     if (myRow < 0)
     {
@@ -2897,7 +2853,7 @@ auto MCMover::CalcMoveGoal(MCGameObject* target, MCVector3D moveGoal, int32_t is
     }
 
     // The cells the group mates are heading for.
-    MCMover* movers[MAX_MOVERGROUP_COUNT];
+    MCMover* movers[MCMoverGroup::MaxMovers];
 
     if (Group != nullptr)
     {
@@ -2931,20 +2887,20 @@ auto MCMover::CalcMoveGoal(MCGameObject* target, MCVector3D moveGoal, int32_t is
     }
 
     // Off the map and impassable cells are out; overlays cost their weight.
-    for (int32_t tileRow = 0; tileRow * MAPCELL_DIM < GOALMAP_CELL_DIM; tileRow++)
+    for (int32_t tileRow = 0; tileRow * MapCellDim < GOALMAP_CELL_DIM; tileRow++)
     {
         const int32_t mapR = tileRow + mapTileR0;
         int32_t mapC = mapTileC0;
 
-        for (int32_t cellCol = 0; cellCol < GOALMAP_CELL_DIM; cellCol += MAPCELL_DIM, mapC++)
+        for (int32_t cellCol = 0; cellCol < GOALMAP_CELL_DIM; cellCol += MapCellDim, mapC++)
         {
-            int32_t* block = &GoalMap[tileRow * MAPCELL_DIM][cellCol];
+            int32_t* block = &GoalMap[tileRow * MapCellDim][cellCol];
 
-            if (mapR <= -1 || mapR >= GameMap->Height || mapC <= -1 || mapC >= GameMap->Width)
+            if (mapR <= -1 || mapR >= GameMap()->Height || mapC <= -1 || mapC >= GameMap()->Width)
             {
-                for (int32_t row = 0; row < MAPCELL_DIM; row++)
+                for (int32_t row = 0; row < MapCellDim; row++)
                 {
-                    for (int32_t col = 0; col < MAPCELL_DIM; col++)
+                    for (int32_t col = 0; col < MapCellDim; col++)
                     {
                         block[row * GOALMAP_CELL_DIM + col] -= 10000;
                     }
@@ -2953,12 +2909,12 @@ auto MCMover::CalcMoveGoal(MCGameObject* target, MCVector3D moveGoal, int32_t is
                 continue;
             }
 
-            Assert(mapR < GameMap->Height && mapC < GameMap->Width, 0, " Map Tile out of bounds ");
-            MCMapTile tile = GameMap->Map[GameMap->Width * mapR + mapC];
+            Assert(mapR < GameMap()->Height && mapC < GameMap()->Width, 0, " Map Tile out of bounds ");
+            MCMapTile tile = GameMap()->Map[GameMap()->Width * mapR + mapC];
 
-            for (int32_t row = 0; row < MAPCELL_DIM; row++)
+            for (int32_t row = 0; row < MapCellDim; row++)
             {
-                for (int32_t col = 0; col < MAPCELL_DIM; col++)
+                for (int32_t col = 0; col < MapCellDim; col++)
                 {
                     if (tile.GetCellPassable(row, col) == 0)
                     {
@@ -2971,11 +2927,11 @@ auto MCMover::CalcMoveGoal(MCGameObject* target, MCVector3D moveGoal, int32_t is
 
             if (overlayType != 0)
             {
-                const int32_t* weight = overlayWeights + OverlayWeightIndex[overlayType];
+                const int32_t* weight = overlayWeights + OverlayWeightIndex(overlayType);
 
-                for (int32_t row = 0; row < MAPCELL_DIM; row++)
+                for (int32_t row = 0; row < MapCellDim; row++)
                 {
-                    for (int32_t col = 0; col < MAPCELL_DIM; col++)
+                    for (int32_t col = 0; col < MapCellDim; col++)
                     {
                         block[row * GOALMAP_CELL_DIM + col] -= *weight++;
                     }
@@ -3024,7 +2980,7 @@ auto MCMover::CalcMoveGoal(MCGameObject* target, MCVector3D moveGoal, int32_t is
     }
 
     // An elemental asks its group mates ahead of it for their last targets, and drops the answers.
-    if (ObjectClass == ELEMENTAL && Group != nullptr)
+    if (ObjectClass == MCObjectClass::Elemental && Group != nullptr)
     {
         const int32_t numMovers = Group->GetMovers(movers);
 
@@ -3056,12 +3012,12 @@ auto MCMover::CalcMoveGoal(MCGameObject* target, MCVector3D moveGoal, int32_t is
         goalRow = best[i].Row;
         MCVector3D cellCenter;
         cellCenter.X =
-            static_cast<float>((static_cast<double>(goalCol + mapCellC0) + 0.5f) * MetersPerCell - halfMapSide);
-        cellCenter.Y = static_cast<float>((halfMapSide - static_cast<double>(goalRow + mapCellR0) * MetersPerCell) -
-                                          static_cast<double>(MetersPerCell) * 0.5f);
+            static_cast<float>((static_cast<double>(goalCol + mapCellC0) + 0.5f) * MetersPerCell() - halfMapSide);
+        cellCenter.Y = static_cast<float>((halfMapSide - static_cast<double>(goalRow + mapCellR0) * MetersPerCell()) -
+                                          static_cast<double>(MetersPerCell()) * 0.5f);
         cellCenter.Z = 0.0f;
 
-        if (GameMap->LineOfFire(cellCenter, moveGoal) != 0)
+        if (GameMap()->LineOfFire(cellCenter, moveGoal) != 0)
         {
             break;
         }
@@ -3071,8 +3027,8 @@ auto MCMover::CalcMoveGoal(MCGameObject* target, MCVector3D moveGoal, int32_t is
     goalCol += mapCellC0;
     target->RestoreLineOfFire();
 
-    newGoal.X = static_cast<float>((static_cast<double>(goalCol) + 0.5) * MetersPerCell - halfMapSide);
-    newGoal.Y = static_cast<float>(halfMapSide - (static_cast<double>(goalRow) + 0.5) * MetersPerCell);
+    newGoal.X = static_cast<float>((static_cast<double>(goalCol) + 0.5) * MetersPerCell() - halfMapSide);
+    newGoal.Y = static_cast<float>(halfMapSide - (static_cast<double>(goalRow) + 0.5) * MetersPerCell());
     newGoal.Z = Terrain()->GetTerrainElevation(newGoal);
     CalcOffsetMoveGoal(Position, newGoal, newGoal);
     return 0;
@@ -3081,26 +3037,26 @@ auto MCMover::CalcMoveGoal(MCGameObject* target, MCVector3D moveGoal, int32_t is
 auto MCMover::CalcMovePath(MCMovePath* path, int32_t pathType, MCVector3D start, MCVector3D goal, int32_t* goalCell,
                            uint32_t params) -> int32_t
 {
-    if (PathFindMap == nullptr)
+    if (PathFindMap() == nullptr)
     {
-        Fatal(0, " No PathFindMap in Mover::calcMovePath ");
+        Fatal(0, " No PathFindMap() in Mover::calcMovePath ");
     }
 
     int32_t startTileR;
     int32_t startTileC;
     int32_t startCellR;
     int32_t startCellC;
-    GameMap->WorldToMapPos(start, startTileR, startTileC, startCellR, startCellC);
+    GameMap()->WorldToMapPos(start, startTileR, startTileC, startCellR, startCellC);
     int32_t goalTileR;
     int32_t goalTileC;
     int32_t goalCellR;
     int32_t goalCellC;
-    GameMap->WorldToMapPos(goal, goalTileR, goalTileC, goalCellR, goalCellC);
+    GameMap()->WorldToMapPos(goal, goalTileR, goalTileC, goalCellR, goalCellC);
     path->Clear();
 
     int32_t numOffsets;
     int32_t jumpCost;
-    int32_t* overlayWeights = &OverlayWeightTable[OverlayWeightClass * OVERLAY_WEIGHT_LEVEL_SIZE];
+    int32_t* overlayWeights = &OverlayWeightTable[OverlayWeightClass * OverlayWeightLevelSize];
 
     if (pathType == 1)
     {
@@ -3133,15 +3089,15 @@ auto MCMover::CalcMovePath(MCMovePath* path, int32_t pathType, MCVector3D start,
 
         SetUpPathJumps(this, numOffsets, jumpCost);
         const int32_t dim = SimpleMovePathRange * 2 + 1;
-        PathFindMap->SetUp(GameMap, uLr, uLc, dim, dim, &start, (startTileR - uLr) * MAPCELL_DIM + startCellR,
-                           (startTileC - uLc) * MAPCELL_DIM + startCellC, goal,
-                           (goalTileR - uLr) * MAPCELL_DIM + goalCellR, (goalTileC - uLc) * MAPCELL_DIM + goalCellC,
-                           overlayWeights, moveLevel, jumpCost, numOffsets, params);
-        DebugMovePathType = 1;
+        PathFindMap()->SetUp(*GameMap(), uLr, uLc, dim, dim, &start, (startTileR - uLr) * MapCellDim + startCellR,
+                             (startTileC - uLc) * MapCellDim + startCellC, goal,
+                             (goalTileR - uLr) * MapCellDim + goalCellR, (goalTileC - uLc) * MapCellDim + goalCellC,
+                             overlayWeights, moveLevel, jumpCost, numOffsets, params);
+        PathFindMap()->DebugMovePathType = 1;
         // The caller's goalCell is left alone.
         int32_t simpleGoalCell[2];
-        const int32_t result = PathFindMap->CalcPath(path, nullptr, simpleGoalCell);
-        JumpOnBlocked = 0;
+        const int32_t result = PathFindMap()->CalcPath(path, nullptr, simpleGoalCell);
+        PathFindMap()->JumpOnBlocked = false;
         return result;
     }
 
@@ -3159,17 +3115,17 @@ auto MCMover::CalcMovePath(MCMovePath* path, int32_t pathType, MCVector3D start,
         return 0;
     }
 
-    const int32_t sectorDim = GlobalMoveMap->SectorDim;
+    const int32_t sectorDim = GlobalMoveMap()->SectorDim;
     const int32_t uLr = (startTileR / sectorDim) * sectorDim;
     const int32_t uLc = (startTileC / sectorDim) * sectorDim;
     SetUpPathJumps(this, numOffsets, jumpCost);
-    PathFindMap->SetUp(GameMap, uLr, uLc, GlobalMoveMap->SectorDim, GlobalMoveMap->SectorDim, &start,
-                       (startTileR - uLr) * MAPCELL_DIM + startCellR, (startTileC - uLc) * MAPCELL_DIM + startCellC,
-                       goal, (goalTileR - uLr) * MAPCELL_DIM + goalCellR, (goalTileC - uLc) * MAPCELL_DIM + goalCellC,
-                       overlayWeights, moveLevel, jumpCost, numOffsets, params);
-    DebugMovePathType = pathType;
-    const int32_t result = PathFindMap->CalcPath(path, nullptr, goalCell);
-    JumpOnBlocked = 0;
+    PathFindMap()->SetUp(*GameMap(), uLr, uLc, GlobalMoveMap()->SectorDim, GlobalMoveMap()->SectorDim, &start,
+                         (startTileR - uLr) * MapCellDim + startCellR, (startTileC - uLc) * MapCellDim + startCellC,
+                         goal, (goalTileR - uLr) * MapCellDim + goalCellR, (goalTileC - uLc) * MapCellDim + goalCellC,
+                         overlayWeights, moveLevel, jumpCost, numOffsets, params);
+    PathFindMap()->DebugMovePathType = pathType;
+    const int32_t result = PathFindMap()->CalcPath(path, nullptr, goalCell);
+    PathFindMap()->JumpOnBlocked = false;
     return result;
 }
 
@@ -3180,21 +3136,21 @@ auto MCMover::CalcEscapePath(MCMovePath* path, MCVector3D start, MCVector3D goal
     escapeGoal.Y = -999999.0f;
     escapeGoal.Z = -999999.0f;
 
-    if (PathFindMap == nullptr)
+    if (PathFindMap() == nullptr)
     {
-        Fatal(0, " No PathFindMap in Mover::calcMovePath ");
+        Fatal(0, " No PathFindMap() in Mover::calcMovePath ");
     }
 
     int32_t startTileR;
     int32_t startTileC;
     int32_t startCellR;
     int32_t startCellC;
-    GameMap->WorldToMapPos(start, startTileR, startTileC, startCellR, startCellC);
+    GameMap()->WorldToMapPos(start, startTileR, startTileC, startCellR, startCellC);
     int32_t goalTileR;
     int32_t goalTileC;
     int32_t goalCellR;
     int32_t goalCellC;
-    GameMap->WorldToMapPos(goal, goalTileR, goalTileC, goalCellR, goalCellC);
+    GameMap()->WorldToMapPos(goal, goalTileR, goalTileC, goalCellR, goalCellC);
     path->Clear();
 
     int32_t uLr = startTileR - SimpleMovePathRange;
@@ -3227,33 +3183,33 @@ auto MCMover::CalcEscapePath(MCMovePath* path, MCVector3D start, MCVector3D goal
     int32_t jumpCost;
     SetUpPathJumps(this, numOffsets, jumpCost);
     const int32_t dim = SimpleMovePathRange * 2 + 1;
-    FindingEscapePath = 1;
-    PathFindMap->SetUp(GameMap, uLr, uLc, dim, dim, &start, (startTileR - uLr) * MAPCELL_DIM + startCellR,
-                       (startTileC - uLc) * MAPCELL_DIM + startCellC, goal, (goalTileR - uLr) * MAPCELL_DIM + goalCellR,
-                       (goalTileC - uLc) * MAPCELL_DIM + goalCellC,
-                       &OverlayWeightTable[OverlayWeightClass * OVERLAY_WEIGHT_LEVEL_SIZE], moveLevel, jumpCost,
-                       numOffsets, params);
-    DebugMovePathType = 0;
+    PathFindMap()->FindingEscapePath = true;
+    PathFindMap()->SetUp(*GameMap(), uLr, uLc, dim, dim, &start, (startTileR - uLr) * MapCellDim + startCellR,
+                         (startTileC - uLc) * MapCellDim + startCellC, goal, (goalTileR - uLr) * MapCellDim + goalCellR,
+                         (goalTileC - uLc) * MapCellDim + goalCellC,
+                         &OverlayWeightTable[OverlayWeightClass * OverlayWeightLevelSize], moveLevel, jumpCost,
+                         numOffsets, params);
+    PathFindMap()->DebugMovePathType = 0;
     // goalCell is unused: the escape goal cell goes to a local.
     int32_t escapeGoalCell[2];
-    const int32_t result = PathFindMap->CalcEscapePath(path, &escapeGoal, escapeGoalCell);
-    JumpOnBlocked = 0;
-    FindingEscapePath = 0;
+    const int32_t result = PathFindMap()->CalcEscapePath(path, &escapeGoal, escapeGoalCell);
+    PathFindMap()->JumpOnBlocked = false;
+    PathFindMap()->FindingEscapePath = false;
     return result;
 }
 
 auto MCMover::GetAdjacentCellPathLocked(int32_t tileR, int32_t tileC, int32_t cellR, int32_t cellC, int32_t dir) -> int
 {
-    const int32_t* adjCell = AdjCellTable[cellR * MAPCELL_DIM + cellC][dir];
-    return GameMap->Map[(adjCell[0] + tileR) * GameMap->Width + adjCell[1] + tileC].GetCellPathLocked(adjCell[2],
-                                                                                                      adjCell[3]) != 0;
+    const int32_t* adjCell = AdjCellTable[cellR * MapCellDim + cellC][dir].data();
+    return GameMap()->Map[(adjCell[0] + tileR) * GameMap()->Width + adjCell[1] + tileC].GetCellPathLocked(
+               adjCell[2], adjCell[3]) != 0;
 }
 
 auto MCMover::GetPathLocked(int32_t tileR, int32_t tileC, int32_t cellR, int32_t cellC, int32_t diameter) -> int
 {
     if (diameter == 1)
     {
-        return GameMap->Map[GameMap->Width * tileR + tileC].GetCellPathLocked(cellR, cellC) != 0;
+        return GameMap()->Map[GameMap()->Width * tileR + tileC].GetCellPathLocked(cellR, cellC) != 0;
     }
 
     if (diameter != 3)
@@ -3276,7 +3232,7 @@ auto MCMover::SetPathLock(int32_t tileR, int32_t tileC, int32_t cellR, int32_t c
 
     if (diameter == 1)
     {
-        GameMap->Map[GameMap->Width * tileR + tileC].SetCellPathLocked(cellR, cellC, locked);
+        GameMap()->Map[GameMap()->Width * tileR + tileC].SetCellPathLocked(cellR, cellC, locked);
         return;
     }
 
@@ -3319,7 +3275,7 @@ auto MCMover::SetPathRangeLock(int set, int32_t range) -> int32_t
         for (int32_t i = 0; i < NumPathRangeLocks; i++)
         {
             const int32_t* lock = PathRangeLocks[i];
-            GameMap->Map[lock[0] * GameMap->Width + lock[1]].SetCellPathLocked(lock[2], lock[3], 0);
+            GameMap()->Map[lock[0] * GameMap()->Width + lock[1]].SetCellPathLocked(lock[2], lock[3], 0);
         }
 
         NumPathRangeLocks = 0;
@@ -3348,7 +3304,7 @@ auto MCMover::SetPathRangeLock(int set, int32_t range) -> int32_t
     for (int32_t step = path->CurStep; step < lastStep; step++)
     {
         const MCPathStep& pathStep = path->StepList[step];
-        MCMapTile& tile = GameMap->Map[pathStep.TileR * GameMap->Width + pathStep.TileC];
+        MCMapTile& tile = GameMap()->Map[pathStep.TileR * GameMap()->Width + pathStep.TileC];
 
         // Someone else holds the cell: the cells locked so far stay locked.
         if (tile.GetCellPathLocked(pathStep.CellR, pathStep.CellC) != 0)
@@ -3370,7 +3326,7 @@ auto MCMover::SetPathRangeLock(int set, int32_t range) -> int32_t
 auto MCMover::UpdatePathLock(int set) -> void
 {
     // Not while a mech is in the air.
-    if (ObjectClass == BATTLEMECH && static_cast<MCBattleMech*>(this)->InJump != 0)
+    if (ObjectClass == MCObjectClass::BattleMech && static_cast<MCBattleMech*>(this)->InJump != 0)
     {
         return;
     }
@@ -3407,7 +3363,7 @@ auto MCMover::UpdateHustleTime() -> void
 {
     const MCObjectPosition* objectPosition = ObjPosition;
 
-    switch (GameMap->Map[objectPosition->TileR * GameMap->Width + objectPosition->TileC].Overlay & 0x7f)
+    switch (GameMap()->Map[objectPosition->TileR * GameMap()->Width + objectPosition->TileC].Overlay & 0x7f)
     {
         case 0x25:
         case 0x26:
@@ -3436,16 +3392,16 @@ auto MCMover::BounceToAdjCell() -> int32_t
     while (true)
     {
         const MCObjectPosition* objectPosition = ObjPosition;
-        const int32_t* adjCell = AdjCellTable[objectPosition->CellR * MAPCELL_DIM + objectPosition->CellC][dir];
+        const int32_t* adjCell = AdjCellTable[objectPosition->CellR * MapCellDim + objectPosition->CellC][dir].data();
         adjTileR = adjCell[0] + objectPosition->TileR;
         adjTileC = adjCell[1] + objectPosition->TileC;
         adjCellR = adjCell[2];
         adjCellC = adjCell[3];
         // The tile's words are read before the overlay weight is.
-        MCMapTile tile = GameMap->Map[GameMap->Width * adjTileR + adjTileC];
+        MCMapTile tile = GameMap()->Map[GameMap()->Width * adjTileR + adjTileC];
         uint32_t passable = tile.GetCellPassable(adjCellR, adjCellC);
 
-        if (GameMap->GetOverlayWeight(adjTileR, adjTileC, adjCellR, adjCellC, this) > 9999)
+        if (GameMap()->GetOverlayWeight(adjTileR, adjTileC, adjCellR, adjCellC, this) > 9999)
         {
             passable = 0;
         }
@@ -3465,7 +3421,7 @@ auto MCMover::BounceToAdjCell() -> int32_t
 
     const MCObjectPosition* objectPosition = ObjPosition;
     const uint32_t wasLocked =
-        GameMap->Map[objectPosition->TileR * GameMap->Width + objectPosition->TileC].GetCellPathLocked(
+        GameMap()->Map[objectPosition->TileR * GameMap()->Width + objectPosition->TileC].GetCellPathLocked(
             objectPosition->CellR, objectPosition->CellC);
 
     if (wasLocked != 0)
@@ -3475,14 +3431,14 @@ auto MCMover::BounceToAdjCell() -> int32_t
 
     const double halfMapSide = static_cast<double>(WorldUnitsMapSide) * 0.5f;
     MCVector3D cellCenter;
-    cellCenter.X = static_cast<float>((static_cast<double>(adjCellC + adjTileC * MAPCELL_DIM) + 0.5f) * MetersPerCell -
+    cellCenter.X = static_cast<float>((static_cast<double>(adjCellC + adjTileC * MapCellDim) + 0.5f) * MetersPerCell() -
                                       halfMapSide);
     cellCenter.Y =
-        static_cast<float>((halfMapSide - static_cast<double>(adjCellR + adjTileR * MAPCELL_DIM) * MetersPerCell) -
-                           static_cast<double>(MetersPerCell) * 0.5f);
+        static_cast<float>((halfMapSide - static_cast<double>(adjCellR + adjTileR * MapCellDim) * MetersPerCell()) -
+                           static_cast<double>(MetersPerCell()) * 0.5f);
     cellCenter.Z = 0.0f;
     SetPosition(cellCenter);
-    GameObjectMap->UpdateObject(this, 0);
+    GameObjectMap()->UpdateObject(this);
     Pilot->PausePath();
 
     if (wasLocked != 0)
@@ -3496,15 +3452,15 @@ auto MCMover::BounceToAdjCell() -> int32_t
 auto MCMover::CalcMovePath(MCMovePath* path, MCVector3D start, int32_t thruArea, int32_t goalDoor, MCVector3D finalGoal,
                            MCVector3D* goal, int32_t* goalCell, uint32_t params) -> int32_t
 {
-    if (PathFindMap == nullptr)
+    if (PathFindMap() == nullptr)
     {
-        Fatal(0, " No PathFindMap in Mover::calcMovePath ");
+        Fatal(0, " No PathFindMap() in Mover::calcMovePath ");
     }
 
     // Within the sector of the area the path goes through.
-    const MCGlobalMapArea& area = GlobalMoveMap->Areas[thruArea];
-    const int32_t uLr = area.SectorR * GlobalMoveMap->SectorDim;
-    const int32_t uLc = area.SectorC * GlobalMoveMap->SectorDim;
+    const MCGlobalMapArea& area = GlobalMoveMap()->Areas[thruArea];
+    const int32_t uLr = area.SectorR * GlobalMoveMap()->SectorDim;
+    const int32_t uLc = area.SectorC * GlobalMoveMap()->SectorDim;
     path->Clear();
 
     if (MaxRunSpeed == 0.0f)
@@ -3527,21 +3483,20 @@ auto MCMover::CalcMovePath(MCMovePath* path, MCVector3D start, int32_t thruArea,
     int32_t startTileC;
     int32_t startCellR;
     int32_t startCellC;
-    GameMap->WorldToMapPos(start, startTileR, startTileC, startCellR, startCellC);
-    const int32_t sectorDim = GlobalMoveMap->SectorDim;
+    GameMap()->WorldToMapPos(start, startTileR, startTileC, startCellR, startCellC);
+    const int32_t sectorDim = GlobalMoveMap()->SectorDim;
 
-    if (PathFindMap->SetUp(GameMap, uLr, uLc, sectorDim, sectorDim, &start,
-                           (startTileR - uLr) * MAPCELL_DIM + startCellR, (startTileC - uLc) * MAPCELL_DIM + startCellC,
-                           thruArea, goalDoor, finalGoal,
-                           &OverlayWeightTable[OverlayWeightClass * OVERLAY_WEIGHT_LEVEL_SIZE], moveLevel, jumpCost,
-                           numOffsets, params) == -1)
+    if (!PathFindMap()->SetUp(
+            *GameMap(), uLr, uLc, sectorDim, sectorDim, &start, (startTileR - uLr) * MapCellDim + startCellR,
+            (startTileC - uLc) * MapCellDim + startCellC, thruArea, goalDoor, finalGoal,
+            &OverlayWeightTable[OverlayWeightClass * OverlayWeightLevelSize], moveLevel, jumpCost, numOffsets, params))
     {
-        JumpOnBlocked = 0;
+        PathFindMap()->JumpOnBlocked = false;
         return -999;
     }
 
-    const int32_t result = PathFindMap->CalcPath(path, goal, goalCell);
-    JumpOnBlocked = 0;
+    const int32_t result = PathFindMap()->CalcPath(path, goal, goalCell);
+    PathFindMap()->JumpOnBlocked = false;
     return result;
 }
 
@@ -3880,7 +3835,7 @@ auto MCMover::CalcOptimalRange(MCGameObject* target) -> int
     // Else the range step whose summed ratings (then damage rates, then the farthest step) are best.
     auto setItem = [](int32_t index, float value, int32_t id)
     {
-        if (index > -1 && index < SortList->NumItems)
+        if (index > -1 && index < SortList->NumItems())
         {
             SortList->List[index].Id = id;
             SortList->List[index].Value = value;
@@ -3939,7 +3894,7 @@ auto MCMover::CalcOptimalRange(MCGameObject* target) -> int
         }
 
         SortList->Sort(1);
-        const MCSortListNode* node = SortList->List.get();
+        const MCSortListNode* node = SortList->List.data();
         bestStep = node[0].Id;
 
         if (node[1].Value == node[0].Value)
@@ -4043,7 +3998,7 @@ auto MCMover::IsWeaponIndex(int32_t itemIndex) -> int
 
 auto MCMover::IsWeaponMissile(int32_t weaponIndex) -> int
 {
-    return MasterComponentList[Inventory[weaponIndex].MasterID].Form == COMPONENT_FORM_WEAPON_MISSILE ? 1 : 0;
+    return MasterComponentList[Inventory[weaponIndex].MasterID].Form == MCComponentForm::WeaponMissile ? 1 : 0;
 }
 
 auto MCMover::IsWeaponReady(int32_t weaponIndex) -> int
@@ -4095,7 +4050,7 @@ auto MCMover::TallyAmmo(int32_t ammoMasterId) -> int32_t
 auto MCMover::NeedsRefit(int armorOnly) -> int
 {
     // Only a mech without a refit vehicle on the way.
-    if (RefitBuddy != nullptr || ObjectClass != BATTLEMECH)
+    if (RefitBuddy != nullptr || ObjectClass != MCObjectClass::BattleMech)
     {
         return 0;
     }
@@ -4213,7 +4168,7 @@ auto MCMover::SortWeapons(int32_t* weaponList, int32_t* valueList, int32_t listS
     // Best attack chance first; only sort type 0 is known (the id goes in before the type is checked).
     auto setId = [](int32_t index, int32_t id)
     {
-        if (index > -1 && index < SortList->NumItems)
+        if (index > -1 && index < SortList->NumItems())
         {
             SortList->List[index].Id = id;
         }
@@ -4221,7 +4176,7 @@ auto MCMover::SortWeapons(int32_t* weaponList, int32_t* valueList, int32_t listS
 
     auto setValue = [](int32_t index, float value)
     {
-        if (index > -1 && index < SortList->NumItems)
+        if (index > -1 && index < SortList->NumItems())
         {
             SortList->List[index].Value = value;
         }
@@ -4315,11 +4270,11 @@ auto MCMover::CalcAttackChance(MCGameObject* target, int32_t aimLocation, float 
 
     if (MPlayer == nullptr)
     {
-        if (GetAlignment() == HomeTeam->Alignment)
+        if (GetAlignment() == HomeTeam()->Alignment)
         {
             gunnery = ApplyDifficultySkill(gunnery, 1);
         }
-        else if (MPlayer == nullptr && GetAlignment() != HomeTeam->Alignment)
+        else if (MPlayer == nullptr && GetAlignment() != HomeTeam()->Alignment)
         {
             gunnery = ApplyDifficultySkill(gunnery, 0);
         }
@@ -4372,7 +4327,7 @@ auto MCMover::CalcAttackChance(MCGameObject* target, int32_t aimLocation, float 
     modifiers = rangeModifier + modifiers;
 
     // Port fix: the original reads a null target's class when aimLocation isn't -1.
-    const bool mechTarget = target != nullptr && target->ObjectClass == BATTLEMECH;
+    const bool mechTarget = target != nullptr && target->ObjectClass == MCObjectClass::BattleMech;
 
     if (aimLocation > -1 && mechTarget)
     {
@@ -4495,14 +4450,14 @@ auto MCMover::Disable(uint32_t cause) -> void
     Status = 1;
     DisableThisFrame = 1;
 
-    if (Alignment == HomeTeam->Alignment)
+    if (Alignment == HomeTeam()->Alignment)
     {
         FriendlyDestroyed = 1;
     }
     else
     {
         // An enemy mech is salvage, unless the roll (or the cause) blows it apart.
-        if (MPlayer == nullptr && ObjectClass == BATTLEMECH)
+        if (MPlayer == nullptr && ObjectClass == MCObjectClass::BattleMech)
         {
             if (SalvageRoll == -999)
             {
@@ -4566,7 +4521,7 @@ auto MCMover::StartUp() -> void
 
 auto MCMover::IsWithdrawing() -> int
 {
-    return Pilot->CurTacOrder.Code == TACTICAL_ORDER_WITHDRAW ? 1 : 0;
+    return Pilot->CurTacOrder.Code == MCTacticalOrderCode::Withdraw ? 1 : 0;
 }
 
 auto MCMover::GetGroupId() -> int32_t

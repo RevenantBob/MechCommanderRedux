@@ -6,7 +6,7 @@
 #include "engine/MCElementBuffer.h"
 #include "engine/MCVfxElement.h"
 #include "main/main.h"
-#include "object/gameobj.h"
+#include "object/MCBigGameObject.h"
 #include "sprite/MCShape.h"
 #include "sprite/MCSpriteMath.h"
 #include "terrain/MCTerrain.h"

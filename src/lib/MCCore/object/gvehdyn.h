@@ -1,6 +1,6 @@
 #pragma once
 
-#include "object/dyn.h"
+#include "object/MCDynamics.h"
 
 /// <summary>A ground vehicle type's turn rates and speed limits (the FIT's "VehicleDynamics" block).</summary>
 /// <remarks>Original source: <c>object\gvehdyn.cpp</c>, <c>object\gvehdyn.h</c>; 0x1c bytes.</remarks>

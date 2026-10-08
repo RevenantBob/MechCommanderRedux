@@ -2,7 +2,7 @@
 #include "object/mechdyn.h"
 #include "lib/MCFitIniFile.h"
 #include "main/main.h"
-#include "object/control.h"
+#include "object/MCControl.h"
 #include "object/mech.h"
 #include "object/mechctrl.h"
 #include "sprite/MCMechActor.h"

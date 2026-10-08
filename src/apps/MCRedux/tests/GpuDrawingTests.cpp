@@ -2,7 +2,7 @@
 #include "MCTest.h"
 #include "ScreenInput.h"
 #include "TestGame.h"
-#include "ai/tacordr.h"
+#include "ai/MCTacticalOrder.h"
 #include "camera/MCCamera.h"
 #include "gui/aport.h"
 #include "gui/asystem.h"
@@ -535,14 +535,13 @@ TEST_CASE_ISOLATED("game: the GPU alone draws mission 1's battle without per-fra
         MCMover* mover = GetMoverFromPartId(partId);
         REQUIRE(mover != nullptr);
         MCTacticalOrder order;
-        order.Init(ORDER_ORIGIN_PLAYER, TACTICAL_ORDER_ATTACK_OBJECT, 0);
+        order.Reset(MCOrderOrigin::Player, MCTacticalOrderCode::AttackObject, 0);
         order.Target = uller;
         order.AttackParams.Type = 1;
         order.AttackParams.Method = 0;
         order.AttackParams.Range = -1;
         order.AttackParams.Pursue = -1;
         mover->HandleTacticalOrder(order, 1, 0);
-        order.Destroy();
     }
 
     int64_t frames = 0;

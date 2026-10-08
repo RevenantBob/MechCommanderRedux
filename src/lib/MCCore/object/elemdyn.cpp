@@ -2,7 +2,7 @@
 #include "object/elemdyn.h"
 #include "lib/MCFitIniFile.h"
 #include "main/main.h"
-#include "object/control.h"
+#include "object/MCControl.h"
 #include "object/elemctrl.h"
 #include "object/elemntl.h"
 #include "sprite/MCElementalActor.h"

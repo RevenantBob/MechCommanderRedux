@@ -1,6 +1,6 @@
 #include "stdafx.h"
 #include "terrain/MCMapBlockManager.h"
-#include "ai/move.h"
+#include "ai/MCMoveSystem.h"
 #include "lib/MCFatal.h"
 #include "lib/MCPacketFile.h"
 #include "logistics/logmain.h"
@@ -22,9 +22,9 @@ namespace
     /// <summary>The map tile at (<paramref name="row"/>, <paramref name="col"/>), asserting it is on the map.</summary>
     MCMapTile& MapTileAt(int32_t row, int32_t col)
     {
-        const int ok = (row >= 0 && row < GameMap->Height && col >= 0 && col < GameMap->Width) ? 1 : 0;
+        const int ok = (row >= 0 && row < GameMap()->Height && col >= 0 && col < GameMap()->Width) ? 1 : 0;
         Assert(ok, 0, " Map Tile out of bounds ");
-        return GameMap->Map[GameMap->Width * row + col];
+        return GameMap()->Map[GameMap()->Width * row + col];
     }
 
     /// <summary>The elevation level of a tile (bits 7-12 of its cells word).</summary>
@@ -75,7 +75,7 @@ namespace
         const uint32_t tileB = MapTileAt(row, col + 1).Cells;
         const uint32_t tileC = MapTileAt(row + 1, col + 1).Cells;
         const uint32_t tileD = MapTileAt(row + 1, col).Cells;
-        const int32_t base = GameMap->BaseElevation;
+        const int32_t base = GameMap()->BaseElevation;
         const float mpe = MCTerrain::MetersPerElevLevel;
         const auto levelOf = [base](uint32_t cells) -> double
         { return static_cast<double>(static_cast<int64_t>(TileElevation(cells) + base)); };
@@ -187,7 +187,7 @@ auto MCMapBlockManager::RaiseOffMapBlock() -> void
 
     for (size_t i = 0; i < _BlockSize; i++)
     {
-        offMap[i].Elevation = static_cast<uint8_t>(static_cast<uint8_t>(GameMap->BaseElevation) + 1);
+        offMap[i].Elevation = static_cast<uint8_t>(static_cast<uint8_t>(GameMap()->BaseElevation) + 1);
     }
 }
 
@@ -433,12 +433,12 @@ auto TerrainElevationAt(const MCVector3D& pos) -> float
     const int32_t col = static_cast<int32_t>(std::floor(gridX)) + half;
     const int32_t row = half - static_cast<int32_t>(std::floor(gridY));
 
-    if (row < 0 || row >= GameMap->Height || col < 0 || col >= GameMap->Width)
+    if (row < 0 || row >= GameMap()->Height || col < 0 || col >= GameMap()->Width)
     {
         return 0.0f;
     }
 
-    if (row + 1 < 0 || row + 1 >= GameMap->Height || col + 1 < 0 || col + 1 >= GameMap->Width)
+    if (row + 1 < 0 || row + 1 >= GameMap()->Height || col + 1 < 0 || col + 1 >= GameMap()->Width)
     {
         return 0.0f;
     }
@@ -466,11 +466,11 @@ auto TerrainElevationAt(const MCVector3D& pos) -> float
             level = std::max({level, levelB, levelC, levelD});
         }
 
-        return static_cast<float>(static_cast<Ext>(static_cast<int32_t>(GameMap->BaseElevation + level)) *
+        return static_cast<float>(static_cast<Ext>(static_cast<int32_t>(GameMap()->BaseElevation + level)) *
                                   MCTerrain::MetersPerElevLevel);
     }
 
-    const int32_t base = GameMap->BaseElevation;
+    const int32_t base = GameMap()->BaseElevation;
     const float mpe = MCTerrain::MetersPerElevLevel;
     const auto levelOf = [base](uint32_t cells)
     { return static_cast<int64_t>(static_cast<uint32_t>(static_cast<int32_t>(TileElevation(cells)) + base)); };

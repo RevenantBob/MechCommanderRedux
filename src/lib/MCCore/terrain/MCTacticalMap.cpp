@@ -17,13 +17,13 @@
 #include "main/main.h"
 #include "mission/scenario.h"
 #include "network/multplyr.h"
-#include "object/gameobj.h"
+#include "object/MCBigGameObject.h"
 #include "object/gvehicl.h"
 #include "object/mover.h"
-#include "object/objtype.h"
-#include "object/object.h"
-#include "object/objque.h"
-#include "object/team.h"
+#include "object/MCObjectType.h"
+#include "object/MCObjectSystem.h"
+#include "object/MCObjectQueue.h"
+#include "object/MCForces.h"
 #include "object/warrior.h"
 #include "platform/MCRenderer.h"
 #include "sound/radio.h"
@@ -66,8 +66,8 @@ namespace
     /// <summary>A mech, vehicle, elemental or other mover (the classes that have a pilot and a sensor).</summary>
     bool IsMoverClass(const MCGameObject* obj)
     {
-        return obj->ObjectClass == BATTLEMECH || obj->ObjectClass == GROUNDVEHICLE || obj->ObjectClass == ELEMENTAL ||
-               obj->ObjectClass == MOVER;
+        return obj->ObjectClass == MCObjectClass::BattleMech || obj->ObjectClass == MCObjectClass::GroundVehicle ||
+               obj->ObjectClass == MCObjectClass::Elemental || obj->ObjectClass == MCObjectClass::Mover;
     }
 
     /// <summary>
@@ -527,10 +527,7 @@ auto TogglePalette() -> void
     TacticalMap()->TogglePalette();
 }
 
-MCTacticalMap::MCTacticalMap()
-{
-    InfoWatcher = {};
-}
+MCTacticalMap::MCTacticalMap() = default;
 
 MCTacticalMap::~MCTacticalMap()
 {
@@ -1074,12 +1071,12 @@ auto MCTacticalMap::RefreshPage() -> void
             InfoText->ShowGuiWindow(0);
         }
 
-        if (obj->ObjectClass == BATTLEMECH)
+        if (obj->ObjectClass == MCObjectClass::BattleMech)
         {
             InfoText->FirstPixel = firstPixel;
             InfoText->PositionScrollTab();
         }
-        else if (obj->ObjectClass == GROUNDVEHICLE)
+        else if (obj->ObjectClass == MCObjectClass::GroundVehicle)
         {
             if (DataDisplayMode == 1)
             {
@@ -1102,8 +1099,8 @@ auto MCTacticalMap::RefreshPage() -> void
 
         if (Turn > 1)
         {
-            const auto count = static_cast<int32_t>(HomeTeam->NumObjectives);
-            int32_t objectiveNum = HomeTeam->FirstObjective;
+            const auto count = static_cast<int32_t>(HomeTeam()->NumObjectives);
+            int32_t objectiveNum = HomeTeam()->FirstObjective;
 
             for (int32_t i = 0; i < count; i++, objectiveNum++)
             {
@@ -1488,11 +1485,11 @@ auto MCTacticalMap::RevealObjectives() -> void
     }
 
     // Once a pending objective with a position is found, every objective's area is revealed in the fog of war.
-    const auto numObjectives = static_cast<int32_t>(HomeTeam->NumObjectives);
+    const auto numObjectives = static_cast<int32_t>(HomeTeam()->NumObjectives);
 
     for (int32_t i = 0; i < numObjectives; i++)
     {
-        const MCScenarioObjective& objective = Scenario->Objectives[HomeTeam->FirstObjective + i];
+        const MCScenarioObjective& objective = Scenario->Objectives[HomeTeam()->FirstObjective + i];
 
         if (objective.Position[0] == -99.0f || objective.Position[1] == -99.0f || objective.Position[2] == -99.0f ||
             objective.Status != 0)
@@ -1502,7 +1499,7 @@ auto MCTacticalMap::RevealObjectives() -> void
 
         for (int32_t j = 0; j < numObjectives; j++)
         {
-            const MCScenarioObjective& area = Scenario->Objectives[HomeTeam->FirstObjective + j];
+            const MCScenarioObjective& area = Scenario->Objectives[HomeTeam()->FirstObjective + j];
 
             if (area.Radius <= 0.0)
             {
@@ -1862,13 +1859,14 @@ auto MCTacticalMap::GetVideoRect() -> tagRECT
 
 auto MCTacticalMap::AddSalvage(MCGameObject* obj) -> int
 {
-    if (obj->ObjectClass != BATTLEMECH && obj->ObjectClass != GROUNDVEHICLE && obj->IsBuilding() == 0)
+    if (obj->ObjectClass != MCObjectClass::BattleMech && obj->ObjectClass != MCObjectClass::GroundVehicle &&
+        obj->IsBuilding() == 0)
     {
         return 0;
     }
 
     // A mech whose status byte is 2 isn't salvage.
-    if (static_cast<uint8_t>(obj->Status) == 2 && obj->ObjectClass == BATTLEMECH)
+    if (static_cast<uint8_t>(obj->Status) == 2 && obj->ObjectClass == MCObjectClass::BattleMech)
     {
         return 0;
     }
@@ -1927,7 +1925,7 @@ auto MCTacticalMap::RefreshSalvageList() -> void
 
 auto MCTacticalMap::SetID(int32_t partId) -> void
 {
-    auto* obj = static_cast<MCGameObject*>(ObjectList->FindObjectFromPart(partId));
+    auto* obj = static_cast<MCGameObject*>(ObjectList()->FindObjectFromPart(partId));
 
     if (DisplayType != MCTacmapPage::Info)
     {
@@ -1952,7 +1950,7 @@ auto MCTacticalMap::SetID(int32_t partId) -> void
     // held); the port keeps the last one, starting with the generic vehicle's.
     static std::string shapeName = "vr106";
 
-    if (obj->ObjectClass == BATTLEMECH)
+    if (obj->ObjectClass == MCObjectClass::BattleMech)
     {
         // A mech: front, rear and payload views, and the pilot's picture.
         MCGuiToolButton& front = *DataButtons[0];
@@ -1965,7 +1963,7 @@ auto MCTacticalMap::SetID(int32_t partId) -> void
         shapeName = std::format("mechrep{:02}", static_cast<int32_t>(obj->GetObjectType()->IconNumber));
         InfoPorts[0]->Init(obj->GetPilot()->Picture);
     }
-    else if (obj->ObjectClass == GROUNDVEHICLE)
+    else if (obj->ObjectClass == MCObjectClass::GroundVehicle)
     {
         // A vehicle: no rear view; its passengers' pictures.
         MCGuiToolButton& front = *DataButtons[0];

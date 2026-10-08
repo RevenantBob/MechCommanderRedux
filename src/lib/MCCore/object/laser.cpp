@@ -14,12 +14,15 @@
 #include "logistics/logmain.h"
 #include "main/main.h"
 #include "network/multplyr.h"
-#include "object/object.h"
-#include "object/objque.h"
+#include "object/MCObjectSystem.h"
+#include "object/MCObjectQueue.h"
 #include "sound/soundsys.h"
 #include "terrain/MCTerrain.h"
 #include "vfx/MCVfx.h"
 #include "vfx/MCVfxFunctions.h"
+#include "object/MCObjectType.h"
+#include "object/MCObjectTypeManager.h"
+#include "object/MCWeaponShotInfo.h"
 
 namespace
 {
@@ -86,7 +89,7 @@ namespace
     void CreateHitEffect(MCLaser* laser, const MCLaserType* type, MCGameObject* victim)
     {
         laser->HitEffectCreated = 1;
-        MCGameObject* effect =
+        std::unique_ptr<MCGameObject> effect =
             CreateObject(static_cast<int32_t>(victim == nullptr ? type->LaserMissEffect : type->LaserHitEffect));
 
         if (effect == nullptr)
@@ -99,10 +102,7 @@ namespace
             effect->SetPosition(*laser->TargetPosition);
         }
 
-        if (ObjectList->Head != nullptr)
-        {
-            ObjectList->Head->AddNode(effect);
-        }
+        AddToDefaultList(std::move(effect));
 
         if (victim == nullptr && laser->TargetPosition != nullptr)
         {
@@ -163,9 +163,9 @@ auto MCLaserType::Init() -> void
     AnimPpc = 0.0f;
 }
 
-auto MCLaserType::CreateInstance() -> MCBaseObject*
+auto MCLaserType::CreateInstance() -> std::unique_ptr<MCBaseObject>
 {
-    auto* newLaser = new MCLaser;
+    auto newLaser = std::make_unique<MCLaser>();
 
     if (newLaser == nullptr)
     {
@@ -183,7 +183,7 @@ auto MCLaserType::CreateInstance() -> MCBaseObject*
 
 auto MCLaserType::Destroy() -> void
 {
-    MCBlockStore& cache = MCObjectTypeManager::ObjectTypeCache;
+    MCBlockStore& cache = ObjectTypeManager()->TypeData;
     cache.Free(StageDuration);
     StageDuration = nullptr;
     cache.Free(StageCool);
@@ -252,7 +252,7 @@ auto MCLaserType::Init(MCFile* objFile, uint32_t fileSize) -> int32_t
         }
 
         const uint32_t size = shapeFile.FileSize();
-        LaserEffectShape = static_cast<uint8_t*>(MCObjectTypeManager::ObjectTypeCache.Allocate(size));
+        LaserEffectShape = static_cast<uint8_t*>(ObjectTypeManager()->TypeData.Allocate(size));
 
         if (LaserEffectShape == nullptr)
         {
@@ -315,7 +315,7 @@ auto MCLaserType::Init(MCFile* objFile, uint32_t fileSize) -> int32_t
 
     // The stage arrays: numStages friendly stages, then numStages enemy ones.
     {
-        MCBlockStore& cache = MCObjectTypeManager::ObjectTypeCache;
+        MCBlockStore& cache = ObjectTypeManager()->TypeData;
         const size_t count = NumStages;
         StageDuration = cache.AllocateArray<float>(count * 2);
         StageCool = cache.AllocateArray<uint8_t>(count * 2);
@@ -376,8 +376,8 @@ auto MCLaserType::Init(MCFile* objFile, uint32_t fileSize) -> int32_t
     }
 
     result = MCObjectType::Init(&laserFile);
-    ObjectTypeManager->Load(static_cast<int32_t>(LaserHitEffect), 1);
-    ObjectTypeManager->Load(static_cast<int32_t>(LaserMissEffect), 1);
+    ObjectTypeManager()->Load(static_cast<int32_t>(LaserHitEffect), 1);
+    ObjectTypeManager()->Load(static_cast<int32_t>(LaserMissEffect), 1);
     return result;
 }
 
@@ -420,7 +420,7 @@ auto MCLaser::Init(MCObjectType* objType) -> int32_t
     Init();
     MCGameObject::Init(objType);
     CurrentStage = 0xff;
-    ObjectClass = LASER;
+    ObjectClass = MCObjectClass::Laser;
     JustCreated = 1;
     return 0;
 }
@@ -535,7 +535,8 @@ auto MCLaser::Render() -> void
     if (victim != nullptr)
     {
         // Port fix (OB-017): end at the hot spot that was hit (the original used sourceHotSpot).
-        const uint32_t hotSpot = victim->ObjectClass == TURRET ? 0xffffffff : static_cast<uint32_t>(TargetHotSpot);
+        const uint32_t hotSpot =
+            victim->ObjectClass == MCObjectClass::Turret ? 0xffffffff : static_cast<uint32_t>(TargetHotSpot);
         SetTargetPosition(victim->GetPositionFromHS(hotSpot));
     }
 

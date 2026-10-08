@@ -1,6 +1,6 @@
 #include "stdafx.h"
 #include "terrain/MCTerrainWindow.h"
-#include "ai/move.h"
+#include "ai/MCMoveSystem.h"
 #include "camera/MCCamera.h"
 #include "engine/MCByteFlag.h"
 #include "engine/MCElementBuffer.h"
@@ -64,7 +64,7 @@ namespace
     /// <summary>Whether (tileRow, tileCol) is on the map.</summary>
     bool TileOnMap(int32_t tileRow, int32_t tileCol)
     {
-        return tileRow >= 0 && tileRow < GameMap->Height && tileCol >= 0 && tileCol < GameMap->Width;
+        return tileRow >= 0 && tileRow < GameMap()->Height && tileCol >= 0 && tileCol < GameMap()->Width;
     }
 
     /// <summary>
@@ -77,7 +77,7 @@ namespace
         const float cellSize = static_cast<float>(MCTerrain::MetersPerVertexDivMapcellDim - 5.0);
         Assert(TileOnMap(tileRow, tileCol), 0, " terrwindow:render MapTile Out of Bounds ");
         Assert(TileOnMap(tileRow, tileCol), 0, " Map Tile out of bounds ");
-        const MCMapTile& tile = GameMap->Map[GameMap->Width * tileRow + tileCol];
+        const MCMapTile& tile = GameMap()->Map[GameMap()->Width * tileRow + tileCol];
         const uint32_t cells = tile.Cells;
         const uint32_t overlay = tile.Overlay;
 
@@ -121,9 +121,9 @@ namespace
         const float cellSize = static_cast<float>(MCTerrain::MetersPerVertexDivMapcellDim - 5.0);
         Assert(TileOnMap(tileRow, tileCol), 0, " terrwindow:render MapTile Out of Bounds ");
 
-        for (int32_t i = 0; i < GlobalMoveMap->NumDoors; i++)
+        for (int32_t i = 0; i < GlobalMoveMap()->NumDoors; i++)
         {
-            const MCGlobalMapDoor& door = GlobalMoveMap->Doors[i];
+            const MCGlobalMapDoor& door = GlobalMoveMap()->Doors[i];
 
             if (door.Row != tileRow || door.Col != tileCol)
             {

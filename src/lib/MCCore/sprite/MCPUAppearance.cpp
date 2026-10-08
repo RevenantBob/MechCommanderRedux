@@ -9,7 +9,7 @@
 #include "main/main.h"
 #include "object/gate.h"
 #include "object/gvehicl.h"
-#include "object/team.h"
+#include "object/MCForces.h"
 #include "object/turret.h"
 #include "sprite/MCShape.h"
 #include "sprite/MCSpriteMath.h"
@@ -21,14 +21,14 @@ namespace
     /// <summary>The pixel offset of a turret or gate; false for other classes.</summary>
     auto PixelOffset(MCGameObject* obj, int32_t& offsetX, int32_t& offsetY) -> bool
     {
-        if (obj->ObjectClass == TURRET)
+        if (obj->ObjectClass == MCObjectClass::Turret)
         {
             offsetX = static_cast<MCTurret*>(obj)->TileOffsetX;
             offsetY = static_cast<MCTurret*>(obj)->TileOffsetY;
             return true;
         }
 
-        if (obj->ObjectClass == GATE)
+        if (obj->ObjectClass == MCObjectClass::Gate)
         {
             offsetX = static_cast<MCGate*>(obj)->PixelOffsetX;
             offsetY = static_cast<MCGate*>(obj)->PixelOffsetY;
@@ -147,11 +147,11 @@ auto MCPUAppearance::Render(int32_t depthFixup) -> int32_t
         ScreenPos.Y = static_cast<float>(offsetY) * scale + ScreenPos.Y;
     }
 
-    if (obj->ObjectClass == GROUNDVEHICLE)
+    if (obj->ObjectClass == MCObjectClass::GroundVehicle)
     {
         Rotation = static_cast<float>(MCActorFacing(obj) + static_cast<MCGroundVehicle*>(obj)->TurretRotation);
     }
-    else if (obj->ObjectClass == TURRET)
+    else if (obj->ObjectClass == MCObjectClass::Turret)
     {
         Rotation = static_cast<MCTurret*>(obj)->TurretRotation;
     }
@@ -210,7 +210,7 @@ auto MCPUAppearance::Render(int32_t depthFixup) -> int32_t
             }
             else if (alignment == 1)
             {
-                DrawSelectBrackets(selectedObj->GetAlignment() == HomeTeam->Alignment ? 0xfc : 0xfb);
+                DrawSelectBrackets(selectedObj->GetAlignment() == HomeTeam()->Alignment ? 0xfc : 0xfb);
             }
         }
 
@@ -366,15 +366,16 @@ auto MCPUAppearance::DrawBars() -> void
     // A turret shows its bar only with its weapon deployed.
     MCGameObject* obj = Owner;
 
-    if (obj->ObjectClass == TURRET && static_cast<MCTurret*>(obj)->WeaponDeployed == 0)
+    if (obj->ObjectClass == MCObjectClass::Turret && static_cast<MCTurret*>(obj)->WeaponDeployed == 0)
     {
         return;
     }
 
     double health = 0.0; // Port fix: the original leaves this unset for other classes.
-    const int32_t objectClass = obj->ObjectClass;
+    const MCObjectClass objectClass = obj->ObjectClass;
 
-    if (objectClass == BATTLEMECH || objectClass == GROUNDVEHICLE || objectClass == ELEMENTAL || objectClass == MOVER)
+    if (objectClass == MCObjectClass::BattleMech || objectClass == MCObjectClass::GroundVehicle ||
+        objectClass == MCObjectClass::Elemental || objectClass == MCObjectClass::Mover)
     {
         auto* mover = static_cast<MCMover*>(obj);
 
@@ -385,7 +386,7 @@ auto MCPUAppearance::DrawBars() -> void
 
         health = mover->GetTotalEffectiveness();
     }
-    else if (objectClass == TURRET || objectClass == GATE)
+    else if (objectClass == MCObjectClass::Turret || objectClass == MCObjectClass::Gate)
     {
         int32_t damage = static_cast<int32_t>(obj->GetDamage());
         // Turret and gate types both keep their damage level in the same place.

@@ -1,7 +1,7 @@
 #pragma once
 
-#include "object/gameobj.h"
-#include "object/objtype.h"
+#include "object/MCBigGameObject.h"
+#include "object/MCObjectType.h"
 
 class MCAppearance;
 class MCBattleMech;
@@ -22,7 +22,7 @@ public:
     ~MCJetType() override { Destroy(); }
 
     /// <summary>Makes a <see cref="MCJet"/> of this type and gives it the next object id.</summary>
-    MCBaseObject* CreateInstance() override;
+    std::unique_ptr<MCBaseObject> CreateInstance() override;
     void Destroy() override;
     /// <summary>Reads SoundEffectId and SmokeObjectId from the "JetData" block (if present), then the common data.</summary>
     int32_t Init(MCFile* objFile, uint32_t fileSize) override;

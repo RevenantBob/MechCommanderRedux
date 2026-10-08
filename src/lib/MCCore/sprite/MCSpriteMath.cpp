@@ -1,7 +1,7 @@
 #include "stdafx.h"
 #include "sprite/MCSpriteMath.h"
 #include "camera/MCCamera.h"
-#include "object/gameobj.h"
+#include "object/MCBigGameObject.h"
 #include "vfx/MCVfxFunctions.h"
 
 auto MCActorFacing(MCGameObject* obj) -> double

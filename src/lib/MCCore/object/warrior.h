@@ -2,12 +2,13 @@
 
 #include "abl/MCAblModule.h"
 
-#include "ai/move.h"
-#include "ai/tacordr.h"
+#include "ai/MCMoveSystem.h"
+#include "ai/MCTacticalOrder.h"
 #include "gui/awindow.h"
 #include "lib/MCFrameOfRef.h"
 #include "lib/MCVector2D.h"
 #include "lib/MCDice.h"
+#include "object/MCSortList.h"
 
 class MCFile;
 class MCFitIniFile;
@@ -160,7 +161,7 @@ struct MCMoveOrders
     /// <summary>Set by ABL setmovegoal (hasmovegoal / hasmovepath test it); only init clears it.</summary>
     int32_t ScriptGoal = 0;
     /// <summary>The way points (setMoveWayPath, addMoveWayPoint).</summary>
-    MCVector3D WayPath[MAX_WAYPTS];
+    MCVector3D WayPath[MaxWayPoints];
     /// <summary>Way points held.</summary>
     int8_t NumWayPts = 0;
     /// <summary>The way point being walked to.</summary>
@@ -174,7 +175,7 @@ struct MCMoveOrders
     /// <summary>The goal the path actually reaches (-666666 by init).</summary>
     MCVector3D GlobalGoalLocation;
     /// <summary>The global path, area by area.</summary>
-    MCGlobalPathStep GlobalPath[MAX_GLOBAL_PATH]{};
+    MCGlobalPathStep GlobalPath[MCGlobalMap::MaxPathSteps]{};
     /// <summary>Steps of the global path.</summary>
     int8_t NumGlobalSteps = 0;
     /// <summary>The global step being walked.</summary>
@@ -333,7 +334,7 @@ public:
     void SetMoveWayPath(MCWayPath* wayPath, int patrol);
     void AddMoveWayPoint(MCVector3D wayPt, int patrol);
     void SetMoveGlobalPath(MCGlobalPathStep* path, int32_t numSteps);
-    /// <summary>Queues a path request with the <see cref="PathManager"/>.</summary>
+    /// <summary>Queues a path request with the <see cref="PathManager()"/>.</summary>
     void RequestMovePath(int32_t selectionIndex, uint32_t moveParams, int32_t source);
     /// <summary>
     /// Plans the move to the goal: a local path when close (or no long-range movement), else a global path
@@ -387,38 +388,39 @@ public:
     void SetMoveSpeedVelocity(float speed);
     int32_t OpenStatusWindow(int32_t x, int32_t y, int32_t w, int32_t h);
     int32_t CloseStatusWindow();
-    int32_t OrderWait(int unitOrder, int32_t origin, int32_t seconds, int clearLastTarget);
+    int32_t OrderWait(int unitOrder, MCOrderOrigin origin, int32_t seconds, int clearLastTarget);
     int32_t OrderStop(int unitOrder, int setTacOrder);
-    int32_t OrderMoveToPoint(int unitOrder, int setTacOrder, int32_t origin, MCVector3D location,
+    int32_t OrderMoveToPoint(int unitOrder, int setTacOrder, MCOrderOrigin origin, MCVector3D location,
                              int32_t selectionIndex, uint32_t params);
-    int32_t OrderMoveToObject(int unitOrder, int setTacOrder, int32_t origin, MCGameObject* target,
+    int32_t OrderMoveToObject(int unitOrder, int setTacOrder, MCOrderOrigin origin, MCGameObject* target,
                               int32_t selectionIndex, uint32_t params);
-    int32_t OrderJumpToPoint(int unitOrder, int setTacOrder, int32_t origin, MCVector3D location,
+    int32_t OrderJumpToPoint(int unitOrder, int setTacOrder, MCOrderOrigin origin, MCVector3D location,
                              int32_t selectionIndex);
-    int32_t OrderJumpToObject(int unitOrder, int setTacOrder, int32_t origin, MCGameObject* target,
+    int32_t OrderJumpToObject(int unitOrder, int setTacOrder, MCOrderOrigin origin, MCGameObject* target,
                               int32_t selectionIndex);
-    int32_t OrderTraversePath(int unitOrder, int setTacOrder, int32_t origin, MCWayPath* wayPath, uint32_t params);
-    int32_t OrderPatrolPath(int unitOrder, int setTacOrder, int32_t origin, MCWayPath* wayPath);
-    int32_t OrderPowerUp(int unitOrder, int32_t origin);
-    int32_t OrderPowerDown(int unitOrder, int32_t origin);
+    int32_t OrderTraversePath(int unitOrder, int setTacOrder, MCOrderOrigin origin, MCWayPath* wayPath,
+                              uint32_t params);
+    int32_t OrderPatrolPath(int unitOrder, int setTacOrder, MCOrderOrigin origin, MCWayPath* wayPath);
+    int32_t OrderPowerUp(int unitOrder, MCOrderOrigin origin);
+    int32_t OrderPowerDown(int unitOrder, MCOrderOrigin origin);
     int32_t OrderUseSpeed(float speed);
     /// <summary>Does nothing (returns 1).</summary>
     int32_t OrderOrbitPoint(MCVector3D location);
-    int32_t OrderAttackObject(int unitOrder, int32_t origin, MCGameObject* target, int32_t type, int32_t method,
+    int32_t OrderAttackObject(int unitOrder, MCOrderOrigin origin, MCGameObject* target, int32_t type, int32_t method,
                               int32_t range, int32_t aimLocation, uint32_t params);
-    int32_t OrderAttackPoint(int unitOrder, int32_t origin, MCVector3D location, int32_t type, int32_t method,
+    int32_t OrderAttackPoint(int unitOrder, MCOrderOrigin origin, MCVector3D location, int32_t type, int32_t method,
                              int32_t range, uint32_t params);
     void SetAttackTargetPoint(MCVector3D location) { AttackOrders.TargetPoint = location; }
     MCVector3D GetAttackTargetPoint() { return AttackOrders.TargetPoint; }
-    int32_t OrderWithdraw(int unitOrder, int32_t origin, MCVector3D location);
-    int32_t OrderEject(int unitOrder, int setTacOrder, int32_t origin);
+    int32_t OrderWithdraw(int unitOrder, MCOrderOrigin origin, MCVector3D location);
+    int32_t OrderEject(int unitOrder, int setTacOrder, MCOrderOrigin origin);
     int32_t OrderUseFireRange(int32_t range);
     int32_t OrderUseFireOdds(int32_t odds);
-    int32_t OrderRefit(int32_t origin, MCGameObject* target, uint32_t params);
-    int32_t OrderGetFixed(int32_t origin, MCGameObject* target, uint32_t params);
-    int32_t OrderLoadIntoCarrier(int32_t origin, MCGameObject* target, uint32_t params);
-    int32_t OrderDeployElementals(int32_t origin, uint32_t params);
-    int32_t OrderCapture(int32_t origin, MCGameObject* target, uint32_t params);
+    int32_t OrderRefit(MCOrderOrigin origin, MCGameObject* target, uint32_t params);
+    int32_t OrderGetFixed(MCOrderOrigin origin, MCGameObject* target, uint32_t params);
+    int32_t OrderLoadIntoCarrier(MCOrderOrigin origin, MCGameObject* target, uint32_t params);
+    int32_t OrderDeployElementals(MCOrderOrigin origin, uint32_t params);
+    int32_t OrderCapture(MCOrderOrigin origin, MCGameObject* target, uint32_t params);
     int32_t HandleTargetOfWeaponFire();
     int32_t HandleHitByWeaponFire();
     int32_t HandleCollision();

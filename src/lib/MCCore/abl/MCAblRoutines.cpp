@@ -1,6 +1,6 @@
 #include "stdafx.h"
 #include "abl/MCAblRoutineList.h"
-#include "ai/move.h"
+#include "ai/MCMoveSystem.h"
 #include "gui/asystem.h"
 #include "gui/atextbox.h"
 #include "iface/iface.h"
@@ -16,19 +16,18 @@
 #include "object/artlry.h"
 #include "object/bldng.h"
 #include "object/bridge.h"
-#include "object/cmponent.h"
-#include "object/comndr.h"
-#include "object/contact.h"
-#include "object/gameobj.h"
+#include "object/MCMasterComponent.h"
+#include "object/MCForces.h"
+#include "object/MCContactSystem.h"
+#include "object/MCBigGameObject.h"
 #include "object/gate.h"
-#include "object/group.h"
+#include "object/MCMoverGroup.h"
 #include "object/gvehicl.h"
 #include "object/mover.h"
-#include "object/object.h"
-#include "object/objque.h"
-#include "object/objtype.h"
+#include "object/MCObjectSystem.h"
+#include "object/MCObjectQueue.h"
+#include "object/MCObjectType.h"
 #include "object/tbldng.h"
-#include "object/team.h"
 #include "object/terrobj.h"
 #include "object/train.h"
 #include "object/turret.h"
@@ -45,8 +44,8 @@
 auto IsMover(MCBaseObject* object) -> bool
 {
     MCObjectClass objectClass = object->ObjectClass;
-    return objectClass == BATTLEMECH || objectClass == GROUNDVEHICLE || objectClass == ELEMENTAL ||
-           objectClass == MOVER;
+    return objectClass == MCObjectClass::BattleMech || objectClass == MCObjectClass::GroundVehicle ||
+           objectClass == MCObjectClass::Elemental || objectClass == MCObjectClass::Mover;
 }
 
 auto FindObject(MCAblRuntime& abl, int32_t partId) -> MCGameObject*
@@ -56,7 +55,7 @@ auto FindObject(MCAblRuntime& abl, int32_t partId) -> MCGameObject*
         return abl.Brain.Object;
     }
 
-    return static_cast<MCGameObject*>(ObjectList->FindObjectFromPart(partId));
+    return static_cast<MCGameObject*>(ObjectList()->FindObjectFromPart(partId));
 }
 
 auto IsGroupId(int32_t partId) -> bool
@@ -66,7 +65,7 @@ auto IsGroupId(int32_t partId) -> bool
 
 auto GroupMovers(MCMoverGroup* group) -> std::vector<MCMover*>
 {
-    std::vector<MCMover*> movers(MAX_MOVERGROUP_COUNT);
+    std::vector<MCMover*> movers(MCMoverGroup::MaxMovers);
     movers.resize(static_cast<size_t>(group->GetMovers(movers.data())));
     return movers;
 }
@@ -76,7 +75,7 @@ namespace
     /// <summary>The movers on <paramref name="team"/>'s roster.</summary>
     auto TeamMovers(MCTeam* team) -> std::vector<MCMover*>
     {
-        std::vector<MCMover*> movers(static_cast<size_t>(team->RosterSize));
+        std::vector<MCMover*> movers(static_cast<size_t>(team->RosterSize()));
         movers.resize(static_cast<size_t>(team->GetRoster(reinterpret_cast<MCGameObject**>(movers.data()))));
         return movers;
     }
@@ -86,37 +85,37 @@ auto GetGroupMovers(int32_t groupId) -> std::vector<MCMover*>
 {
     if (groupId < 0x21)
     {
-        return GroupMovers(CommanderTable[0]->GetGroup(groupId - 1));
+        return GroupMovers(CommanderById(0)->GetGroup(groupId - 1));
     }
 
     if (groupId >= 0x149 && groupId < 0x169)
     {
-        return GroupMovers(CommanderTable[2]->GetGroup(groupId - 0x149));
+        return GroupMovers(CommanderById(2)->GetGroup(groupId - 0x149));
     }
 
     if (groupId >= 0xa5 && groupId < 0xc5)
     {
-        return GroupMovers(CommanderTable[1]->GetGroup(groupId - 0xa5));
+        return GroupMovers(CommanderById(1)->GetGroup(groupId - 0xa5));
     }
 
     if (groupId == 500)
     {
-        return TeamMovers(InnerSphereTeam);
+        return TeamMovers(InnerSphereTeam());
     }
 
     if (groupId == 0x1f6)
     {
-        if (AlliedTeam == nullptr)
+        if (AlliedTeam() == nullptr)
         {
             return {};
         }
 
-        return TeamMovers(AlliedTeam);
+        return TeamMovers(AlliedTeam());
     }
 
     if (groupId == 0x1f5)
     {
-        return TeamMovers(ClanTeam);
+        return TeamMovers(ClanTeam());
     }
 
     return {};
@@ -143,27 +142,27 @@ auto GetDamageLevel(MCGameObject* object, uint32_t& damageLevel) -> bool
 
     switch (object->ObjectClass)
     {
-        case BUILDING:
+        case MCObjectClass::Building:
         {
             damageLevel = static_cast<MCBuildingType*>(type)->DmgLevel;
             return true;
         }
-        case TURRET:
+        case MCObjectClass::Turret:
         {
             damageLevel = static_cast<MCTurretType*>(type)->DmgLevel;
             return true;
         }
-        case TERRAINOBJECT:
+        case MCObjectClass::TerrainObject:
         {
             damageLevel = static_cast<MCTerrainObjectType*>(type)->DmgLevel;
             return true;
         }
-        case TREEBUILDING:
+        case MCObjectClass::TreeBuilding:
         {
             damageLevel = static_cast<MCTreeBuildingType*>(type)->DmgLevel;
             return true;
         }
-        case MISCTERRAINOBJECT:
+        case MCObjectClass::MiscTerrainObject:
         {
             MCMiscTerrainObjectType* miscType = static_cast<MCMiscTerrainObjectType*>(type);
 

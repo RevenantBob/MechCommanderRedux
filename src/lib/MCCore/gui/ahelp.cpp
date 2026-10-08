@@ -78,7 +78,7 @@ auto MCFloatHelp::Display() -> void
     MCViewWindow* view = MCMainView();
     const auto shown = [view](MCVector2D point) { return view != nullptr ? view->WorldToScreen(point) : point; };
 
-    if (HelpObject->ObjectClass == MISCTERRAINOBJECT)
+    if (HelpObject->ObjectClass == MCObjectClass::MiscTerrainObject)
     {
         MCVector2D screenPos = static_cast<MCMiscTerrainObject*>(HelpObject)->GetScreenPos();
         screenPos.Y += 90.0f;
@@ -106,12 +106,12 @@ auto MCFloatHelp::Display() -> void
 
         switch (HelpObject->ObjectClass)
         {
-            case BATTLEMECH:
+            case MCObjectClass::BattleMech:
                 screenY += 7.0f;
                 break;
-            case GROUNDVEHICLE:
-            case BUILDING:
-            case TREEBUILDING:
+            case MCObjectClass::GroundVehicle:
+            case MCObjectClass::Building:
+            case MCObjectClass::TreeBuilding:
                 screenY += 10.0f;
                 break;
             default:

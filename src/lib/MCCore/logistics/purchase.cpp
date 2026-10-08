@@ -16,11 +16,12 @@
 #include "main/logistics.h"
 #include "main/main.h"
 #include "mission/scenario.h"
-#include "object/cmponent.h"
+#include "object/MCMasterComponent.h"
 #include "object/mech.h"
-#include "object/objtype.h"
+#include "object/MCObjectType.h"
 #include "sound/soundsys.h"
 #include "vfx/MCVfxFunctions.h"
+#include "object/MCObjectTypeManager.h"
 
 int32_t ResourcePoints = 0;
 MCMechPurchaseBlock* GlobalMechPurchaseBlock = nullptr;
@@ -396,10 +397,10 @@ namespace
         for (MCLogInventoryItem* item = inventory->Items; item != nullptr; item = item->Next, ++index)
         {
             const MCMasterComponent& component = MasterComponentList[item->MasterID];
-            int32_t form = component.Form;
+            MCComponentForm form = component.Form;
 
-            if (form != COMPONENT_FORM_WEAPON_ENERGY && form != COMPONENT_FORM_WEAPON_BALLISTIC &&
-                form != COMPONENT_FORM_WEAPON_MISSILE && form != COMPONENT_FORM_WEAPON)
+            if (form != MCComponentForm::WeaponEnergy && form != MCComponentForm::WeaponBallistic &&
+                form != MCComponentForm::WeaponMissile && form != MCComponentForm::Weapon)
             {
                 continue;
             }
@@ -433,9 +434,9 @@ namespace
 
         for (MCLogInventoryItem* item = inventory->Items; item != nullptr; item = item->Next)
         {
-            int32_t form = MasterComponentList[item->MasterID].Form;
+            MCComponentForm form = MasterComponentList[item->MasterID].Form;
 
-            if (form == COMPONENT_FORM_SENSOR || form == COMPONENT_FORM_ECM || form == COMPONENT_FORM_PROBE)
+            if (form == MCComponentForm::Sensor || form == MCComponentForm::Ecm || form == MCComponentForm::Probe)
             {
                 std::snprintf(text, textSize, "%d %s", item->Count, item->Name);
                 WriteText(GreenFont, port, 0x14a, (GreenFont->Height() + 1) * line + 4, text);
@@ -1281,7 +1282,7 @@ auto MCMechPurchaseBlock::DrawRow(MCLogPort* port, int32_t top) -> void
 
     for (MCLogInventoryItem* item = data->Inventory->Items; item != nullptr; item = item->Next)
     {
-        if (MasterComponentList[item->MasterID].Form == COMPONENT_FORM_JUMPJET)
+        if (MasterComponentList[item->MasterID].Form == MCComponentForm::JumpJet)
         {
             jumpJets = item->Count;
         }
@@ -1944,18 +1945,18 @@ auto MCCompPurchaseBlock::Init(MCLogInventoryItem* newItem) -> void
     Item = newItem;
     MCLogObject::Init(0, 0, 0x19a, 0x70, nullptr, GlobalLogPtr->PurchaseScreen->Lport());
     const MCMasterComponent& component = MasterComponentList[Item->MasterID];
-    int32_t form = component.Form;
+    MCComponentForm form = component.Form;
     char format[256];
     CLoadString(ThisInstance, 0x27f, format, 0xfe);
     std::snprintf(WeightText, sizeof(WeightText), format, static_cast<double>(component.Tonnage));
     char text[256];
 
-    if (form != COMPONENT_FORM_WEAPON_ENERGY && form != COMPONENT_FORM_WEAPON_BALLISTIC &&
-        form != COMPONENT_FORM_WEAPON_MISSILE)
+    if (form != MCComponentForm::WeaponEnergy && form != MCComponentForm::WeaponBallistic &&
+        form != MCComponentForm::WeaponMissile)
     {
         CLoadString(ThisInstance, 0x6c, text, 0xfe);
 
-        if (form == COMPONENT_FORM_PROBE)
+        if (form == MCComponentForm::Probe)
         {
             std::snprintf(RangeText, sizeof(RangeText), "%s", text);
         }
@@ -1965,7 +1966,7 @@ auto MCCompPurchaseBlock::Init(MCLogInventoryItem* newItem) -> void
             // the range, which read "0.0 m".
             float range = 0.0f;
 
-            if (form == COMPONENT_FORM_ECM || form == COMPONENT_FORM_SENSOR)
+            if (form == MCComponentForm::Ecm || form == MCComponentForm::Sensor)
             {
                 range = MasterComponentList[Item->MasterID].RangeOrHeat;
             }
@@ -2108,8 +2109,8 @@ auto MCCompPurchaseBlock::HandleEvent(MCGuiEvent* event) -> void
                 GlobalItemPtr = bought;
                 auto* picture = new MCLogPort;
                 LoadArt(picture, "%slogart\\lscicc%02d.tga", bought->RangeIndex);
-                GlobalLogPtr->PurchaseDialog->Init(4, component.ResourcePoints, bought->Count, component.Name, nullptr,
-                                                   picture);
+                GlobalLogPtr->PurchaseDialog->Init(4, component.ResourcePoints, bought->Count, component.Name.c_str(),
+                                                   nullptr, picture);
                 delete picture;
                 GlobalLogPtr->PurchaseDialog->SetPort(GlobalLogPtr->CurrentScreen->Lport());
                 GlobalLogPtr->PurchaseDialog->SetCallback(CompPurchaseCallback);

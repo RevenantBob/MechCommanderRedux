@@ -136,7 +136,7 @@ public:
     /// vehicle) at <paramref name="unitCost"/> each, at most <paramref name="maxQuantity"/> (negative = 199; 1 =
     /// no spinner), with two text lines and a copy of <paramref name="picture"/>.
     /// </summary>
-    void Init(int32_t purchaseType, int32_t unitCost, int32_t maxQuantity, char* title, char* subtitle,
+    void Init(int32_t purchaseType, int32_t unitCost, int32_t maxQuantity, const char* title, const char* subtitle,
               MCLogPort* picture);
 
     void Destroy() override;

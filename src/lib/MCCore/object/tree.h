@@ -1,7 +1,8 @@
 #pragma once
 
-#include "object/gameobj.h"
-#include "object/objtype.h"
+#include "object/MCBigGameObject.h"
+#include "object/MCObjectType.h"
+#include "object/MCWeaponShotInfo.h"
 
 class MCAppearance;
 class MCCamera;
@@ -24,7 +25,7 @@ public:
     ~MCTreeType() override { Destroy(); }
 
     /// <summary>Makes a <see cref="MCTree"/> of this type and gives it the next object id.</summary>
-    MCBaseObject* CreateInstance() override;
+    std::unique_ptr<MCBaseObject> CreateInstance() override;
     /// <summary>Frees the shadow shapes.</summary>
     void Destroy() override;
     /// <summary>

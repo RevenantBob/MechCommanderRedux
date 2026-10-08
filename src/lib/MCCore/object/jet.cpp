@@ -11,12 +11,13 @@
 #include "lib/MCFitIniFile.h"
 #include "main/main.h"
 #include "object/mech.h"
-#include "object/object.h"
+#include "object/MCObjectSystem.h"
 #include "object/smoke.h"
 #include "sound/soundsys.h"
 #include "sprite/MCArmAppearance.h"
 #include "sprite/MCMechActor.h"
 #include "terrain/MCTerrain.h"
+#include "object/MCObjectType.h"
 
 namespace
 {
@@ -35,9 +36,9 @@ MCJetType::MCJetType()
     GroundObjectId = 0xffffffff;
 }
 
-auto MCJetType::CreateInstance() -> MCBaseObject*
+auto MCJetType::CreateInstance() -> std::unique_ptr<MCBaseObject>
 {
-    auto* newJet = new MCJet;
+    auto newJet = std::make_unique<MCJet>();
 
     if (newJet == nullptr)
     {
@@ -325,15 +326,15 @@ auto MCJet::Init(MCObjectType* objType) -> int32_t
 
     if (static_cast<int32_t>(jetType->SmokeObjectId) != -1)
     {
-        Smoke = static_cast<MCSmoke*>(CreateObject(static_cast<int32_t>(jetType->SmokeObjectId)));
+        Smoke = CreateObjectAs<MCSmoke>(static_cast<int32_t>(jetType->SmokeObjectId)).release();
     }
 
     if (static_cast<int32_t>(jetType->GroundObjectId) != -1)
     {
-        GroundObject = CreateObject(static_cast<int32_t>(jetType->GroundObjectId));
+        GroundObject = CreateObject(static_cast<int32_t>(jetType->GroundObjectId)).release();
     }
 
-    ObjectClass = JET;
+    ObjectClass = MCObjectClass::Jet;
     Landing = 0;
     return 0;
 }

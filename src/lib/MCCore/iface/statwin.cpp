@@ -2,10 +2,10 @@
 #include "iface/statwin.h"
 #include "gui/afont.h"
 #include "gui/aport.h"
-#include "object/cmponent.h"
+#include "object/MCMasterComponent.h"
 #include "object/mover.h"
-#include "object/object.h"
-#include "object/objque.h"
+#include "object/MCObjectSystem.h"
+#include "object/MCObjectQueue.h"
 #include "vfx/MCVfxFunctions.h"
 
 auto MCInfoWindow::Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, int32_t objectPartId) -> int32_t
@@ -62,13 +62,13 @@ auto DrawMechInfo(MCGuiObject* window) -> void
 
     VfxPaneWipe(pane, window->BackColor());
 
-    if (ObjectList == nullptr)
+    if (ObjectList() == nullptr)
     {
         return;
     }
 
     int32_t partId = static_cast<MCInfoWindow*>(window)->PartId;
-    auto* mover = static_cast<MCMover*>(ObjectList->FindObjectFromPart(partId));
+    auto* mover = static_cast<MCMover*>(ObjectList()->FindObjectFromPart(partId));
 
     if (mover == nullptr)
     {
@@ -89,7 +89,8 @@ auto DrawMechInfo(MCGuiObject* window) -> void
             continue;
         }
 
-        sprintf(text, "%s %s", locationNames[item->BodyLocation], MasterComponentList[item->MasterID].Abbreviation);
+        sprintf(text, "%s %s", locationNames[item->BodyLocation],
+                MasterComponentList[item->MasterID].Abbreviation.c_str());
         WhiteFont->WriteString(pane, 10, yPos, reinterpret_cast<uint8_t*>(text), -1);
         yPos += 10;
     }

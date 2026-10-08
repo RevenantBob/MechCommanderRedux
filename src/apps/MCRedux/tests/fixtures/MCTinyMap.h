@@ -1,12 +1,12 @@
 #pragma once
 
-#include "ai/move.h"
+#include "ai/MCMoveSystem.h"
 
 /// <summary>
-/// A flat N x N tile scenario map built in memory (no map file), installed as <c>GameMap</c> with the terrain
-/// geometry to match: one block of N vertices a side, 128 m a vertex, every movement cell passable until the test
-/// blocks it. For movement and line-of-sight tests that only need the map. The previous map and geometry come back
-/// when it goes.
+/// A flat N x N tile scenario map built in memory (no map file), installed as the current context's move system (its
+/// <c>GameMap()</c>) with the terrain geometry to match: one block of N vertices a side, 128 m a vertex, every
+/// movement cell passable until the test blocks it. For movement and line-of-sight tests that only need the map. The
+/// previous move system and geometry come back when it goes.
 /// </summary>
 class MCTinyMap
 {
@@ -24,7 +24,10 @@ public:
     int32_t Tiles() const { return _Tiles; }
 
     /// <summary>Movement cells a side.</summary>
-    int32_t Cells() const { return _Tiles * MAPCELL_DIM; }
+    int32_t Cells() const { return _Tiles * MapCellDim; }
+
+    /// <summary>The installed move system (to add the pieces a test needs).</summary>
+    MCMoveSystem& System() { return *_System; }
 
     /// <summary>Makes the movement cell at <paramref name="row"/>, <paramref name="col"/> (map cells) impassable.</summary>
     void Block(int32_t row, int32_t col);
@@ -37,7 +40,8 @@ public:
 
 private:
     int32_t _Tiles;
-    MCScenarioMap* _PreviousMap;
+    MCMoveSystem* _System = nullptr;
+    std::unique_ptr<MCMoveSystem> _PreviousSystem;
     float _PreviousWorldUnitsMapSide;
     int32_t _PreviousVerticesBlockSide;
     int32_t _PreviousBlocksMapSide;

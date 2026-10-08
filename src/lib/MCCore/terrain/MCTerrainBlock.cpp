@@ -1,6 +1,6 @@
 #include "stdafx.h"
 #include "terrain/MCVertex.h"
-#include "ai/move.h"
+#include "ai/MCMoveSystem.h"
 #include "camera/MCCamera.h"
 #include "color/MCPalette.h"
 #include "engine/MCByteFlag.h"
@@ -8,7 +8,7 @@
 #include "engine/MCLineElement.h"
 #include "lib/MCFatal.h"
 #include "mission/scenario.h"
-#include "object/team.h"
+#include "object/MCForces.h"
 #include "terrain/MCTerrain.h"
 #include "terrain/MCTerrainTiles.h"
 #include "vfx/MCVfx.h"
@@ -214,10 +214,10 @@ auto MCTerrainBlock::DrawOverlay(int32_t hazeFactor) -> void
                         topLeft->VertexNum % MCTerrain::VerticesBlockSide;
     const int32_t row = (topLeft->BlockNum / MCTerrain::BlocksMapSide) * MCTerrain::VerticesBlockSide +
                         topLeft->VertexNum / MCTerrain::VerticesBlockSide;
-    const int ok = (row >= 0 && row < GameMap->Height && col >= 0 && col < GameMap->Width) ? 1 : 0;
+    const int ok = (row >= 0 && row < GameMap()->Height && col >= 0 && col < GameMap()->Width) ? 1 : 0;
     Assert(ok, 0, " bldng MapTile Out of Bounds ");
-    const MCMineView mines = MCTerrainMineView(GameMap->Map[GameMap->Width * row + col].Overlay,
-                                               HomeTeam == InnerSphereTeam, Scenario->GodMode != 0);
+    const MCMineView mines = MCTerrainMineView(GameMap()->Map[GameMap()->Width * row + col].Overlay,
+                                               HomeTeam() == InnerSphereTeam(), Scenario->GodMode != 0);
 
     if (mines.InnerSphereMine && !DrawMineTile(*this, hazePalette))
     {

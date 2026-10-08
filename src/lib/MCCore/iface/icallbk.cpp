@@ -1,6 +1,6 @@
 #include "stdafx.h"
 #include "iface/icallbk.h"
-#include "ai/tacordr.h"
+#include "ai/MCTacticalOrder.h"
 #include "camera/MCCamera.h"
 #include "camera/MCMainWindow.h"
 #include "gui/ahelp.h"
@@ -10,9 +10,9 @@
 #include "iface/parser.h"
 #include "main/main.h"
 #include "network/multplyr.h"
-#include "object/cmponent.h"
-#include "object/comndr.h"
-#include "object/gameobj.h"
+#include "object/MCMasterComponent.h"
+#include "object/MCForces.h"
+#include "object/MCBigGameObject.h"
 #include "object/mech.h"
 #include "object/mover.h"
 #include "object/warrior.h"
@@ -68,7 +68,7 @@ auto MechIconHandleEvent(MCGuiObject* icon, MCGuiEvent* event) -> void
     auto* mechIcon = static_cast<MCMechIcon*>(icon);
     auto* mover = static_cast<MCMover*>(mechIcon->Mover);
     MCTacticalOrder order;
-    order.Init();
+    order.Reset();
 
     // Port fix: the original reads the mover's part id before checking the mover is there.
     int32_t partId = mover != nullptr ? mover->PartId : 0;
@@ -76,20 +76,17 @@ auto MechIconHandleEvent(MCGuiObject* icon, MCGuiEvent* event) -> void
     if (event->Type == 1)
     {
         Application->Grab(icon);
-        order.Destroy();
         return;
     }
 
     if (event->Type == 6)
     {
         CenterCameraOn(mover);
-        order.Destroy();
         return;
     }
 
     if (event->Type != 4 || Application->GrabbedObject() != icon || mover == nullptr)
     {
-        order.Destroy();
         return;
     }
 
@@ -103,12 +100,12 @@ auto MechIconHandleEvent(MCGuiObject* icon, MCGuiEvent* event) -> void
     {
         command = TheInterface->CurrentCommand;
 
-        if (mover->ObjectClass != BATTLEMECH && command >= 0x17 && command <= 0x1e)
+        if (mover->ObjectClass != MCObjectClass::BattleMech && command >= 0x17 && command <= 0x1e)
         {
             command = 0xb;
         }
 
-        order.Init(ORDER_ORIGIN_PLAYER, TACTICAL_ORDER_ATTACK_OBJECT, 0);
+        order.Reset(MCOrderOrigin::Player, MCTacticalOrderCode::AttackObject, 0);
         order.Target = mover;
         order.AttackParams.Type = 1;
         order.AttackParams.Method = 0;
@@ -136,7 +133,6 @@ auto MechIconHandleEvent(MCGuiObject* icon, MCGuiEvent* event) -> void
 
         TheInterface->GetCommandParser()->SendTacOrder(order, -1);
         TheInterface->UpdateInterface();
-        order.Destroy();
         return;
     }
 
@@ -170,7 +166,6 @@ auto MechIconHandleEvent(MCGuiObject* icon, MCGuiEvent* event) -> void
                     TheInterface->DeselectMech(iconPartId);
                     TheInterface->CommandParser->RemoveSubject(iconPartId);
                     TheInterface->UpdateInterface();
-                    order.Destroy();
                     return;
                 }
 
@@ -186,54 +181,48 @@ auto MechIconHandleEvent(MCGuiObject* icon, MCGuiEvent* event) -> void
 
         case 1:
         {
-            order.Init(ORDER_ORIGIN_PLAYER, TACTICAL_ORDER_EJECT, 0);
+            order.Reset(MCOrderOrigin::Player, MCTacticalOrderCode::Eject, 0);
             GiveMoverOrder(order, mover, &partId);
             TheInterface->UpdateInterface();
-            order.Destroy();
             return;
         }
         case 2:
         {
-            order.Init(ORDER_ORIGIN_PLAYER, TACTICAL_ORDER_HOLD_FIRE, 0);
+            order.Reset(MCOrderOrigin::Player, MCTacticalOrderCode::HoldFire, 0);
             GiveMoverOrder(order, mover, &partId);
             TheInterface->UpdateInterface();
-            order.Destroy();
             return;
         }
         case 9:
         {
-            order.Init(ORDER_ORIGIN_PLAYER, TACTICAL_ORDER_REFIT, 0);
+            order.Reset(MCOrderOrigin::Player, MCTacticalOrderCode::Refit, 0);
             order.Target = mover;
             TheInterface->GetCommandParser()->SendTacOrder(order, 0);
             TheInterface->UpdateInterface();
-            order.Destroy();
             return;
         }
         case 0x13:
         {
-            order.Init(ORDER_ORIGIN_PLAYER, TACTICAL_ORDER_GUARD, 0);
+            order.Reset(MCOrderOrigin::Player, MCTacticalOrderCode::Guard, 0);
             order.Target = mover;
             order.MoveParams.WayPath.Mode[0] = 0;
             order.MoveParams.Wait = -1;
             TheInterface->GetCommandParser()->SendTacOrder(order, -1);
             TheInterface->UpdateInterface();
-            order.Destroy();
             return;
         }
         case 0x15:
         {
-            order.Init(ORDER_ORIGIN_PLAYER, TACTICAL_ORDER_POWERUP, 0);
+            order.Reset(MCOrderOrigin::Player, MCTacticalOrderCode::PowerUp, 0);
             GiveMoverOrder(order, mover, &partId);
             TheInterface->UpdateInterface();
-            order.Destroy();
             return;
         }
         case 0x16:
         {
-            order.Init(ORDER_ORIGIN_PLAYER, TACTICAL_ORDER_POWERDOWN, 0);
+            order.Reset(MCOrderOrigin::Player, MCTacticalOrderCode::PowerDown, 0);
             GiveMoverOrder(order, mover, &partId);
             TheInterface->UpdateInterface();
-            order.Destroy();
             return;
         }
         case 0x29:
@@ -284,10 +273,9 @@ auto MechIconHandleEvent(MCGuiObject* icon, MCGuiEvent* event) -> void
             TheInterface->CommandOneShot = 0;
             Application->CursorHidden = 0;
             icon->Enter();
-            TheInterface->SelectLance(HomeCommander->GetGroup(groupId));
-            TheInterface->CommandParser->AddSubject(HomeCommander->GetGroup(groupId), -1);
+            TheInterface->SelectLance(HomeCommander()->GetGroup(groupId));
+            TheInterface->CommandParser->AddSubject(HomeCommander()->GetGroup(groupId), -1);
             TheInterface->UpdateInterface();
-            order.Destroy();
             return;
         }
 
@@ -297,7 +285,6 @@ auto MechIconHandleEvent(MCGuiObject* icon, MCGuiEvent* event) -> void
             TacticalMap()->SetDisplayType(MCTacmapPage::Info);
             TacticalMap()->SetID(mechIcon->PartId);
             TheInterface->UpdateInterface();
-            order.Destroy();
             return;
         }
         case 0x4a:
@@ -306,7 +293,6 @@ auto MechIconHandleEvent(MCGuiObject* icon, MCGuiEvent* event) -> void
     }
 
     TheInterface->UpdateInterface();
-    order.Destroy();
 }
 
 auto PaintSelBox(MCGuiObject* box) -> void
@@ -365,7 +351,7 @@ auto HealAll() -> void
             mover->BodyAt(j).CurInternalStructure = static_cast<float>(mover->BodyAt(j).MaxInternalStructure);
         }
 
-        if (mover->ObjectClass == BATTLEMECH)
+        if (mover->ObjectClass == MCObjectClass::BattleMech)
         {
             static_cast<MCBattleMech*>(mover)->CalcLegStatus();
             static_cast<MCBattleMech*>(mover)->CalcTorsoStatus();

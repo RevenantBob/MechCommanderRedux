@@ -2,8 +2,8 @@
 #include "object/mech.h"
 #include "main/fixes.h"
 #include "abl/MCScrollingTextWindow.h"
-#include "ai/move.h"
-#include "ai/tacordr.h"
+#include "ai/MCMoveSystem.h"
+#include "ai/MCTacticalOrder.h"
 #include "appear/MCAppearanceType.h"
 #include "appear/MCAppearanceTypeList.h"
 #include "camera/MCCamera.h"
@@ -31,31 +31,34 @@
 #include "object/artlry.h"
 #include "object/laser.h"
 #include "object/bullet.h"
-#include "object/cmponent.h"
-#include "object/collsn.h"
-#include "object/comndr.h"
-#include "object/contact.h"
+#include "object/MCMasterComponent.h"
+#include "object/MCCollisionSystem.h"
+#include "object/MCForces.h"
+#include "object/MCContactSystem.h"
 #include "object/debris.h"
 #include "object/elemntl.h"
 #include "object/explode.h"
 #include "object/gvehicl.h"
-#include "object/group.h"
+#include "object/MCMoverGroup.h"
 #include "object/jet.h"
 #include "object/mechctrl.h"
 #include "object/mechdyn.h"
 #include "object/netctrl.h"
-#include "object/object.h"
-#include "object/objque.h"
-#include "object/objtype.h"
+#include "object/MCObjectSystem.h"
+#include "object/MCObjectQueue.h"
+#include "object/MCObjectType.h"
 #include "object/plyrctrl.h"
 #include "object/prjlase.h"
 #include "object/smoke.h"
-#include "object/team.h"
 #include "object/warrior.h"
 #include "sound/radio.h"
 #include "sound/soundsys.h"
 #include "terrain/MCTerrain.h"
 #include "sprite/MCMechActor.h"
+#include "object/MCObjectTypeManager.h"
+#include "object/MCWeaponChunkDebug.h"
+#include "object/MCWeaponFireChunk.h"
+#include "object/MCWeaponShotInfo.h"
 
 char MechSpeedStateArray[32] = {0, 0, 0, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1,  1,  1,  1,
                                 2, 2, 1, 1, 2, 0, 0, 0, 0, 0, 0, 0, -1, -1, -1, -1};
@@ -558,17 +561,17 @@ auto MCBattleMechType::HandleCollision(MCGameObject* collidee, MCGameObject* col
 
     switch (collider->ObjectClass)
     {
-        case BATTLEMECH:
+        case MCObjectClass::BattleMech:
         {
             if (collidee->GetPilot()->Alignment != collider->GetPilot()->Alignment)
             {
                 MCMechWarrior* attackerPilot = collider->GetPilot();
 
-                if (attackerPilot->CurTacOrder.Code == TACTICAL_ORDER_ATTACK_OBJECT)
+                if (attackerPilot->CurTacOrder.Code == MCTacticalOrderCode::AttackObject)
                 {
                     attackerPilot->NumRams++;
                 }
-                else if (attackerPilot->CurTacOrder.Code == TACTICAL_ORDER_JUMPTO_POINT &&
+                else if (attackerPilot->CurTacOrder.Code == MCTacticalOrderCode::JumpToPoint &&
                          collidee->GetPilot()->CurTacOrder.GetJumpTarget() == collidee)
                 {
                     collidee->GetPilot()->NumJumpAttacks++;
@@ -586,7 +589,7 @@ auto MCBattleMechType::HandleCollision(MCGameObject* collidee, MCGameObject* col
             [[fallthrough]];
         }
 
-        case GROUNDVEHICLE:
+        case MCObjectClass::GroundVehicle:
         {
             bool jumpHit = true;
 
@@ -686,7 +689,7 @@ auto MCBattleMechType::HandleCollision(MCGameObject* collidee, MCGameObject* col
             break;
         }
 
-        case ELEMENTAL:
+        case MCObjectClass::Elemental:
         {
             if (collidee->GetPilot()->Alignment == collider->GetPilot()->Alignment)
             {
@@ -723,8 +726,8 @@ auto MCBattleMechType::HandleCollision(MCGameObject* collidee, MCGameObject* col
             break;
         }
 
-        case BUILDING:
-        case TREEBUILDING:
+        case MCObjectClass::Building:
+        case MCObjectClass::TreeBuilding:
         {
             if (collidee->GetCollisionFreeFrom() == collider && ScenarioTime <= collidee->GetCollisionFreeTime())
             {
@@ -754,7 +757,7 @@ auto MCBattleMechType::HandleCollision(MCGameObject* collidee, MCGameObject* col
             break;
         }
 
-        case TREE:
+        case MCObjectClass::Tree:
         {
             if (collidee->GetCollisionFreeFrom() == collider && ScenarioTime <= collidee->GetCollisionFreeTime())
             {
@@ -781,7 +784,7 @@ auto MCBattleMechType::HandleCollision(MCGameObject* collidee, MCGameObject* col
             break;
         }
 
-        case TRAINCAR:
+        case MCObjectClass::TrainCar:
         {
             if (collidee->GetCollisionFreeFrom() == collider && ScenarioTime <= collidee->GetCollisionFreeTime())
             {
@@ -844,7 +847,7 @@ auto MCBattleMechType::HandleDestruction(MCGameObject* collidee, MCGameObject* c
         mech->DestroyBodyLocation(location);
     }
 
-    if (mech->GetAlignment() == HomeTeam->Alignment)
+    if (mech->GetAlignment() == HomeTeam()->Alignment)
     {
         FriendlyDestroyed = 1;
         return 1;
@@ -942,8 +945,7 @@ auto MCBattleMechType::LoadHotSpots(MCFitIniFile* mechFile) -> int32_t
     }
 
     const uint32_t weaponCount = NumWeapons;
-    WeaponHotSpots =
-        static_cast<uint32_t*>(MCObjectTypeManager::ObjectTypeCache.Allocate(weaponCount * sizeof(uint32_t)));
+    WeaponHotSpots = static_cast<uint32_t*>(ObjectTypeManager()->TypeData.Allocate(weaponCount * sizeof(uint32_t)));
 
     if (WeaponHotSpots == nullptr)
     {
@@ -962,7 +964,7 @@ auto MCBattleMechType::LoadHotSpots(MCFitIniFile* mechFile) -> int32_t
     }
 
     const uint32_t hotSpotDataSize = NumHotSpotPackets * 32;
-    HotSpotData = static_cast<uint8_t*>(MCObjectTypeManager::ObjectTypeCache.Allocate(hotSpotDataSize));
+    HotSpotData = static_cast<uint8_t*>(ObjectTypeManager()->TypeData.Allocate(hotSpotDataSize));
 
     if (HotSpotData == nullptr)
     {
@@ -984,8 +986,7 @@ auto MCBattleMechType::LoadHotSpots(MCFitIniFile* mechFile) -> int32_t
 
     // Port fix: pointer tables sized by the pointer, not the original's 4 bytes.
     const size_t tableSize = (static_cast<size_t>(dataPacket) + 1) * sizeof(uint8_t*);
-    GestureHotSpots =
-        static_cast<uint8_t**>(MCObjectTypeManager::ObjectTypeCache.Allocate(static_cast<uint32_t>(tableSize)));
+    GestureHotSpots = static_cast<uint8_t**>(ObjectTypeManager()->TypeData.Allocate(static_cast<uint32_t>(tableSize)));
 
     if (GestureHotSpots == nullptr)
     {
@@ -995,7 +996,7 @@ auto MCBattleMechType::LoadHotSpots(MCFitIniFile* mechFile) -> int32_t
     std::memset(GestureHotSpots, 0, tableSize);
     const size_t outlineTableSize = (static_cast<size_t>(NumHotSpotPackets) + 1) * sizeof(uint8_t*);
     GestureOutlines =
-        static_cast<uint8_t**>(MCObjectTypeManager::ObjectTypeCache.Allocate(static_cast<uint32_t>(outlineTableSize)));
+        static_cast<uint8_t**>(ObjectTypeManager()->TypeData.Allocate(static_cast<uint32_t>(outlineTableSize)));
 
     if (GestureOutlines == nullptr)
     {
@@ -1006,7 +1007,7 @@ auto MCBattleMechType::LoadHotSpots(MCFitIniFile* mechFile) -> int32_t
 
     const int32_t numGestures = static_cast<int32_t>(NumHotSpotPackets);
     NumFramesPerHotSpot =
-        static_cast<uint32_t*>(MCObjectTypeManager::ObjectTypeCache.Allocate((numGestures + 1) * sizeof(uint32_t)));
+        static_cast<uint32_t*>(ObjectTypeManager()->TypeData.Allocate((numGestures + 1) * sizeof(uint32_t)));
     std::vector<uint32_t> packetSizes(static_cast<size_t>(numGestures), 0);
     std::vector<uint32_t> outlineSizes(static_cast<size_t>(numGestures), 0);
 
@@ -1027,7 +1028,7 @@ auto MCBattleMechType::LoadHotSpots(MCFitIniFile* mechFile) -> int32_t
         }
 
         GestureHotSpots[gesture] =
-            static_cast<uint8_t*>(MCObjectTypeManager::ObjectTypeCache.Allocate(hotSpotFile.GetPacketSize()));
+            static_cast<uint8_t*>(ObjectTypeManager()->TypeData.Allocate(hotSpotFile.GetPacketSize()));
 
         if (GestureHotSpots[gesture] == nullptr)
         {
@@ -1040,7 +1041,7 @@ auto MCBattleMechType::LoadHotSpots(MCFitIniFile* mechFile) -> int32_t
         if (outlineFile.SeekPacket(gesture) == 0 && outlineFile.GetPacketSize() != 0)
         {
             GestureOutlines[gesture] =
-                static_cast<uint8_t*>(MCObjectTypeManager::ObjectTypeCache.Allocate(outlineFile.GetPacketSize()));
+                static_cast<uint8_t*>(ObjectTypeManager()->TypeData.Allocate(outlineFile.GetPacketSize()));
 
             if (GestureOutlines[gesture] == nullptr)
             {
@@ -1054,7 +1055,7 @@ auto MCBattleMechType::LoadHotSpots(MCFitIniFile* mechFile) -> int32_t
 
     LayOutHotSpotPackets(packetSizes, outlineSizes);
 
-    JumpData = static_cast<uint8_t*>(MCObjectTypeManager::ObjectTypeCache.Allocate(jumpFile.FileSize()));
+    JumpData = static_cast<uint8_t*>(ObjectTypeManager()->TypeData.Allocate(jumpFile.FileSize()));
 
     if (JumpData == nullptr)
     {
@@ -1066,9 +1067,9 @@ auto MCBattleMechType::LoadHotSpots(MCFitIniFile* mechFile) -> int32_t
     return 0;
 }
 
-auto MCBattleMechType::CreateInstance() -> MCBaseObject*
+auto MCBattleMechType::CreateInstance() -> std::unique_ptr<MCBaseObject>
 {
-    auto* newMech = new MCBattleMech;
+    auto newMech = std::make_unique<MCBattleMech>();
 
     if (newMech == nullptr)
     {
@@ -1128,14 +1129,7 @@ auto MCBattleMech::HandleStaticCollision() -> void
     int32_t blockNumber = 0;
     int32_t vertexNumber = 0;
     GetBlockAndVertexNumber(blockNumber, vertexNumber);
-    char listName[12];
-    std::sprintf(listName, "TBlk%d", blockNumber);
-    MCObjectQueueNode* list = ObjectList->Head;
-
-    while (list != nullptr && list->operator==(listName) == 0)
-    {
-        list = list->Next;
-    }
+    MCObjectList* list = ObjectList()->FindList(std::format("TBlk{}", blockNumber));
 
     // Port fix: the original reads the objects of a missing list through null.
     if (list == nullptr)
@@ -1143,7 +1137,7 @@ auto MCBattleMech::HandleStaticCollision() -> void
         return;
     }
 
-    for (MCBaseObject* object = list->Head; object != nullptr; object = object->Next)
+    for (MCBaseObject* object : *list)
     {
         auto* other = static_cast<MCGameObject*>(object);
 
@@ -1158,16 +1152,16 @@ auto MCBattleMech::HandleStaticCollision() -> void
 
         switch (other->ObjectClass)
         {
-            case BUILDING:
-            case TREE:
-            case TERRAINOBJECT:
-            case TREEBUILDING:
+            case MCObjectClass::Building:
+            case MCObjectClass::Tree:
+            case MCObjectClass::TerrainObject:
+            case MCObjectClass::TreeBuilding:
             {
                 other->GetBlockAndVertexNumber(otherBlock, otherVertex);
                 collides = other->CollisionsOn;
                 break;
             }
-            case MISCTERRAINOBJECT:
+            case MCObjectClass::MiscTerrainObject:
             {
                 GetBlockAndVertexNumber(otherBlock, otherVertex);
 
@@ -1183,14 +1177,14 @@ auto MCBattleMech::HandleStaticCollision() -> void
 
         if (vertexNumber == otherVertex && collides != 0)
         {
-            CollisionSystem->DetectStaticCollision(this, other);
+            CollisionSystem()->DetectStaticCollision(this, other);
         }
     }
 }
 
 auto MCBattleMech::Init() -> void
 {
-    ObjectClass = BATTLEMECH;
+    ObjectClass = MCObjectClass::BattleMech;
     Body = std::make_unique<MCBodyLocation[]>(8);
     NumBodyLocations = 8;
 
@@ -1300,7 +1294,7 @@ auto MCBattleMech::Init(MCObjectType* objType) -> int32_t
         return result;
     }
 
-    ObjectClass = BATTLEMECH;
+    ObjectClass = MCObjectClass::BattleMech;
 
     for (int32_t i = 0; i < 4; i++)
     {
@@ -1630,7 +1624,7 @@ auto MCBattleMech::Init(MCFitIniFile* mechFile) -> int32_t
         other.BodyLocation = 0xff;
         other.RangeRatings = nullptr;
 
-        if (MasterComponentList[other.MasterID].Form == COMPONENT_FORM_JUMPJET)
+        if (MasterComponentList[other.MasterID].Form == MCComponentForm::JumpJet)
         {
             NumJumpJets++;
         }
@@ -1670,7 +1664,7 @@ auto MCBattleMech::Init(MCFitIniFile* mechFile) -> int32_t
         weapon.Effectiveness = static_cast<int16_t>(static_cast<int32_t>(
             static_cast<double>(component.WeaponRange[3]) * weapon.Effectiveness * static_cast<double>(1.0f / 24.0f)));
         weapon.RangeRatings = new float[NumRangeRatings * 2]();
-        ObjectTypeManager->Load(
+        ObjectTypeManager()->Load(
             static_cast<int32_t>(
                 WeaponFXTable[static_cast<int8_t>(MasterComponentList[Inventory[item].MasterID].WeaponEffect)]),
             1);
@@ -1798,18 +1792,18 @@ auto MCBattleMech::Init(MCFitIniFile* mechFile) -> int32_t
 
             switch (MasterComponentList[masterID].Form)
             {
-                case COMPONENT_FORM_COCKPIT:
+                case MCComponentForm::Cockpit:
                     Cockpit = entry[0];
                     break;
-                case COMPONENT_FORM_SENSOR:
+                case MCComponentForm::Sensor:
                 {
                     Sensor = entry[0];
-                    SensorSystem = SensorSystemManager->NewSensor();
+                    SensorSystem = SensorSystemManager()->NewSensor();
                     SensorSystem->Owner = this;
                     SensorSystem->SetRange(MasterComponentList[Inventory[Sensor].MasterID].RangeOrHeat);
                     break;
                 }
-                case COMPONENT_FORM_ACTUATOR:
+                case MCComponentForm::Actuator:
                 {
                     if (static_cast<int32_t>(masterID) == MasterArmActuatorID)
                     {
@@ -1835,16 +1829,16 @@ auto MCBattleMech::Init(MCFitIniFile* mechFile) -> int32_t
                     }
                     break;
                 }
-                case COMPONENT_FORM_ENGINE:
+                case MCComponentForm::Engine:
                     Engine = entry[0];
                     break;
-                case COMPONENT_FORM_HEATSINK:
-                case COMPONENT_FORM_WEAPON:
-                case COMPONENT_FORM_WEAPON_ENERGY:
-                case COMPONENT_FORM_WEAPON_MISSILE:
+                case MCComponentForm::HeatSink:
+                case MCComponentForm::Weapon:
+                case MCComponentForm::WeaponEnergy:
+                case MCComponentForm::WeaponMissile:
                     item.BodyLocation = static_cast<uint8_t>(location);
                     break;
-                case COMPONENT_FORM_WEAPON_BALLISTIC:
+                case MCComponentForm::WeaponBallistic:
                 {
                     item.BodyLocation = static_cast<uint8_t>(location);
 
@@ -1861,22 +1855,22 @@ auto MCBattleMech::Init(MCFitIniFile* mechFile) -> int32_t
                     }
                     break;
                 }
-                case COMPONENT_FORM_AMMO:
+                case MCComponentForm::Ammo:
                     item.BodyLocation = static_cast<uint8_t>(location);
                     break;
-                case COMPONENT_FORM_LIFESUPPORT:
+                case MCComponentForm::LifeSupport:
                     LifeSupport = entry[0];
                     break;
-                case COMPONENT_FORM_GYROSCOPE:
+                case MCComponentForm::Gyroscope:
                     Gyro = entry[0];
                     break;
-                case COMPONENT_FORM_ECM:
+                case MCComponentForm::Ecm:
                     Ecm = entry[0];
                     break;
-                case COMPONENT_FORM_PROBE:
+                case MCComponentForm::Probe:
                     Probe = entry[0];
                     break;
-                case COMPONENT_FORM_JAMMER:
+                case MCComponentForm::Jammer:
                     Jammer = entry[0];
                     break;
                 default:
@@ -1940,7 +1934,7 @@ auto MCBattleMech::Init(MCFitIniFile* mechFile) -> int32_t
 
     if (ObjType->ExplosionObject > 0)
     {
-        ObjectTypeManager->Load(ObjType->ExplosionObject, 1);
+        ObjectTypeManager()->Load(ObjType->ExplosionObject, 1);
     }
 
     MechClass = static_cast<uint8_t>(GetMechClass());
@@ -2158,7 +2152,7 @@ auto MCBattleMech::MineCheck() -> void
         return;
     }
 
-    MCScenarioMap* map = GameMap;
+    MCScenarioMap* map = GameMap();
 
     // The mine state bits of a tile's overlay: Inner Sphere 11..12, Clan 13..14; the spread counts 25..26, 27..28.
     if (SteppedOnMine != 0)
@@ -2185,7 +2179,7 @@ auto MCBattleMech::MineCheck() -> void
             if (MPlayer != nullptr)
             {
                 MPlayer->AddMineChunk(tileR * 3, tileC * 3, Alignment != -1 ? 1 : 0, 1, 0);
-                map = GameMap;
+                map = GameMap();
             }
         }
     }
@@ -2229,7 +2223,7 @@ auto MCBattleMech::MineCheck() -> void
     {
         for (int32_t col = firstCol; col < firstCol + 3; col++)
         {
-            const bool inMap = row >= 0 && row < GameMap->Height && col >= 0 && col < GameMap->Width;
+            const bool inMap = row >= 0 && row < GameMap()->Height && col >= 0 && col < GameMap()->Width;
             Assert(inMap ? 1 : 0, 0, " Map Tile out of bounds ");
 
             // Port fix: the original goes on to touch the tile past the map's edge.
@@ -2238,7 +2232,7 @@ auto MCBattleMech::MineCheck() -> void
                 continue;
             }
 
-            MCMapTile& tile = GameMap->Map[GameMap->Width * row + col];
+            MCMapTile& tile = GameMap()->Map[GameMap()->Width * row + col];
             const bool innerSphere = GetAlignment() == -1;
             uint32_t count = ((innerSphere ? tile.Overlay >> 25 : tile.Overlay >> 27) & 3) + 1;
 
@@ -2260,7 +2254,7 @@ auto MCBattleMech::MineCheck() -> void
 
     const int32_t tileR = ObjPosition->TileR;
     const int32_t tileC = ObjPosition->TileC;
-    MCMapTile& here = GameMap->Map[GameMap->Width * tileR + tileC];
+    MCMapTile& here = GameMap()->Map[GameMap()->Width * tileR + tileC];
 
     if (GetAlignment() == -1)
     {
@@ -2384,7 +2378,7 @@ auto MCBattleMech::PivotTo() -> int
 
     if (target == nullptr)
     {
-        if (warrior->CurTacOrder.Code == TACTICAL_ORDER_ATTACK_POINT)
+        if (warrior->CurTacOrder.Code == MCTacticalOrderCode::AttackPoint)
         {
             targetFacing = RelFacingTo(warrior->AttackOrders.TargetPoint, -1);
             hasTarget = 1;
@@ -2604,7 +2598,7 @@ auto MCBattleMech::UpdateMoveStateGoal() -> void
 
     if (target == nullptr)
     {
-        if (warrior->CurTacOrder.Code != TACTICAL_ORDER_ATTACK_POINT)
+        if (warrior->CurTacOrder.Code != MCTacticalOrderCode::AttackPoint)
         {
             warrior->MoveOrders.MoveStateGoal = MOVESTATE_FORWARD;
             return;
@@ -2960,7 +2954,7 @@ auto MCBattleMech::UpdateTorso(float newRotatePerSec) -> void
     {
         facing = static_cast<double>(RelFacingTo(target->GetPosition(), -1)) + TorsoRotation + newRotatePerSec;
     }
-    else if (warrior->CurTacOrder.Code == TACTICAL_ORDER_ATTACK_POINT)
+    else if (warrior->CurTacOrder.Code == MCTacticalOrderCode::AttackPoint)
     {
         facing =
             static_cast<double>(RelFacingTo(warrior->GetAttackTargetPoint(), -1)) + TorsoRotation + newRotatePerSec;
@@ -3034,7 +3028,7 @@ auto MCBattleMech::SetControlSettings(char& newRotate, char& newThrottleSetting,
     }
     else if (StatusChunk.JumpOrder != 0 && InJump == 0)
     {
-        MapCellToWorldPos(StatusChunk.TargetCellRC[0], StatusChunk.TargetCellRC[1], JumpGoal);
+        JumpGoal = MapCellToWorldPos(StatusChunk.TargetCellRC[0], StatusChunk.TargetCellRC[1]);
 
         if (DistanceFrom(JumpGoal) > 8.0f)
         {
@@ -3496,9 +3490,9 @@ auto MCBattleMech::CreateJumpFX() -> void
         return;
     }
 
-    JumpFX[0] = CreateObject(0x1c6);
+    JumpFX[0] = CreateObject(0x1c6).release();
     static_cast<MCJet*>(JumpFX[0])->SetOwner(this);
-    JumpFX[1] = CreateObject(0x1c6);
+    JumpFX[1] = CreateObject(0x1c6).release();
     static_cast<MCJet*>(JumpFX[1])->SetOwner(this);
     CraterManager()->AddCrater(7, Position, 0);
 }
@@ -3584,7 +3578,7 @@ auto MCBattleMech::CrashAvoidanceSystem() -> int
     int32_t tileC;
     int32_t cellR;
     int32_t cellC;
-    GameMap->WorldToMapPos(lookAhead, tileR, tileC, cellR, cellC);
+    GameMap()->WorldToMapPos(lookAhead, tileR, tileC, cellR, cellC);
 
     int cornerBlocked = 0;
     const int32_t direction = static_cast<int8_t>(path->StepList[path->CurStep].Direction);
@@ -4048,7 +4042,7 @@ namespace
     /// </summary>
     void ThrowArm(MCBattleMech* mech, uint32_t debrisId, float angle)
     {
-        MCGameObject* piece = CreateObject(static_cast<int32_t>(debrisId));
+        std::unique_ptr<MCGameObject> piece = CreateObject(static_cast<int32_t>(debrisId));
 
         if (piece == nullptr)
         {
@@ -4069,7 +4063,7 @@ namespace
             flight.Z = flight.Z / length;
         }
 
-        auto* debris = static_cast<MCDebris*>(piece);
+        auto* debris = static_cast<MCDebris*>(piece.get());
         debris->RandomAngle(angle);
         RotateXY(flight.X, flight.Y, angle);
 
@@ -4082,10 +4076,7 @@ namespace
         piece->SetPosition(mech->Position);
         debris->SetPaintScheme(static_cast<MCMechActor*>(mech->Appearance)->FadeTableIndex);
 
-        if (ObjectList->Head != nullptr)
-        {
-            ObjectList->Head->AddNode(piece);
-        }
+        AddToDefaultList(std::move(piece));
     }
 
     /// <summary>
@@ -4248,7 +4239,7 @@ auto MCBattleMech::Update() -> int32_t
         if (IsDisabled() == 0)
         {
             // The original looks at the pilot's attack order here and does nothing with it.
-            if (GetPilot()->CurTacOrder.Code == TACTICAL_ORDER_ATTACK_OBJECT &&
+            if (GetPilot()->CurTacOrder.Code == MCTacticalOrderCode::AttackObject &&
                 GetPilot()->CurTacOrder.AttackParams.Method == 2)
             {
                 GetPilot();
@@ -4309,9 +4300,8 @@ auto MCBattleMech::Update() -> int32_t
             if (StatusChunk.JumpOrder == 0)
             {
                 const int32_t tileR = MoveChunk.StepPos[0][0];
-                MCVector3D stepPos;
-                MapTileCellToWorldPos(tileR, MoveChunk.StepPos[0][1], MoveChunk.StepPos[0][2], MoveChunk.StepPos[0][3],
-                                      stepPos);
+                const MCVector3D stepPos = MapTileCellToWorldPos(tileR, MoveChunk.StepPos[0][1],
+                                                                 MoveChunk.StepPos[0][2], MoveChunk.StepPos[0][3]);
                 // Original behaviour (OB-006): measures z against 0, not the mech's elevation.
                 const float dx = Position.X - stepPos.X;
                 const float dz = -stepPos.Z;
@@ -4324,8 +4314,8 @@ auto MCBattleMech::Update() -> int32_t
                     move.Z = stepPos.Z;
                 }
 
-                if (tileR < 0 || GameMap->Height <= tileR || MoveChunk.StepPos[0][1] < 0 ||
-                    GameMap->Width <= MoveChunk.StepPos[0][1])
+                if (tileR < 0 || GameMap()->Height <= tileR || MoveChunk.StepPos[0][1] < 0 ||
+                    GameMap()->Width <= MoveChunk.StepPos[0][1])
                 {
                     Fatal(0, " mech.update: newMoveChunk stepPos not on map! ");
                 }
@@ -4398,8 +4388,8 @@ auto MCBattleMech::Update() -> int32_t
             actor->SetMovePath(Pilot->GetMovePath());
             int combat = 1;
 
-            if (Pilot->GetLastTarget() == nullptr && Pilot->CurTacOrder.Code != TACTICAL_ORDER_ATTACK_OBJECT &&
-                Pilot->CurTacOrder.Code != TACTICAL_ORDER_ATTACK_POINT)
+            if (Pilot->GetLastTarget() == nullptr && Pilot->CurTacOrder.Code != MCTacticalOrderCode::AttackObject &&
+                Pilot->CurTacOrder.Code != MCTacticalOrderCode::AttackPoint)
             {
                 combat = 0;
             }
@@ -4546,7 +4536,7 @@ auto MCBattleMech::Render() -> void
     int tagged = 0;
     int drawMech = 0;
 
-    if (Alignment == HomeTeam->Alignment)
+    if (Alignment == HomeTeam()->Alignment)
     {
         if (WindowsVisible == Turn)
         {
@@ -4567,7 +4557,7 @@ auto MCBattleMech::Render() -> void
     }
     else
     {
-        const int32_t contactType = GetContactType(HomeTeam->Id, tagged);
+        const int32_t contactType = GetContactType(HomeTeam()->Id, tagged);
 
         if (contactType == 1)
         {
@@ -4676,11 +4666,11 @@ auto MCBattleMech::Render() -> void
     }
 
     // The selected mech's queued orders: waypoint markers, joined by lines when the queue is drawn as a path.
-    if (GetCommanderId() == HomeCommander->GetId() && WaypointMarkers != nullptr && Selected != 0 && Pilot != nullptr &&
-        Pilot->GetTacOrderQueue(nullptr) > 0)
+    if (GetCommanderId() == HomeCommander()->GetId() && WaypointMarkers != nullptr && Selected != 0 &&
+        Pilot != nullptr && Pilot->GetTacOrderQueue(nullptr) > 0)
     {
         MCTacticalOrder tacOrder;
-        tacOrder.Init();
+        tacOrder.Reset();
         MCQueuedTacOrder queue[MAX_QUEUED_TACORDERS_PER_WARRIOR];
         const int32_t numOrders = Pilot->GetTacOrderQueue(queue);
         MCVector2D fromScreen = EyeProject(Position);
@@ -4694,7 +4684,7 @@ auto MCBattleMech::Render() -> void
             tacOrder.Unpack();
             int32_t marker;
 
-            if (tacOrder.Code == TACTICAL_ORDER_JUMPTO_POINT || tacOrder.Code == TACTICAL_ORDER_JUMPTO_OBJECT)
+            if (tacOrder.Code == MCTacticalOrderCode::JumpToPoint || tacOrder.Code == MCTacticalOrderCode::JumpToObject)
             {
                 marker = 4;
             }
@@ -4719,8 +4709,6 @@ auto MCBattleMech::Render() -> void
                 toScreen.Y - static_cast<float>(bounds >> 1 & 0x7fff), marker, 1, nullptr, 1);
             ElementList()->Add(element);
         }
-
-        tacOrder.Destroy();
     }
 }
 
@@ -4923,7 +4911,7 @@ auto MCBattleMech::HandleEjection() -> int
     EjectOrderGiven = 1;
     DestroyBodyLocation(MECH_BODY_LOCATION_HEAD);
     // The ejection seat's beam, from the cockpit hot spot up and away.
-    MCGameObject* beam = CreateObject(0x1e4);
+    std::unique_ptr<MCGameObject> beam = CreateObject(0x1e4);
 
     if (beam != nullptr)
     {
@@ -4933,19 +4921,16 @@ auto MCBattleMech::HandleEjection() -> int
         cockpit.X = static_cast<float>(cockpit.X - 1000.0);
         cockpit.Y = static_cast<float>(cockpit.Y + 1000.0);
         cockpit.Z = static_cast<float>(cockpit.Z + 300.0);
-        static_cast<MCProjectileLaser*>(beam)->Connect(this, cockpit, nullptr,
-                                                       static_cast<int32_t>(mechType->NumWeapons + 1));
+        static_cast<MCProjectileLaser*>(beam.get())
+            ->Connect(this, cockpit, nullptr, static_cast<int32_t>(mechType->NumWeapons + 1));
 
-        if (ObjectList->Head != nullptr)
-        {
-            ObjectList->Head->AddNode(beam);
-        }
+        AddToDefaultList(std::move(beam));
     }
 
     Disable(3);
     TheInterface->RemoveMech(PartId);
 
-    if (Alignment == HomeTeam->Alignment)
+    if (Alignment == HomeTeam()->Alignment)
     {
         FriendlyDestroyed = 1;
         return 1;
@@ -4993,7 +4978,7 @@ auto MCBattleMech::HitInventoryItem(int32_t itemIndex, int setupOnly) -> int
             std::snprintf(line, sizeof(line), "INTERNAL COMPONENT HIT: %s (%s)", DebugStatus.c_str(), Pilot->Name);
             GameSystemWindow->Print(line);
             const char* attackerName = BadGuy != nullptr ? static_cast<MCMover*>(BadGuy)->DebugStatus.c_str() : "???";
-            std::snprintf(line, sizeof(line), "%s in %s by %s", MasterComponentList[masterId].Name,
+            std::snprintf(line, sizeof(line), "%s in %s by %s", MasterComponentList[masterId].Name.c_str(),
                           locationNames[location], attackerName);
             GameSystemWindow->Print(line);
         }
@@ -5001,7 +4986,7 @@ auto MCBattleMech::HitInventoryItem(int32_t itemIndex, int setupOnly) -> int
 
     const MCMasterComponent& component = MasterComponentList[masterId];
 
-    if (component.Form == 3 || component.Form == 0xe)
+    if (component.Form == MCComponentForm::Actuator || component.Form == MCComponentForm::Gyroscope)
     {
         PilotingCheck(0, 0.0f);
     }
@@ -5016,11 +5001,11 @@ auto MCBattleMech::HitInventoryItem(int32_t itemIndex, int setupOnly) -> int
 
         switch (component.Form)
         {
-            case 0:
-            case 1:
+            case MCComponentForm::Simple:
+            case MCComponentForm::Cockpit:
                 smokeSpot = 2;
                 break;
-            case 2:
+            case MCComponentForm::Sensor:
             {
                 if (SensorSystem != nullptr)
                 {
@@ -5028,17 +5013,17 @@ auto MCBattleMech::HitInventoryItem(int32_t itemIndex, int setupOnly) -> int
                 }
                 break;
             }
-            case 4:
+            case MCComponentForm::Engine:
             {
                 smokeSpot = 1;
                 EngineBlowTime = static_cast<float>(ScenarioTime + 5.0);
                 Disable(1);
                 break;
             }
-            case 6:
-            case 7:
-            case 8:
-            case 9:
+            case MCComponentForm::Weapon:
+            case MCComponentForm::WeaponEnergy:
+            case MCComponentForm::WeaponBallistic:
+            case MCComponentForm::WeaponMissile:
             {
                 CalcWeaponEffectiveness(0);
 
@@ -5051,23 +5036,23 @@ auto MCBattleMech::HitInventoryItem(int32_t itemIndex, int setupOnly) -> int
                 CalcOptimalRange(nullptr);
                 [[fallthrough]];
             }
-            case 3:
+            case MCComponentForm::Actuator:
                 smokeSpot = 0;
                 break;
-            case 0xc:
+            case MCComponentForm::Case:
                 BodyAt(item.BodyLocation).HasCase = 0;
                 break;
-            case 0xf:
-            case 0x13:
+            case MCComponentForm::PowerAmplifier:
+            case MCComponentForm::Bulk:
                 smokeSpot = 1;
                 break;
-            case 0x10:
+            case MCComponentForm::Ecm:
             {
                 Team->RemoveEcm(EcmTracker);
                 EcmTracker = nullptr;
                 break;
             }
-            case 0x12:
+            case MCComponentForm::Jammer:
             {
                 Team->RemoveJammer(JammerTracker);
                 JammerTracker = nullptr;
@@ -5084,7 +5069,7 @@ auto MCBattleMech::HitInventoryItem(int32_t itemIndex, int setupOnly) -> int
                 SoundSystem->PlayDigitalSample(0x13, 1, this, 0, 0);
             }
 
-            MCGameObject* sparks = CreateObject(0x3f);
+            std::unique_ptr<MCGameObject> sparks = CreateObject(0x3f);
 
             if (sparks != nullptr)
             {
@@ -5092,17 +5077,14 @@ auto MCBattleMech::HitInventoryItem(int32_t itemIndex, int setupOnly) -> int
                     GetPositionFromHS(static_cast<MCBattleMechType*>(ObjType)->NumWeapons + smokeSpot);
                 sparks->SetPosition(sparkPos);
 
-                if (ObjectList->Head != nullptr)
-                {
-                    ObjectList->Head->AddNode(sparks);
-                }
+                AddToDefaultList(std::move(sparks));
             }
 
             for (int32_t i = 0; i < 4; i++)
             {
                 if (Smoke[i] == nullptr)
                 {
-                    Smoke[i] = static_cast<MCSmoke*>(CreateObject(0x1c2));
+                    Smoke[i] = CreateObjectAs<MCSmoke>(0x1c2).release();
                     SmokeHotSpot[i] =
                         RandomNumber(static_cast<int32_t>(static_cast<MCBattleMechType*>(ObjType)->NumWeapons));
                     SmokeTime[i] = 15.0f;
@@ -5117,10 +5099,10 @@ auto MCBattleMech::HitInventoryItem(int32_t itemIndex, int setupOnly) -> int
         // Destroyed: the cockpit hurts the pilot, a leg actuator trips the mech, ammunition explodes.
         switch (component.Form)
         {
-            case 1:
+            case MCComponentForm::Cockpit:
                 Pilot->Injure(6.0f, 0);
                 break;
-            case 3:
+            case MCComponentForm::Actuator:
             {
                 if (location == MECH_BODY_LOCATION_LLEG || location == MECH_BODY_LOCATION_RLEG)
                 {
@@ -5129,7 +5111,7 @@ auto MCBattleMech::HitInventoryItem(int32_t itemIndex, int setupOnly) -> int
                 }
                 break;
             }
-            case 10:
+            case MCComponentForm::Ammo:
             {
                 AmmoExplosion(itemIndex);
                 return 0;
@@ -5384,22 +5366,22 @@ auto MCBattleMech::BuildStatusChunk() -> int32_t
 
             if (target != nullptr)
             {
-                const int32_t targetClass = target->ObjectClass;
+                const MCObjectClass targetClass = target->ObjectClass;
 
                 switch (targetClass)
                 {
-                    case 1:
-                    case BUILDING:
-                    case DEBRIS:
-                    case TREE:
-                    case TERRAINOBJECT:
-                    case 0x17:
-                    case MISCTERRAINOBJECT:
-                    case JET:
-                    case TREEBUILDING:
-                    case TURRET:
-                    case GATE:
-                    case LIGHT:
+                    case static_cast<MCObjectClass>(1):
+                    case MCObjectClass::Building:
+                    case MCObjectClass::Debris:
+                    case MCObjectClass::Tree:
+                    case MCObjectClass::TerrainObject:
+                    case static_cast<MCObjectClass>(0x17):
+                    case MCObjectClass::MiscTerrainObject:
+                    case MCObjectClass::Jet:
+                    case MCObjectClass::TreeBuilding:
+                    case MCObjectClass::Turret:
+                    case MCObjectClass::Gate:
+                    case MCObjectClass::Light:
                     {
                         // A terrain object: its block, vertex and item from the part id.
                         StatusChunk.TargetType = 2;
@@ -5412,15 +5394,15 @@ auto MCBattleMech::BuildStatusChunk() -> int32_t
                         break;
                     }
 
-                    case BATTLEMECH:
-                    case GROUNDVEHICLE:
-                    case ELEMENTAL:
+                    case MCObjectClass::BattleMech:
+                    case MCObjectClass::GroundVehicle:
+                    case MCObjectClass::Elemental:
                     {
                         StatusChunk.TargetType = 1;
                         StatusChunk.TargetId = static_cast<MCMover*>(target)->NetRosterIndex;
                         break;
                     }
-                    case CAMERADRONE:
+                    case MCObjectClass::CameraDrone:
                     {
                         StatusChunk.TargetType = 3;
                         StatusChunk.TargetId = target->PartId;
@@ -5428,7 +5410,7 @@ auto MCBattleMech::BuildStatusChunk() -> int32_t
                         StatusChunk.TargetVertexOrCarNumber = target->PartId - 0x802c8;
                         break;
                     }
-                    case TRAINCAR:
+                    case MCObjectClass::TrainCar:
                     {
                         StatusChunk.TargetType = 3;
                         StatusChunk.TargetId = target->PartId;
@@ -5439,7 +5421,7 @@ auto MCBattleMech::BuildStatusChunk() -> int32_t
                     }
 
                     default:
-                        Fatal(targetClass, " BattleMech.buildStatusChunk: bad target type ");
+                        Fatal(static_cast<int32_t>(targetClass), " BattleMech.buildStatusChunk: bad target type ");
                 }
             }
         }
@@ -5523,7 +5505,7 @@ auto MCBattleMech::HandleStatusChunk(int32_t updateAge, uint32_t chunk) -> int32
         }
         else
         {
-            target = static_cast<MCGameObject*>(ObjectList->FindObjectFromPart(targetPartId));
+            target = static_cast<MCGameObject*>(ObjectList()->FindObjectFromPart(targetPartId));
         }
     }
 
@@ -5543,7 +5525,7 @@ auto MCBattleMech::HandleStatusChunk(int32_t updateAge, uint32_t chunk) -> int32
 
 auto MCBattleMech::BuildMoveChunk() -> int32_t
 {
-    MoveChunk.Init();
+    MoveChunk.Reset();
 
     if (Pilot != nullptr)
     {
@@ -5560,9 +5542,8 @@ auto MCBattleMech::BuildMoveChunk() -> int32_t
     check.Run = 0;
     check.NumSteps = 0;
     check.Data = MoveChunk.Data;
-    check.Unpack(this);
 
-    if (MoveChunkUnpackErr == 0)
+    if (check.Unpack(this))
     {
         if (MoveChunk.EqualTo(this, &check) == 0)
         {
@@ -5571,7 +5552,7 @@ auto MCBattleMech::BuildMoveChunk() -> int32_t
     }
     else
     {
-        MoveChunk.Init();
+        MoveChunk.Reset();
         MoveChunk.Build(this, nullptr, nullptr);
         MoveChunk.Pack(this);
     }
@@ -5581,14 +5562,13 @@ auto MCBattleMech::BuildMoveChunk() -> int32_t
 
 auto MCBattleMech::HandleMoveChunk(uint32_t chunk) -> int32_t
 {
-    MoveChunk.Init();
+    MoveChunk.Reset();
     MoveChunk.Data = chunk;
-    MoveChunk.Unpack(this);
 
-    if (MoveChunkUnpackErr == 0)
+    if (MoveChunk.Unpack(this))
     {
         MCMovePath* path = GetPilot()->GetMovePath();
-        path->SetMoveChunk(&MoveChunk);
+        path->SetMoveChunk(MoveChunk);
 
         // Skip ahead to the step nearest the mech.
         if (path->NumStepsWhenNotPaused > 1)
@@ -5603,7 +5583,7 @@ auto MCBattleMech::HandleMoveChunk(uint32_t chunk) -> int32_t
                 {
                     break;
                 }
-            } while (MapCellDiagonal < DistanceFrom(path->StepList[step].Destination));
+            } while (MapCellDiagonal() < DistanceFrom(path->StepList[step].Destination));
 
             path->CurStep = step;
         }
@@ -5736,7 +5716,7 @@ auto MCBattleMech::HandleWeaponHit(MCWeaponShotInfo* shotInfo, int addMultiplayC
 
     if (shotInfo->MasterId > 0)
     {
-        internalHit = MasterComponentList[shotInfo->MasterId].Form == 10;
+        internalHit = MasterComponentList[shotInfo->MasterId].Form == MCComponentForm::Ammo;
     }
 
     DamageRateTally = shotInfo->Damage + DamageRateTally;
@@ -5881,8 +5861,8 @@ auto MCBattleMech::HandleWeaponHit(MCWeaponShotInfo* shotInfo, int addMultiplayC
     CurCV = CalcCV(0);
 
     if (wasDisabled == 0 && IsDisabled() != 0 && attacker != nullptr &&
-        (attacker->ObjectClass == BATTLEMECH || attacker->ObjectClass == GROUNDVEHICLE ||
-         attacker->ObjectClass == ELEMENTAL || attacker->ObjectClass == MOVER))
+        (attacker->ObjectClass == MCObjectClass::BattleMech || attacker->ObjectClass == MCObjectClass::GroundVehicle ||
+         attacker->ObjectClass == MCObjectClass::Elemental || attacker->ObjectClass == MCObjectClass::Mover))
     {
         attacker->GetPilot()->TriggerAlarm(12, static_cast<uint32_t>(PartId));
     }
@@ -5912,7 +5892,6 @@ namespace
         }
 
         mech->AddWeaponFireChunk(0, &chunk);
-        LogWeaponFireChunk(&chunk, mech, target);
     }
 
     /// <summary>
@@ -5931,17 +5910,18 @@ namespace
         {
             chunk.BuildLocationTarget(*point, weapon, hit, missiles);
         }
-        else if (target->ObjectClass == BATTLEMECH || target->ObjectClass == GROUNDVEHICLE ||
-                 target->ObjectClass == ELEMENTAL || target->ObjectClass == MOVER)
+        else if (target->ObjectClass == MCObjectClass::BattleMech ||
+                 target->ObjectClass == MCObjectClass::GroundVehicle ||
+                 target->ObjectClass == MCObjectClass::Elemental || target->ObjectClass == MCObjectClass::Mover)
         {
             chunk.BuildMoverTarget(bigTarget, weapon, hit, entryAngle, missiles, missilesPastAMS, antiMissileShots,
                                    hitLocation);
         }
-        else if (target->ObjectClass == TRAINCAR)
+        else if (target->ObjectClass == MCObjectClass::TrainCar)
         {
             chunk.BuildTrainTarget(bigTarget, weapon, hit, entryAngle, missiles);
         }
-        else if (target->ObjectClass == CAMERADRONE)
+        else if (target->ObjectClass == MCObjectClass::CameraDrone)
         {
             chunk.BuildCameraDroneTarget(bigTarget, weapon, hit, entryAngle, missiles);
         }
@@ -5967,15 +5947,15 @@ namespace
         int32_t tileC = 0;
         int32_t cellR = 0;
         int32_t cellC = 0;
-        GameMap->WorldToMapPos(point, tileR, tileC, cellR, cellC);
+        GameMap()->WorldToMapPos(point, tileR, tileC, cellR, cellC);
 
         // Port fix: a miss can land off the map, where the original reads (and writes) outside it.
-        if (!GameMap->OnMap(tileR, tileC))
+        if (!GameMap()->OnMap(tileR, tileC))
         {
             return;
         }
 
-        MCMapTile& tile = GameMap->Map[GameMap->Width * tileR + tileC];
+        MCMapTile& tile = GameMap()->Map[GameMap()->Width * tileR + tileC];
 
         if ((tile.Overlay & 0x1800) == 0x1000 || (tile.Overlay & 0x6000) == 0x4000)
         {
@@ -5989,12 +5969,12 @@ namespace
     /// Sends a weapon effect on its way, at <paramref name="target"/> (from hot spot to hot spot) or, when it is
     /// null, at <paramref name="point"/>, carrying <paramref name="shot"/>; then adds it to the weapon list.
     /// </summary>
-    void LaunchWeaponFX(MCBattleMech* mech, MCGameObject* fx, MCGameObject* target, MCVector3D* point,
+    void LaunchWeaponFX(MCBattleMech* mech, std::unique_ptr<MCGameObject> fx, MCGameObject* target, MCVector3D* point,
                         MCWeaponShotInfo& shot, int32_t sourceHotSpot, int32_t targetHotSpot)
     {
-        if (fx->ObjectClass == BULLET)
+        if (fx->ObjectClass == MCObjectClass::Bullet)
         {
-            auto* bullet = static_cast<MCBullet*>(fx);
+            auto* bullet = static_cast<MCBullet*>(fx.get());
 
             if (bullet->NumShots != 5)
             {
@@ -6014,9 +5994,9 @@ namespace
                 bullet->TargetHotSpot = targetHotSpot;
             }
         }
-        else if (fx->ObjectClass == LASER)
+        else if (fx->ObjectClass == MCObjectClass::Laser)
         {
-            auto* laser = static_cast<MCLaser*>(fx);
+            auto* laser = static_cast<MCLaser*>(fx.get());
 
             if (target == nullptr)
             {
@@ -6033,7 +6013,7 @@ namespace
         }
         else
         {
-            auto* projectile = static_cast<MCProjectileLaser*>(fx);
+            auto* projectile = static_cast<MCProjectileLaser*>(fx.get());
 
             if (target == nullptr)
             {
@@ -6049,23 +6029,23 @@ namespace
             }
         }
 
-        WeaponList->AddNode(fx);
+        WeaponList()->Add(std::move(fx));
     }
 
     /// <summary>Firing gives a mech away to the other side's mechs within visual range.</summary>
     void RevealFiring(MCBattleMech* mech)
     {
-        MCObjectQueueNode* enemies = nullptr;
+        MCObjectList* enemies = nullptr;
         uint8_t seenBy = 0;
 
         if (mech->Alignment == 1)
         {
-            enemies = ClanMechList;
+            enemies = ClanMechList();
             seenBy = 2;
         }
         else if (mech->Alignment == -1)
         {
-            enemies = InnerSphereMechList;
+            enemies = InnerSphereMechList();
             seenBy = 1;
         }
 
@@ -6074,7 +6054,7 @@ namespace
             return;
         }
 
-        for (MCBaseObject* enemy = enemies->Head; enemy != nullptr; enemy = enemy->Next)
+        for (MCBaseObject* enemy : *enemies)
         {
             MCVector3D enemyPosition = static_cast<MCGameObject*>(enemy)->GetPosition();
 
@@ -6146,7 +6126,8 @@ auto MCBattleMech::FireWeapon(MCGameObject* target, float targetTime, int32_t we
     else
     {
         // A camera drone can't be shot for two seconds after launch.
-        if (target->ObjectClass == CAMERADRONE && ScenarioTime < static_cast<MCCameraDrone*>(target)->LaunchTime + 2.0)
+        if (target->ObjectClass == MCObjectClass::CameraDrone &&
+            ScenarioTime < static_cast<MCCameraDrone*>(target)->LaunchTime + 2.0)
         {
             return 4;
         }
@@ -6257,8 +6238,9 @@ auto MCBattleMech::FireWeapon(MCGameObject* target, float targetTime, int32_t we
 
     MCMechWarrior* targetPilot = nullptr;
 
-    if (target != nullptr && (target->ObjectClass == BATTLEMECH || target->ObjectClass == GROUNDVEHICLE ||
-                              target->ObjectClass == ELEMENTAL || target->ObjectClass == MOVER))
+    if (target != nullptr &&
+        (target->ObjectClass == MCObjectClass::BattleMech || target->ObjectClass == MCObjectClass::GroundVehicle ||
+         target->ObjectClass == MCObjectClass::Elemental || target->ObjectClass == MCObjectClass::Mover))
     {
         targetPilot = target->GetPilot();
         targetPilot->UpdateAttackerStatus(static_cast<uint32_t>(PartId), ScenarioTime);
@@ -6278,7 +6260,7 @@ auto MCBattleMech::FireWeapon(MCGameObject* target, float targetTime, int32_t we
         MCInventoryItem& item = Inventory[weaponIndex];
         const MCMasterComponent& fired = MasterComponentList[item.MasterID];
 
-        if (fired.Form == 9)
+        if (fired.Form == MCComponentForm::WeaponMissile)
         {
             // Missiles: a streak fires them all, anything else about half; anti-missile systems take some out.
             const int32_t rackSize = fired.NumMissiles;
@@ -6329,7 +6311,7 @@ auto MCBattleMech::FireWeapon(MCGameObject* target, float targetTime, int32_t we
                         hitLocation = target->CalcHitLocation(this, weaponIndex, 0, attackType);
                     }
 
-                    if (target->ObjectClass == BATTLEMECH)
+                    if (target->ObjectClass == MCObjectClass::BattleMech)
                     {
                         // Port fix: the original reads body[hitLocation], past the eight body locations for a rear torso hit
                         // (8..10); the torso it maps to is read instead.
@@ -6351,7 +6333,7 @@ auto MCBattleMech::FireWeapon(MCGameObject* target, float targetTime, int32_t we
                                         antiMissileShots, hitLocation);
                 }
 
-                MCGameObject* fx = CreateObject(static_cast<int32_t>(WeaponFXTable[weaponEffect]));
+                std::unique_ptr<MCGameObject> fx = CreateObject(static_cast<int32_t>(WeaponFXTable[weaponEffect]));
 
                 if (fx == nullptr)
                 {
@@ -6362,7 +6344,7 @@ auto MCBattleMech::FireWeapon(MCGameObject* target, float targetTime, int32_t we
                 }
                 else
                 {
-                    LaunchWeaponFX(this, fx, target, targetPoint, shot, sourceHotSpot, targetHotSpot);
+                    LaunchWeaponFX(this, std::move(fx), target, targetPoint, shot, sourceHotSpot, targetHotSpot);
 
                     if (target == nullptr)
                     {
@@ -6391,7 +6373,7 @@ auto MCBattleMech::FireWeapon(MCGameObject* target, float targetTime, int32_t we
                 SendTargetFireChunk(this, target, targetPoint, chunkWeapon, 1, entryAngle, 0, 0, 0, hitLocation);
             }
 
-            MCGameObject* fx = CreateObject(static_cast<int32_t>(WeaponFXTable[fired.WeaponEffect]));
+            std::unique_ptr<MCGameObject> fx = CreateObject(static_cast<int32_t>(WeaponFXTable[fired.WeaponEffect]));
 
             if (fx == nullptr)
             {
@@ -6405,7 +6387,7 @@ auto MCBattleMech::FireWeapon(MCGameObject* target, float targetTime, int32_t we
                 const int32_t sourceHotSpot = BodyAt(item.BodyLocation).HotSpotNumber;
                 int32_t targetHotSpot = 0;
 
-                if (target != nullptr && target->ObjectClass == BATTLEMECH)
+                if (target != nullptr && target->ObjectClass == MCObjectClass::BattleMech)
                 {
                     // Port fix: the original reads body[hitLocation], past the eight body locations for a rear torso hit
                     // (8..10); the torso it maps to is read instead.
@@ -6413,7 +6395,7 @@ auto MCBattleMech::FireWeapon(MCGameObject* target, float targetTime, int32_t we
                         static_cast<MCBattleMech*>(target)->BodyAt(MechArmorToBodyLocation[hitLocation]).HotSpotNumber;
                 }
 
-                LaunchWeaponFX(this, fx, target, targetPoint, shot, sourceHotSpot, targetHotSpot);
+                LaunchWeaponFX(this, std::move(fx), target, targetPoint, shot, sourceHotSpot, targetHotSpot);
             }
 
             if (target == nullptr)
@@ -6437,7 +6419,7 @@ auto MCBattleMech::FireWeapon(MCGameObject* target, float targetTime, int32_t we
         MCVector3D landing;
         int launch = 1;
 
-        if (fired.Form == 9)
+        if (fired.Form == MCComponentForm::WeaponMissile)
         {
             const int32_t rackSize = fired.NumMissiles;
             int32_t missiles = static_cast<int32_t>(rackSize * 0.5 + 0.5);
@@ -6481,11 +6463,12 @@ auto MCBattleMech::FireWeapon(MCGameObject* target, float targetTime, int32_t we
 
         if (launch != 0)
         {
-            MCGameObject* fx = CreateObject(static_cast<int32_t>(WeaponFXTable[fired.WeaponEffect]));
+            std::unique_ptr<MCGameObject> fx = CreateObject(static_cast<int32_t>(WeaponFXTable[fired.WeaponEffect]));
 
             if (fx != nullptr)
             {
-                LaunchWeaponFX(this, fx, nullptr, &landing, shot, BodyAt(item.BodyLocation).HotSpotNumber, 0);
+                LaunchWeaponFX(this, std::move(fx), nullptr, &landing, shot, BodyAt(item.BodyLocation).HotSpotNumber,
+                               0);
             }
             else
             {
@@ -6517,14 +6500,7 @@ namespace
     /// <summary>How many weapon effects are in flight.</summary>
     int32_t CountWeaponFX()
     {
-        int32_t count = 0;
-
-        for (MCBaseObject* fx = WeaponList->Head; fx != nullptr; fx = fx->Next)
-        {
-            count++;
-        }
-
-        return count;
+        return static_cast<int32_t>(WeaponList()->Size());
     }
 }
 
@@ -6556,11 +6532,11 @@ auto MCBattleMech::HandleWeaponFire(int32_t weaponIndex, MCGameObject* target, M
             DeductWeaponShot(weaponIndex, 1);
         }
 
-        if (fired.Form == 9)
+        if (fired.Form == MCComponentForm::WeaponMissile)
         {
             if (numMissiles != 0)
             {
-                MCGameObject* fx = nullptr;
+                std::unique_ptr<MCGameObject> fx;
 
                 if (CountWeaponFX() < MAX_NETWORK_WEAPON_FX)
                 {
@@ -6572,7 +6548,7 @@ auto MCBattleMech::HandleWeaponFire(int32_t weaponIndex, MCGameObject* target, M
                     const int32_t sourceHotSpot = BodyAt(item.BodyLocation).HotSpotNumber;
                     shot.Init(this, item.MasterID, fired.Damage * static_cast<float>(numMissiles), -1, entryAngle);
                     CheckDamageRound(shot);
-                    LaunchWeaponFX(this, fx, nullptr, targetPoint, shot, sourceHotSpot, 0);
+                    LaunchWeaponFX(this, std::move(fx), nullptr, targetPoint, shot, sourceHotSpot, 0);
                 }
                 else if (targetPoint != nullptr)
                 {
@@ -6583,7 +6559,7 @@ auto MCBattleMech::HandleWeaponFire(int32_t weaponIndex, MCGameObject* target, M
         else
         {
             shot.Init(this, item.MasterID, fired.Damage, -1, entryAngle);
-            MCGameObject* fx = nullptr;
+            std::unique_ptr<MCGameObject> fx;
 
             if (CountWeaponFX() < MAX_NETWORK_WEAPON_FX)
             {
@@ -6592,7 +6568,8 @@ auto MCBattleMech::HandleWeaponFire(int32_t weaponIndex, MCGameObject* target, M
 
             if (fx != nullptr)
             {
-                LaunchWeaponFX(this, fx, nullptr, targetPoint, shot, BodyAt(item.BodyLocation).HotSpotNumber, 0);
+                LaunchWeaponFX(this, std::move(fx), nullptr, targetPoint, shot, BodyAt(item.BodyLocation).HotSpotNumber,
+                               0);
             }
             else if (targetPoint != nullptr)
             {
@@ -6607,7 +6584,7 @@ auto MCBattleMech::HandleWeaponFire(int32_t weaponIndex, MCGameObject* target, M
             DeductWeaponShot(weaponIndex, 1);
         }
 
-        if (fired.Form == 9)
+        if (fired.Form == MCComponentForm::WeaponMissile)
         {
             if (antiMissileShots > 0)
             {
@@ -6619,7 +6596,7 @@ auto MCBattleMech::HandleWeaponFire(int32_t weaponIndex, MCGameObject* target, M
 
             if (missilesPastAMS > 0)
             {
-                MCGameObject* fx = nullptr;
+                std::unique_ptr<MCGameObject> fx;
 
                 if (CountWeaponFX() < MAX_NETWORK_WEAPON_FX)
                 {
@@ -6631,7 +6608,7 @@ auto MCBattleMech::HandleWeaponFire(int32_t weaponIndex, MCGameObject* target, M
                     Assert(hitLocation != -2 ? 1 : 0, static_cast<uint32_t>(TargetRolo),
                            " Mech.handleWeaponFire: Bad Hit Location ");
 
-                    if (target != nullptr && target->ObjectClass == BATTLEMECH)
+                    if (target != nullptr && target->ObjectClass == MCObjectClass::BattleMech)
                     {
                         // Port fix: the original reads body[hitLocation], past the eight body locations for a rear torso hit
                         // (8..10); the torso it maps to is read instead.
@@ -6643,7 +6620,7 @@ auto MCBattleMech::HandleWeaponFire(int32_t weaponIndex, MCGameObject* target, M
                     shot.Init(this, item.MasterID, fired.Damage * static_cast<float>(missilesPastAMS), hitLocation,
                               entryAngle);
                     CheckDamageRound(shot);
-                    LaunchWeaponFX(this, fx, target, targetPoint, shot, sourceHotSpot, targetHotSpot);
+                    LaunchWeaponFX(this, std::move(fx), target, targetPoint, shot, sourceHotSpot, targetHotSpot);
 
                     if (target == nullptr)
                     {
@@ -6659,7 +6636,7 @@ auto MCBattleMech::HandleWeaponFire(int32_t weaponIndex, MCGameObject* target, M
         else
         {
             shot.Init(this, item.MasterID, fired.Damage, hitLocation, entryAngle);
-            MCGameObject* fx = nullptr;
+            std::unique_ptr<MCGameObject> fx;
 
             if (CountWeaponFX() < MAX_NETWORK_WEAPON_FX)
             {
@@ -6671,7 +6648,7 @@ auto MCBattleMech::HandleWeaponFire(int32_t weaponIndex, MCGameObject* target, M
                 const int32_t sourceHotSpot = BodyAt(item.BodyLocation).HotSpotNumber;
                 int32_t targetHotSpot = 0;
 
-                if (target != nullptr && target->ObjectClass == BATTLEMECH)
+                if (target != nullptr && target->ObjectClass == MCObjectClass::BattleMech)
                 {
                     // Port fix: the original reads body[hitLocation], past the eight body locations for a rear torso hit
                     // (8..10); the torso it maps to is read instead.
@@ -6679,7 +6656,7 @@ auto MCBattleMech::HandleWeaponFire(int32_t weaponIndex, MCGameObject* target, M
                         static_cast<MCBattleMech*>(target)->BodyAt(MechArmorToBodyLocation[hitLocation]).HotSpotNumber;
                 }
 
-                LaunchWeaponFX(this, fx, target, targetPoint, shot, sourceHotSpot, targetHotSpot);
+                LaunchWeaponFX(this, std::move(fx), target, targetPoint, shot, sourceHotSpot, targetHotSpot);
 
                 if (target == nullptr)
                 {
@@ -6693,8 +6670,9 @@ auto MCBattleMech::HandleWeaponFire(int32_t weaponIndex, MCGameObject* target, M
         }
     }
 
-    if (target != nullptr && (target->ObjectClass == BATTLEMECH || target->ObjectClass == GROUNDVEHICLE ||
-                              target->ObjectClass == ELEMENTAL || target->ObjectClass == MOVER))
+    if (target != nullptr &&
+        (target->ObjectClass == MCObjectClass::BattleMech || target->ObjectClass == MCObjectClass::GroundVehicle ||
+         target->ObjectClass == MCObjectClass::Elemental || target->ObjectClass == MCObjectClass::Mover))
     {
         MCMechWarrior* targetPilot = target->GetPilot();
         targetPilot->UpdateAttackerStatus(static_cast<uint32_t>(PartId), ScenarioTime);
@@ -6863,7 +6841,7 @@ auto MCBattleMech::GetVitalInfo(void* vitalInfo) -> int32_t
 
 auto MCBattleMech::IsCaptureable() -> int
 {
-    if (Captureable != 0 && Alignment == HomeTeam->Alignment && IsDestroyed() == 0)
+    if (Captureable != 0 && Alignment == HomeTeam()->Alignment && IsDestroyed() == 0)
     {
         return 1;
     }
@@ -6882,7 +6860,7 @@ namespace
         int32_t clusterSize = 1;
         int32_t numClusters = 1;
 
-        if (weapon.Form == 9 && (weapon.MissileType == 1 || weapon.MissileType == 2))
+        if (weapon.Form == MCComponentForm::WeaponMissile && (weapon.MissileType == 1 || weapon.MissileType == 2))
         {
             clusterSize = weapon.MissileType == 1 ? ClusterSizeSrm : ClusterSizeLrm;
             numClusters = weapon.NumMissiles / 2 / clusterSize;
@@ -7157,8 +7135,8 @@ auto MCMechStatusWindow::Display() -> void
             const double ready = item.ReadyTime <= ScenarioTime ? 0.0 : item.ReadyTime - ScenarioTime;
             const MCMasterComponent& component = MasterComponentList[item.MasterID];
             // Port fix: the original passes the whole ammo tally by value to AMMO(%d), which misaligns RDY too.
-            std::snprintf(line, sizeof(line), "%s: [%s] ID(%d), H(%d/%d), AMMO(%d), RDY(%.2f)%s", component.Name,
-                          locationNames[item.BodyLocation], item.MasterID, item.Health,
+            std::snprintf(line, sizeof(line), "%s: [%s] ID(%d), H(%d/%d), AMMO(%d), RDY(%.2f)%s",
+                          component.Name.c_str(), locationNames[item.BodyLocation], item.MasterID, item.Health,
                           static_cast<int8_t>(component.CriticalSpacesReq),
                           shown->AmmoTypeTotal[item.AmmoIndex + 1].CurAmount, ready,
                           item.Disabled != 0 ? " DISABLED" : "");
@@ -7174,7 +7152,7 @@ auto MCMechStatusWindow::Display() -> void
         {
             const MCInventoryItem& item = shown->Inventory[i];
             const MCMasterComponent& component = MasterComponentList[item.MasterID];
-            std::snprintf(line, sizeof(line), "%s: [%s] ID(%d), H(%d/%d)%s", component.Name,
+            std::snprintf(line, sizeof(line), "%s: [%s] ID(%d), H(%d/%d)%s", component.Name.c_str(),
                           locationNames[item.BodyLocation], item.MasterID, item.Health,
                           static_cast<int8_t>(component.CriticalSpacesReq), item.Disabled != 0 ? " DISABLED" : "");
             SystemFont->WriteString(port->Frame(), 0x16, y, reinterpret_cast<uint8_t*>(line), -1);

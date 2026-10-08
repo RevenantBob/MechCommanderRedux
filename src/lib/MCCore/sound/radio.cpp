@@ -11,8 +11,8 @@
 #include "logistics/logmain.h"
 #include "main/main.h"
 #include "mission/mission.h"
-#include "object/baseobj.h"
-#include "object/gameobj.h"
+#include "object/MCBaseObject.h"
+#include "object/MCBigGameObject.h"
 #include "object/warrior.h"
 #include "platform/MCSmacker.h"
 #include "sound/soundsys.h"
@@ -177,7 +177,7 @@ int32_t MCRadio::PlayMessage(MCRadioMessageType msgType)
     // The pilot's video, when the tactical map shows its video window.
     MCTacticalMap* tacMap = TacticalMap();
 
-    if (info.MovieCode != 'x' && !MovieName.empty() && Owner->Vehicle->ObjectClass == BATTLEMECH &&
+    if (info.MovieCode != 'x' && !MovieName.empty() && Owner->Vehicle->ObjectClass == MCObjectClass::BattleMech &&
         tacMap->IsShowing() != 0 && tacMap->IsHidden() == 0 && tacMap->DisplayType == MCTacmapPage::Map &&
         tacMap->VideoWindow != nullptr)
     {

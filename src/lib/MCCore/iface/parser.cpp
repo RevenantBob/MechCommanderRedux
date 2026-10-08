@@ -1,17 +1,17 @@
 #include "stdafx.h"
 #include "iface/parser.h"
-#include "ai/tacordr.h"
+#include "ai/MCTacticalOrder.h"
 #include "iface/iface.h"
 #include "lib/MCFatal.h"
 #include "lib/MCFrameOfRef.h"
 #include "lib/MCVector2D.h"
 #include "lib/MCDice.h"
 #include "network/multplyr.h"
-#include "object/gameobj.h"
-#include "object/group.h"
+#include "object/MCBigGameObject.h"
+#include "object/MCMoverGroup.h"
 #include "object/mover.h"
-#include "object/object.h"
-#include "object/objque.h"
+#include "object/MCObjectSystem.h"
+#include "object/MCObjectQueue.h"
 #include "sound/soundsys.h"
 
 namespace
@@ -80,7 +80,7 @@ auto MCParser::AddSubject(MCMoverGroup* group, int) -> int32_t
     }
 
     // The lance's movers stop being single subjects.
-    for (int32_t i = 0; i < group->NumMovers; i++)
+    for (int32_t i = 0; i < group->NumMovers(); i++)
     {
         for (int16_t j = 0; j < NumSubjects; j++)
         {
@@ -162,15 +162,15 @@ auto MCParser::RemoveSubject(int32_t partId) -> void
     }
 
     // Not a single subject: if it is one through its lance, the lance gives way to its other movers.
-    MCBaseObject* object = ObjectList->FindObjectFromPart(partId);
+    MCBaseObject* object = ObjectList()->FindObjectFromPart(partId);
 
     if (object == nullptr)
     {
         return;
     }
 
-    if (object->ObjectClass != BATTLEMECH && object->ObjectClass != GROUNDVEHICLE && object->ObjectClass != ELEMENTAL &&
-        object->ObjectClass != MOVER)
+    if (object->ObjectClass != MCObjectClass::BattleMech && object->ObjectClass != MCObjectClass::GroundVehicle &&
+        object->ObjectClass != MCObjectClass::Elemental && object->ObjectClass != MCObjectClass::Mover)
     {
         return;
     }
@@ -184,7 +184,7 @@ auto MCParser::RemoveSubject(int32_t partId) -> void
 
     RemoveSubject(group);
 
-    for (int16_t i = 0; i < group->NumMovers; i++)
+    for (int16_t i = 0; i < group->NumMovers(); i++)
     {
         MCMover* member = group->Movers[i];
 
@@ -336,7 +336,6 @@ auto MCParser::SendTacOrder(MCTacticalOrder order, int sortMovers) -> int
 
     if (count == 0 && NumGroupSubjects == 0)
     {
-        order.Destroy();
         return 0;
     }
 
@@ -365,7 +364,7 @@ auto MCParser::SendTacOrder(MCTacticalOrder order, int sortMovers) -> int
 
             for (int32_t i = 0; i < count; i++)
             {
-                movers[i] = static_cast<MCMover*>(ObjectList->FindObjectFromPart(Subjects[i]));
+                movers[i] = static_cast<MCMover*>(ObjectList()->FindObjectFromPart(Subjects[i]));
             }
 
             SortMoverList(count, movers, goal);
@@ -376,11 +375,11 @@ auto MCParser::SendTacOrder(MCTacticalOrder order, int sortMovers) -> int
         // A jump-attack (method 1) becomes a jump to the target's position.
         bool jumpToObject = false;
 
-        if (order.Code == TACTICAL_ORDER_ATTACK_OBJECT)
+        if (order.Code == MCTacticalOrderCode::AttackObject)
         {
             if (order.AttackParams.Method == 1)
             {
-                order.Code = TACTICAL_ORDER_JUMPTO_OBJECT;
+                order.Code = MCTacticalOrderCode::JumpToObject;
                 order.MoveParams.Wait = 0;
                 order.MoveParams.WayPath.Mode[0] = 0;
 
@@ -392,14 +391,14 @@ auto MCParser::SendTacOrder(MCTacticalOrder order, int sortMovers) -> int
                 jumpToObject = true;
             }
         }
-        else if (order.Code == TACTICAL_ORDER_JUMPTO_OBJECT)
+        else if (order.Code == MCTacticalOrderCode::JumpToObject)
         {
             jumpToObject = true;
         }
 
         if (jumpToObject)
         {
-            order.Code = TACTICAL_ORDER_JUMPTO_POINT;
+            order.Code = MCTacticalOrderCode::JumpToPoint;
             Assert(order.Target != nullptr, 0, " JumpToObject is NULL ");
             order.SetWayPoint(0, order.Target->GetPosition());
         }
@@ -407,13 +406,13 @@ auto MCParser::SendTacOrder(MCTacticalOrder order, int sortMovers) -> int
         // A jump gives every mover its own landing spot around the goal.
         MCVector3D jumpGoals[MaxJumpGoals];
 
-        if (order.Code == TACTICAL_ORDER_JUMPTO_POINT)
+        if (order.Code == MCTacticalOrderCode::JumpToPoint)
         {
             int32_t numGoals = count;
 
             for (int32_t i = 0; i < NumGroupSubjects; i++)
             {
-                numGoals += GroupSubjects[i]->NumMovers;
+                numGoals += GroupSubjects[i]->NumMovers();
             }
 
             MCGameObject* jumpTarget = order.GetJumpTarget();
@@ -422,7 +421,7 @@ auto MCParser::SendTacOrder(MCTacticalOrder order, int sortMovers) -> int
 
         for (int32_t i = 0; i < count; i++)
         {
-            auto* mover = static_cast<MCMover*>(ObjectList->FindObjectFromPart(Subjects[i]));
+            auto* mover = static_cast<MCMover*>(ObjectList()->FindObjectFromPart(Subjects[i]));
 
             if (mover == nullptr || mover == order.Target)
             {
@@ -434,7 +433,7 @@ auto MCParser::SendTacOrder(MCTacticalOrder order, int sortMovers) -> int
                 order.SelectionIndex = mover->SelectionIndex;
             }
 
-            if (order.Code == TACTICAL_ORDER_JUMPTO_POINT)
+            if (order.Code == MCTacticalOrderCode::JumpToPoint)
             {
                 order.SetWayPoint(0, jumpGoals[i]);
             }
@@ -450,9 +449,9 @@ auto MCParser::SendTacOrder(MCTacticalOrder order, int sortMovers) -> int
         {
             MCMoverGroup* group = GroupSubjects[i];
 
-            if (group->NumMovers == 1)
+            if (group->NumMovers() == 1)
             {
-                if (order.Code == TACTICAL_ORDER_JUMPTO_POINT)
+                if (order.Code == MCTacticalOrderCode::JumpToPoint)
                 {
                     order.SetWayPoint(0, jumpGoals[goalIndex]);
                 }
@@ -461,11 +460,12 @@ auto MCParser::SendTacOrder(MCTacticalOrder order, int sortMovers) -> int
             }
             else
             {
-                MCVector3D* destinations = order.Code == TACTICAL_ORDER_JUMPTO_POINT ? &jumpGoals[goalIndex] : nullptr;
+                MCVector3D* destinations =
+                    order.Code == MCTacticalOrderCode::JumpToPoint ? &jumpGoals[goalIndex] : nullptr;
                 group->HandleTacticalOrder(order, 1, destinations, 0);
             }
 
-            goalIndex += group->NumMovers;
+            goalIndex += group->NumMovers();
         }
     }
 
@@ -476,7 +476,6 @@ auto MCParser::SendTacOrder(MCTacticalOrder order, int sortMovers) -> int
         TheInterface->CurrentCommand = 0;
     }
 
-    order.Destroy();
     return -1;
 }
 
@@ -488,13 +487,12 @@ auto MCParser::PatrolUp() -> void
     }
 
     MCTacticalOrder order;
-    order.Init();
-    order.Init(ORDER_ORIGIN_PLAYER, TACTICAL_ORDER_PATROL_PATH, 0);
+    order.Reset();
+    order.Reset(MCOrderOrigin::Player, MCTacticalOrderCode::PatrolPath, 0);
     order.InitWayPath(MovePath);
     order.MoveParams.Wait = 0;
     SendTacOrder(order, -1);
     ClearMovePath();
-    order.Destroy();
 }
 
 auto MCParser::TraverseUp() -> void
@@ -505,13 +503,12 @@ auto MCParser::TraverseUp() -> void
     }
 
     MCTacticalOrder order;
-    order.Init();
-    order.Init(ORDER_ORIGIN_PLAYER, TACTICAL_ORDER_TRAVERSE_PATH, 0);
+    order.Reset();
+    order.Reset(MCOrderOrigin::Player, MCTacticalOrderCode::TraversePath, 0);
     order.InitWayPath(MovePath);
     order.MoveParams.Wait = -1;
     SendTacOrder(order, -1);
     ClearMovePath();
-    order.Destroy();
 }
 
 auto MCParser::ClearMovePath() -> void

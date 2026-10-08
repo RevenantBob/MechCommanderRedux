@@ -21,7 +21,7 @@
 #include "main/main.h"
 #include "mission/mission.h"
 #include "network/multplyr.h"
-#include "object/cmponent.h"
+#include "object/MCMasterComponent.h"
 #include "platform/MCInput.h"
 #include "platform/MCSmacker.h"
 #include "sound/soundsys.h"
@@ -1819,7 +1819,7 @@ auto MCMechBriefBlock::HandleEvent(MCGuiEvent* event) -> void
             // A mech with a damaged engine or a destroyed location can't drop.
             MCLogInventoryItem* engine = Mech->Inventory->Items;
 
-            while (engine != nullptr && MasterComponentList[engine->MasterID].Form != COMPONENT_FORM_ENGINE)
+            while (engine != nullptr && MasterComponentList[engine->MasterID].Form != MCComponentForm::Engine)
             {
                 engine = engine->Next;
             }

@@ -1,13 +1,13 @@
 #include "stdafx.h"
 #include "engine/MCCraterManager.h"
-#include "ai/move.h"
+#include "ai/MCMoveSystem.h"
 #include "camera/MCCamera.h"
 #include "engine/MCByteFlag.h"
 #include "engine/MCElementBuffer.h"
 #include "engine/MCVfxElement.h"
 #include "lib/MCPacketFile.h"
 #include "logistics/logmain.h"
-#include "object/team.h"
+#include "object/MCForces.h"
 #include "platform/MCRenderer.h"
 #include "terrain/MCTerrain.h"
 
@@ -95,14 +95,14 @@ auto MCCraterManager::AddCrater(int32_t craterType, const MCVector3D& position, 
 {
     int32_t tileR;
     int32_t tileC;
-    GameMap->WorldToMapTilePos(position, tileR, tileC);
+    GameMap()->WorldToMapTilePos(position, tileR, tileC);
 
-    if (tileR < 0 || tileR >= GameMap->Height || tileC < 0 || tileC >= GameMap->Width)
+    if (tileR < 0 || tileR >= GameMap()->Height || tileC < 0 || tileC >= GameMap()->Width)
     {
         return;
     }
 
-    const MCMapTile& tile = GameMap->Map[GameMap->Width * tileR + tileC];
+    const MCMapTile& tile = GameMap()->Map[GameMap()->Width * tileR + tileC];
     const uint32_t terrainType = tile.Cells & 0x7f;
     const uint32_t overlayType = tile.Overlay & 0x7f;
     // Seen by the player's side when any corner of the tile is.

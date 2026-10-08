@@ -1,6 +1,6 @@
 #pragma once
 
-#include "object/dyn.h"
+#include "object/MCDynamics.h"
 
 /// <summary>A mech type's turn rates and speed limits (the FIT's "MechDynamics" block).</summary>
 /// <remarks>Original source: <c>object\mechdyn.cpp</c>, <c>object\mechdyn.h</c>; 0x28 bytes. Rates are in degrees

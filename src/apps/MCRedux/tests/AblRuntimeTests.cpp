@@ -11,7 +11,7 @@
 #include "main/MCGameContext.h"
 #include "mission/scenario.h"
 #include "object/mover.h"
-#include "object/objque.h"
+#include "object/MCObjectQueue.h"
 #include "object/warrior.h"
 
 // ABL's runtime: running modules (arithmetic, control flow, calls, arrays, statics, libraries, parameters from C++),
@@ -617,7 +617,7 @@ TEST_CASE_ISOLATED("game: mission 1's world through script routines: objects, si
         const int32_t handle = abl.PreProcess(path);
         REQUIRE(handle >= 0);
         MCAblModule module(handle);
-        MCAblBrainScope scopeOfBrain(brain->Group, brain, brain->ObjectClass, brain->GetPilot());
+        MCAblBrainScope scopeOfBrain(brain->Group, brain, static_cast<int32_t>(brain->ObjectClass), brain->GetPilot());
         module.Execute();
         return module.ReturnValue();
     };
@@ -630,7 +630,7 @@ TEST_CASE_ISOLATED("game: mission 1's world through script routines: objects, si
     // A part, a group id with movers, a part that doesn't exist.
     CHECK_EQ(run(uller, Returns("", "", "objectexists(896) * 100 + objectexists(1) * 10 + objectexists(12345)")), 110);
     CHECK_EQ(run(uller, Returns("", "", "objectside(896) * 10 + objectside(512)")), -9);
-    CHECK_EQ(run(uller, Returns("", "", "objectclass(896)")), static_cast<int32_t>(BATTLEMECH));
+    CHECK_EQ(run(uller, Returns("", "", "objectclass(896)")), static_cast<int32_t>(MCObjectClass::BattleMech));
     CHECK_EQ(run(uller, Returns("", "", "objectclass(12345)")), -1);
     // getunitmates lists the lance of a part's mover, or the movers a group id names.
     CHECK_EQ(run(uller, Returns("var\r\n    integer[12] mates;\r\n    integer n;\r\n",
@@ -647,6 +647,6 @@ TEST_CASE_ISOLATED("game: mission 1's world through script routines: objects, si
                           "ordermoveto(goal, false)"));
     CHECK_EQ(result, 0);
     const MCTacticalOrder& order = lead->GetPilot()->TacOrder[ORDERSTATE_GENERAL];
-    CHECK(order.Code == TACTICAL_ORDER_MOVETO_POINT);
-    CHECK(order.Origin == ORDER_ORIGIN_COMMANDER);
+    CHECK(order.Code == MCTacticalOrderCode::MoveToPoint);
+    CHECK(order.Origin == MCOrderOrigin::Commander);
 }

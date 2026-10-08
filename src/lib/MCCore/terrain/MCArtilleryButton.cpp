@@ -6,7 +6,7 @@
 #include "iface/iface.h"
 #include "logistics/logmain.h"
 #include "main/main.h"
-#include "object/comndr.h"
+#include "object/MCForces.h"
 #include "sound/soundsys.h"
 #include "terrain/MCTacticalMap.h"
 #include "terrain/MCTerrain.h"
@@ -39,13 +39,13 @@ auto MCStrikesLeft(int32_t commandId) -> std::optional<int32_t>
     switch (commandId)
     {
         case StrikeSensor:
-            return HomeCommander->NumSensorStrikes;
+            return HomeCommander()->NumSensorStrikes;
         case StrikeLarge:
-            return HomeCommander->NumLargeStrikes;
+            return HomeCommander()->NumLargeStrikes;
         case StrikeSmall:
-            return HomeCommander->NumSmallStrikes;
+            return HomeCommander()->NumSmallStrikes;
         case StrikeCameraDrone:
-            return HomeCommander->NumCameraDrones;
+            return HomeCommander()->NumCameraDrones;
         default:
             return std::nullopt;
     }

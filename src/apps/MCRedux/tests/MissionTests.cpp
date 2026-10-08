@@ -1,15 +1,15 @@
 #include "stdafx.h"
 #include "MCTest.h"
 #include "TestGame.h"
-#include "ai/move.h"
-#include "ai/tacordr.h"
+#include "ai/MCMoveSystem.h"
+#include "ai/MCTacticalOrder.h"
 #include "camera/MCCamera.h"
 #include "main/main.h"
 #include "mission/scenario.h"
 #include "object/mech.h"
 #include "object/mechctrl.h"
 #include "object/mover.h"
-#include "object/objtype.h"
+#include "object/MCObjectType.h"
 #include "object/warrior.h"
 #include "sprite/MCMechActor.h"
 #include "sprite/MCSpriteManager.h"
@@ -23,12 +23,12 @@ namespace
     /// <summary>Whether map cell (<paramref name="row"/>, <paramref name="col"/>) is passable (off the map: no).</summary>
     bool CellPassable(int32_t row, int32_t col)
     {
-        if (row < 0 || col < 0 || row >= GameMap->Height * 3 || col >= GameMap->Width * 3)
+        if (row < 0 || col < 0 || row >= GameMap()->Height * 3 || col >= GameMap()->Width * 3)
         {
             return false;
         }
 
-        return GameMap->Map[(row / 3) * GameMap->Width + col / 3].GetCellPassable(row % 3, col % 3) != 0;
+        return GameMap()->Map[(row / 3) * GameMap()->Width + col / 3].GetCellPassable(row % 3, col % 3) != 0;
     }
 
     /// <summary>The map cell under <paramref name="position"/>, as row and column.</summary>
@@ -38,7 +38,7 @@ namespace
         int32_t tileC = 0;
         int32_t cellR = 0;
         int32_t cellC = 0;
-        GameMap->WorldToMapPos(position, tileR, tileC, cellR, cellC);
+        GameMap()->WorldToMapPos(position, tileR, tileC, cellR, cellC);
         return {tileR * 3 + cellR, tileC * 3 + cellC};
     }
 }
@@ -68,7 +68,7 @@ TEST_CASE_ISOLATED("game: mission 1 boots and every mover stands on a passable c
         const auto [row, col] = CellAt(position);
 
         // Vehicles may be parked in a building's cells; only the mechs are held to it.
-        if (mover->ObjectClass == BATTLEMECH)
+        if (mover->ObjectClass == MCObjectClass::BattleMech)
         {
             MCTest::Scope scope("part " + std::to_string(partId));
             CHECK(CellPassable(row, col));
@@ -105,7 +105,7 @@ namespace
             std::format("    t={:.2f} pos ({:.1f},{:.1f}) cell ({},{}) p{}", ScenarioTime, position.X, position.Y,
                         cell.first, cell.second, CellPassable(cell.first, cell.second) ? 1 : 0);
 
-        if (mover->ObjectClass == BATTLEMECH)
+        if (mover->ObjectClass == MCObjectClass::BattleMech)
         {
             auto* actor = static_cast<MCMechActor*>(mover->Appearance);
             line += std::format(" gesture {}/{} goal {} legs {}", actor->CurrentGesture, actor->CurrentStateGesture,
@@ -146,7 +146,7 @@ namespace
                         static_cast<int32_t>(pilot->CurTacOrder.Code), static_cast<int32_t>(pilot->MoveOrders.PathType),
                         mover->Withdrawing, pilot->MoveOrders.MoveState, pilot->MoveOrders.MoveStateGoal);
 
-        if (mover->ObjectClass == BATTLEMECH)
+        if (mover->ObjectClass == MCObjectClass::BattleMech)
         {
             auto* controlData = static_cast<MCMechControlData*>(mover->Control->ControlData);
             line += std::format(" rotate {} throttle {} pivot {}", static_cast<int32_t>(controlData->Rotate),
@@ -181,7 +181,7 @@ TEST_CASE_ISOLATED("game: mission 1's battle keeps every mover on passable cells
     REQUIRE(MCTestGame::StartMission(1));
     MCMover* uller = GetMoverFromPartId(896);
     REQUIRE(uller != nullptr);
-    REQUIRE(uller->ObjectClass == BATTLEMECH);
+    REQUIRE(uller->ObjectClass == MCObjectClass::BattleMech);
     REQUIRE_EQ(uller->GetAlignment(), -1);
 
     // The player's attack command, as the interface sends it (icallbk.cpp: attack, any range, pursue).
@@ -190,14 +190,13 @@ TEST_CASE_ISOLATED("game: mission 1's battle keeps every mover on passable cells
         MCMover* mover = GetMoverFromPartId(partId);
         REQUIRE(mover != nullptr);
         MCTacticalOrder order;
-        order.Init(ORDER_ORIGIN_PLAYER, TACTICAL_ORDER_ATTACK_OBJECT, 0);
+        order.Reset(MCOrderOrigin::Player, MCTacticalOrderCode::AttackObject, 0);
         order.Target = uller;
         order.AttackParams.Type = 1;
         order.AttackParams.Method = 0;
         order.AttackParams.Range = -1;
         order.AttackParams.Pursue = -1;
         mover->HandleTacticalOrder(order, 1, 0);
-        order.Destroy();
     }
 
     constexpr float FrameSeconds = 1.0f / 15.0f;
@@ -332,7 +331,7 @@ TEST_CASE_ISOLATED("game: a mech whose pilot is wounded but alive keeps followin
     REQUIRE(MCTestGame::StartMission(1));
     MCMover* mover = GetMoverFromPartId(0x200);
     REQUIRE(mover != nullptr);
-    REQUIRE(mover->ObjectClass == BATTLEMECH);
+    REQUIRE(mover->ObjectClass == MCObjectClass::BattleMech);
     REQUIRE(mover->IsDestroyed() == 0);
     MCMechWarrior* pilot = mover->GetPilot();
     REQUIRE(pilot->Wounds < 4.0f);
@@ -352,7 +351,7 @@ TEST_CASE_ISOLATED("game: a mech whose pilot is wounded but alive keeps followin
     }
 
     REQUIRE(found);
-    pilot->OrderMoveToPoint(0, 1, ORDER_ORIGIN_PLAYER, goal, -1, 0);
+    pilot->OrderMoveToPoint(0, 1, MCOrderOrigin::Player, goal, -1, 0);
 
     constexpr float FrameSeconds = 1.0f / 15.0f;
 
@@ -424,7 +423,7 @@ TEST_CASE_ISOLATED("game: mission 3's mechs preload full-size part shapes")
     {
         MCMover* mover = GetMoverFromPartId(partId);
 
-        if (mover != nullptr && mover->ObjectClass == BATTLEMECH)
+        if (mover != nullptr && mover->ObjectClass == MCObjectClass::BattleMech)
         {
             trees.insert(static_cast<MCMechActor*>(mover->Appearance)->MechTree);
         }

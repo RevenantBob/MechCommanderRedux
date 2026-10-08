@@ -1,7 +1,7 @@
 #include "stdafx.h"
 #include "abl/MCAblRoutineList.h"
 #include "abl/MCAblDebugger.h"
-#include "ai/move.h"
+#include "ai/MCMoveSystem.h"
 #include "gui/asystem.h"
 #include "gui/atextbox.h"
 #include "iface/iface.h"
@@ -17,19 +17,18 @@
 #include "object/artlry.h"
 #include "object/bldng.h"
 #include "object/bridge.h"
-#include "object/cmponent.h"
-#include "object/comndr.h"
-#include "object/contact.h"
-#include "object/gameobj.h"
+#include "object/MCMasterComponent.h"
+#include "object/MCForces.h"
+#include "object/MCContactSystem.h"
+#include "object/MCBigGameObject.h"
 #include "object/gate.h"
-#include "object/group.h"
+#include "object/MCMoverGroup.h"
 #include "object/gvehicl.h"
 #include "object/mover.h"
-#include "object/object.h"
-#include "object/objque.h"
-#include "object/objtype.h"
+#include "object/MCObjectSystem.h"
+#include "object/MCObjectQueue.h"
+#include "object/MCObjectType.h"
 #include "object/tbldng.h"
-#include "object/team.h"
 #include "object/terrobj.h"
 #include "object/train.h"
 #include "object/turret.h"
@@ -40,6 +39,7 @@
 #include "sprite/MCVfxBuildingAppearance.h"
 #include "terrain/MCTacticalMap.h"
 #include "terrain/MCTerrain.h"
+#include "object/MCWeaponChunkDebug.h"
 
 // The mission: timers, objectives, music, sound, video, radio, global values, multiplayer messages, strikes.
 
@@ -348,16 +348,9 @@ auto DebugMissionScriptMessages() -> void
         text += std::format("line {:5}: {:5}, {:5}\n", message.Line, message.Code, message.Param);
     }
 
-    // Port fix (OB-048): only what fits is kept; the original's 1000 lines overrun ChunkDebugMsg.
-    constexpr size_t bufferSize = 0x1400;
-    const size_t length = text.copy(ChunkDebugMsg, bufferSize - 1);
-    ChunkDebugMsg[length] = '\0';
-
-    MCFile file;
-    file.Create("scriptmsg.dbg");
-    file.WriteString(ChunkDebugMsg);
-    file.Close();
-    ExceptionGameMsg = ChunkDebugMsg;
+    // Port fix (OB-048): ChunkDebugMsg grows; the original's 1000 lines overran its 0x1400 bytes.
+    ChunkDebugMsg = std::move(text);
+    SaveChunkDebugMsg("scriptmsg.dbg");
 }
 
 auto ExecHbSendMessage(MCAblRuntime& abl) -> void
@@ -412,9 +405,9 @@ auto ExecHbGetStrikes(MCAblRuntime& abl) -> MCAblType*
     int32_t strikeType = abl.Top().Integer;
     abl.Top().Integer = 0;
 
-    if (commanderId > -1 && commanderId < NumCommanders && strikeType > -1)
+    if (commanderId > -1 && commanderId < NumCommanders() && strikeType > -1)
     {
-        MCCommander* commander = CommanderTable[commanderId];
+        MCCommander* commander = CommanderById(commanderId);
 
         switch (strikeType)
         {
@@ -453,9 +446,9 @@ namespace
         int32_t strikeType = abl.NextInteger();
         int32_t count = abl.NextInteger();
 
-        if (commanderId > -1 && commanderId < NumCommanders && strikeType > -1)
+        if (commanderId > -1 && commanderId < NumCommanders() && strikeType > -1)
         {
-            MCCommander* commander = CommanderTable[commanderId];
+            MCCommander* commander = CommanderById(commanderId);
 
             switch (strikeType)
             {
@@ -499,7 +492,7 @@ auto ExecHbIsServer(MCAblRuntime& abl) -> MCAblType*
 
 auto ExecHbGetHomeTeam(MCAblRuntime& abl) -> MCAblType*
 {
-    abl.PushInteger(HomeTeam->Id + 500);
+    abl.PushInteger(HomeTeam()->Id + 500);
     abl.GetCodeToken();
     return IntegerTypePtr;
 }

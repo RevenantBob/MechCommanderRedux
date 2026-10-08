@@ -6,8 +6,8 @@
 #include "engine/MCElementBuffer.h"
 #include "engine/MCVfxElement.h"
 #include "main/main.h"
-#include "object/gameobj.h"
-#include "object/team.h"
+#include "object/MCBigGameObject.h"
+#include "object/MCForces.h"
 #include "sprite/MCShape.h"
 #include "sprite/MCSpriteMath.h"
 #include "terrain/MCTerrain.h"
@@ -240,7 +240,7 @@ auto MCElementalActor::Render(int32_t depthFixup) -> int32_t
         }
         else if (alignment == 1)
         {
-            DrawSelectBrackets(selectedObj->GetAlignment() == HomeTeam->Alignment ? 0xfc : 0xfb);
+            DrawSelectBrackets(selectedObj->GetAlignment() == HomeTeam()->Alignment ? 0xfc : 0xfb);
         }
     }
 

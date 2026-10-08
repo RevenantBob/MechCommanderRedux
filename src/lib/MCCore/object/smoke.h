@@ -1,7 +1,7 @@
 #pragma once
 
-#include "object/gameobj.h"
-#include "object/objtype.h"
+#include "object/MCBigGameObject.h"
+#include "object/MCObjectType.h"
 #include "object/smokmgr.h"
 
 class MCAppearance;
@@ -41,7 +41,7 @@ public:
     ~MCSmokeType() override { Destroy(); }
 
     /// <summary>Makes a <see cref="MCSmoke"/> of this type and gives it the next object id.</summary>
-    MCBaseObject* CreateInstance() override;
+    std::unique_ptr<MCBaseObject> CreateInstance() override;
     /// <summary>Frees the shape from the smoke manager's sphere blocks.</summary>
     void Destroy() override;
     /// <summary>Reads the "SmokeData" block and loads the smoke shape into the smoke manager's sphere blocks.</summary>

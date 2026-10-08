@@ -242,8 +242,8 @@ auto MCLogDialogBox::SetPort(MCLogPort* port) -> void
 
 // PurchaseDlg
 
-auto MCPurchaseDlg::Init(int32_t newPurchaseType, int32_t newUnitCost, int32_t newMaxQuantity, char* newTitle,
-                         char* newSubtitle, MCLogPort* picture) -> void
+auto MCPurchaseDlg::Init(int32_t newPurchaseType, int32_t newUnitCost, int32_t newMaxQuantity, const char* newTitle,
+                         const char* newSubtitle, MCLogPort* picture) -> void
 {
     if (newMaxQuantity < 0)
     {

@@ -2,7 +2,7 @@
 #include "object/gvehdyn.h"
 #include "lib/MCFitIniFile.h"
 #include "main/main.h"
-#include "object/control.h"
+#include "object/MCControl.h"
 #include "object/gvehctrl.h"
 #include "object/gvehicl.h"
 #include "sprite/MCGVAppearance.h"

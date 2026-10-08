@@ -13,6 +13,7 @@
 #include "main/main.h"
 #include "sprite/MCArmAppearance.h"
 #include "terrain/MCTerrain.h"
+#include "object/MCObjectType.h"
 
 //---------------------------------------------------------------------------
 // DebrisType
@@ -27,9 +28,9 @@ MCDebrisType::MCDebrisType()
     ArmFallDecelRate = 0.0f;
 }
 
-auto MCDebrisType::CreateInstance() -> MCBaseObject*
+auto MCDebrisType::CreateInstance() -> std::unique_ptr<MCBaseObject>
 {
-    auto* newDebris = new MCDebris;
+    auto newDebris = std::make_unique<MCDebris>();
 
     if (newDebris == nullptr)
     {
@@ -312,7 +313,7 @@ auto MCDebris::Init(MCObjectType* objType) -> int32_t
         return result;
     }
 
-    ObjectClass = DEBRIS;
+    ObjectClass = MCObjectClass::Debris;
     return 0;
 }
 

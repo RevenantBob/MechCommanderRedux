@@ -1,6 +1,6 @@
 #pragma once
 
-#include "object/control.h"
+#include "object/MCControl.h"
 
 /// <summary>
 /// A mover steered straight from the keyboard: a debug control that turns the last key (<c>keySetting</c>) into

@@ -1,6 +1,6 @@
 #include "stdafx.h"
 #include "object/turret.h"
-#include "ai/move.h"
+#include "ai/MCMoveSystem.h"
 #include "appear/MCAppearanceType.h"
 #include "appear/MCAppearanceTypeList.h"
 #include "camera/MCCamera.h"
@@ -21,23 +21,27 @@
 #include "object/artlry.h"
 #include "object/bldng.h"
 #include "object/bullet.h"
-#include "object/cmponent.h"
+#include "object/MCMasterComponent.h"
 #include "object/fire.h"
 #include "object/gvehicl.h"
 #include "object/laser.h"
 #include "object/mech.h"
-#include "object/object.h"
-#include "object/objevnt.h"
-#include "object/objque.h"
+#include "object/MCObjectSystem.h"
+#include "object/MCObjectEvent.h"
+#include "object/MCObjectQueue.h"
 #include "object/prjlase.h"
 #include "object/smoke.h"
-#include "object/team.h"
+#include "object/MCForces.h"
 #include "object/warrior.h"
 #include "sound/soundsys.h"
 #include "sprite/MCGVAppearance.h"
 #include "sprite/MCPUAppearance.h"
 #include "terrain/MCTerrain.h"
 #include "vfx/MCVfxFunctions.h"
+#include "object/MCObjectType.h"
+#include "object/MCWeaponChunkDebug.h"
+#include "object/MCWeaponFireChunk.h"
+#include "object/MCWeaponShotInfo.h"
 
 namespace
 {
@@ -54,15 +58,15 @@ namespace
     /// <summary>A mech, vehicle, elemental or plain mover: something with a pilot.</summary>
     bool IsMoverClass(const MCGameObject* object)
     {
-        const int32_t objectClass = object->ObjectClass;
-        return objectClass == BATTLEMECH || objectClass == GROUNDVEHICLE || objectClass == ELEMENTAL ||
-               objectClass == MOVER;
+        const MCObjectClass objectClass = object->ObjectClass;
+        return objectClass == MCObjectClass::BattleMech || objectClass == MCObjectClass::GroundVehicle ||
+               objectClass == MCObjectClass::Elemental || objectClass == MCObjectClass::Mover;
     }
 
     /// <summary>The hot spot of the hit location, on a mech target; 0 otherwise.</summary>
     int32_t TargetHotSpotOf(MCGameObject* target, int32_t hitLocation)
     {
-        if (target != nullptr && target->ObjectClass == BATTLEMECH)
+        if (target != nullptr && target->ObjectClass == MCObjectClass::BattleMech)
         {
             // Port fix: the original reads body[hitLocation], past the eight body locations for a rear torso hit
             // (8..10); the torso it maps to is read instead.
@@ -73,9 +77,9 @@ namespace
     }
 
     /// <summary>Makes the weapon's effect object (Fatal when it can't).</summary>
-    MCGameObject* CreateWeaponFX(const MCMasterComponent& weapon)
+    std::unique_ptr<MCGameObject> CreateWeaponFX(const MCMasterComponent& weapon)
     {
-        MCGameObject* fx = CreateObject(static_cast<int32_t>(WeaponFXTable[weapon.WeaponEffect]));
+        std::unique_ptr<MCGameObject> fx = CreateObject(static_cast<int32_t>(WeaponFXTable[weapon.WeaponEffect]));
 
         if (fx == nullptr)
         {
@@ -89,12 +93,12 @@ namespace
     /// Sends a weapon effect from the turret (hot spot 0) at <paramref name="target"/> or, when it is null, at
     /// <paramref name="point"/>, carrying <paramref name="shot"/>; then adds it to the weapon list.
     /// </summary>
-    void LaunchWeaponFX(MCTurret* turret, MCGameObject* fx, MCGameObject* target, MCVector3D* point,
+    void LaunchWeaponFX(MCTurret* turret, std::unique_ptr<MCGameObject> fx, MCGameObject* target, MCVector3D* point,
                         MCWeaponShotInfo& shot, int32_t targetHotSpot)
     {
-        if (fx->ObjectClass == BULLET)
+        if (fx->ObjectClass == MCObjectClass::Bullet)
         {
-            auto* bullet = static_cast<MCBullet*>(fx);
+            auto* bullet = static_cast<MCBullet*>(fx.get());
 
             if (bullet->NumShots != 5)
             {
@@ -114,9 +118,9 @@ namespace
                 bullet->TargetHotSpot = targetHotSpot;
             }
         }
-        else if (fx->ObjectClass == LASER)
+        else if (fx->ObjectClass == MCObjectClass::Laser)
         {
-            auto* laser = static_cast<MCLaser*>(fx);
+            auto* laser = static_cast<MCLaser*>(fx.get());
 
             if (target == nullptr)
             {
@@ -133,7 +137,7 @@ namespace
         }
         else
         {
-            auto* projectile = static_cast<MCProjectileLaser*>(fx);
+            auto* projectile = static_cast<MCProjectileLaser*>(fx.get());
 
             if (target == nullptr)
             {
@@ -149,7 +153,7 @@ namespace
             }
         }
 
-        WeaponList->AddNode(fx);
+        WeaponList()->Add(std::move(fx));
     }
 
     /// <summary>
@@ -173,11 +177,11 @@ namespace
             chunk.BuildMoverTarget(bigTarget, 0, hit, entryAngle, missiles, missilesPastAMS, antiMissileShots,
                                    hitLocation);
         }
-        else if (target->ObjectClass == TRAINCAR)
+        else if (target->ObjectClass == MCObjectClass::TrainCar)
         {
             chunk.BuildTrainTarget(bigTarget, 0, hit, entryAngle, missiles);
         }
-        else if (target->ObjectClass == CAMERADRONE)
+        else if (target->ObjectClass == MCObjectClass::CameraDrone)
         {
             chunk.BuildCameraDroneTarget(bigTarget, 0, hit, entryAngle, missiles);
         }
@@ -188,7 +192,7 @@ namespace
 
         if (target != nullptr)
         {
-            ObjectList->FindObjectFromPart(chunk.TargetId);
+            ObjectList()->FindObjectFromPart(chunk.TargetId);
         }
 
         chunk.Pack();
@@ -203,7 +207,6 @@ namespace
         }
 
         turret->AddWeaponFireChunk(0, &chunk);
-        LogWeaponFireChunk(&chunk, turret, logTarget);
     }
 
     /// <summary>
@@ -242,17 +245,17 @@ namespace
     /// </summary>
     void RevealFiring(MCTurret* turret, int radius)
     {
-        MCObjectQueueNode* enemies = nullptr;
+        MCObjectList* enemies = nullptr;
         uint8_t seenBy = 0;
 
         if (turret->Alignment == 1)
         {
-            enemies = ClanMechList;
+            enemies = ClanMechList();
             seenBy = 2;
         }
         else if (turret->Alignment == -1)
         {
-            enemies = InnerSphereMechList;
+            enemies = InnerSphereMechList();
             seenBy = 1;
         }
         else
@@ -260,7 +263,7 @@ namespace
             return;
         }
 
-        for (MCBaseObject* enemy = enemies->Head; enemy != nullptr; enemy = enemy->Next)
+        for (MCBaseObject* enemy : *enemies)
         {
             MCVector3D enemyPosition = static_cast<MCGameObject*>(enemy)->GetPosition();
 
@@ -348,9 +351,9 @@ auto MCTurretType::Init() -> void
     CenterOffsetX = 0;
 }
 
-auto MCTurretType::CreateInstance() -> MCBaseObject*
+auto MCTurretType::CreateInstance() -> std::unique_ptr<MCBaseObject>
 {
-    auto* newTurret = new MCTurret;
+    auto newTurret = std::make_unique<MCTurret>();
 
     if (newTurret == nullptr)
     {
@@ -525,14 +528,14 @@ auto MCTurretType::HandleCollision(MCGameObject* collidee, MCGameObject* collide
         return 1;
     }
 
-    const int32_t colliderClass = collider->ObjectClass;
+    const MCObjectClass colliderClass = collider->ObjectClass;
 
-    if (colliderClass < 2)
+    if (colliderClass < MCObjectClass::BattleMech)
     {
         return 1;
     }
 
-    if (colliderClass < 5)
+    if (colliderClass < MCObjectClass::Explosion)
     {
         // Mechs, vehicles and elementals: only whole ones.
         if (collider->IsDisabled() != 0 || collider->IsDestroyed() != 0)
@@ -540,7 +543,7 @@ auto MCTurretType::HandleCollision(MCGameObject* collidee, MCGameObject* collide
             return 1;
         }
     }
-    else if (colliderClass != CAMERADRONE || collider->IsDestroyed() != 0)
+    else if (colliderClass != MCObjectClass::CameraDrone || collider->IsDestroyed() != 0)
     {
         return 1;
     }
@@ -674,11 +677,11 @@ auto MCTurret::Update() -> int32_t
         TileRow = VertexNumber / verticesBlockSide + (BlockNumber / MCTerrain::BlocksMapSide) * verticesBlockSide;
         TilePositionY = static_cast<float>(halfMap - TileRow) * MCTerrain::MetersPerVertex;
         const auto inBounds = [&]
-        { return TileRow < 0 || GameMap->Height <= TileRow || TileCol < 0 || GameMap->Width <= TileCol ? 0u : 1u; };
+        { return TileRow < 0 || GameMap()->Height <= TileRow || TileCol < 0 || GameMap()->Width <= TileCol ? 0u : 1u; };
         Assert(inBounds(), 0, " tbldg MapTile Out of Bounds ");
         Assert(inBounds(), 0, " Map Tile out of bounds ");
-        const MCMapTile& tile = GameMap->Map[GameMap->Width * TileRow + TileCol];
-        const int32_t elevationLevel = static_cast<int32_t>((tile.Cells >> 7) & 0x3f) + GameMap->BaseElevation;
+        const MCMapTile& tile = GameMap()->Map[GameMap()->Width * TileRow + TileCol];
+        const int32_t elevationLevel = static_cast<int32_t>((tile.Cells >> 7) & 0x3f) + GameMap()->BaseElevation;
         Appearance->Visible = 1;
         TileElevation = static_cast<float>(elevationLevel) * MCTerrain::MetersPerElevLevel;
         Appearance->Update();
@@ -818,7 +821,9 @@ auto MCTurret::IsWeaponReady() -> int
 
 auto MCTurret::IsWeaponMissile() -> int
 {
-    return MasterComponentList[static_cast<MCTurretType*>(ObjType)->WeaponType].Form == 9 ? 1 : 0;
+    return MasterComponentList[static_cast<MCTurretType*>(ObjType)->WeaponType].Form == MCComponentForm::WeaponMissile
+               ? 1
+               : 0;
 }
 
 auto MCTurret::IsWeaponStreak() -> int
@@ -901,7 +906,7 @@ auto MCTurret::LineOfFire(MCGameObject* target) -> int
     int32_t tileC;
     int32_t cellR;
     int32_t cellC;
-    GameMap->WorldToMapPos(target->GetPosition(), tileR, tileC, cellR, cellC);
+    GameMap()->WorldToMapPos(target->GetPosition(), tileR, tileC, cellR, cellC);
     MCByteFlag* visibleBits;
 
     if (Alignment == 1)
@@ -921,7 +926,7 @@ auto MCTurret::LineOfFire(MCGameObject* target) -> int
 
     const int32_t numVisible =
         CountVisibleCorners(visibleBits, static_cast<uint32_t>(tileR), static_cast<uint32_t>(tileC), 0);
-    const int lineClear = GameMap->LineOfFire(Position, target->GetPosition());
+    const int lineClear = GameMap()->LineOfFire(Position, target->GetPosition());
 
     if (numVisible == 0)
     {
@@ -1023,7 +1028,7 @@ auto MCTurret::UpdateWeaponFireChunks(int32_t which) -> int32_t
                 }
                 else
                 {
-                    chunkTarget = ObjectList->FindObjectFromPart(chunk.TargetId);
+                    chunkTarget = ObjectList()->FindObjectFromPart(chunk.TargetId);
                     missing = chunk.TargetType == 1
                                   ? " Turret.updateWeaponFireChunks: NULL Terrain Target (save wfchunk.dbg file) "
                                   : " Turret.updateWeaponFireChunks: NULL Special Target (save wfchunk.dbg file) ";
@@ -1046,8 +1051,9 @@ auto MCTurret::UpdateWeaponFireChunks(int32_t which) -> int32_t
                 // A point on the ground: the middle of the target cell, at height 0.
                 const float halfSide = WorldUnitsMapSide * 0.5f;
                 MCVector3D point;
-                point.X = (static_cast<float>(chunk.TargetCell[1]) + 0.5f) * MetersPerCell - halfSide;
-                point.Y = (halfSide - static_cast<float>(chunk.TargetCell[0]) * MetersPerCell) - MetersPerCell * 0.5f;
+                point.X = (static_cast<float>(chunk.TargetCell[1]) + 0.5f) * MetersPerCell() - halfSide;
+                point.Y =
+                    (halfSide - static_cast<float>(chunk.TargetCell[0]) * MetersPerCell()) - MetersPerCell() * 0.5f;
                 point.Z = 0.0f;
                 HandleWeaponFire(0, nullptr, &point, chunk.Hit, 0.0f, 0, 0, 0, 0);
                 break;
@@ -1099,7 +1105,8 @@ auto MCTurret::FireWeapon(MCGameObject* target) -> void
     }
 
     // A camera drone can't be shot for two seconds after launch.
-    if (target->ObjectClass == CAMERADRONE && ScenarioTime < static_cast<MCCameraDrone*>(target)->LaunchTime + 2.0)
+    if (target->ObjectClass == MCObjectClass::CameraDrone &&
+        ScenarioTime < static_cast<MCCameraDrone*>(target)->LaunchTime + 2.0)
     {
         return;
     }
@@ -1139,7 +1146,7 @@ auto MCTurret::FireWeapon(MCGameObject* target) -> void
     {
         RecordWeaponFireTime();
 
-        if (weapon.Form == 9)
+        if (weapon.Form == MCComponentForm::WeaponMissile)
         {
             // Missiles: a streak fires them all, anything else about half; anti-missile systems take some out.
             const int32_t rackSize = weapon.NumMissiles;
@@ -1170,7 +1177,7 @@ auto MCTurret::FireWeapon(MCGameObject* target) -> void
 
             if (0 < missilesLeft)
             {
-                MCGameObject* fx = CreateWeaponFX(weapon);
+                std::unique_ptr<MCGameObject> fx = CreateWeaponFX(weapon);
                 const int32_t hitLocation = target->CalcHitLocation(this, type->WeaponType, 0, 1);
                 Assert(hitLocation != -2 ? 1 : 0, 0, " Turret.FireWeapon: Bad Hit Location ");
                 const int32_t targetHotSpot = TargetHotSpotOf(target, hitLocation);
@@ -1184,7 +1191,7 @@ auto MCTurret::FireWeapon(MCGameObject* target) -> void
                                   antiMissileShots, hitLocation);
                 }
 
-                LaunchWeaponFX(this, fx, target, nullptr, shot, targetHotSpot);
+                LaunchWeaponFX(this, std::move(fx), target, nullptr, shot, targetHotSpot);
             }
         }
         else
@@ -1199,8 +1206,8 @@ auto MCTurret::FireWeapon(MCGameObject* target) -> void
                 SendFireChunk(this, target, target, nullptr, 1, entryAngle, 0, 0, 0, hitLocation);
             }
 
-            MCGameObject* fx = CreateWeaponFX(weapon);
-            LaunchWeaponFX(this, fx, target, nullptr, shot, TargetHotSpotOf(target, hitLocation));
+            std::unique_ptr<MCGameObject> fx = CreateWeaponFX(weapon);
+            LaunchWeaponFX(this, std::move(fx), target, nullptr, shot, TargetHotSpotOf(target, hitLocation));
         }
     }
     else if (isStreak == 0)
@@ -1208,7 +1215,7 @@ auto MCTurret::FireWeapon(MCGameObject* target) -> void
         // A miss (a streak doesn't fire without a lock): the shot lands up to 25 meters off.
         RecordWeaponFireTime();
 
-        if (weapon.Form == 9)
+        if (weapon.Form == MCComponentForm::WeaponMissile)
         {
             const int32_t rackSize = weapon.NumMissiles;
             int32_t missiles = static_cast<int32_t>(rackSize * 0.5 + 0.5);
@@ -1225,7 +1232,7 @@ auto MCTurret::FireWeapon(MCGameObject* target) -> void
 
             if (0 < missiles)
             {
-                MCGameObject* fx = CreateWeaponFX(weapon);
+                std::unique_ptr<MCGameObject> fx = CreateWeaponFX(weapon);
                 MCWeaponShotInfo shot;
                 shot.Init(this, type->WeaponType, weapon.Damage * static_cast<float>(missiles), -1, entryAngle);
                 MCVector3D landing = ScatterPoint(25.0f, 1);
@@ -1239,14 +1246,14 @@ auto MCTurret::FireWeapon(MCGameObject* target) -> void
                     SendFireChunk(this, nullptr, target, &landing, 0, 0.0f, missiles, 0, 0, 0);
                 }
 
-                LaunchWeaponFX(this, fx, nullptr, &landing, shot, 0);
+                LaunchWeaponFX(this, std::move(fx), nullptr, &landing, shot, 0);
             }
         }
         else
         {
             MCWeaponShotInfo shot;
             shot.Init(this, type->WeaponType, weapon.Damage, -1, entryAngle);
-            MCGameObject* fx = CreateWeaponFX(weapon);
+            std::unique_ptr<MCGameObject> fx = CreateWeaponFX(weapon);
             MCVector3D landing(25.0f, 25.0f, 0.0f);
 
             // Original behaviour (OB-012): the chunk goes out before the point is scattered and moved to the target,
@@ -1261,7 +1268,7 @@ auto MCTurret::FireWeapon(MCGameObject* target) -> void
             landing.X += targetPosition.X;
             landing.Y += targetPosition.Y;
             landing.Z += targetPosition.Z;
-            LaunchWeaponFX(this, fx, nullptr, &landing, shot, 0);
+            LaunchWeaponFX(this, std::move(fx), nullptr, &landing, shot, 0);
         }
     }
 
@@ -1285,7 +1292,7 @@ auto MCTurret::HandleWeaponFire(int32_t, MCGameObject* target, MCVector3D* targe
 
     if (hit != 0)
     {
-        if (weapon.Form == 9)
+        if (weapon.Form == MCComponentForm::WeaponMissile)
         {
             if (0 < numAntiMissiles)
             {
@@ -1294,29 +1301,29 @@ auto MCTurret::HandleWeaponFire(int32_t, MCGameObject* target, MCVector3D* targe
 
             if (0 < numHits)
             {
-                MCGameObject* fx = CreateWeaponFX(weapon);
+                std::unique_ptr<MCGameObject> fx = CreateWeaponFX(weapon);
                 Assert(hitLocation != -2 ? 1 : 0, 0, " Turret.handleWeaponFire: Bad Hit Location ");
                 const int32_t targetHotSpot = TargetHotSpotOf(target, hitLocation);
                 MCWeaponShotInfo shot;
                 shot.Init(this, masterId, weapon.Damage * static_cast<float>(numHits), hitLocation, entryAngle);
-                LaunchWeaponFX(this, fx, target, targetPoint, shot, targetHotSpot);
+                LaunchWeaponFX(this, std::move(fx), target, targetPoint, shot, targetHotSpot);
             }
         }
         else
         {
             MCWeaponShotInfo shot;
             shot.Init(this, masterId, weapon.Damage, hitLocation, entryAngle);
-            MCGameObject* fx = CreateWeaponFX(weapon);
-            LaunchWeaponFX(this, fx, target, targetPoint, shot, TargetHotSpotOf(target, hitLocation));
+            std::unique_ptr<MCGameObject> fx = CreateWeaponFX(weapon);
+            LaunchWeaponFX(this, std::move(fx), target, targetPoint, shot, TargetHotSpotOf(target, hitLocation));
         }
     }
-    else if (isStreak == 0 && (weapon.Form != 9 || 0 < numHits))
+    else if (isStreak == 0 && (weapon.Form != MCComponentForm::WeaponMissile || 0 < numHits))
     {
         // A miss lands up to 25 meters off a target, 5 off a point.
-        MCGameObject* fx = nullptr;
+        std::unique_ptr<MCGameObject> fx;
         MCWeaponShotInfo shot;
 
-        if (weapon.Form == 9)
+        if (weapon.Form == MCComponentForm::WeaponMissile)
         {
             fx = CreateWeaponFX(weapon);
             shot.Init(this, masterId, weapon.Damage * static_cast<float>(numMissiles), -1, entryAngle);
@@ -1332,7 +1339,7 @@ auto MCTurret::HandleWeaponFire(int32_t, MCGameObject* target, MCVector3D* targe
         landing.X += base.X;
         landing.Y += base.Y;
         landing.Z += base.Z;
-        LaunchWeaponFX(this, fx, nullptr, &landing, shot, 0);
+        LaunchWeaponFX(this, std::move(fx), nullptr, &landing, shot, 0);
     }
 
     if (target != nullptr && IsMoverClass(target))
@@ -1394,22 +1401,22 @@ auto MCTurret::LightOnFire(float timeToBurn) -> void
 
     if (FireObject == nullptr)
     {
-        MCGameObject* newFire = CreateObject(static_cast<int32_t>(type->BlownEffectId));
+        std::unique_ptr<MCGameObject> newFire = CreateObject(static_cast<int32_t>(type->BlownEffectId));
 
         if (newFire != nullptr)
         {
             newFire->SetPosition(Position);
 
-            if (newFire->ObjectClass == FIRE)
+            if (newFire->ObjectClass == MCObjectClass::Fire)
             {
-                FireObject = static_cast<MCFire*>(newFire);
+                FireObject = static_cast<MCFire*>(newFire.release());
                 FireObject->SetPotentialContact(3);
                 FireObject->BurningObject = this;
                 FireObject->SetTonnage(40.0f);
             }
             else
             {
-                DestroyObject(newFire);
+                DestroyObject(newFire.get());
             }
         }
     }
@@ -1433,7 +1440,7 @@ auto MCTurret::IsRevealed() -> int
 auto MCTurret::EnemyRevealed() -> int
 {
     MCByteFlag* visibleBits =
-        HomeTeam->Alignment == -1 ? Terrain()->ISVisibleBits.get() : Terrain()->ClanVisibleBits.get();
+        HomeTeam()->Alignment == -1 ? Terrain()->ISVisibleBits.get() : Terrain()->ClanVisibleBits.get();
     uint32_t row;
     uint32_t col;
     VertexRowCol(this, row, col);
@@ -1453,7 +1460,7 @@ auto MCTurret::Render() -> void
         Appearance->Update();
     }
 
-    if (GetContactType(HomeTeam->Id) == 2)
+    if (GetContactType(HomeTeam()->Id) == 2)
     {
         // A sensor contact: a blip sized by tonnage.
         uint8_t* shape;
@@ -1669,7 +1676,7 @@ auto MCTurret::Init(MCObjectType* objType) -> int32_t
     }
 
     auto* type = static_cast<MCTurretType*>(this->ObjType);
-    ObjectClass = TURRET;
+    ObjectClass = MCObjectClass::Turret;
     Destroyed = 0;
     Alignment = -1;
     ReadyTime = 0.0f;
@@ -1764,23 +1771,23 @@ auto MCTurret::HandleWeaponHit(MCWeaponShotInfo* shotInfo, int addMultiplayChunk
         }
         else
         {
-            MCGameObject* newFire = CreateObject(static_cast<int32_t>(type->BlownEffectId));
+            std::unique_ptr<MCGameObject> newFire = CreateObject(static_cast<int32_t>(type->BlownEffectId));
 
             if (newFire != nullptr)
             {
                 newFire->SetPosition(Position);
 
-                if (newFire->ObjectClass == FIRE)
+                if (newFire->ObjectClass == MCObjectClass::Fire)
                 {
-                    FireObject = static_cast<MCFire*>(newFire);
+                    FireObject = static_cast<MCFire*>(newFire.release());
                     FireObject->SetPotentialContact(3);
                     FireObject->BurningObject = this;
                     FireObject->SetTonnage(40.0f);
                     OnFire = 1;
                 }
-                else if (ObjectList->Head != nullptr)
+                else
                 {
-                    ObjectList->Head->AddNode(newFire);
+                    AddToDefaultList(std::move(newFire));
                 }
             }
         }

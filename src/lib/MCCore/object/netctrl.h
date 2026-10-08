@@ -1,6 +1,6 @@
 #pragma once
 
-#include "object/control.h"
+#include "object/MCControl.h"
 
 class MCMechWarrior;
 

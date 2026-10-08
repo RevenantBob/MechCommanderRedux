@@ -1,8 +1,9 @@
 #pragma once
 
-#include "object/gameobj.h"
-#include "object/objtype.h"
+#include "object/MCBigGameObject.h"
+#include "object/MCObjectType.h"
 #include "platform/MCRegisteredBlock.h"
+#include "object/MCWeaponShotInfo.h"
 
 class MCAppearance;
 class MCBaseObject;
@@ -71,7 +72,7 @@ public:
     ~MCArtilleryType() override { Destroy(); }
 
     /// <summary>Makes an <see cref="MCArtillery"/> of this type and gives it the next object id.</summary>
-    MCBaseObject* CreateInstance() override;
+    std::unique_ptr<MCBaseObject> CreateInstance() override;
     /// <summary>Frees the sprite and the explosion tables.</summary>
     void Destroy() override;
     /// <summary>Reads the "Artillery" block and the explosion pattern, and loads the countdown sprite.</summary>
@@ -241,7 +242,7 @@ public:
     ~MCCameraDroneType() override { Destroy(); }
 
     /// <summary>Makes a <see cref="MCCameraDrone"/> of this type and gives it the next object id.</summary>
-    MCBaseObject* CreateInstance() override;
+    std::unique_ptr<MCBaseObject> CreateInstance() override;
     void Destroy() override;
     /// <summary>Reads maxVelocity, maxDamage and BRValue from the "General" block.</summary>
     int32_t Init(MCFile* objFile, uint32_t fileSize) override;

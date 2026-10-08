@@ -1,6 +1,6 @@
 #include "stdafx.h"
 #include "object/gate.h"
-#include "ai/move.h"
+#include "ai/MCMoveSystem.h"
 #include "appear/MCAppearanceType.h"
 #include "appear/MCAppearanceTypeList.h"
 #include "camera/MCCamera.h"
@@ -21,14 +21,16 @@
 #include "object/bldng.h"
 #include "object/fire.h"
 #include "object/mover.h"
-#include "object/object.h"
-#include "object/objevnt.h"
-#include "object/objque.h"
-#include "object/team.h"
+#include "object/MCObjectSystem.h"
+#include "object/MCObjectEvent.h"
+#include "object/MCObjectQueue.h"
+#include "object/MCForces.h"
 #include "sound/soundsys.h"
 #include "sprite/MCPUAppearance.h"
 #include "terrain/MCTerrain.h"
 #include "terrain/MCTacticalMap.h"
+#include "object/MCObjectType.h"
+#include "object/MCWeaponShotInfo.h"
 
 namespace
 {
@@ -88,7 +90,7 @@ namespace
     void SetGateTile(int32_t row, int32_t col, uint32_t keepMask, uint32_t overlayBits, uint32_t lineOfSight,
                      uint32_t passable)
     {
-        MCMapTile& tile = GameMap->Map[GameMap->Width * row + col];
+        MCMapTile& tile = GameMap()->Map[GameMap()->Width * row + col];
         tile.Overlay = (tile.Overlay & keepMask) | overlayBits;
 
         for (uint32_t shift = 0; shift < 0x12; shift += 2)
@@ -157,7 +159,7 @@ namespace
     /// <summary>Makes the gate's fire (the type's blown effect); anything that isn't a fire goes in the object list.</summary>
     void StartFire(MCGate* gate, bool listNonFire)
     {
-        MCGameObject* effect =
+        std::unique_ptr<MCGameObject> effect =
             CreateObject(static_cast<int32_t>(static_cast<MCGateType*>(gate->ObjType)->BlownEffectId));
 
         if (effect == nullptr)
@@ -167,10 +169,11 @@ namespace
 
         effect->SetPosition(gate->Position);
 
-        if (effect->ObjectClass == FIRE)
+        if (effect->ObjectClass == MCObjectClass::Fire)
         {
-            gate->FireObject = static_cast<MCFire*>(effect);
-            effect->SetPotentialContact(3);
+            // The fire goes on the object lists itself, on its first update.
+            gate->FireObject = static_cast<MCFire*>(effect.release());
+            gate->FireObject->SetPotentialContact(3);
             gate->FireObject->BurningObject = gate;
             gate->FireObject->SetTonnage(40.0f);
 
@@ -182,14 +185,11 @@ namespace
         }
         else if (listNonFire)
         {
-            if (ObjectList->Head != nullptr)
-            {
-                ObjectList->Head->AddNode(effect);
-            }
+            AddToDefaultList(std::move(effect));
         }
         else
         {
-            DestroyObject(effect);
+            DestroyObject(effect.get());
         }
     }
 } // namespace
@@ -210,9 +210,9 @@ auto MCGateType::Init() -> void
     BuildingName = 0;
 }
 
-auto MCGateType::CreateInstance() -> MCBaseObject*
+auto MCGateType::CreateInstance() -> std::unique_ptr<MCBaseObject>
 {
-    auto* newGate = new MCGate;
+    auto newGate = std::make_unique<MCGate>();
 
     if (newGate == nullptr)
     {
@@ -302,7 +302,7 @@ auto MCGateType::Init(MCFile* objFile, uint32_t fileSize) -> int32_t
 auto MCGateType::HandleCollision(MCGameObject* collidee, MCGameObject* collider) -> int
 {
     // Only mechs, vehicles and elementals open gates or get caught in them.
-    if (collider->ObjectClass < BATTLEMECH || EXPLOSION <= collider->ObjectClass)
+    if (collider->ObjectClass < MCObjectClass::BattleMech || MCObjectClass::Explosion <= collider->ObjectClass)
     {
         return 1;
     }
@@ -463,11 +463,11 @@ auto MCGate::Update() -> int32_t
         TileRow = VertexNumber / verticesBlockSide + (BlockNumber / MCTerrain::BlocksMapSide) * verticesBlockSide;
         TileWorldY = static_cast<float>(halfMap - TileRow) * MCTerrain::MetersPerVertex;
         const auto inBounds = [&]
-        { return TileRow < 0 || GameMap->Height <= TileRow || TileCol < 0 || GameMap->Width <= TileCol ? 0u : 1u; };
+        { return TileRow < 0 || GameMap()->Height <= TileRow || TileCol < 0 || GameMap()->Width <= TileCol ? 0u : 1u; };
         Assert(inBounds(), 0, " tbldg MapTile Out of Bounds ");
         Assert(inBounds(), 0, " Map Tile out of bounds ");
-        const MCMapTile& tile = GameMap->Map[GameMap->Width * TileRow + TileCol];
-        const int32_t elevationLevel = static_cast<int32_t>((tile.Cells >> 7) & 0x3f) + GameMap->BaseElevation;
+        const MCMapTile& tile = GameMap()->Map[GameMap()->Width * TileRow + TileCol];
+        const int32_t elevationLevel = static_cast<int32_t>((tile.Cells >> 7) & 0x3f) + GameMap()->BaseElevation;
         Appearance->Visible = 1;
         TileElevation = static_cast<float>(elevationLevel) * MCTerrain::MetersPerElevLevel;
         Appearance->Update();
@@ -851,7 +851,7 @@ auto MCGate::Init(MCObjectType* objType) -> int32_t
     }
 
     auto* gateType = static_cast<MCGateType*>(this->ObjType);
-    ObjectClass = GATE;
+    ObjectClass = MCObjectClass::Gate;
     Destroyed = 0;
     Alignment = -1;
 

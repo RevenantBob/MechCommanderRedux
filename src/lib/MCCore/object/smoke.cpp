@@ -14,10 +14,11 @@
 #include "lib/MCFitIniFile.h"
 #include "logistics/logmain.h"
 #include "main/main.h"
-#include "object/object.h"
+#include "object/MCObjectSystem.h"
 #include "terrain/MCTerrain.h"
 #include "vfx/MCVfxFunctions.h"
 #include "platform/MCRenderer.h"
+#include "object/MCObjectType.h"
 
 namespace
 {
@@ -115,9 +116,9 @@ MCSmokeManager* SmokeManager = nullptr;
 // SmokeType
 //---------------------------------------------------------------------------
 
-auto MCSmokeType::CreateInstance() -> MCBaseObject*
+auto MCSmokeType::CreateInstance() -> std::unique_ptr<MCBaseObject>
 {
-    auto* newSmoke = new MCSmoke;
+    auto newSmoke = std::make_unique<MCSmoke>();
 
     if (newSmoke == nullptr)
     {
@@ -672,7 +673,7 @@ auto MCSmoke::Init(MCObjectType* objType) -> int32_t
         sphere.FrameTime = 0.0f;
     }
 
-    ObjectClass = SMOKE;
+    ObjectClass = MCObjectClass::Smoke;
     DepthBias = -200;
     return 0;
 }

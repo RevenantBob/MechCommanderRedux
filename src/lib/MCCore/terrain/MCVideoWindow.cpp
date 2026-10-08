@@ -4,7 +4,7 @@
 #include "gui/aport.h"
 #include "iface/iface.h"
 #include "main/main.h"
-#include "object/gameobj.h"
+#include "object/MCBigGameObject.h"
 #include "object/warrior.h"
 #include "terrain/MCTacticalMap.h"
 #include "terrain/MCTerrain.h"

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "object/control.h"
+#include "object/MCControl.h"
 
 /// <summary>A ground vehicle's control requests for one frame: turret and turn rates, throttle, the button bits.</summary>
 /// <remarks>Original source: <c>object\gvehctrl.cpp</c>, <c>object\gvehctrl.h</c>; 0x18 bytes.</remarks>

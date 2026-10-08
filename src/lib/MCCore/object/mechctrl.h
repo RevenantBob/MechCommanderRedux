@@ -1,6 +1,6 @@
 #pragma once
 
-#include "object/control.h"
+#include "object/MCControl.h"
 
 /// <summary>A mech's control requests for one frame: torso, turn and arm rates, gesture, and the button bits.</summary>
 /// <remarks>Original source: <c>object\mechctrl.cpp</c>, <c>object\mechctrl.h</c>; 0x28 bytes. The rates are

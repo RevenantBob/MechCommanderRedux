@@ -1,7 +1,7 @@
 #include "stdafx.h"
 #include "object/elemntl.h"
-#include "ai/move.h"
-#include "ai/tacordr.h"
+#include "ai/MCMoveSystem.h"
+#include "ai/MCTacticalOrder.h"
 #include "appear/MCAppearanceType.h"
 #include "appear/MCAppearanceTypeList.h"
 #include "camera/MCCamera.h"
@@ -23,23 +23,25 @@
 #include "object/aictrl.h"
 #include "object/artlry.h"
 #include "object/bullet.h"
-#include "object/cmponent.h"
-#include "object/contact.h"
+#include "object/MCMasterComponent.h"
+#include "object/MCContactSystem.h"
 #include "object/elemctrl.h"
 #include "object/elemdyn.h"
-#include "object/group.h"
+#include "object/MCMoverGroup.h"
 #include "object/gvehicl.h"
 #include "object/laser.h"
 #include "object/mech.h"
-#include "object/object.h"
-#include "object/objque.h"
+#include "object/MCObjectSystem.h"
+#include "object/MCObjectQueue.h"
 #include "object/plyrctrl.h"
 #include "object/prjlase.h"
-#include "object/team.h"
+#include "object/MCForces.h"
 #include "object/warrior.h"
 #include "sound/soundsys.h"
 #include "sprite/MCElementalActor.h"
 #include "terrain/MCTerrain.h"
+#include "object/MCObjectType.h"
+#include "object/MCWeaponShotInfo.h"
 
 float ElmDamageOnImpact = 0.0f;
 float ElementalTargetNoJumpDistance = 75.0f;
@@ -115,7 +117,7 @@ namespace
     void AimWeaponFX(MCElemental* elemental, MCGameObject* fx, MCGameObject* target, MCWeaponShotInfo& shot,
                      int32_t targetHotSpot)
     {
-        if (fx->ObjectClass == BULLET)
+        if (fx->ObjectClass == MCObjectClass::Bullet)
         {
             auto* bullet = static_cast<MCBullet*>(fx);
             bullet->Owner = elemental;
@@ -123,7 +125,7 @@ namespace
             bullet->OwnerHotSpot = 0;
             bullet->TargetHotSpot = targetHotSpot;
         }
-        else if (fx->ObjectClass == LASER)
+        else if (fx->ObjectClass == MCObjectClass::Laser)
         {
             auto* laser = static_cast<MCLaser*>(fx);
             laser->Source.SetWatcher(elemental);
@@ -146,11 +148,11 @@ namespace
     /// <summary>Sends a missed weapon effect from the elemental to <paramref name="landing"/>.</summary>
     void ConnectMissFX(MCElemental* elemental, MCGameObject* fx, MCVector3D& landing, MCWeaponShotInfo& shot)
     {
-        if (fx->ObjectClass == BULLET)
+        if (fx->ObjectClass == MCObjectClass::Bullet)
         {
             static_cast<MCBullet*>(fx)->Connect(elemental, landing, 0);
         }
-        else if (fx->ObjectClass == LASER)
+        else if (fx->ObjectClass == MCObjectClass::Laser)
         {
             static_cast<MCLaser*>(fx)->Connect(elemental, landing, &shot, 0);
         }
@@ -369,8 +371,8 @@ auto MCElementalType::HandleCollision(MCGameObject* collidee, MCGameObject* coll
 
     switch (collider->ObjectClass)
     {
-        case BATTLEMECH:
-        case GROUNDVEHICLE:
+        case MCObjectClass::BattleMech:
+        case MCObjectClass::GroundVehicle:
         {
             // An enemy ramming it knocks an elemental aside; a marine is knocked aside by anything, every time.
             int knockedAside = 0;
@@ -403,8 +405,8 @@ auto MCElementalType::HandleCollision(MCGameObject* collidee, MCGameObject* coll
             return 0;
         }
 
-        case BUILDING:
-        case TREEBUILDING:
+        case MCObjectClass::Building:
+        case MCObjectClass::TreeBuilding:
         {
             if (StartCollision(collidee, collider) == 0)
             {
@@ -424,7 +426,7 @@ auto MCElementalType::HandleCollision(MCGameObject* collidee, MCGameObject* coll
             break;
         }
 
-        case TREE:
+        case MCObjectClass::Tree:
         {
             if (StartCollision(collidee, collider) == 0)
             {
@@ -450,7 +452,7 @@ auto MCElementalType::HandleCollision(MCGameObject* collidee, MCGameObject* coll
             break;
         }
 
-        case TRAINCAR:
+        case MCObjectClass::TrainCar:
         {
             if (collidee->GetCollisionFreeFrom() != collider || collidee->GetCollisionFreeTime() < ScenarioTime)
             {
@@ -506,7 +508,7 @@ auto MCElementalType::HandleDestruction(MCGameObject* collidee, MCGameObject* co
 
     // Original behaviour (OB-003): the type's alignment (1 or 0xff) against the home team's (1 or -1), so a clan
     // home team never counts its own.
-    if (static_cast<uint32_t>(Alignment) == static_cast<uint32_t>(HomeTeam->Alignment))
+    if (static_cast<uint32_t>(Alignment) == static_cast<uint32_t>(HomeTeam()->Alignment))
     {
         FriendlyDestroyed = 1;
     }
@@ -518,9 +520,9 @@ auto MCElementalType::HandleDestruction(MCGameObject* collidee, MCGameObject* co
     return 1;
 }
 
-auto MCElementalType::CreateInstance() -> MCBaseObject*
+auto MCElementalType::CreateInstance() -> std::unique_ptr<MCBaseObject>
 {
-    auto* newElemental = new MCElemental;
+    auto newElemental = std::make_unique<MCElemental>();
 
     if (newElemental == nullptr)
     {
@@ -547,7 +549,7 @@ auto MCElemental::GetThrottle() -> int32_t
 
 auto MCElemental::Init() -> void
 {
-    ObjectClass = ELEMENTAL;
+    ObjectClass = MCObjectClass::Elemental;
     JumpRange = 0.0f;
     JumpTime = -100.0f;
     InJump = 0;
@@ -613,7 +615,7 @@ auto MCElemental::Init(MCObjectType* objType) -> int32_t
         return result;
     }
 
-    ObjectClass = ELEMENTAL;
+    ObjectClass = MCObjectClass::Elemental;
     DistanceSinceMarkSeen = 1000.0f;
     Removed = 0;
     ElementalCanJump = elementalType->CanJump;
@@ -822,30 +824,30 @@ auto MCElemental::Init(MCFitIniFile* elementalFile) -> int32_t
 
         switch (MasterComponentList[other.MasterID].Form)
         {
-            case COMPONENT_FORM_COCKPIT:
+            case MCComponentForm::Cockpit:
                 Cockpit = static_cast<uint8_t>(item);
                 break;
-            case COMPONENT_FORM_SENSOR:
+            case MCComponentForm::Sensor:
             {
                 Sensor = static_cast<uint8_t>(item);
-                SensorSystem = SensorSystemManager->NewSensor();
+                SensorSystem = SensorSystemManager()->NewSensor();
                 SensorSystem->Owner = this;
                 SensorSystem->SetRange(MasterComponentList[Inventory[item].MasterID].RangeOrHeat);
                 break;
             }
-            case COMPONENT_FORM_ENGINE:
+            case MCComponentForm::Engine:
                 Engine = static_cast<uint8_t>(item);
                 break;
-            case COMPONENT_FORM_WEAPON_BALLISTIC:
+            case MCComponentForm::WeaponBallistic:
                 addAntiMissileSystem(item);
                 break;
-            case COMPONENT_FORM_LIFESUPPORT:
+            case MCComponentForm::LifeSupport:
                 LifeSupport = static_cast<uint8_t>(item);
                 break;
-            case COMPONENT_FORM_ECM:
+            case MCComponentForm::Ecm:
                 Ecm = static_cast<uint8_t>(item);
                 break;
-            case COMPONENT_FORM_PROBE:
+            case MCComponentForm::Probe:
                 Probe = static_cast<uint8_t>(item);
                 break;
             default:
@@ -888,12 +890,12 @@ auto MCElemental::Init(MCFitIniFile* elementalFile) -> int32_t
             static_cast<double>(component.WeaponRange[3]) * weapon.Effectiveness * static_cast<double>(1.0f / 24.0f)));
         weapon.RangeRatings = new float[NumRangeRatings * 2]();
 
-        if (MasterComponentList[Inventory[item].MasterID].Form == COMPONENT_FORM_WEAPON_BALLISTIC)
+        if (MasterComponentList[Inventory[item].MasterID].Form == MCComponentForm::WeaponBallistic)
         {
             addAntiMissileSystem(item);
         }
 
-        ObjectTypeManager->Load(
+        ObjectTypeManager()->Load(
             static_cast<int32_t>(
                 WeaponFXTable[static_cast<int8_t>(MasterComponentList[Inventory[item].MasterID].WeaponEffect)]),
             1);
@@ -1241,7 +1243,7 @@ auto MCElemental::PivotTo() -> int
             {
                 targetPosition = target->GetPosition();
             }
-            else if (warrior->CurTacOrder.Code == TACTICAL_ORDER_ATTACK_POINT)
+            else if (warrior->CurTacOrder.Code == MCTacticalOrderCode::AttackPoint)
             {
                 targetPosition = warrior->AttackOrders.TargetPoint;
             }
@@ -1623,7 +1625,7 @@ auto MCElemental::UpdateMovement() -> void
                 wanderPoint.Y = static_cast<float>(RandomNumber(200)) + wanderPoint.Y;
             }
 
-            warrior->OrderMoveToPoint(0, 1, 0, wanderPoint, -1, 1);
+            warrior->OrderMoveToPoint(0, 1, MCOrderOrigin::Player, wanderPoint, -1, 1);
         }
     }
 
@@ -1850,7 +1852,7 @@ auto MCElemental::Render() -> void
 
     if (IsDestroyed() == 0)
     {
-        if (Alignment == HomeTeam->Alignment)
+        if (Alignment == HomeTeam()->Alignment)
         {
             if (WindowsVisible == Turn)
             {
@@ -1859,7 +1861,7 @@ auto MCElemental::Render() -> void
         }
         else
         {
-            const int32_t contactType = GetContactType(HomeTeam->Id, tagged);
+            const int32_t contactType = GetContactType(HomeTeam()->Id, tagged);
 
             if (contactType == 1)
             {
@@ -2076,7 +2078,8 @@ auto MCElemental::FireWeapon(MCGameObject* target, float targetTime, int32_t wea
     else
     {
         // A camera drone can't be shot for two seconds after launch.
-        if (target->ObjectClass == CAMERADRONE && ScenarioTime < static_cast<MCCameraDrone*>(target)->LaunchTime + 2.0)
+        if (target->ObjectClass == MCObjectClass::CameraDrone &&
+            ScenarioTime < static_cast<MCCameraDrone*>(target)->LaunchTime + 2.0)
         {
             return 4;
         }
@@ -2128,7 +2131,7 @@ auto MCElemental::FireWeapon(MCGameObject* target, float targetTime, int32_t wea
     }
 
     // No aimed missiles.
-    if (aimLocation != -1 && weapon.Form == COMPONENT_FORM_WEAPON_MISSILE)
+    if (aimLocation != -1 && weapon.Form == MCComponentForm::WeaponMissile)
     {
         return 4;
     }
@@ -2159,9 +2162,10 @@ auto MCElemental::FireWeapon(MCGameObject* target, float targetTime, int32_t wea
     }
 
     MCMechWarrior* targetPilot = nullptr;
-    const int32_t targetClass = target->ObjectClass;
+    const MCObjectClass targetClass = target->ObjectClass;
 
-    if (targetClass == BATTLEMECH || targetClass == GROUNDVEHICLE || targetClass == ELEMENTAL || targetClass == MOVER)
+    if (targetClass == MCObjectClass::BattleMech || targetClass == MCObjectClass::GroundVehicle ||
+        targetClass == MCObjectClass::Elemental || targetClass == MCObjectClass::Mover)
     {
         targetPilot = target->GetPilot();
         targetPilot->UpdateAttackerStatus(static_cast<uint32_t>(PartId), ScenarioTime);
@@ -2179,7 +2183,7 @@ auto MCElemental::FireWeapon(MCGameObject* target, float targetTime, int32_t wea
     const auto fired = [&]() -> const MCMasterComponent& { return MasterComponentList[item.MasterID]; };
     const auto hotSpotOf = [&](int32_t location)
     {
-        if (target->ObjectClass == BATTLEMECH)
+        if (target->ObjectClass == MCObjectClass::BattleMech)
         {
             // Port fix: the original reads body[location], past the eight body locations for a rear torso hit
             // (8..10); the torso it maps to is read instead.
@@ -2190,7 +2194,7 @@ auto MCElemental::FireWeapon(MCGameObject* target, float targetTime, int32_t wea
         return 0;
     };
 
-    MCGameObject* fx = nullptr;
+    std::unique_ptr<MCGameObject> fx;
 
     if (hitRoll < hitChance)
     {
@@ -2199,7 +2203,7 @@ auto MCElemental::FireWeapon(MCGameObject* target, float targetTime, int32_t wea
             DeductWeaponShot(weaponIndex, 1);
         }
 
-        if (fired().Form == COMPONENT_FORM_WEAPON_MISSILE)
+        if (fired().Form == MCComponentForm::WeaponMissile)
         {
             // Missiles: a streak fires them all, anything else about half; anti-missile systems take some out.
             // The rest fly in volleys, each with its own hit location.
@@ -2251,13 +2255,13 @@ auto MCElemental::FireWeapon(MCGameObject* target, float targetTime, int32_t wea
                     shot.Init(this, item.MasterID, fired().Damage * static_cast<float>(volleySize), hitLocation,
                               entryAngle);
 
-                    if (fx->ObjectClass == BULLET)
+                    if (fx->ObjectClass == MCObjectClass::Bullet)
                     {
-                        AddBulletShot(static_cast<MCBullet*>(fx), shot);
+                        AddBulletShot(static_cast<MCBullet*>(fx.get()), shot);
                     }
                 }
 
-                AimWeaponFX(this, fx, target, shot, targetHotSpot);
+                AimWeaponFX(this, fx.get(), target, shot, targetHotSpot);
             }
         }
         else
@@ -2272,12 +2276,12 @@ auto MCElemental::FireWeapon(MCGameObject* target, float targetTime, int32_t wea
             shot.Init(this, item.MasterID, fired().Damage, hitLocation, entryAngle);
             fx = CreateObject(static_cast<int32_t>(WeaponFXTable[fired().WeaponEffect]));
 
-            if (fx->ObjectClass == BULLET)
+            if (fx->ObjectClass == MCObjectClass::Bullet)
             {
-                AddBulletShot(static_cast<MCBullet*>(fx), shot);
+                AddBulletShot(static_cast<MCBullet*>(fx.get()), shot);
             }
 
-            AimWeaponFX(this, fx, target, shot, hotSpotOf(hitLocation));
+            AimWeaponFX(this, fx.get(), target, shot, hotSpotOf(hitLocation));
         }
     }
     else if (isStreak == 0)
@@ -2290,7 +2294,7 @@ auto MCElemental::FireWeapon(MCGameObject* target, float targetTime, int32_t wea
 
         MCWeaponShotInfo shot;
 
-        if (fired().Form == COMPONENT_FORM_WEAPON_MISSILE)
+        if (fired().Form == MCComponentForm::WeaponMissile)
         {
             int32_t missiles = static_cast<int32_t>(fired().NumMissiles * 0.5 + 0.5);
             int32_t volleySize = 1;
@@ -2310,14 +2314,14 @@ auto MCElemental::FireWeapon(MCGameObject* target, float targetTime, int32_t wea
                     missiles -= volleySize;
                     shot.Init(this, item.MasterID, fired().Damage * static_cast<float>(volleySize), -1, entryAngle);
 
-                    if (fx->ObjectClass == BULLET)
+                    if (fx->ObjectClass == MCObjectClass::Bullet)
                     {
-                        AddBulletShot(static_cast<MCBullet*>(fx), shot);
+                        AddBulletShot(static_cast<MCBullet*>(fx.get()), shot);
                     }
                 }
 
                 MCVector3D landing = MissPoint(target, 1);
-                ConnectMissFX(this, fx, landing, shot);
+                ConnectMissFX(this, fx.get(), landing, shot);
             }
         }
         else
@@ -2326,18 +2330,18 @@ auto MCElemental::FireWeapon(MCGameObject* target, float targetTime, int32_t wea
             fx = CreateObject(static_cast<int32_t>(WeaponFXTable[fired().WeaponEffect]));
             MCVector3D landing = MissPoint(target, 0);
 
-            if (fx->ObjectClass == BULLET)
+            if (fx->ObjectClass == MCObjectClass::Bullet)
             {
-                AddBulletShot(static_cast<MCBullet*>(fx), shot);
+                AddBulletShot(static_cast<MCBullet*>(fx.get()), shot);
             }
 
-            ConnectMissFX(this, fx, landing, shot);
+            ConnectMissFX(this, fx.get(), landing, shot);
         }
     }
 
     if (fx != nullptr)
     {
-        WeaponList->AddNode(fx);
+        WeaponList()->Add(std::move(fx));
     }
 
     if (targetPilot != nullptr)
@@ -2346,23 +2350,23 @@ auto MCElemental::FireWeapon(MCGameObject* target, float targetTime, int32_t wea
     }
 
     // Firing gives an unrevealed elemental away to the other side's mechs within visual range.
-    MCObjectQueueNode* enemies = nullptr;
+    MCObjectList* enemies = nullptr;
     uint8_t seenBy = 0;
 
     if (Alignment == 1 && IsRevealed() == 0)
     {
-        enemies = ClanMechList;
+        enemies = ClanMechList();
         seenBy = 2;
     }
     else if (Alignment == -1 && IsRevealed() == 0)
     {
-        enemies = InnerSphereMechList;
+        enemies = InnerSphereMechList();
         seenBy = 1;
     }
 
     if (enemies != nullptr)
     {
-        for (MCBaseObject* enemy = enemies->Head; enemy != nullptr; enemy = enemy->Next)
+        for (MCBaseObject* enemy : *enemies)
         {
             MCVector3D enemyPosition = static_cast<MCGameObject*>(enemy)->GetPosition();
 

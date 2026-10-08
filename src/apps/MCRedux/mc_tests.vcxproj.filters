@@ -12,11 +12,16 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="MCConsole.cpp" />
+    <ClCompile Include="MCCrashTrace.cpp" />
     <ClCompile Include="stdafx.cpp" />
     <ClCompile Include="tests\AblRuntimeTests.cpp">
       <Filter>tests</Filter>
     </ClCompile>
     <ClCompile Include="tests\AblTests.cpp">
+      <Filter>tests</Filter>
+    </ClCompile>
+    <ClCompile Include="tests\AiTests.cpp">
       <Filter>tests</Filter>
     </ClCompile>
     <ClCompile Include="tests\AllocatorTests.cpp">
@@ -97,6 +102,9 @@
     <ClCompile Include="tests\MissionTests.cpp">
       <Filter>tests</Filter>
     </ClCompile>
+    <ClCompile Include="tests\ObjectCoreTests.cpp">
+      <Filter>tests</Filter>
+    </ClCompile>
     <ClCompile Include="tests\ObjectQueueTests.cpp">
       <Filter>tests</Filter>
     </ClCompile>
@@ -162,6 +170,8 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="MCConsole.h" />
+    <ClInclude Include="MCCrashTrace.h" />
     <ClInclude Include="stdafx.h" />
     <ClInclude Include="tests\fakes\MCLoopbackTransport.h">
       <Filter>tests\fakes</Filter>

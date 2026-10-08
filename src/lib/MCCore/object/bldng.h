@@ -1,7 +1,8 @@
 #pragma once
 
-#include "object/gameobj.h"
-#include "object/objtype.h"
+#include "object/MCBigGameObject.h"
+#include "object/MCObjectType.h"
+#include "object/MCWeaponShotInfo.h"
 
 class MCAppearance;
 class MCCamera;
@@ -40,7 +41,7 @@ public:
     void Init();
 
     /// <summary>Makes a <see cref="MCBuilding"/> of this type and gives it the next object id.</summary>
-    MCBaseObject* CreateInstance() override;
+    std::unique_ptr<MCBaseObject> CreateInstance() override;
     void Destroy() override;
     /// <summary>Reads the "BuildingData" block, then the common type data (the FIT extent radius wins).</summary>
     int32_t Init(MCFile* objFile, uint32_t fileSize) override;

@@ -1,4 +1,5 @@
 #include "MCTest.h"
+#include "../MCCrashTrace.h"
 
 #include <algorithm>
 #include <cctype>
@@ -157,8 +158,10 @@ int main(int argc, char** argv)
         return 1;
     }
 
-    // A fatal error fails the test process; a message box would wait for someone to click it.
+    // A fatal error fails the test process; a message box would wait for someone to click it. A crash (or a CRT
+    // assertion) prints its stack and writes mc_tests.dmp instead of showing a dialog.
     MCNoMessageBoxes = true;
+    MCCrashTrace::Install();
     std::vector<std::string> filters;
     bool list = false;
     const char* only = nullptr;

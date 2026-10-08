@@ -30,6 +30,12 @@ public:
     /// </summary>
     MCPriorityQueue(int32_t maxItems, int32_t keyMinimum);
 
+    /// <summary>
+    /// Makes room for at least <paramref name="maxItems"/> items. The slots already there keep what they hold (a
+    /// <see cref="Change"/> past the queued items reads them).
+    /// </summary>
+    void Reserve(int32_t maxItems);
+
     /// <summary>Adds an item.</summary>
     /// <returns>Whether it was added (false when the queue is full).</returns>
     bool Insert(const MCPQNode& item);

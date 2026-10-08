@@ -3,7 +3,7 @@
 #include "camera/MCCamera.h"
 #include "engine/MCByteFlag.h"
 #include "object/elemntl.h"
-#include "object/team.h"
+#include "object/MCForces.h"
 #include "platform/MCRenderer.h"
 #include "terrain/MCMapBlockManager.h"
 #include "terrain/MCTerrain.h"
@@ -150,7 +150,7 @@ std::expected<void, std::string> MCTerrainGroundFrame(const MCTerrainWindow& win
         return std::unexpected("the ground mesh is asked for without a terrain");
     }
 
-    MCByteFlag* fog = HomeTeam != nullptr ? terrain->HomeVisibleBits() : nullptr;
+    MCByteFlag* fog = HomeTeam() != nullptr ? terrain->HomeVisibleBits() : nullptr;
 
     if (fog == nullptr || fog->Window() == nullptr)
     {

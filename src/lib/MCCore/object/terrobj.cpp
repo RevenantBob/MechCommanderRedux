@@ -1,6 +1,6 @@
 #include "stdafx.h"
 #include "object/terrobj.h"
-#include "ai/move.h"
+#include "ai/MCMoveSystem.h"
 #include "appear/MCAppearanceType.h"
 #include "appear/MCAppearanceTypeList.h"
 #include "camera/MCCamera.h"
@@ -17,14 +17,16 @@
 #include "main/main.h"
 #include "network/multplyr.h"
 #include "object/bldng.h"
-#include "object/collsn.h"
+#include "object/MCCollisionSystem.h"
 #include "object/fire.h"
-#include "object/object.h"
-#include "object/objevnt.h"
-#include "object/team.h"
+#include "object/MCObjectSystem.h"
+#include "object/MCObjectEvent.h"
+#include "object/MCForces.h"
 #include "sprite/MCVfxAppearance.h"
 #include "terrain/MCTerrain.h"
 #include "terrain/MCTacticalMap.h"
+#include "object/MCObjectType.h"
+#include "object/MCWeaponShotInfo.h"
 
 namespace
 {
@@ -55,9 +57,9 @@ auto MCTerrainObjectType::Init() -> void
     ExplRad = 0.0f;
 }
 
-auto MCTerrainObjectType::CreateInstance() -> MCBaseObject*
+auto MCTerrainObjectType::CreateInstance() -> std::unique_ptr<MCBaseObject>
 {
-    auto* newObject = new MCTerrainObject;
+    auto newObject = std::make_unique<MCTerrainObject>();
 
     if (newObject == nullptr)
     {
@@ -158,8 +160,8 @@ auto MCTerrainObjectType::Init(MCFile* objFile, uint32_t fileSize) -> int32_t
 auto MCTerrainObjectType::HandleCollision(MCGameObject* collidee, MCGameObject* collider) -> int
 {
     // A mover (not artillery) running into it deals it 10 points; the server's job in multiplayer.
-    if ((MPlayer == nullptr || MPlayer->IsServer != 0) && collider->ObjectClass < MOVER &&
-        collider->ObjectClass != ARTILLERY)
+    if ((MPlayer == nullptr || MPlayer->IsServer != 0) && collider->ObjectClass < MCObjectClass::Mover &&
+        collider->ObjectClass != MCObjectClass::Artillery)
     {
         MCWeaponShotInfo shot;
         shot.Init(nullptr, -1, 10.0f, 0, 0.0f);
@@ -310,11 +312,15 @@ auto MCTerrainObject::Update() -> int32_t
     CellRow = VertexNumber / verticesBlockSide + (BlockNumber / MCTerrain::BlocksMapSide) * verticesBlockSide;
     VertexWorldY = static_cast<float>(halfMap - CellRow) * MCTerrain::MetersPerVertex;
     const auto inBounds = [&]
-    { return CellRow < 0 || GameMap->Height <= CellRow || CellColumn < 0 || GameMap->Width <= CellColumn ? 0u : 1u; };
+    {
+        return CellRow < 0 || GameMap()->Height <= CellRow || CellColumn < 0 || GameMap()->Width <= CellColumn ? 0u
+                                                                                                               : 1u;
+    };
+
     Assert(inBounds(), 0, " terrobj MapTile Out of Bounds ");
     Assert(inBounds(), 0, " Map Tile out of bounds ");
-    const MCMapTile& tile = GameMap->Map[GameMap->Width * CellRow + CellColumn];
-    const int32_t elevationLevel = static_cast<int32_t>((tile.Cells >> 7) & 0x3f) + GameMap->BaseElevation;
+    const MCMapTile& tile = GameMap()->Map[GameMap()->Width * CellRow + CellColumn];
+    const int32_t elevationLevel = static_cast<int32_t>((tile.Cells >> 7) & 0x3f) + GameMap()->BaseElevation;
     CellElevation = static_cast<float>(elevationLevel) * MCTerrain::MetersPerElevLevel;
 
     // No extent radius in the FIT: measure it (twice the appearance's diagonal) for the whole type.
@@ -328,7 +334,7 @@ auto MCTerrainObject::Update() -> int32_t
         float radius = std::sqrt(dx * dx + dy * dy) / WorldUnitsPerMeter;
         radius = radius + radius;
 
-        if (static_cast<float>(MCCollisionSystem::GridRadius) < radius)
+        if (static_cast<float>(CollisionSystem()->GridRadius()) < radius)
         {
             Fatal(static_cast<int32_t>(std::floor(static_cast<double>(radius))), " Object extent radius TOO large ");
         }
@@ -514,7 +520,7 @@ auto MCTerrainObject::Init(MCObjectType* objType) -> int32_t
         return result;
     }
 
-    ObjectClass = TERRAINOBJECT;
+    ObjectClass = MCObjectClass::TerrainObject;
 
     if (0.0f < this->ObjType->ExtentRadius)
     {
@@ -535,7 +541,7 @@ auto MCTerrainObject::LightOnFire(float timeToBurn) -> void
 {
     if (FireObject == nullptr && ObjType->ExplosionObject != -1)
     {
-        auto* fire = static_cast<MCFire*>(CreateObject(ObjType->ExplosionObject));
+        auto* fire = CreateObjectAs<MCFire>(ObjType->ExplosionObject).release();
 
         if (fire != nullptr)
         {

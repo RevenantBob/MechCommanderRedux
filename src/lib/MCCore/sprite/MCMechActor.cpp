@@ -1,7 +1,7 @@
 #include "stdafx.h"
 #include "sprite/MCMechActor.h"
-#include "ai/move.h"
-#include "ai/tacordr.h"
+#include "ai/MCMoveSystem.h"
+#include "ai/MCTacticalOrder.h"
 #include "appear/MCAppearanceTypeList.h"
 #include "camera/MCCamera.h"
 #include "color/MCPalette.h"
@@ -13,9 +13,9 @@
 #include "main/main.h"
 #include "mission/scenario.h"
 #include "object/mech.h"
-#include "object/object.h"
-#include "object/objque.h"
-#include "object/team.h"
+#include "object/MCObjectSystem.h"
+#include "object/MCObjectQueue.h"
+#include "object/MCForces.h"
 #include "object/warrior.h"
 #include "sound/soundsys.h"
 #include "sprite/MCShape.h"
@@ -842,7 +842,7 @@ auto MCMechActor::Render(int32_t depthFixup) -> int32_t
         }
         else if (alignment == 1)
         {
-            DrawSelectBrackets(obj->GetAlignment() == HomeTeam->Alignment ? 0xfc : 0xfb);
+            DrawSelectBrackets(obj->GetAlignment() == HomeTeam()->Alignment ? 0xfc : 0xfb);
         }
     }
 
@@ -1151,7 +1151,7 @@ auto MCMechActor::Update() -> int32_t
                 InJump = true;
                 JumpSetup = false;
 
-                if (mech->GetPilot()->CurTacOrder.Code == TACTICAL_ORDER_JUMPTO_POINT)
+                if (mech->GetPilot()->CurTacOrder.Code == MCTacticalOrderCode::JumpToPoint)
                 {
                     mech->GetPilot()->CurTacOrder.Stage = 2;
                 }
@@ -1452,7 +1452,7 @@ auto MCMechActor::Update() -> int32_t
                         InJump = false;
                         CurrentStateGesture = 1;
 
-                        if (mech->GetPilot()->CurTacOrder.Code == TACTICAL_ORDER_JUMPTO_POINT)
+                        if (mech->GetPilot()->CurTacOrder.Code == MCTacticalOrderCode::JumpToPoint)
                         {
                             mech->GetPilot()->CurTacOrder.Stage = 3;
                         }
@@ -1608,14 +1608,14 @@ auto MCMechActor::DrawTargetDamage() -> void
 {
     MCGameObject* obj = Owner;
 
-    if (obj == nullptr || obj->ObjectClass != BATTLEMECH)
+    if (obj == nullptr || obj->ObjectClass != MCObjectClass::BattleMech)
     {
         return;
     }
 
     auto* mech = static_cast<MCBattleMech*>(obj);
     // The enemy mechs.
-    MCObjectQueueNode* enemies = mech->GetAlignment() == 1 ? ClanMechList : InnerSphereMechList;
+    MCObjectList* enemies = mech->GetAlignment() == 1 ? ClanMechList() : InnerSphereMechList();
 
     // A ring around the mech, with a line out to each enemy it can see, as long as its expected damage to it.
     // Port: overlays, on the screen over the view: the ring follows the sprite through the zoom.
@@ -1626,9 +1626,8 @@ auto MCMechActor::DrawTargetDamage() -> void
                          0.375f * MCOverlay.ScaleX;
     const MCVector2D ownPos = MCOverlayPoint(ScreenPos);
     MCVector2D size(radius, radius);
-    MCBaseObject* current = nullptr;
 
-    while (enemies->Traverse(current) != nullptr)
+    for (MCBaseObject* current : *enemies)
     {
         auto* target = static_cast<MCGameObject*>(current);
 

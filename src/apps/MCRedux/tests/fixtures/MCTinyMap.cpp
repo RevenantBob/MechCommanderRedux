@@ -1,5 +1,6 @@
 #include "stdafx.h"
 #include "MCTinyMap.h"
+#include "main/MCGameContext.h"
 #include "terrain/MCTerrain.h"
 
 namespace
@@ -9,7 +10,7 @@ namespace
     {
         uint32_t cells = 0;
 
-        for (uint32_t cell = 0; cell < MAPCELL_DIM * MAPCELL_DIM; cell++)
+        for (uint32_t cell = 0; cell < MapCellDim * MapCellDim; cell++)
         {
             cells |= 0x4000u << (cell * 2);
         }
@@ -20,7 +21,6 @@ namespace
 
 MCTinyMap::MCTinyMap(int32_t tiles)
     : _Tiles(tiles)
-    , _PreviousMap(GameMap)
     , _PreviousWorldUnitsMapSide(WorldUnitsMapSide)
     , _PreviousVerticesBlockSide(MCTerrain::VerticesBlockSide)
     , _PreviousBlocksMapSide(MCTerrain::BlocksMapSide)
@@ -38,20 +38,21 @@ MCTinyMap::MCTinyMap(int32_t tiles)
     MCTerrain::MetersPerVertexDivMapcellDim = MCTerrain::MetersPerVertex * (1.0f / 3.0f);
     WorldUnitsMapSide = static_cast<float>(MCTerrain::BlocksMapSide) * MCTerrain::MetersBlockSide;
 
-    GameMap = new MCScenarioMap;
-    GameMap->Init(tiles, tiles);
+    auto system = std::make_unique<MCMoveSystem>();
+    system->Map = std::make_unique<MCScenarioMap>(tiles, tiles);
 
-    for (int32_t i = 0; i < tiles * tiles; i++)
+    for (MCMapTile& tile : system->Map->Map)
     {
-        GameMap->Map[i].Cells = AllPassable;
+        tile.Cells = AllPassable;
     }
+
+    _System = system.get();
+    _PreviousSystem = MCGameContext::Current().SetMoveSystem(std::move(system));
 }
 
 MCTinyMap::~MCTinyMap()
 {
-    GameMap->Destroy();
-    delete GameMap;
-    GameMap = _PreviousMap;
+    MCGameContext::Current().SetMoveSystem(std::move(_PreviousSystem));
     WorldUnitsMapSide = _PreviousWorldUnitsMapSide;
     MCTerrain::VerticesBlockSide = _PreviousVerticesBlockSide;
     MCTerrain::BlocksMapSide = _PreviousBlocksMapSide;
@@ -63,8 +64,8 @@ MCTinyMap::~MCTinyMap()
 
 void MCTinyMap::Block(int32_t row, int32_t col)
 {
-    MCMapTile& tile = GameMap->Map[(row / MAPCELL_DIM) * _Tiles + col / MAPCELL_DIM];
-    const uint32_t shift = static_cast<uint32_t>(((row % MAPCELL_DIM) * MAPCELL_DIM + col % MAPCELL_DIM) * 2);
+    MCMapTile& tile = _System->Map->TileAt(row / MapCellDim, col / MapCellDim);
+    const uint32_t shift = static_cast<uint32_t>(((row % MapCellDim) * MapCellDim + col % MapCellDim) * 2);
     tile.Cells &= ~(0x4000u << shift);
 }
 
@@ -75,8 +76,8 @@ bool MCTinyMap::Passable(int32_t row, int32_t col) const
         return false;
     }
 
-    return GameMap->Map[(row / MAPCELL_DIM) * _Tiles + col / MAPCELL_DIM].GetCellPassable(row % MAPCELL_DIM,
-                                                                                          col % MAPCELL_DIM) != 0;
+    return _System->Map->TileAt(row / MapCellDim, col / MapCellDim)
+               .GetCellPassable(row % MapCellDim, col % MapCellDim) != 0;
 }
 
 MCVector3D MCTinyMap::CellCentre(int32_t row, int32_t col) const

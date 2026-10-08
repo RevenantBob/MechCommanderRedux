@@ -12,6 +12,8 @@
 
 #include "linkup/ficommonnetwork.h"
 #include "linkup/linkedlist.h"
+#include "object/MCWeaponHitChunk.h"
+#include "object/MCWeaponShotInfo.h"
 
 class MCFidpMessage;
 class MCFitIniFile;

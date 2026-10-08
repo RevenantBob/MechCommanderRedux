@@ -36,11 +36,12 @@
 #include "network/multplyr.h"
 #include "sound/soundsys.h"
 #include "vfx/MCVfxFunctions.h"
-#include "object/cmponent.h"
+#include "object/MCMasterComponent.h"
 #include "object/mech.h"
-#include "object/objtype.h"
+#include "object/MCObjectType.h"
 #include "platform/MCRegistry.h"
 #include "platform/MCRenderer.h"
+#include "object/MCObjectTypeManager.h"
 
 /// <summary>Each mech name index's place in the logistics mech order (0x007977a4).</summary>
 int32_t MechSort[24] = {23, 19, 13, 10, 0, 3, 2, 6, 9, 8, 15, 14, 18, 20, 4, 16, 1, 12, 5, 11, 21, 7, 17, 22};
@@ -112,9 +113,9 @@ namespace
     /// The form of component <paramref name="masterID"/>. Port fix: an empty critical slot holds 0xff, one past the
     /// 255 components; the original read the form from past the end of the table there. The port gives 0.
     /// </summary>
-    int32_t SlotForm(uint8_t masterID)
+    MCComponentForm SlotForm(uint8_t masterID)
     {
-        return masterID < NumMasterComponents ? MasterComponentList[masterID].Form : 0;
+        return masterID < NumMasterComponents() ? MasterComponentList[masterID].Form : MCComponentForm::Simple;
     }
 
     /// <summary>
@@ -587,11 +588,11 @@ namespace
         std::memset(item, 0, sizeof(MCLogInventoryItem));
         item->MasterID = masterID;
         const MCMasterComponent& master = Component(masterID);
-        std::strncpy(item->Name, master.Name, nameCopy);
+        std::strncpy(item->Name, master.Name.c_str(), nameCopy);
         item->Name[0x1c] = 0;
         item->MasterValue = master.MasterID;
         // Ammunition counts as one item whatever the amount; anything else counts its amount.
-        item->Count = master.Form == 10 ? 1 : stat->Amount;
+        item->Count = master.Form == MCComponentForm::Ammo ? 1 : stat->Amount;
         item->Stats = stat;
         item->RangeIndex = 0;
         item->SortOrder = GlobalLogPtr->ComponentSort[masterID];
@@ -1116,10 +1117,11 @@ auto MCInventoryList::SortName() -> int32_t*
     // Original behaviour (OB-087): the last item is never sorted in.
     for (int32_t index = 0; index < NumItems - 1; ++index)
     {
-        groups.Add(Component(static_cast<uint8_t>(GetMasterIDFromIndex(index))).Form, index);
+        groups.Add(static_cast<int32_t>(Component(static_cast<uint8_t>(GetMasterIDFromIndex(index))).Form), index);
     }
 
-    auto name = [this](int32_t index) { return Component(static_cast<uint8_t>(GetMasterIDFromIndex(index))).Name; };
+    auto name = [this](int32_t index)
+    { return Component(static_cast<uint8_t>(GetMasterIDFromIndex(index))).Name.c_str(); };
     auto earlier = [&](int32_t a, int32_t b) { return std::strcmp(name(b), name(a)) > 0; };
 
     if (groups.Count7 > 1)
@@ -2030,10 +2032,12 @@ auto MCLogMech::CalcMechCost(int repaired) -> void
     for (MCLogInventoryItem* item = Inventory->Items; item != nullptr; item = item->Next)
     {
         const MCMasterComponent& master = Component(item->MasterID);
-        const int32_t form = master.Form;
+        const MCComponentForm form = master.Form;
         // Weapons, ammunition and equipment count only when repaired; the rest always.
-        const bool fitted = form == 7 || form == 8 || form == 9 || form == 10 || form == 2 || form == 0x10 ||
-                            form == 0x11 || form == 0x12;
+        const bool fitted = form == MCComponentForm::WeaponEnergy || form == MCComponentForm::WeaponBallistic ||
+                            form == MCComponentForm::WeaponMissile || form == MCComponentForm::Ammo ||
+                            form == MCComponentForm::Sensor || form == MCComponentForm::Ecm ||
+                            form == MCComponentForm::Probe || form == MCComponentForm::Jammer;
 
         if (repaired == 0 && fitted)
         {
@@ -2133,17 +2137,17 @@ auto MCLogMech::PlaceItem(uint8_t masterID, int32_t itemNum, int32_t hits) -> vo
     {
         switch (Component(masterID).Form)
         {
-            case COMPONENT_FORM_COCKPIT:
-            case COMPONENT_FORM_SENSOR:
-            case COMPONENT_FORM_LIFESUPPORT:
-            case COMPONENT_FORM_ECM:
-            case COMPONENT_FORM_PROBE:
+            case MCComponentForm::Cockpit:
+            case MCComponentForm::Sensor:
+            case MCComponentForm::LifeSupport:
+            case MCComponentForm::Ecm:
+            case MCComponentForm::Probe:
             {
                 // Head equipment (the component is not recorded).
                 fill(MECH_BODY_LOCATION_HEAD, false);
                 return;
             }
-            case COMPONENT_FORM_ACTUATOR:
+            case MCComponentForm::Actuator:
             {
                 if (masterID != 4 && masterID != 0x21)
                 {
@@ -2172,14 +2176,14 @@ auto MCLogMech::PlaceItem(uint8_t masterID, int32_t itemNum, int32_t hits) -> vo
 
                 return;
             }
-            case COMPONENT_FORM_ENGINE:
-            case COMPONENT_FORM_GYROSCOPE:
+            case MCComponentForm::Engine:
+            case MCComponentForm::Gyroscope:
             {
                 // Centre torso (the component is not recorded).
                 fill(MECH_BODY_LOCATION_CTORSO, false);
                 return;
             }
-            case COMPONENT_FORM_JUMPJET:
+            case MCComponentForm::JumpJet:
             {
                 // Jump jets: the leg with fewer of them, the left on a tie.
                 // OB-092 (fixed): MCX.EXE read both legs at one slot index that only moved on when the left leg's slot
@@ -2191,7 +2195,7 @@ auto MCLogMech::PlaceItem(uint8_t masterID, int32_t itemNum, int32_t hits) -> vo
 
                     for (int32_t slot = 0; slot < NumLocationCriticalSpaces[location]; ++slot)
                     {
-                        if (SlotForm(slots[location * maxSlots + slot].MasterID) == COMPONENT_FORM_JUMPJET)
+                        if (SlotForm(slots[location * maxSlots + slot].MasterID) == MCComponentForm::JumpJet)
                         {
                             ++count;
                         }
@@ -2302,11 +2306,11 @@ auto MCLogMech::GetSmallWeaponCount(int32_t location) -> int32_t
 
     for (const ItemSlot& slot : ItemSlots[location])
     {
-        const int32_t form = SlotForm(slot.MasterID);
+        const MCComponentForm form = SlotForm(slot.MasterID);
 
         // Ammunition counts as a small weapon.
-        if ((form == COMPONENT_FORM_WEAPON_ENERGY || form == COMPONENT_FORM_WEAPON_BALLISTIC ||
-             form == COMPONENT_FORM_WEAPON_MISSILE || form == COMPONENT_FORM_AMMO) &&
+        if ((form == MCComponentForm::WeaponEnergy || form == MCComponentForm::WeaponBallistic ||
+             form == MCComponentForm::WeaponMissile || form == MCComponentForm::Ammo) &&
             GetWeaponLarge(slot.MasterID) == 0)
         {
             ++count;
@@ -2751,7 +2755,8 @@ auto MCLogMechList::AddMech(MCFitIniFile* file, int required, int sorted, int wi
         const MCMasterComponent& master = Component(masterID);
         mech->UsedTonnage += master.Tonnage;
 
-        if (master.Form == 2 || master.Form == 0x10 || master.Form == 0x11 || master.Form == 0x12)
+        if (master.Form == MCComponentForm::Sensor || master.Form == MCComponentForm::Ecm ||
+            master.Form == MCComponentForm::Probe || master.Form == MCComponentForm::Jammer)
         {
             mech->WeaponTonnage += master.Tonnage;
         }
@@ -2828,10 +2833,12 @@ auto MCLogMechList::AddMech(MCFitIniFile* file, int required, int sorted, int wi
                     continue;
                 }
 
-                const int32_t form = Component(owner->MasterID).Form;
+                const MCComponentForm form = Component(owner->MasterID).Form;
 
-                if (form == 6 || form == 7 || form == 9 || form == 8 || form == 2 || form == 4 || form == 0x10 ||
-                    form == 0x11)
+                if (form == MCComponentForm::Weapon || form == MCComponentForm::WeaponEnergy ||
+                    form == MCComponentForm::WeaponMissile || form == MCComponentForm::WeaponBallistic ||
+                    form == MCComponentForm::Sensor || form == MCComponentForm::Engine ||
+                    form == MCComponentForm::Ecm || form == MCComponentForm::Probe)
                 {
                     inventory->HitItem(slot[0], slot[1]);
                 }
@@ -2959,7 +2966,7 @@ auto MCLogMechList::AddMech(MCFitIniFile* file, int required, int sorted, int wi
 
     for (MCLogInventoryItem* entry = inventory->Items; entry != nullptr; entry = entry->Next)
     {
-        if (Component(entry->MasterID).Form == 0xb)
+        if (Component(entry->MasterID).Form == MCComponentForm::JumpJet)
         {
             jumpJets = entry->Count;
         }

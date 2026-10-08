@@ -3,8 +3,8 @@
 #include "abl/MCAblDebugger.h"
 #include "abl/MCScrollingTextWindow.h"
 #include "abl/MCAblRuntime.h"
-#include "ai/move.h"
-#include "ai/tacordr.h"
+#include "ai/MCMoveSystem.h"
+#include "ai/MCTacticalOrder.h"
 #include "gui/afont.h"
 #include "gui/aport.h"
 #include "gui/asystem.h"
@@ -18,17 +18,17 @@
 #include "lib/MCPacketFile.h"
 #include "main/main.h"
 #include "network/multplyr.h"
-#include "object/cmponent.h"
+#include "object/MCMasterComponent.h"
 #include "object/elemntl.h"
-#include "object/group.h"
+#include "object/MCMoverGroup.h"
 #include "object/gvehicl.h"
 #include "object/mech.h"
 #include "object/mover.h"
-#include "object/objque.h"
-#include "object/object.h"
-#include "object/sortlist.h"
+#include "object/MCObjectQueue.h"
+#include "object/MCObjectSystem.h"
+#include "object/MCSortList.h"
 #include "object/tbldng.h"
-#include "object/team.h"
+#include "object/MCForces.h"
 #include "sound/radio.h"
 #include "terrain/MCTerrain.h"
 #include "vfx/MCVfxFunctions.h"
@@ -88,8 +88,8 @@ namespace
     bool IsMover(const MCBaseObject* object)
     {
         const MCObjectClass objectClass = object->ObjectClass;
-        return objectClass == BATTLEMECH || objectClass == GROUNDVEHICLE || objectClass == ELEMENTAL ||
-               objectClass == MOVER;
+        return objectClass == MCObjectClass::BattleMech || objectClass == MCObjectClass::GroundVehicle ||
+               objectClass == MCObjectClass::Elemental || objectClass == MCObjectClass::Mover;
     }
 
     /// <summary>A new[] copy of <paramref name="text"/>, as the original's inline strlen/malloc/strcpy.</summary>
@@ -105,12 +105,12 @@ namespace
     bool CellPassable(int32_t tileR, int32_t tileC, int32_t cellR, int32_t cellC)
     {
         // Port fix: the walks can leave the map, where the original reads outside it. Off the map is impassable.
-        if (!GameMap->OnMap(tileR, tileC))
+        if (!GameMap()->OnMap(tileR, tileC))
         {
             return false;
         }
 
-        return GameMap->Map[GameMap->Width * tileR + tileC].GetCellPassable(cellR, cellC) != 0;
+        return GameMap()->Map[GameMap()->Width * tileR + tileC].GetCellPassable(cellR, cellC) != 0;
     }
 
     /// <summary>Whether the movement cell under <paramref name="position"/> can be entered.</summary>
@@ -120,7 +120,7 @@ namespace
         int32_t tileC;
         int32_t cellR;
         int32_t cellC;
-        GameMap->WorldToMapPos(position, tileR, tileC, cellR, cellC);
+        GameMap()->WorldToMapPos(position, tileR, tileC, cellR, cellC);
         return CellPassable(tileR, tileC, cellR, cellC);
     }
 
@@ -130,41 +130,41 @@ namespace
     /// </summary>
     void BeginPathCalc(MCMechWarrior* pilot, MCMover* mover)
     {
-        MovingObject = mover;
+        PathFindMap()->MovingObject = mover;
         mover->UpdatePathLock(0);
 
-        if (pilot->CurTacOrder.Code == TACTICAL_ORDER_ATTACK_OBJECT && pilot->CurTacOrder.AttackParams.Method == 2)
+        if (pilot->CurTacOrder.Code == MCTacticalOrderCode::AttackObject && pilot->CurTacOrder.AttackParams.Method == 2)
         {
-            RamObject = pilot->CurTacOrder.Target;
+            PathFindMap()->RamObject = pilot->CurTacOrder.Target;
 
-            if (RamObject != nullptr && IsMover(RamObject))
+            if (PathFindMap()->RamObject != nullptr && IsMover(PathFindMap()->RamObject))
             {
-                static_cast<MCMover*>(RamObject)->UpdatePathLock(0);
+                static_cast<MCMover*>(PathFindMap()->RamObject)->UpdatePathLock(0);
             }
         }
         else
         {
-            RamObject = nullptr;
+            PathFindMap()->RamObject = nullptr;
         }
     }
 
     /// <summary>Puts back the path locks <see cref="BeginPathCalc"/> lifted.</summary>
     void EndPathCalc(MCMover* mover)
     {
-        if (RamObject != nullptr && IsMover(RamObject))
+        if (PathFindMap()->RamObject != nullptr && IsMover(PathFindMap()->RamObject))
         {
-            static_cast<MCMover*>(RamObject)->UpdatePathLock(1);
+            static_cast<MCMover*>(PathFindMap()->RamObject)->UpdatePathLock(1);
         }
 
         mover->UpdatePathLock(1);
-        MovingObject = nullptr;
-        RamObject = nullptr;
+        PathFindMap()->MovingObject = nullptr;
+        PathFindMap()->RamObject = nullptr;
     }
 
     /// <summary>The flags calcMovePath adds for the path finder: 0x40, and 0x80 unless the mover is an elemental.</summary>
     uint32_t PathFinderParams(const MCMover* mover, uint32_t moveParams)
     {
-        if (mover->ObjectClass != ELEMENTAL)
+        if (mover->ObjectClass != MCObjectClass::Elemental)
         {
             moveParams |= 0x80;
         }
@@ -193,7 +193,7 @@ namespace
     /// </summary>
     int32_t RepairBayKind(MCGameObject* target)
     {
-        if (target->ObjectClass == TREEBUILDING)
+        if (target->ObjectClass == MCObjectClass::TreeBuilding)
         {
             return static_cast<MCTreeBuilding*>(target)->MechBay;
         }
@@ -281,9 +281,9 @@ auto MCMechWarrior::Init() -> void
     NewTacOrderReceived[ORDERSTATE_GENERAL] = 0;
     NewTacOrderReceived[ORDERSTATE_PLAYER] = 0;
     NewTacOrderReceived[ORDERSTATE_ALARM] = 0;
-    TacOrder[ORDERSTATE_GENERAL].Init();
-    TacOrder[ORDERSTATE_PLAYER].Init();
-    TacOrder[ORDERSTATE_ALARM].Init();
+    TacOrder[ORDERSTATE_GENERAL].Reset();
+    TacOrder[ORDERSTATE_PLAYER].Reset();
+    TacOrder[ORDERSTATE_ALARM].Reset();
     QueuedOrders = nullptr;
     EnableTacOrderQueue();
     PlayerOrderFromQueue = 0;
@@ -293,8 +293,8 @@ auto MCMechWarrior::Init() -> void
     NextTacOrderId = 1;
     LastTacOrderId = 0;
     AlarmPriority = 0;
-    CurTacOrder.Init();
-    LastTacOrder.Init();
+    CurTacOrder.Reset();
+    LastTacOrder.Reset();
     OrderState = ORDERSTATE_GENERAL;
     MoveOrders.Init();
     AttackOrders.Init();
@@ -341,14 +341,7 @@ auto MCMechWarrior::Init() -> void
 
     if (SortList == nullptr)
     {
-        SortList = new MCSortList;
-
-        if (SortList == nullptr)
-        {
-            Fatal(0, " Unable to create Warrior::sortList ");
-        }
-
-        SortList->Init(100);
+        SortList = new MCSortList(100);
     }
 
     DebugFlags = 0;
@@ -768,7 +761,6 @@ auto MCMechWarrior::Destroy() -> void
     {
         if (MoveOrders.Path[i] != nullptr)
         {
-            MoveOrders.Path[i]->Destroy();
             delete MoveOrders.Path[i];
             MoveOrders.Path[i] = nullptr;
         }
@@ -780,7 +772,6 @@ auto MCMechWarrior::Destroy() -> void
     {
         if (SortList != nullptr)
         {
-            SortList->Destroy();
             delete SortList;
         }
 
@@ -842,7 +833,7 @@ auto MCMechWarrior::AddQueuedTacOrder(MCTacticalOrder tacOrder) -> int32_t
     // The first order queued starts at once, unless a player order is waiting or one from the queue is running.
     if ((MPlayer == nullptr || MPlayer->IsServer != 0) && NumTacOrdersQueued == 1 &&
         NewTacOrderReceived[ORDERSTATE_PLAYER] == 0 &&
-        (PlayerOrderFromQueue == 0 || CurTacOrder.Origin != ORDER_ORIGIN_PLAYER))
+        (PlayerOrderFromQueue == 0 || CurTacOrder.Origin != MCOrderOrigin::Player))
     {
         ExecuteTacOrderQueue();
     }
@@ -917,7 +908,7 @@ auto MCMechWarrior::ExecuteTacOrderQueue() -> void
     {
         TacOrderQueueExecuting = 1;
         MCTacticalOrder order;
-        order.Init();
+        order.Reset();
 
         if (RemoveQueuedTacOrder(&order) == 0)
         {
@@ -996,7 +987,7 @@ auto CompareTacOrderId(int32_t id1, int32_t id2) -> int32_t
 auto MCMechWarrior::UpdateClientOrderQueue(int32_t tacOrderId) -> void
 {
     MCTacticalOrder order;
-    order.Init();
+    order.Reset();
     int32_t result = PeekQueuedTacOrder(&order);
 
     if (tacOrderId == 0)
@@ -1040,7 +1031,7 @@ auto MCMechWarrior::GetPoint() -> MCMover*
 
 auto MCMechWarrior::OnHomeTeam() -> int
 {
-    return Team == HomeTeam ? 1 : 0;
+    return Team == HomeTeam() ? 1 : 0;
 }
 
 auto MCMechWarrior::UnderHomeCommand() -> int
@@ -1186,7 +1177,8 @@ auto MCMechWarrior::SetVehicle(MCGameObject* newVehicle) -> void
 {
     const MCObjectClass objectClass = newVehicle->ObjectClass;
 
-    if (objectClass != BATTLEMECH && objectClass != GROUNDVEHICLE && objectClass != ELEMENTAL && objectClass != MOVER)
+    if (objectClass != MCObjectClass::BattleMech && objectClass != MCObjectClass::GroundVehicle &&
+        objectClass != MCObjectClass::Elemental && objectClass != MCObjectClass::Mover)
     {
         Fatal(0, " bad vehicle type ");
     }
@@ -1239,7 +1231,7 @@ auto MCMechWarrior::RunBrain() -> int32_t
         return 0;
     }
 
-    MCAblBrainScope brain(GetGroup(), Vehicle, Vehicle->ObjectClass, this);
+    MCAblBrainScope brain(GetGroup(), Vehicle, static_cast<int32_t>(Vehicle->ObjectClass), this);
     Brain->Execute();
     return Brain->ReturnValue();
 }
@@ -1428,7 +1420,7 @@ auto MCMechWarrior::ClearMoveOrders() -> void
     MoveOrders.WaitForPointTime = -1.0f;
     MoveOrders.TimeOfLastStep = -1.0f;
     SetMoveGlobalPath(nullptr, 0);
-    PathManager->Remove(this);
+    PathManager()->Remove(this);
 }
 
 auto MCMechWarrior::SetMoveGoal(uint32_t type, MCVector3D* location, MCGameObject* obj) -> int32_t
@@ -1458,7 +1450,7 @@ auto MCMechWarrior::SetMoveGoal(uint32_t type, MCVector3D* location, MCGameObjec
 
         if (obj == nullptr)
         {
-            obj = static_cast<MCGameObject*>(ObjectList->FindObjectFromPart(static_cast<int32_t>(type)));
+            obj = static_cast<MCGameObject*>(ObjectList()->FindObjectFromPart(static_cast<int32_t>(type)));
         }
 
         MoveOrders.GoalObject = obj;
@@ -1607,7 +1599,7 @@ auto MCMechWarrior::GetMovePath() -> MCMovePath*
 
         if (goal == nullptr)
         {
-            goal = ObjectList->FindObjectFromPart(goalType);
+            goal = ObjectList()->FindObjectFromPart(goalType);
         }
 
         if (goal == nullptr)
@@ -1686,7 +1678,7 @@ auto MCMechWarrior::AddMoveWayPoint(MCVector3D wayPt, int patrol) -> void
 
 auto MCMechWarrior::SetMoveGlobalPath(MCGlobalPathStep* path, int32_t numSteps) -> void
 {
-    if (numSteps > MAX_GLOBAL_PATH)
+    if (numSteps > MCGlobalMap::MaxPathSteps)
     {
         Fatal(0, " Global Path Too Long ");
     }
@@ -1702,7 +1694,7 @@ auto MCMechWarrior::SetMoveGlobalPath(MCGlobalPathStep* path, int32_t numSteps) 
 
 auto MCMechWarrior::RequestMovePath(int32_t selectionIndex, uint32_t moveParams, int32_t source) -> void
 {
-    PathManager->Request(this, selectionIndex, moveParams, 255.0f, source);
+    PathManager()->Request(this, selectionIndex, moveParams, 255.0f, source);
 }
 
 auto MCMechWarrior::CalcMovePath(int32_t selectionIndex, uint32_t moveParams, int32_t source) -> int32_t
@@ -1733,8 +1725,8 @@ auto MCMechWarrior::CalcMovePath(int32_t selectionIndex, uint32_t moveParams, in
     int32_t startTileC;
     int32_t startCellR;
     int32_t startCellC;
-    GameMap->WorldToMapPos(start, startTileR, startTileC, startCellR, startCellC);
-    const int32_t startArea = GlobalMoveMap->CalcArea(startTileR, startTileC);
+    GameMap()->WorldToMapPos(start, startTileR, startTileC, startCellR, startCellC);
+    const int32_t startArea = GlobalMoveMap()->CalcArea(startTileR, startTileC);
 
     const uint32_t escapeTile = (moveParams >> 13) & 1;
     MCGameObject* goalObject = MoveOrders.GoalObject;
@@ -1753,7 +1745,7 @@ auto MCMechWarrior::CalcMovePath(int32_t selectionIndex, uint32_t moveParams, in
     {
         if (goalObject == nullptr)
         {
-            goalObject = static_cast<MCGameObject*>(ObjectList->FindObjectFromPart(MoveOrders.GoalType));
+            goalObject = static_cast<MCGameObject*>(ObjectList()->FindObjectFromPart(MoveOrders.GoalType));
         }
 
         goalObj = goalObject;
@@ -1852,8 +1844,8 @@ auto MCMechWarrior::CalcMovePath(int32_t selectionIndex, uint32_t moveParams, in
     {
         if (escapeTile == 0)
         {
-            if (mover->NetPlayerId > -1 && CurTacOrder.Code != TACTICAL_ORDER_NONE &&
-                CurTacOrder.Origin == ORDER_ORIGIN_PLAYER)
+            if (mover->NetPlayerId > -1 && CurTacOrder.Code != MCTacticalOrderCode::None &&
+                CurTacOrder.Origin == MCOrderOrigin::Player)
             {
                 moveParams |= 0x800;
             }
@@ -1944,11 +1936,11 @@ auto MCMechWarrior::CalcMovePath(int32_t selectionIndex, uint32_t moveParams, in
         int32_t goalTileC;
         int32_t goalCellR;
         int32_t goalCellC;
-        GameMap->WorldToMapPos(goal, goalTileR, goalTileC, goalCellR, goalCellC);
+        GameMap()->WorldToMapPos(goal, goalTileR, goalTileC, goalCellR, goalCellC);
         bool simple = std::abs(goalTileR - startTileR) <= SimpleMovePathRange &&
                       std::abs(goalTileC - startTileC) <= SimpleMovePathRange;
         const int32_t longRange = LongRangeMovementEnabled[Team->Id];
-        const bool startAreaOpen = startArea >= 0 && GlobalMoveMap->Areas[startArea].Closed == 0;
+        const bool startAreaOpen = startArea >= 0 && GlobalMoveMap()->Areas[startArea].Closed == 0;
 
         next = Next::GlobalPath;
         bool planLocal = simple;
@@ -1961,7 +1953,7 @@ auto MCMechWarrior::CalcMovePath(int32_t selectionIndex, uint32_t moveParams, in
                                                    MCTerrain::MetersPerVertex);
             goal = mover->RelativePosition(-facing, range, 2);
             MoveOrders.OriginalGlobalGoal[1] = goal;
-            GameMap->WorldToMapPos(goal, goalTileR, goalTileC, goalCellR, goalCellC);
+            GameMap()->WorldToMapPos(goal, goalTileR, goalTileC, goalCellR, goalCellC);
             simple = true;
             planLocal = true;
         }
@@ -2025,8 +2017,8 @@ auto MCMechWarrior::CalcMovePath(int32_t selectionIndex, uint32_t moveParams, in
                 Assert(pathNum == 0 || pathNum == 1, static_cast<uint32_t>(pathNum),
                        " Warrior.calcMovePath: pathNum should be 0 or 1 in Line 2117 ");
                 MCTacticalOrder alarmOrder;
-                alarmOrder.Init();
-                alarmOrder.Init(ORDER_ORIGIN_SELF, TACTICAL_ORDER_MOVETO_POINT, 0);
+                alarmOrder.Reset();
+                alarmOrder.Reset(MCOrderOrigin::Self, MCTacticalOrderCode::MoveToPoint, 0);
                 alarmOrder.SetWayPoint(0, goal);
                 alarmOrder.MoveParams.WayPath.Mode[0] = MoveOrders.Run != 0 ? 1 : 0;
                 alarmOrder.MoveParams.EscapeTile = 1;
@@ -2040,12 +2032,12 @@ auto MCMechWarrior::CalcMovePath(int32_t selectionIndex, uint32_t moveParams, in
             // A global path: area by area through the doors.
             MoveOrders.GlobalGoalLocation = goal;
             CurTacOrder.SetWayPoint(0, MoveOrders.GlobalGoalLocation);
-            const int32_t goalArea = GlobalMoveMap->CalcArea(goalTileR, goalTileC);
+            const int32_t goalArea = GlobalMoveMap()->CalcArea(goalTileR, goalTileC);
             int32_t numGlobalSteps = -1;
 
             if (startAreaOpen)
             {
-                numGlobalSteps = GlobalMoveMap->CalcPath(startArea, goalArea, MoveOrders.GlobalPath);
+                numGlobalSteps = GlobalMoveMap()->CalcPath(startArea, goalArea, MoveOrders.GlobalPath);
             }
 
             if (numGlobalSteps == -1)
@@ -2053,8 +2045,8 @@ auto MCMechWarrior::CalcMovePath(int32_t selectionIndex, uint32_t moveParams, in
                 Assert(pathNum == 0 || pathNum == 1, static_cast<uint32_t>(pathNum),
                        " Warrior.calcMovePath: pathNum should be 0 or 1 in Line 2157 ");
                 MCTacticalOrder alarmOrder;
-                alarmOrder.Init();
-                alarmOrder.Init(ORDER_ORIGIN_SELF, TACTICAL_ORDER_MOVETO_POINT, 0);
+                alarmOrder.Reset();
+                alarmOrder.Reset(MCOrderOrigin::Self, MCTacticalOrderCode::MoveToPoint, 0);
                 alarmOrder.SetWayPoint(0, goal);
                 alarmOrder.MoveParams.WayPath.Mode[0] = MoveOrders.Run != 0 ? 1 : 0;
                 alarmOrder.MoveParams.EscapeTile = 1;
@@ -2117,20 +2109,20 @@ auto MCMechWarrior::CalcMovePath(int32_t selectionIndex, uint32_t moveParams, in
             if (step != 0)
             {
                 MCGlobalPathStep prevStep = MoveOrders.GlobalPath[step - 1];
-                start = GlobalMoveMap->GetDoorWorldPos(-1, -1, prevStep.GoalCell);
+                start = GlobalMoveMap()->GetDoorWorldPos(prevStep.GoalCell);
             }
 
             const int32_t lastStep = MoveOrders.NumGlobalSteps - 1;
             MCGlobalPathStep* curStep = &MoveOrders.GlobalPath[step];
 
-            if (step < lastStep && GlobalMoveMap->Doors[curStep->GoalDoor].Open == 0)
+            if (step < lastStep && GlobalMoveMap()->Doors[curStep->GoalDoor].Open == 0)
             {
                 // The door out is shut: plan again from the start.
                 LastMoveCalcErr = -11;
                 SetMoveWayPath(nullptr, 0);
                 MoveOrders.TimeOfLastStep = ScenarioTime;
                 SetMoveGlobalPath(nullptr, 0);
-                PathManager->Request(this, selectionIndex, 0x201, 255.0f, source);
+                PathManager()->Request(this, selectionIndex, 0x201, 255.0f, source);
                 TriggerAlarm(PILOT_ALARM_NO_MOVEPATH, static_cast<uint32_t>(LastMoveCalcErr));
                 return LastMoveCalcErr;
             }
@@ -2176,8 +2168,8 @@ auto MCMechWarrior::CalcMovePath(int32_t selectionIndex, uint32_t moveParams, in
 
             if (trimFailed)
             {
-                RamObject = nullptr;
-                MovingObject = nullptr;
+                PathFindMap()->RamObject = nullptr;
+                PathFindMap()->MovingObject = nullptr;
                 ClearMoveOrders();
                 LastMoveCalcErr = -4;
                 TriggerAlarm(PILOT_ALARM_NO_MOVEPATH, static_cast<uint32_t>(-4));
@@ -2238,8 +2230,8 @@ auto MCMechWarrior::CalcMovePath(int32_t selectionIndex, uint32_t moveParams, in
     }
 
     // next == Next::TrimFailed: the group's trail cut the whole path.
-    RamObject = nullptr;
-    MovingObject = nullptr;
+    PathFindMap()->RamObject = nullptr;
+    PathFindMap()->MovingObject = nullptr;
     ClearMoveOrders();
     LastMoveCalcErr = -4;
     TriggerAlarm(PILOT_ALARM_NO_MOVEPATH, static_cast<uint32_t>(-4));
@@ -2249,9 +2241,9 @@ auto MCMechWarrior::CalcMovePath(int32_t selectionIndex, uint32_t moveParams, in
 auto MCMechWarrior::GetNextWayPoint(MCVector3D& nextPoint, int incWayPoint) -> int
 {
     MCTacticalOrder order;
-    order.Init();
+    order.Reset();
 
-    if (PeekQueuedTacOrder(&order) == 0 && order.Code == TACTICAL_ORDER_MOVETO_POINT)
+    if (PeekQueuedTacOrder(&order) == 0 && order.Code == MCTacticalOrderCode::MoveToPoint)
     {
         nextPoint = order.GetWayPoint(0);
         return 1;
@@ -2399,7 +2391,7 @@ auto MCMechWarrior::CombatDecisionTree() -> int32_t
         attackType = CurTacOrder.AttackParams.Type;
         aimLocation = CurTacOrder.AttackParams.AimLocation;
 
-        if (CurTacOrder.Code == TACTICAL_ORDER_ATTACK_POINT)
+        if (CurTacOrder.Code == MCTacticalOrderCode::AttackPoint)
         {
             attackPoint = AttackOrders.TargetPoint;
             targetPoint = &attackPoint;
@@ -2422,7 +2414,7 @@ auto MCMechWarrior::CombatDecisionTree() -> int32_t
 
     if (target == nullptr)
     {
-        if (CurTacOrder.Code != TACTICAL_ORDER_ATTACK_POINT)
+        if (CurTacOrder.Code != MCTacticalOrderCode::AttackPoint)
         {
             if ((DebugFlags & 1) != 0)
             {
@@ -2641,19 +2633,19 @@ auto VectorOffset(MCVector3D start, MCVector3D end, int32_t reverse) -> MCVector
     int32_t tileC;
     int32_t cellR;
     int32_t cellC;
-    GameMap->WorldToMapPos(MCVector3D(x, y, 0.0f), tileR, tileC, cellR, cellC);
+    GameMap()->WorldToMapPos(MCVector3D(x, y, 0.0f), tileR, tileC, cellR, cellC);
     bool open = CellPassable(tileR, tileC, cellR, cellC);
 
     while (!open && distance < totalDistance)
     {
-        GameMap->WorldToMapPos(MCVector3D(x, y, 0.0f), tileR, tileC, cellR, cellC);
+        GameMap()->WorldToMapPos(MCVector3D(x, y, 0.0f), tileR, tileC, cellR, cellC);
         x = dx + x;
         y = dy + y;
         open = CellPassable(tileR, tileC, cellR, cellC);
         distance = std::sqrt((y - originY) * (y - originY) + (x - originX) * (x - originX));
     }
 
-    const float elevation = GameMap->GetTerrainElevation(MCVector3D(x, y, 0.0f));
+    const float elevation = GameMap()->GetTerrainElevation(MCVector3D(x, y, 0.0f));
     return MCVector3D(x, y, elevation);
 }
 
@@ -2662,13 +2654,13 @@ auto MCMechWarrior::CalcWithdrawGoal(float withdrawRange) -> MCVector3D
     MCMover* mover = static_cast<MCMover*>(Vehicle);
     MCVector3D escapeVector;
 
-    if (Team == InnerSphereTeam || Team == AlliedTeam)
+    if (Team == InnerSphereTeam() || Team == AlliedTeam())
     {
-        escapeVector = ClanTeam->CalcEscapeVector(mover, withdrawRange);
+        escapeVector = ClanTeam()->CalcEscapeVector(mover, withdrawRange);
     }
     else
     {
-        escapeVector = InnerSphereTeam->CalcEscapeVector(mover, withdrawRange);
+        escapeVector = InnerSphereTeam()->CalcEscapeVector(mover, withdrawRange);
     }
 
     Assert(mover != nullptr, 0, " Warrior has NULL Vehicle ");
@@ -2697,25 +2689,25 @@ auto MCMechWarrior::CalcWithdrawGoal(float withdrawRange) -> MCVector3D
     double distance = static_cast<float>(withdrawDistance(goal));
     int32_t lastTileR;
     int32_t lastTileC;
-    GameMap->WorldToMapTilePos(goal, lastTileR, lastTileC);
+    GameMap()->WorldToMapTilePos(goal, lastTileR, lastTileC);
 
     while (distance < withdrawRange)
     {
         int32_t tileR;
         int32_t tileC;
-        GameMap->WorldToMapTilePos(goal, tileR, tileC);
+        GameMap()->WorldToMapTilePos(goal, tileR, tileC);
 
         if (tileR != lastTileR || tileC != lastTileC)
         {
             // Stop at the map's edge or at a tile with no open cell.
-            if (tileR < 0 || tileR >= GameMap->Height || tileC < 0 || tileC >= GameMap->Width)
+            if (tileR < 0 || tileR >= GameMap()->Height || tileC < 0 || tileC >= GameMap()->Width)
             {
                 break;
             }
 
-            Assert(tileR < GameMap->Height && tileC < GameMap->Width, 0, " Map Tile out of bounds ");
+            Assert(tileR < GameMap()->Height && tileC < GameMap()->Width, 0, " Map Tile out of bounds ");
 
-            if ((GameMap->Map[GameMap->Width * tileR + tileC].Cells & 0x55554000) == 0)
+            if ((GameMap()->Map[GameMap()->Width * tileR + tileC].Cells & 0x55554000) == 0)
             {
                 break;
             }
@@ -2744,12 +2736,12 @@ auto MCMechWarrior::MovingOverBlownBridge() -> int
     const int32_t tileR = position->TileR;
     const int32_t tileC = position->TileC;
 
-    if (OverlayIsBridge[GameMap->Map[GameMap->Width * tileR + tileC].Overlay & 0x7f] != 0)
+    if (OverlayIsBridge[GameMap()->Map[GameMap()->Width * tileR + tileC].Overlay & 0x7f] != 0)
     {
-        const int32_t area = GlobalMoveMap->CalcArea(tileR, tileC);
+        const int32_t area = GlobalMoveMap()->CalcArea(tileR, tileC);
 
         // Port fix: the original read the area table at -1 for a tile outside every area.
-        if (area >= 0 && GlobalMoveMap->Areas[area].Closed != 0)
+        if (area >= 0 && GlobalMoveMap()->Areas[area].Closed != 0)
         {
             return 1;
         }
@@ -2757,7 +2749,7 @@ auto MCMechWarrior::MovingOverBlownBridge() -> int
 
     const int32_t bridgeArea = GetMovePath()->CrossesBridge(-1, 3);
 
-    if (bridgeArea >= 0 && GlobalMoveMap->Areas[bridgeArea].Closed != 0)
+    if (bridgeArea >= 0 && GlobalMoveMap()->Areas[bridgeArea].Closed != 0)
     {
         return 1;
     }
@@ -2766,7 +2758,7 @@ auto MCMechWarrior::MovingOverBlownBridge() -> int
     {
         for (int32_t step = MoveOrders.CurGlobalStep; step < MoveOrders.NumGlobalSteps; step++)
         {
-            const MCGlobalMapArea& area = GlobalMoveMap->Areas[MoveOrders.GlobalPath[step].ThruArea];
+            const MCGlobalMapArea& area = GlobalMoveMap()->Areas[MoveOrders.GlobalPath[step].ThruArea];
 
             if (area.Type != 1 && area.Type != 2)
             {
@@ -2804,7 +2796,7 @@ auto MCMechWarrior::MovementDecisionTree() -> int
     MCMover* mover = static_cast<MCMover*>(Vehicle);
 
     // An elemental that can't jump drops a path through a closed gate.
-    if (mover->ObjectClass == ELEMENTAL && static_cast<MCElemental*>(mover)->ElementalCanJump == 0 &&
+    if (mover->ObjectClass == MCObjectClass::Elemental && static_cast<MCElemental*>(mover)->ElementalCanJump == 0 &&
         GetMovePath() != nullptr && GetMovePath()->NumSteps > 0 && GetMovePath()->CrossesClosedGate(-1, 2) > 0)
     {
         SetMoveWayPath(nullptr, 0);
@@ -2825,7 +2817,7 @@ auto MCMechWarrior::MovementDecisionTree() -> int
         MoveOrders.YieldState = 0;
         MoveOrders.MoveStateGoalChanged = 0;
         SetMoveGlobalPath(nullptr, 0);
-        PathManager->Remove(this);
+        PathManager()->Remove(this);
     }
 
     if (static_cast<double>(MoveOrders.YieldTime) > -1.0 && MoveOrders.YieldTime < ScenarioTime)
@@ -2837,8 +2829,8 @@ auto MCMechWarrior::MovementDecisionTree() -> int
         const int32_t tileC = position->TileC;
         bool replan;
 
-        if (OverlayIsBridge[GameMap->Map[GameMap->Width * tileR + tileC].Overlay & 0x7f] != 0 &&
-            GlobalMoveMap->Areas[GlobalMoveMap->CalcArea(tileR, tileC)].Closed != 0)
+        if (OverlayIsBridge[GameMap()->Map[GameMap()->Width * tileR + tileC].Overlay & 0x7f] != 0 &&
+            GlobalMoveMap()->Areas[GlobalMoveMap()->CalcArea(tileR, tileC)].Closed != 0)
         {
             replan = true;
         }
@@ -2872,12 +2864,12 @@ auto MCMechWarrior::MovementDecisionTree() -> int
         return 1;
     }
 
-    const int32_t code = CurTacOrder.Code;
+    const MCTacticalOrderCode code = CurTacOrder.Code;
     MovementUpdateTime = MovementUpdateFrequency + ScenarioTime;
 
     MCGameObject* target;
 
-    if (code == TACTICAL_ORDER_NONE || code == TACTICAL_ORDER_STOP)
+    if (code == MCTacticalOrderCode::None || code == MCTacticalOrderCode::Stop)
     {
         target = GetLastTarget();
     }
@@ -2985,7 +2977,7 @@ auto MCMechWarrior::MovementDecisionTree() -> int
 
                 switch (mover->ObjectClass)
                 {
-                    case BATTLEMECH:
+                    case MCObjectClass::BattleMech:
                     {
                         if (WeaponsStatusResult == 0)
                         {
@@ -3001,7 +2993,7 @@ auto MCMechWarrior::MovementDecisionTree() -> int
                         }
                         break;
                     }
-                    case GROUNDVEHICLE:
+                    case MCObjectClass::GroundVehicle:
                     {
                         if (WeaponsStatusResult == 0 && notReady == 0)
                         {
@@ -3017,7 +3009,7 @@ auto MCMechWarrior::MovementDecisionTree() -> int
                         }
                         break;
                     }
-                    case ELEMENTAL:
+                    case MCObjectClass::Elemental:
                     {
                         if (WeaponsStatusResult == 0 && notReady == 0)
                         {
@@ -3055,7 +3047,7 @@ auto MCMechWarrior::MovementDecisionTree() -> int
             return 1;
         }
 
-        if (code == TACTICAL_ORDER_WITHDRAW)
+        if (code == MCTacticalOrderCode::Withdraw)
         {
             MCVector3D goal = CalcWithdrawGoal(1000.0f);
             SetMoveGoal(0, &goal, nullptr);
@@ -3070,7 +3062,7 @@ auto MCMechWarrior::MovementDecisionTree() -> int
 
             if (attackTarget == nullptr)
             {
-                if (CurTacOrder.Code != TACTICAL_ORDER_ATTACK_POINT)
+                if (CurTacOrder.Code != MCTacticalOrderCode::AttackPoint)
                 {
                     return 1;
                 }
@@ -3146,8 +3138,9 @@ auto MCMechWarrior::MovementDecisionTree() -> int
                 const MCObjectClass objectClass = mover->ObjectClass;
 
                 if (WeaponsStatusResult == 0 &&
-                    ((objectClass == BATTLEMECH) ||
-                     ((objectClass == GROUNDVEHICLE || objectClass == ELEMENTAL) && notReady == 0)))
+                    ((objectClass == MCObjectClass::BattleMech) ||
+                     ((objectClass == MCObjectClass::GroundVehicle || objectClass == MCObjectClass::Elemental) &&
+                      notReady == 0)))
                 {
                     if (notReady < 1 && notLocked < 1 && hot < 1)
                     {
@@ -3204,7 +3197,7 @@ auto MCMechWarrior::ClearCurTacOrder(int updateTacOrder, int updateBrain) -> voi
         Assert(false, 0, "numWarriorsInCombat >= 0");
     }
 
-    CurTacOrder.Init();
+    CurTacOrder.Reset();
 
     if (updateTacOrder == 0)
     {
@@ -3222,7 +3215,7 @@ auto MCMechWarrior::ClearCurTacOrder(int updateTacOrder, int updateBrain) -> voi
 
     // Fall back to the order underneath: alarm to player (or general), player to general.
     MCTacticalOrder newOrder;
-    newOrder.Init();
+    newOrder.Reset();
 
     switch (OrderState)
     {
@@ -3230,7 +3223,7 @@ auto MCMechWarrior::ClearCurTacOrder(int updateTacOrder, int updateBrain) -> voi
         {
             if (NewTacOrderReceived[ORDERSTATE_GENERAL] == 0)
             {
-                TacOrder[ORDERSTATE_GENERAL].Init();
+                TacOrder[ORDERSTATE_GENERAL].Reset();
             }
             break;
         }
@@ -3238,7 +3231,7 @@ auto MCMechWarrior::ClearCurTacOrder(int updateTacOrder, int updateBrain) -> voi
         {
             if (NewTacOrderReceived[ORDERSTATE_PLAYER] == 0)
             {
-                TacOrder[ORDERSTATE_PLAYER].Init();
+                TacOrder[ORDERSTATE_PLAYER].Reset();
                 PlayerOrderFromQueue = 0;
             }
 
@@ -3250,12 +3243,12 @@ auto MCMechWarrior::ClearCurTacOrder(int updateTacOrder, int updateBrain) -> voi
         {
             if (NewTacOrderReceived[ORDERSTATE_ALARM] == 0)
             {
-                TacOrder[ORDERSTATE_ALARM].Init();
+                TacOrder[ORDERSTATE_ALARM].Reset();
             }
 
             AlarmPriority = 0;
 
-            if (TacOrder[ORDERSTATE_PLAYER].Code != TACTICAL_ORDER_NONE)
+            if (TacOrder[ORDERSTATE_PLAYER].Code != MCTacticalOrderCode::None)
             {
                 newOrder = TacOrder[ORDERSTATE_PLAYER];
                 OrderState = ORDERSTATE_PLAYER;
@@ -3289,7 +3282,7 @@ auto MCMechWarrior::ClearCurTacOrder(int updateTacOrder, int updateBrain) -> voi
     const int32_t moveState = MoveOrders.MoveState;
     const int32_t moveStateGoal = MoveOrders.MoveStateGoal;
     MoveOrders.Init();
-    PathManager->Remove(this);
+    PathManager()->Remove(this);
     MoveOrders.Path[1] = paths[1];
     MoveOrders.MoveState = moveState;
     MoveOrders.MoveStateGoal = moveStateGoal;
@@ -3382,7 +3375,7 @@ auto MCMechWarrior::HandleAlarm(int32_t alarmCode, uint32_t triggerId) -> int32_
 
     if ((MPlayer == nullptr || MPlayer->IsServer != 0) && BrainAlarmCallback[alarmCode] != nullptr)
     {
-        MCAblBrainScope brain(GetGroup(), Vehicle, Vehicle->ObjectClass, this);
+        MCAblBrainScope brain(GetGroup(), Vehicle, static_cast<int32_t>(Vehicle->ObjectClass), this);
         AblRuntime()->Brain.Alarm = alarmCode;
         Brain->Execute({}, BrainAlarmCallback[alarmCode]);
     }
@@ -3413,7 +3406,7 @@ auto MCMechWarrior::CheckAlarms() -> int32_t
 
     if (Brain != nullptr)
     {
-        brain.emplace(GetGroup(), Vehicle, Vehicle->ObjectClass, this);
+        brain.emplace(GetGroup(), Vehicle, static_cast<int32_t>(Vehicle->ObjectClass), this);
     }
 
     for (int32_t alarmCode = 0; alarmCode < NUM_PILOT_ALARMS; alarmCode++)
@@ -3514,13 +3507,13 @@ auto MCMechWarrior::MainDecisionTree() -> int32_t
     // The current order: when done, the next queued player order or the one underneath takes over.
     const bool server = MPlayer == nullptr || MPlayer->IsServer != 0;
 
-    if (server && CurTacOrder.Code == TACTICAL_ORDER_NONE && TacOrderQueueExecuting != 0 && NumTacOrdersQueued > 0 &&
-        NewTacOrderReceived[ORDERSTATE_PLAYER] == 0)
+    if (server && CurTacOrder.Code == MCTacticalOrderCode::None && TacOrderQueueExecuting != 0 &&
+        NumTacOrdersQueued > 0 && NewTacOrderReceived[ORDERSTATE_PLAYER] == 0)
     {
         ExecuteTacOrderQueue();
     }
 
-    if (CurTacOrder.Code != TACTICAL_ORDER_NONE && CurTacOrder.Status(this) == 1)
+    if (CurTacOrder.Code != MCTacticalOrderCode::None && CurTacOrder.Status(this) == 1)
     {
         Assert(MPlayer == nullptr || MPlayer->IsServer != 0, 0, " MechWarrior.mainDecisionTree: client! ");
 
@@ -3532,7 +3525,7 @@ auto MCMechWarrior::MainDecisionTree() -> int32_t
         ClearCurTacOrder(1, 0);
     }
 
-    if (OnHomeTeam() != 0 && CurTacOrder.Code == TACTICAL_ORDER_NONE && TimeOfLastOrders < 0.0f)
+    if (OnHomeTeam() != 0 && CurTacOrder.Code == MCTacticalOrderCode::None && TimeOfLastOrders < 0.0f)
     {
         TimeOfLastOrders = ScenarioTime;
     }
@@ -3546,7 +3539,7 @@ auto MCMechWarrior::MainDecisionTree() -> int32_t
 
         if (target == nullptr)
         {
-            if (CurTacOrder.Code != TACTICAL_ORDER_ATTACK_POINT)
+            if (CurTacOrder.Code != MCTacticalOrderCode::AttackPoint)
             {
                 update = false;
             }
@@ -3584,7 +3577,7 @@ auto MCMechWarrior::MainDecisionTree() -> int32_t
 
     // Take a new order: an alarm order overrides the player's, which overrides the general one.
     MCTacticalOrder newOrder;
-    newOrder.Init();
+    newOrder.Reset();
 
     switch (OrderState)
     {
@@ -3598,7 +3591,7 @@ auto MCMechWarrior::MainDecisionTree() -> int32_t
             }
             else if (NewTacOrderReceived[ORDERSTATE_PLAYER] != 0)
             {
-                TacOrder[ORDERSTATE_GENERAL].Init();
+                TacOrder[ORDERSTATE_GENERAL].Reset();
                 newOrder = TacOrder[ORDERSTATE_PLAYER];
                 OrderState = ORDERSTATE_PLAYER;
             }
@@ -3617,7 +3610,7 @@ auto MCMechWarrior::MainDecisionTree() -> int32_t
             }
             else if (NewTacOrderReceived[ORDERSTATE_PLAYER] != 0)
             {
-                TacOrder[ORDERSTATE_GENERAL].Init();
+                TacOrder[ORDERSTATE_GENERAL].Reset();
                 newOrder = TacOrder[ORDERSTATE_PLAYER];
             }
             break;
@@ -3628,7 +3621,7 @@ auto MCMechWarrior::MainDecisionTree() -> int32_t
             {
                 // Original behaviour (OB-008): the player's order runs, but orderState stays ALARM.
                 AlarmPriority = 0;
-                TacOrder[ORDERSTATE_ALARM].Init();
+                TacOrder[ORDERSTATE_ALARM].Reset();
                 newOrder = TacOrder[ORDERSTATE_PLAYER];
             }
             else if (NewTacOrderReceived[ORDERSTATE_ALARM] != 0)
@@ -3641,7 +3634,7 @@ auto MCMechWarrior::MainDecisionTree() -> int32_t
             break;
     }
 
-    if (newOrder.Code != TACTICAL_ORDER_NONE)
+    if (newOrder.Code != MCTacticalOrderCode::None)
     {
         // A move to a point or object keeps the path walked (a new path replaces it when planned).
         MCMovePath* paths[2];
@@ -3650,8 +3643,8 @@ auto MCMechWarrior::MainDecisionTree() -> int32_t
         {
             paths[i] = MoveOrders.Path[i];
 
-            if (i > 0 ||
-                (newOrder.Code != TACTICAL_ORDER_MOVETO_POINT && newOrder.Code != TACTICAL_ORDER_MOVETO_OBJECT))
+            if (i > 0 || (newOrder.Code != MCTacticalOrderCode::MoveToPoint &&
+                          newOrder.Code != MCTacticalOrderCode::MoveToObject))
             {
                 paths[i]->NumSteps = 0;
             }
@@ -3662,7 +3655,7 @@ auto MCMechWarrior::MainDecisionTree() -> int32_t
         const int32_t moveStateGoal = MoveOrders.MoveStateGoal;
         MoveOrders.Init();
         MoveOrders.Run = run;
-        PathManager->Remove(this);
+        PathManager()->Remove(this);
         MoveOrders.MoveState = moveState;
         MoveOrders.MoveStateGoal = moveStateGoal;
         MoveOrders.Path[0] = paths[0];
@@ -3724,13 +3717,13 @@ auto MCMechWarrior::DebugOrders() -> void
 
     switch (CurTacOrder.Code)
     {
-        case TACTICAL_ORDER_NONE:
+        case MCTacticalOrderCode::None:
             std::snprintf(line, sizeof(line), "CURRENT ORDERS: None");
             break;
-        case TACTICAL_ORDER_WAIT:
+        case MCTacticalOrderCode::Wait:
             std::snprintf(line, sizeof(line), "CURRENT ORDERS: Wait");
             break;
-        case TACTICAL_ORDER_MOVETO_POINT:
+        case MCTacticalOrderCode::MoveToPoint:
         {
             const MCVector3D point = CurTacOrder.GetWayPoint(0);
             std::snprintf(line, sizeof(line), "CURRENT ORDERS: Move to (%.2f, %.2f, %.2f)",
@@ -3738,10 +3731,10 @@ auto MCMechWarrior::DebugOrders() -> void
             break;
         }
 
-        case TACTICAL_ORDER_MOVETO_OBJECT:
+        case MCTacticalOrderCode::MoveToObject:
             std::snprintf(line, sizeof(line), "CURRENT ORDERS: Move To Object %d", targetId);
             break;
-        case TACTICAL_ORDER_JUMPTO_POINT:
+        case MCTacticalOrderCode::JumpToPoint:
         {
             const MCVector3D point = CurTacOrder.GetWayPoint(0);
             std::snprintf(line, sizeof(line), "CURRENT ORDERS: Jump to (%.2f, %.2f, %.2f)",
@@ -3749,46 +3742,46 @@ auto MCMechWarrior::DebugOrders() -> void
             break;
         }
 
-        case TACTICAL_ORDER_JUMPTO_OBJECT:
+        case MCTacticalOrderCode::JumpToObject:
             std::snprintf(line, sizeof(line), "CURRENT ORDERS: Jump To Object %d", targetId);
             break;
-        case TACTICAL_ORDER_TRAVERSE_PATH:
+        case MCTacticalOrderCode::TraversePath:
             std::snprintf(line, sizeof(line), "CURRENT ORDERS: Traverse Path");
             break;
-        case TACTICAL_ORDER_PATROL_PATH:
+        case MCTacticalOrderCode::PatrolPath:
             std::snprintf(line, sizeof(line), "CURRENT ORDERS: Patrol Path");
             break;
-        case TACTICAL_ORDER_ESCORT:
+        case MCTacticalOrderCode::Escort:
             std::snprintf(line, sizeof(line), "CURRENT ORDERS: Escort");
             break;
-        case TACTICAL_ORDER_FOLLOW:
+        case MCTacticalOrderCode::Follow:
             std::snprintf(line, sizeof(line), "CURRENT ORDERS: Follow");
             break;
-        case TACTICAL_ORDER_GUARD:
+        case MCTacticalOrderCode::Guard:
             std::snprintf(line, sizeof(line), "CURRENT ORDERS: Guard");
             break;
-        case TACTICAL_ORDER_STOP:
+        case MCTacticalOrderCode::Stop:
             std::snprintf(line, sizeof(line), "CURRENT ORDERS: Stop");
             break;
-        case TACTICAL_ORDER_POWERUP:
+        case MCTacticalOrderCode::PowerUp:
             std::snprintf(line, sizeof(line), "CURRENT ORDERS: Power Up");
             break;
-        case TACTICAL_ORDER_POWERDOWN:
+        case MCTacticalOrderCode::PowerDown:
             std::snprintf(line, sizeof(line), "CURRENT ORDERS: Power Down");
             break;
-        case TACTICAL_ORDER_WAYPOINTS_DONE:
+        case MCTacticalOrderCode::WayPointsDone:
             std::snprintf(line, sizeof(line), "CURRENT ORDERS: Formation");
             break;
-        case TACTICAL_ORDER_EJECT:
+        case MCTacticalOrderCode::Eject:
             std::snprintf(line, sizeof(line), "CURRENT ORDERS: Eject");
             break;
-        case TACTICAL_ORDER_ATTACK_OBJECT:
+        case MCTacticalOrderCode::AttackObject:
             std::snprintf(line, sizeof(line), "CURRENT ORDERS: Attack Object %d", targetId);
             break;
-        case TACTICAL_ORDER_HOLD_FIRE:
+        case MCTacticalOrderCode::HoldFire:
             std::snprintf(line, sizeof(line), "CURRENT ORDERS: Hold Fire");
             break;
-        case TACTICAL_ORDER_WITHDRAW:
+        case MCTacticalOrderCode::Withdraw:
             std::snprintf(line, sizeof(line), "CURRENT ORDERS: Withdraw");
             break;
         default:
@@ -3836,11 +3829,11 @@ auto MCMechWarrior::CloseStatusWindow() -> int32_t
     return 0;
 }
 
-auto MCMechWarrior::OrderWait(int unitOrder, int32_t origin, int32_t seconds, int clearLastTarget) -> int32_t
+auto MCMechWarrior::OrderWait(int unitOrder, MCOrderOrigin origin, int32_t seconds, int clearLastTarget) -> int32_t
 {
     MCTacticalOrder order;
-    order.Init();
-    order.Init(static_cast<MCOrderOriginType>(origin), TACTICAL_ORDER_WAIT, unitOrder);
+    order.Reset();
+    order.Reset(origin, MCTacticalOrderCode::Wait, unitOrder);
     order.DelayedTime = static_cast<float>(seconds) + ScenarioTime;
     ClearMoveOrders();
     ClearAttackOrders();
@@ -3850,7 +3843,7 @@ auto MCMechWarrior::OrderWait(int unitOrder, int32_t origin, int32_t seconds, in
         SetLastTarget(nullptr, 0, 0);
     }
 
-    if (origin == ORDER_ORIGIN_COMMANDER)
+    if (origin == MCOrderOrigin::Commander)
     {
         SetGeneralTacOrder(order);
     }
@@ -3861,8 +3854,8 @@ auto MCMechWarrior::OrderWait(int unitOrder, int32_t origin, int32_t seconds, in
 auto MCMechWarrior::OrderStop(int unitOrder, int setTacOrder) -> int32_t
 {
     MCTacticalOrder order;
-    order.Init();
-    order.Init(ORDER_ORIGIN_PLAYER, TACTICAL_ORDER_STOP, unitOrder);
+    order.Reset();
+    order.Reset(MCOrderOrigin::Player, MCTacticalOrderCode::Stop, unitOrder);
     ClearTacOrderQueue();
     ClearMoveOrders();
     ClearAttackOrders();
@@ -3870,14 +3863,14 @@ auto MCMechWarrior::OrderStop(int unitOrder, int setTacOrder) -> int32_t
     return order.Status(this);
 }
 
-auto MCMechWarrior::OrderMoveToPoint(int unitOrder, int setTacOrder, int32_t origin, MCVector3D location,
+auto MCMechWarrior::OrderMoveToPoint(int unitOrder, int setTacOrder, MCOrderOrigin origin, MCVector3D location,
                                      int32_t selectionIndex, uint32_t params) -> int32_t
 {
     const uint32_t escapeTile = (params >> 6) & 1;
     const uint32_t run = params & 1;
     MCTacticalOrder order;
-    order.Init();
-    order.Init(static_cast<MCOrderOriginType>(origin), TACTICAL_ORDER_MOVETO_POINT, unitOrder);
+    order.Reset();
+    order.Reset(origin, MCTacticalOrderCode::MoveToPoint, unitOrder);
     SetFirstWayPoint(order, location);
     order.MoveParams.WayPath.Mode[0] = run != 0 ? 1 : 0;
     order.MoveParams.Wait = (params >> 1) & 1;
@@ -3905,14 +3898,14 @@ auto MCMechWarrior::OrderMoveToPoint(int unitOrder, int setTacOrder, int32_t ori
     uint32_t moveParams = escapeTile != 0 ? 0x2101 : 0x101;
 
     // The player's order to a unit's point (or to one mover) reports a blocked move on the radio.
-    if (setTacOrder != 0 && origin == ORDER_ORIGIN_PLAYER && (unitOrder == 0 || GetPoint() == Vehicle))
+    if (setTacOrder != 0 && origin == MCOrderOrigin::Player && (unitOrder == 0 || GetPoint() == Vehicle))
     {
         moveParams |= 0x1000;
     }
 
-    PathManager->Request(this, selectionIndex, moveParams, 255.0f, 15);
+    PathManager()->Request(this, selectionIndex, moveParams, 255.0f, 15);
 
-    if (setTacOrder != 0 && result == 0 && origin == ORDER_ORIGIN_COMMANDER)
+    if (setTacOrder != 0 && result == 0 && origin == MCOrderOrigin::Commander)
     {
         SetGeneralTacOrder(order);
     }
@@ -3920,7 +3913,7 @@ auto MCMechWarrior::OrderMoveToPoint(int unitOrder, int setTacOrder, int32_t ori
     return result;
 }
 
-auto MCMechWarrior::OrderMoveToObject(int unitOrder, int setTacOrder, int32_t origin, MCGameObject* target,
+auto MCMechWarrior::OrderMoveToObject(int unitOrder, int setTacOrder, MCOrderOrigin origin, MCGameObject* target,
                                       int32_t selectionIndex, uint32_t params) -> int32_t
 {
     const uint32_t faceObject = (params >> 2) & 1;
@@ -3931,8 +3924,8 @@ auto MCMechWarrior::OrderMoveToObject(int unitOrder, int setTacOrder, int32_t or
     }
 
     MCTacticalOrder order;
-    order.Init();
-    order.Init(static_cast<MCOrderOriginType>(origin), TACTICAL_ORDER_MOVETO_OBJECT, unitOrder);
+    order.Reset();
+    order.Reset(origin, MCTacticalOrderCode::MoveToObject, unitOrder);
     order.SelectionIndex = selectionIndex;
     order.MoveParams.WayPath.Mode[0] = (params & 1) != 0 ? 1 : 0;
     order.MoveParams.FaceObject = faceObject;
@@ -3957,7 +3950,7 @@ auto MCMechWarrior::OrderMoveToObject(int unitOrder, int setTacOrder, int32_t or
 
     uint32_t moveParams = faceObject != 0 ? 0x101 : 0x100;
 
-    if (setTacOrder != 0 && origin == ORDER_ORIGIN_PLAYER && (unitOrder == 0 || GetPoint() == Vehicle))
+    if (setTacOrder != 0 && origin == MCOrderOrigin::Player && (unitOrder == 0 || GetPoint() == Vehicle))
     {
         moveParams |= 0x1000;
     }
@@ -3965,7 +3958,7 @@ auto MCMechWarrior::OrderMoveToObject(int unitOrder, int setTacOrder, int32_t or
     RequestMovePath(selectionIndex, moveParams, 12);
     MoveOrders.GoalObjectPosition = target->GetPosition();
 
-    if (setTacOrder != 0 && result == 0 && origin == ORDER_ORIGIN_COMMANDER)
+    if (setTacOrder != 0 && result == 0 && origin == MCOrderOrigin::Commander)
     {
         SetGeneralTacOrder(order);
     }
@@ -3973,7 +3966,7 @@ auto MCMechWarrior::OrderMoveToObject(int unitOrder, int setTacOrder, int32_t or
     return result;
 }
 
-auto MCMechWarrior::OrderJumpToPoint(int unitOrder, int setTacOrder, int32_t origin, MCVector3D location,
+auto MCMechWarrior::OrderJumpToPoint(int unitOrder, int setTacOrder, MCOrderOrigin origin, MCVector3D location,
                                      int32_t selectionIndex) -> int32_t
 {
     MCMover* mover = static_cast<MCMover*>(Vehicle);
@@ -3982,14 +3975,14 @@ auto MCMechWarrior::OrderJumpToPoint(int unitOrder, int setTacOrder, int32_t ori
     if (mover->DistanceFrom(location) <= jumpRange)
     {
         // A mech can't land on a blocked cell.
-        if (mover->ObjectClass == BATTLEMECH && !PositionPassable(location))
+        if (mover->ObjectClass == MCObjectClass::BattleMech && !PositionPassable(location))
         {
             return 1;
         }
 
         MCTacticalOrder order;
-        order.Init();
-        order.Init(static_cast<MCOrderOriginType>(origin), TACTICAL_ORDER_JUMPTO_POINT, unitOrder);
+        order.Reset();
+        order.Reset(origin, MCTacticalOrderCode::JumpToPoint, unitOrder);
         order.SelectionIndex = selectionIndex;
         SetFirstWayPoint(order, location);
         const int32_t result = order.Status(this);
@@ -3999,7 +3992,7 @@ auto MCMechWarrior::OrderJumpToPoint(int unitOrder, int setTacOrder, int32_t ori
             ClearMoveOrders();
             ClearAttackOrders();
 
-            if (result == 0 && origin == ORDER_ORIGIN_COMMANDER)
+            if (result == 0 && origin == MCOrderOrigin::Commander)
             {
                 SetGeneralTacOrder(order);
             }
@@ -4009,7 +4002,7 @@ auto MCMechWarrior::OrderJumpToPoint(int unitOrder, int setTacOrder, int32_t ori
     return 1;
 }
 
-auto MCMechWarrior::OrderJumpToObject(int unitOrder, int setTacOrder, int32_t origin, MCGameObject* target,
+auto MCMechWarrior::OrderJumpToObject(int unitOrder, int setTacOrder, MCOrderOrigin origin, MCGameObject* target,
                                       int32_t selectionIndex) -> int32_t
 {
     MCMover* mover = static_cast<MCMover*>(Vehicle);
@@ -4024,14 +4017,14 @@ auto MCMechWarrior::OrderJumpToObject(int unitOrder, int setTacOrder, int32_t or
 
     if (mover->DistanceFrom(location) <= jumpRange)
     {
-        if (mover->ObjectClass == BATTLEMECH && !PositionPassable(location))
+        if (mover->ObjectClass == MCObjectClass::BattleMech && !PositionPassable(location))
         {
             return 1;
         }
 
         MCTacticalOrder order;
-        order.Init();
-        order.Init(static_cast<MCOrderOriginType>(origin), TACTICAL_ORDER_JUMPTO_POINT, unitOrder);
+        order.Reset();
+        order.Reset(origin, MCTacticalOrderCode::JumpToPoint, unitOrder);
         order.SelectionIndex = selectionIndex;
         SetFirstWayPoint(order, location);
         order.Target = target;
@@ -4042,7 +4035,7 @@ auto MCMechWarrior::OrderJumpToObject(int unitOrder, int setTacOrder, int32_t or
             ClearMoveOrders();
             ClearAttackOrders();
 
-            if (result == 0 && origin == ORDER_ORIGIN_COMMANDER)
+            if (result == 0 && origin == MCOrderOrigin::Commander)
             {
                 SetGeneralTacOrder(order);
             }
@@ -4052,12 +4045,12 @@ auto MCMechWarrior::OrderJumpToObject(int unitOrder, int setTacOrder, int32_t or
     return 1;
 }
 
-auto MCMechWarrior::OrderTraversePath(int unitOrder, int setTacOrder, int32_t origin, MCWayPath* wayPath,
+auto MCMechWarrior::OrderTraversePath(int unitOrder, int setTacOrder, MCOrderOrigin origin, MCWayPath* wayPath,
                                       uint32_t params) -> int32_t
 {
     MCTacticalOrder order;
-    order.Init();
-    order.Init(static_cast<MCOrderOriginType>(origin), TACTICAL_ORDER_TRAVERSE_PATH, unitOrder);
+    order.Reset();
+    order.Reset(origin, MCTacticalOrderCode::TraversePath, unitOrder);
     order.MoveParams.WayPath = *wayPath;
     order.MoveParams.Mode = (params >> 3) & 1;
     const int32_t result = order.Status(this);
@@ -4079,7 +4072,7 @@ auto MCMechWarrior::OrderTraversePath(int unitOrder, int setTacOrder, int32_t or
 
     RequestMovePath(-1, 0x101, 13);
 
-    if (setTacOrder != 0 && result == 0 && origin == ORDER_ORIGIN_COMMANDER)
+    if (setTacOrder != 0 && result == 0 && origin == MCOrderOrigin::Commander)
     {
         SetGeneralTacOrder(order);
     }
@@ -4087,11 +4080,11 @@ auto MCMechWarrior::OrderTraversePath(int unitOrder, int setTacOrder, int32_t or
     return result;
 }
 
-auto MCMechWarrior::OrderPatrolPath(int unitOrder, int setTacOrder, int32_t origin, MCWayPath* wayPath) -> int32_t
+auto MCMechWarrior::OrderPatrolPath(int unitOrder, int setTacOrder, MCOrderOrigin origin, MCWayPath* wayPath) -> int32_t
 {
     MCTacticalOrder order;
-    order.Init();
-    order.Init(static_cast<MCOrderOriginType>(origin), TACTICAL_ORDER_PATROL_PATH, unitOrder);
+    order.Reset();
+    order.Reset(origin, MCTacticalOrderCode::PatrolPath, unitOrder);
     order.MoveParams.WayPath = *wayPath;
     const int32_t result = order.Status(this);
 
@@ -4112,7 +4105,7 @@ auto MCMechWarrior::OrderPatrolPath(int unitOrder, int setTacOrder, int32_t orig
 
     RequestMovePath(-1, 0x101, 14);
 
-    if (setTacOrder != 0 && result == 0 && origin == ORDER_ORIGIN_COMMANDER)
+    if (setTacOrder != 0 && result == 0 && origin == MCOrderOrigin::Commander)
     {
         SetGeneralTacOrder(order);
     }
@@ -4120,7 +4113,7 @@ auto MCMechWarrior::OrderPatrolPath(int unitOrder, int setTacOrder, int32_t orig
     return result;
 }
 
-auto MCMechWarrior::OrderPowerUp(int unitOrder, int32_t origin) -> int32_t
+auto MCMechWarrior::OrderPowerUp(int unitOrder, MCOrderOrigin origin) -> int32_t
 {
     MCMover* mover = static_cast<MCMover*>(Vehicle);
 
@@ -4130,8 +4123,8 @@ auto MCMechWarrior::OrderPowerUp(int unitOrder, int32_t origin) -> int32_t
     }
 
     MCTacticalOrder order;
-    order.Init();
-    order.Init(static_cast<MCOrderOriginType>(origin), TACTICAL_ORDER_POWERUP, unitOrder);
+    order.Reset();
+    order.Reset(origin, MCTacticalOrderCode::PowerUp, unitOrder);
     const int32_t result = order.Status(this);
 
     if (result == 1)
@@ -4147,11 +4140,11 @@ auto MCMechWarrior::OrderPowerUp(int unitOrder, int32_t origin) -> int32_t
         mover->StartUp();
     }
 
-    if (origin == ORDER_ORIGIN_COMMANDER)
+    if (origin == MCOrderOrigin::Commander)
     {
         SetGeneralTacOrder(order);
     }
-    else if (origin == ORDER_ORIGIN_SELF)
+    else if (origin == MCOrderOrigin::Self)
     {
         SetAlarmTacOrder(order, 255);
     }
@@ -4159,7 +4152,7 @@ auto MCMechWarrior::OrderPowerUp(int unitOrder, int32_t origin) -> int32_t
     return result;
 }
 
-auto MCMechWarrior::OrderPowerDown(int unitOrder, int32_t origin) -> int32_t
+auto MCMechWarrior::OrderPowerDown(int unitOrder, MCOrderOrigin origin) -> int32_t
 {
     MCMover* mover = static_cast<MCMover*>(Vehicle);
     const int8_t vehicleStatus = static_cast<int8_t>(mover->Status);
@@ -4170,8 +4163,8 @@ auto MCMechWarrior::OrderPowerDown(int unitOrder, int32_t origin) -> int32_t
     }
 
     MCTacticalOrder order;
-    order.Init();
-    order.Init(static_cast<MCOrderOriginType>(origin), TACTICAL_ORDER_POWERDOWN, unitOrder);
+    order.Reset();
+    order.Reset(origin, MCTacticalOrderCode::PowerDown, unitOrder);
     const int32_t result = order.Status(this);
 
     if (result == 1)
@@ -4187,7 +4180,7 @@ auto MCMechWarrior::OrderPowerDown(int unitOrder, int32_t origin) -> int32_t
         mover->ShutDown();
     }
 
-    if (origin == ORDER_ORIGIN_COMMANDER)
+    if (origin == MCOrderOrigin::Commander)
     {
         SetGeneralTacOrder(order);
     }
@@ -4233,7 +4226,7 @@ namespace
         GameSystemWindow->Print(line);
         MCMover* mover = static_cast<MCMover*>(pilot->Vehicle);
         const MCMasterComponent& weapon = MasterComponentList[mover->Inventory[mover->LongestRangeWeapon].MasterID];
-        std::snprintf(line, sizeof(line), "Longest Range Weapon = %s (%.4f)", weapon.Name,
+        std::snprintf(line, sizeof(line), "Longest Range Weapon = %s (%.4f)", weapon.Name.c_str(),
                       static_cast<double>(weapon.WeaponRange[3]));
         GameSystemWindow->Print(line);
         std::snprintf(line, sizeof(line), "Optimal Range = %.4f", static_cast<double>(mover->OptimalRange));
@@ -4242,8 +4235,8 @@ namespace
     }
 }
 
-auto MCMechWarrior::OrderAttackObject(int unitOrder, int32_t origin, MCGameObject* target, int32_t type, int32_t method,
-                                      int32_t range, int32_t aimLocation, uint32_t params) -> int32_t
+auto MCMechWarrior::OrderAttackObject(int unitOrder, MCOrderOrigin origin, MCGameObject* target, int32_t type,
+                                      int32_t method, int32_t range, int32_t aimLocation, uint32_t params) -> int32_t
 {
     const uint32_t pursue = (params >> 4) & 1;
     const uint32_t obliterate = (params >> 5) & 1;
@@ -4263,8 +4256,8 @@ auto MCMechWarrior::OrderAttackObject(int unitOrder, int32_t origin, MCGameObjec
     }
 
     MCTacticalOrder order;
-    order.Init();
-    order.Init(static_cast<MCOrderOriginType>(origin), TACTICAL_ORDER_ATTACK_OBJECT, unitOrder);
+    order.Reset();
+    order.Reset(origin, MCTacticalOrderCode::AttackObject, unitOrder);
     order.Target = target;
     order.AttackParams.Type = type;
     order.AttackParams.Method = method;
@@ -4301,7 +4294,7 @@ auto MCMechWarrior::OrderAttackObject(int unitOrder, int32_t origin, MCGameObjec
     AttackOrders.AimLocation = aimLocation;
     SetLastTarget(target, obliterate, conserveAmmo);
 
-    if (origin == ORDER_ORIGIN_COMMANDER)
+    if (origin == MCOrderOrigin::Commander)
     {
         SetGeneralTacOrder(order);
     }
@@ -4310,13 +4303,13 @@ auto MCMechWarrior::OrderAttackObject(int unitOrder, int32_t origin, MCGameObjec
     return 0;
 }
 
-auto MCMechWarrior::OrderAttackPoint(int unitOrder, int32_t origin, MCVector3D location, int32_t type, int32_t method,
-                                     int32_t range, uint32_t params) -> int32_t
+auto MCMechWarrior::OrderAttackPoint(int unitOrder, MCOrderOrigin origin, MCVector3D location, int32_t type,
+                                     int32_t method, int32_t range, uint32_t params) -> int32_t
 {
     const uint32_t pursue = (params >> 4) & 1;
     MCTacticalOrder order;
-    order.Init();
-    order.Init(static_cast<MCOrderOriginType>(origin), TACTICAL_ORDER_ATTACK_POINT, unitOrder);
+    order.Reset();
+    order.Reset(origin, MCTacticalOrderCode::AttackPoint, unitOrder);
     order.AttackParams.Type = type;
     order.AttackParams.Method = method;
     order.AttackParams.Range = range;
@@ -4346,7 +4339,7 @@ auto MCMechWarrior::OrderAttackPoint(int unitOrder, int32_t origin, MCVector3D l
     AttackOrders.Pursue = pursue;
     SetLastTarget(nullptr, 0, 0);
 
-    if (origin == ORDER_ORIGIN_COMMANDER)
+    if (origin == MCOrderOrigin::Commander)
     {
         SetGeneralTacOrder(order);
     }
@@ -4355,11 +4348,11 @@ auto MCMechWarrior::OrderAttackPoint(int unitOrder, int32_t origin, MCVector3D l
     return 0;
 }
 
-auto MCMechWarrior::OrderWithdraw(int unitOrder, int32_t origin, MCVector3D location) -> int32_t
+auto MCMechWarrior::OrderWithdraw(int unitOrder, MCOrderOrigin origin, MCVector3D location) -> int32_t
 {
     MCTacticalOrder order;
-    order.Init();
-    order.Init(static_cast<MCOrderOriginType>(origin), TACTICAL_ORDER_WITHDRAW, unitOrder);
+    order.Reset();
+    order.Reset(origin, MCTacticalOrderCode::Withdraw, unitOrder);
     SetFirstWayPoint(order, location);
     const MCVector3D goal = CalcWithdrawGoal(1000.0f);
     const int32_t result = OrderMoveToPoint(unitOrder, 1, origin, goal, -1, 1);
@@ -4367,25 +4360,25 @@ auto MCMechWarrior::OrderWithdraw(int unitOrder, int32_t origin, MCVector3D loca
     Assert(mover != nullptr, 0, " orderWithdraw:Warrior has no Vehicle ");
     mover->Withdrawing = 1;
 
-    if (origin == ORDER_ORIGIN_COMMANDER)
+    if (origin == MCOrderOrigin::Commander)
     {
         SetGeneralTacOrder(order);
     }
 
-    CurTacOrder.Code = TACTICAL_ORDER_WITHDRAW;
+    CurTacOrder.Code = MCTacticalOrderCode::Withdraw;
     return result;
 }
 
-auto MCMechWarrior::OrderEject(int unitOrder, int setTacOrder, int32_t origin) -> int32_t
+auto MCMechWarrior::OrderEject(int unitOrder, int setTacOrder, MCOrderOrigin origin) -> int32_t
 {
     MCTacticalOrder order;
-    order.Init();
-    order.Init(static_cast<MCOrderOriginType>(origin), TACTICAL_ORDER_EJECT, unitOrder);
+    order.Reset();
+    order.Reset(origin, MCTacticalOrderCode::Eject, unitOrder);
     MCMover* mover = static_cast<MCMover*>(Vehicle);
     Assert(mover != nullptr, 0, " orderWithdraw:Warrior has no Vehicle ");
     mover->HandleEjection();
 
-    if (origin == ORDER_ORIGIN_COMMANDER)
+    if (origin == MCOrderOrigin::Commander)
     {
         SetGeneralTacOrder(order);
     }
@@ -4405,23 +4398,23 @@ auto MCMechWarrior::OrderUseFireOdds(int32_t odds) -> int32_t
     return 1;
 }
 
-auto MCMechWarrior::OrderRefit(int32_t origin, MCGameObject* target, uint32_t params) -> int32_t
+auto MCMechWarrior::OrderRefit(MCOrderOrigin origin, MCGameObject* target, uint32_t params) -> int32_t
 {
-    if (target == nullptr || target->ObjectClass != BATTLEMECH)
+    if (target == nullptr || target->ObjectClass != MCObjectClass::BattleMech)
     {
         return 1;
     }
 
     MCTacticalOrder order;
-    order.Init();
-    order.Init(static_cast<MCOrderOriginType>(origin), TACTICAL_ORDER_REFIT, 0);
+    order.Reset();
+    order.Reset(origin, MCTacticalOrderCode::Refit, 0);
     order.Target = target;
     order.SelectionIndex = -1;
     order.MoveParams.WayPath.Mode[0] = static_cast<uint8_t>(params & 1);
     order.MoveParams.FaceObject = 1;
     order.MoveParams.Wait = 0;
 
-    if (origin == ORDER_ORIGIN_COMMANDER)
+    if (origin == MCOrderOrigin::Commander)
     {
         SetGeneralTacOrder(order);
     }
@@ -4429,14 +4422,14 @@ auto MCMechWarrior::OrderRefit(int32_t origin, MCGameObject* target, uint32_t pa
     return 0;
 }
 
-auto MCMechWarrior::OrderGetFixed(int32_t origin, MCGameObject* target, uint32_t params) -> int32_t
+auto MCMechWarrior::OrderGetFixed(MCOrderOrigin origin, MCGameObject* target, uint32_t params) -> int32_t
 {
     if (target == nullptr)
     {
         return 1;
     }
 
-    if (target->ObjectClass != TREEBUILDING && target->GetRefitPoints() <= 0.0)
+    if (target->ObjectClass != MCObjectClass::TreeBuilding && target->GetRefitPoints() <= 0.0)
     {
         return 1;
     }
@@ -4445,21 +4438,22 @@ auto MCMechWarrior::OrderGetFixed(int32_t origin, MCGameObject* target, uint32_t
     const MCObjectClass vehicleClass = Vehicle->ObjectClass;
     const int32_t bayKind = RepairBayKind(target);
 
-    if ((vehicleClass == BATTLEMECH && bayKind == 0) || (vehicleClass == GROUNDVEHICLE && bayKind == 1))
+    if ((vehicleClass == MCObjectClass::BattleMech && bayKind == 0) ||
+        (vehicleClass == MCObjectClass::GroundVehicle && bayKind == 1))
     {
         return 1;
     }
 
     MCTacticalOrder order;
-    order.Init();
-    order.Init(static_cast<MCOrderOriginType>(origin), TACTICAL_ORDER_GETFIXED, 0);
+    order.Reset();
+    order.Reset(origin, MCTacticalOrderCode::GetFixed, 0);
     order.Target = target;
     order.SelectionIndex = -1;
     order.MoveParams.WayPath.Mode[0] = static_cast<uint8_t>(params & 1);
     order.MoveParams.FaceObject = 1;
     order.MoveParams.Wait = 0;
 
-    if (origin == ORDER_ORIGIN_COMMANDER)
+    if (origin == MCOrderOrigin::Commander)
     {
         SetGeneralTacOrder(order);
     }
@@ -4467,24 +4461,25 @@ auto MCMechWarrior::OrderGetFixed(int32_t origin, MCGameObject* target, uint32_t
     return 0;
 }
 
-auto MCMechWarrior::OrderLoadIntoCarrier(int32_t origin, MCGameObject* target, uint32_t params) -> int32_t
+auto MCMechWarrior::OrderLoadIntoCarrier(MCOrderOrigin origin, MCGameObject* target, uint32_t params) -> int32_t
 {
-    if (Vehicle->ObjectClass != ELEMENTAL || target == nullptr || target->ObjectClass != GROUNDVEHICLE ||
+    if (Vehicle->ObjectClass != MCObjectClass::Elemental || target == nullptr ||
+        target->ObjectClass != MCObjectClass::GroundVehicle ||
         static_cast<MCGroundVehicle*>(target)->ElementalCarrier == 0)
     {
         return 1;
     }
 
     MCTacticalOrder order;
-    order.Init();
-    order.Init(static_cast<MCOrderOriginType>(origin), TACTICAL_ORDER_LOAD_INTO_CARRIER, 0);
+    order.Reset();
+    order.Reset(origin, MCTacticalOrderCode::LoadIntoCarrier, 0);
     order.Target = target;
     order.SelectionIndex = -1;
     order.MoveParams.WayPath.Mode[0] = static_cast<uint8_t>(params & 1);
     order.MoveParams.FaceObject = 1;
     order.MoveParams.Wait = 0;
 
-    if (origin == ORDER_ORIGIN_COMMANDER)
+    if (origin == MCOrderOrigin::Commander)
     {
         SetGeneralTacOrder(order);
     }
@@ -4492,20 +4487,21 @@ auto MCMechWarrior::OrderLoadIntoCarrier(int32_t origin, MCGameObject* target, u
     return 0;
 }
 
-auto MCMechWarrior::OrderDeployElementals(int32_t origin, uint32_t params) -> int32_t
+auto MCMechWarrior::OrderDeployElementals(MCOrderOrigin origin, uint32_t params) -> int32_t
 {
-    if (Vehicle->ObjectClass != GROUNDVEHICLE || static_cast<MCGroundVehicle*>(Vehicle)->ElementalCarrier == 0)
+    if (Vehicle->ObjectClass != MCObjectClass::GroundVehicle ||
+        static_cast<MCGroundVehicle*>(Vehicle)->ElementalCarrier == 0)
     {
         return 1;
     }
 
     MCTacticalOrder order;
-    order.Init();
-    order.Init(static_cast<MCOrderOriginType>(origin), TACTICAL_ORDER_DEPLOY_ELEMENTALS, 0);
+    order.Reset();
+    order.Reset(origin, MCTacticalOrderCode::DeployElementals, 0);
     order.MoveParams.Wait = 0;
     order.MoveParams.WayPath.Mode[0] = static_cast<uint8_t>(params & 1);
 
-    if (origin == ORDER_ORIGIN_COMMANDER)
+    if (origin == MCOrderOrigin::Commander)
     {
         SetGeneralTacOrder(order);
     }
@@ -4513,7 +4509,7 @@ auto MCMechWarrior::OrderDeployElementals(int32_t origin, uint32_t params) -> in
     return 0;
 }
 
-auto MCMechWarrior::OrderCapture(int32_t origin, MCGameObject* target, uint32_t params) -> int32_t
+auto MCMechWarrior::OrderCapture(MCOrderOrigin origin, MCGameObject* target, uint32_t params) -> int32_t
 {
     // Original behaviour: the test reads isCaptureable() == 0 (the slot's name may not match its meaning).
     if (target == nullptr || target->IsCaptureable() != 0 || target->GetAlignment() == Alignment ||
@@ -4523,15 +4519,15 @@ auto MCMechWarrior::OrderCapture(int32_t origin, MCGameObject* target, uint32_t 
     }
 
     MCTacticalOrder order;
-    order.Init();
-    order.Init(static_cast<MCOrderOriginType>(origin), TACTICAL_ORDER_CAPTURE, 0);
+    order.Reset();
+    order.Reset(origin, MCTacticalOrderCode::Capture, 0);
     order.Target = target;
     order.SelectionIndex = -1;
     order.MoveParams.WayPath.Mode[0] = static_cast<uint8_t>(params & 1);
     order.MoveParams.FaceObject = 1;
     order.MoveParams.Wait = 0;
 
-    if (origin == ORDER_ORIGIN_COMMANDER)
+    if (origin == MCOrderOrigin::Commander)
     {
         SetGeneralTacOrder(order);
     }
@@ -4561,7 +4557,7 @@ auto MCMechWarrior::HandleHitByWeaponFire() -> int32_t
 
 auto MCMechWarrior::HandleCollision() -> int32_t
 {
-    ObjectList->FindObjectFromPart(static_cast<int32_t>(Alarm[PILOT_ALARM_COLLISION].Trigger[0]));
+    ObjectList()->FindObjectFromPart(static_cast<int32_t>(Alarm[PILOT_ALARM_COLLISION].Trigger[0]));
     return 0;
 }
 
@@ -4613,7 +4609,7 @@ auto MCMechWarrior::HandleOwnVehicleIncapacitation(uint32_t cause) -> int32_t
     }
 
     MoveOrders.Init();
-    PathManager->Remove(this);
+    PathManager()->Remove(this);
     MoveOrders.Path[1] = paths[1];
     MoveOrders.Path[0] = paths[0];
     AttackOrders.Init();
@@ -4637,8 +4633,8 @@ auto MCMechWarrior::HandleOwnVehicleWithdrawn() -> int32_t
 auto MCMechWarrior::HandleMoraleBreak() -> int32_t
 {
     MCTacticalOrder order;
-    order.Init();
-    order.Init(ORDER_ORIGIN_SELF, TACTICAL_ORDER_WITHDRAW, 0);
+    order.Reset();
+    order.Reset(MCOrderOrigin::Self, MCTacticalOrderCode::Withdraw, 0);
     SetAlarmTacOrder(order, 10);
     return 0;
 }
@@ -4651,7 +4647,7 @@ auto MCMechWarrior::HandleCollisionAlert() -> int32_t
 auto MCMechWarrior::HandleKilledTarget() -> int32_t
 {
     MCBaseObject* target =
-        ObjectList->FindObjectFromPart(static_cast<int32_t>(Alarm[PILOT_ALARM_KILLED_TARGET].Trigger[0]));
+        ObjectList()->FindObjectFromPart(static_cast<int32_t>(Alarm[PILOT_ALARM_KILLED_TARGET].Trigger[0]));
 
     if (target == nullptr)
     {
@@ -4665,16 +4661,16 @@ auto MCMechWarrior::HandleKilledTarget() -> int32_t
 
     switch (target->ObjectClass)
     {
-        case BATTLEMECH:
+        case MCObjectClass::BattleMech:
         {
-            killType = static_cast<MCGameObject*>(target)->GetMechClass();
+            killType = static_cast<int32_t>(static_cast<MCGameObject*>(target)->GetMechClass());
             points = KillSkill[killType];
             NumKilled[killType][1]++;
             message = RADIO_MECH_DESTROYED;
             break;
         }
-        case GROUNDVEHICLE:
-        case TURRET:
+        case MCObjectClass::GroundVehicle:
+        case MCObjectClass::Turret:
         {
             killType = 5;
             points = KillSkill[4];
@@ -4682,7 +4678,7 @@ auto MCMechWarrior::HandleKilledTarget() -> int32_t
             message = RADIO_VEHICLE_DESTROYED;
             break;
         }
-        case ELEMENTAL:
+        case MCObjectClass::Elemental:
         {
             killType = 6;
             points = KillSkill[5];
@@ -4720,9 +4716,9 @@ auto MCMechWarrior::HandleUnitMateFiredWeapon() -> int32_t
 
 auto MCMechWarrior::HandlePlayerOrder() -> int32_t
 {
-    if (GetVehicleStatus() == 5 && CurTacOrder.Code != TACTICAL_ORDER_POWERDOWN)
+    if (GetVehicleStatus() == 5 && CurTacOrder.Code != MCTacticalOrderCode::PowerDown)
     {
-        OrderPowerUp(0, ORDER_ORIGIN_SELF);
+        OrderPowerUp(0, MCOrderOrigin::Self);
     }
 
     return 0;
@@ -4730,7 +4726,7 @@ auto MCMechWarrior::HandlePlayerOrder() -> int32_t
 
 auto MCMechWarrior::HandleNoMovePath() -> int32_t
 {
-    if (CurTacOrder.Code == TACTICAL_ORDER_GETFIXED)
+    if (CurTacOrder.Code == MCTacticalOrderCode::GetFixed)
     {
         ClearCurTacOrder(1, 0);
         RadioMessage(RADIO_MOVE_BLOCKED, 0);

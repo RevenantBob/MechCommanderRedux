@@ -1,6 +1,6 @@
 #pragma once
 
-#include "object/dyn.h"
+#include "object/MCDynamics.h"
 
 /// <summary>An elemental type's turn rate and speed limits (the FIT's "ElementalDynamics" block).</summary>
 /// <remarks>Original source: <c>object\elemdyn.cpp</c>; 0x10 bytes.</remarks>

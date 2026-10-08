@@ -3,7 +3,9 @@
 #include "MCConsole.h"
 
 #include <cstdarg>
+#include <csignal>
 #include <cstdio>
+#include <cstdlib>
 
 #ifdef _WIN32
 
@@ -11,6 +13,7 @@
 #define NOMINMAX
 #include <Windows.h>
 #include <DbgHelp.h>
+#include <crtdbg.h>
 
 #pragma comment(lib, "dbghelp.lib")
 
@@ -358,8 +361,83 @@ namespace
     }
 }
 
+namespace
+{
+    /// <summary>The exception code a CRT failure is raised as (an application error code: 0xE0000000 | 'CRT').</summary>
+    constexpr DWORD CrtFailureException = 0xE0435254;
+
+    /// <summary>Ends a CRT failure as a crash the handler reports: the stack it shows is the failing code's.</summary>
+    [[noreturn]] void RaiseCrtFailure()
+    {
+        RaiseException(CrtFailureException, EXCEPTION_NONCONTINUABLE, 0, nullptr);
+        std::_Exit(3);
+    }
+
+#ifdef _DEBUG
+    /// <summary>
+    /// A Debug CRT assertion or error (a checked iterator, "vector subscript out of range"): prints the CRT's message
+    /// and crashes, instead of the CRT's Abort/Retry/Ignore box.
+    /// </summary>
+    int __cdecl OnCrtReport(int reportType, char* message, int* returnValue)
+    {
+        if (reportType == _CRT_WARN)
+        {
+            return FALSE;
+        }
+
+        std::fprintf(stderr, "CRT %s: %s\n", reportType == _CRT_ASSERT ? "assertion" : "error",
+                     message != nullptr ? message : "");
+        std::fflush(stderr);
+
+        if (returnValue != nullptr)
+        {
+            *returnValue = 0;
+        }
+
+        RaiseCrtFailure();
+    }
+#endif
+
+    /// <summary>abort() (std::terminate, a failed assert()): a crash, not the CRT's "abort() has been called" box.</summary>
+    void __cdecl OnAbort(int)
+    {
+        std::fputs("abort() called\n", stderr);
+        std::fflush(stderr);
+        RaiseCrtFailure();
+    }
+
+    /// <summary>A CRT function given a bad argument.</summary>
+    void __cdecl OnInvalidParameter(const wchar_t* expression, const wchar_t* function, const wchar_t* file,
+                                    unsigned int line, uintptr_t)
+    {
+        std::fprintf(stderr, "invalid parameter: %ls in %ls (%ls:%u)\n", expression != nullptr ? expression : L"?",
+                     function != nullptr ? function : L"?", file != nullptr ? file : L"?", line);
+        std::fflush(stderr);
+        RaiseCrtFailure();
+    }
+
+    /// <summary>A pure virtual function called (an object used during its construction or destruction).</summary>
+    void __cdecl OnPureCall()
+    {
+        std::fputs("pure virtual function call\n", stderr);
+        std::fflush(stderr);
+        RaiseCrtFailure();
+    }
+}
+
 void MCCrashTrace::Install()
 {
+    // The CRT's own failures become crashes the handler below reports and dumps, never a dialog (which an unattended
+    // run would wait on forever); nor does Windows show its "stopped working" box after the dump is written.
+#ifdef _DEBUG
+    _CrtSetReportHook2(_CRT_RPTHOOK_INSTALL, OnCrtReport);
+#endif
+    _set_abort_behavior(0, _WRITE_ABORT_MSG | _CALL_REPORTFAULT);
+    std::signal(SIGABRT, OnAbort);
+    _set_invalid_parameter_handler(OnInvalidParameter);
+    _set_purecall_handler(OnPureCall);
+    SetErrorMode(GetErrorMode() | SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX);
+
     CrashEvent = CreateEventW(nullptr, TRUE, FALSE, nullptr);
     DoneEvent = CreateEventW(nullptr, TRUE, FALSE, nullptr);
 

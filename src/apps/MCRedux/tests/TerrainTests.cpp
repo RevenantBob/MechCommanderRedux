@@ -32,7 +32,7 @@ namespace
         /// <summary>Sets the height level of map vertex (tile) (<paramref name="row"/>, <paramref name="col"/>).</summary>
         void SetLevel(int32_t row, int32_t col, uint32_t level)
         {
-            MCMapTile& tile = GameMap->Map[row * GameMap->Width + col];
+            MCMapTile& tile = GameMap()->Map[row * GameMap()->Width + col];
             tile.Cells = (tile.Cells & ~(0x3fu << 7)) | (level << 7);
         }
 
@@ -128,7 +128,7 @@ TEST_CASE("terrain: a map vertex is found in its block, and off the map in the o
 TEST_CASE("terrain: on the first turn the off-map ground is raised a level above the map's base")
 {
     TinyTerrain terrain(4);
-    GameMap->BaseElevation = 3;
+    GameMap()->BaseElevation = 3;
     std::vector<MCPrecompVertex> vertices(2 * 16);
     MCMapBlockManager blocks(vertices, 1);
     blocks.RaiseOffMapBlock();
@@ -143,7 +143,7 @@ TEST_CASE("terrain: on the first turn the off-map ground is raised a level above
 TEST_CASE("terrain: the elevation at a point lies on the face of its map tile")
 {
     TinyTerrain terrain(8);
-    GameMap->BaseElevation = 1;
+    GameMap()->BaseElevation = 1;
 
     // Flat ground: the base plus the tile's level, everywhere on the tile.
     for (int32_t row = 0; row < 8; ++row)
@@ -169,7 +169,7 @@ TEST_CASE("terrain: the elevation at a point lies on the face of its map tile")
 TEST_CASE("terrain: a bridge deck stands at its highest corner")
 {
     TinyTerrain terrain(8);
-    GameMap->BaseElevation = 0;
+    GameMap()->BaseElevation = 0;
 
     for (int32_t row = 0; row < 8; ++row)
     {
@@ -180,21 +180,21 @@ TEST_CASE("terrain: a bridge deck stands at its highest corner")
     }
 
     // Overlay types 0x25..0x28 are bridge decks: drawn flat at the highest of the tile's four corners...
-    GameMap->Map[4 * 8 + 4].Overlay = 0x26;
+    GameMap()->Map[4 * 8 + 4].Overlay = 0x26;
     terrain.SetLevel(5, 5, 3);
     CHECK_EQ(TerrainElevationAt(TinyTerrain::At(4.5f, 4.5f)), 3 * MetersPerLevel);
     // ...and a level above the ground when the corners are level.
-    GameMap->Map[1 * 8 + 1].Overlay = 0x25;
+    GameMap()->Map[1 * 8 + 1].Overlay = 0x25;
     CHECK_EQ(TerrainElevationAt(TinyTerrain::At(1.5f, 1.5f)), 2 * MetersPerLevel);
     // Other overlays are ground.
-    GameMap->Map[1 * 8 + 1].Overlay = 0x24;
+    GameMap()->Map[1 * 8 + 1].Overlay = 0x24;
     CHECK_EQ(TerrainElevationAt(TinyTerrain::At(1.5f, 1.5f)), 1 * MetersPerLevel);
 }
 
 TEST_CASE("terrain: off the map the elevation is 0")
 {
     TinyTerrain terrain(8);
-    GameMap->BaseElevation = 4;
+    GameMap()->BaseElevation = 4;
     CHECK_EQ(TerrainElevationAt(TinyTerrain::At(-0.5f, 3.0f)), 0.0f);
     CHECK_EQ(TerrainElevationAt(TinyTerrain::At(3.0f, 8.5f)), 0.0f);
     // The last row and column have no tile beyond them to make a face with.

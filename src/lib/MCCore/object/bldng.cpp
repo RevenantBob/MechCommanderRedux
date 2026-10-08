@@ -18,14 +18,14 @@
 #include "main/main.h"
 #include "mission/scenario.h"
 #include "network/multplyr.h"
-#include "object/collsn.h"
-#include "object/contact.h"
+#include "object/MCCollisionSystem.h"
+#include "object/MCContactSystem.h"
 #include "object/fire.h"
 #include "object/mover.h"
-#include "object/object.h"
-#include "object/objevnt.h"
-#include "object/objque.h"
-#include "object/team.h"
+#include "object/MCObjectSystem.h"
+#include "object/MCObjectEvent.h"
+#include "object/MCObjectQueue.h"
+#include "object/MCForces.h"
 #include "object/warrior.h"
 #include "sound/soundsys.h"
 #include "sprite/MCVfxBuildingAppearance.h"
@@ -33,6 +33,8 @@
 #include "terrain/MCTerrain.h"
 #include "terrain/MCTacticalMap.h"
 #include "vfx/MCVfxFunctions.h"
+#include "object/MCObjectType.h"
+#include "object/MCWeaponShotInfo.h"
 
 int32_t DefaultPilotId = 0x28d;
 char MarineProfileName[80] = "PEM00001";
@@ -48,10 +50,13 @@ namespace
     /// <summary>Sixty degrees in radians, as MCX.EXE stores it.</summary>
     constexpr double SIXTY_DEGREES = 0x1.0c152382d45b2p+0;
 
-    /// <summary>Makes the type's blown effect (a fire) at the building; anything else it makes is returned as is.</summary>
-    MCGameObject* CreateBlownEffect(MCBuilding* building, int32_t effectId)
+    /// <summary>
+    /// Makes the type's blown effect at the building. A fire becomes the building's fire, and goes on the object
+    /// lists by itself on its first update.
+    /// </summary>
+    std::unique_ptr<MCGameObject> CreateBlownEffect(MCBuilding* building, int32_t effectId)
     {
-        MCGameObject* effect = CreateObject(effectId);
+        std::unique_ptr<MCGameObject> effect = CreateObject(effectId);
 
         if (effect == nullptr)
         {
@@ -60,9 +65,9 @@ namespace
 
         effect->SetPosition(building->Position);
 
-        if (effect->ObjectClass == FIRE)
+        if (effect->ObjectClass == MCObjectClass::Fire)
         {
-            building->FireObject = static_cast<MCFire*>(effect);
+            building->FireObject = static_cast<MCFire*>(effect.get());
             building->FireObject->SetPotentialContact(3);
             building->FireObject->BurningObject = building;
             building->FireObject->SetTonnage(40.0f);
@@ -102,9 +107,9 @@ auto MCBuildingType::Init() -> void
     NumMarines = 0;
 }
 
-auto MCBuildingType::CreateInstance() -> MCBaseObject*
+auto MCBuildingType::CreateInstance() -> std::unique_ptr<MCBaseObject>
 {
-    auto* newBuilding = new MCBuilding;
+    auto newBuilding = std::make_unique<MCBuilding>();
 
     if (newBuilding == nullptr)
     {
@@ -258,7 +263,7 @@ auto MCBuildingType::HandleCollision(MCGameObject* collidee, MCGameObject* colli
     }
 
     // Movers (not artillery) that run into it do 10 points of damage.
-    if (collider->ObjectClass < 8 && collider->ObjectClass != 7)
+    if (collider->ObjectClass < MCObjectClass::Mover && collider->ObjectClass != MCObjectClass::Artillery)
     {
         MCWeaponShotInfo shot;
         shot.Init(nullptr, -1, 10.0f, 0, 0.0f);
@@ -451,11 +456,15 @@ auto MCBuilding::Update() -> int32_t
     CellRow = VertexNumber / verticesBlockSide + (BlockNumber / MCTerrain::BlocksMapSide) * verticesBlockSide;
     VertexWorldY = static_cast<float>(halfMap - CellRow) * MCTerrain::MetersPerVertex;
     const auto inBounds = [&]
-    { return CellRow < 0 || GameMap->Height <= CellRow || CellColumn < 0 || GameMap->Width <= CellColumn ? 0u : 1u; };
+    {
+        return CellRow < 0 || GameMap()->Height <= CellRow || CellColumn < 0 || GameMap()->Width <= CellColumn ? 0u
+                                                                                                               : 1u;
+    };
+
     Assert(inBounds(), 0, " bldng MapTile Out of Bounds ");
     Assert(inBounds(), 0, " Map Tile out of bounds ");
-    const MCMapTile& tile = GameMap->Map[GameMap->Width * CellRow + CellColumn];
-    const int32_t elevationLevel = static_cast<int32_t>((tile.Cells >> 7) & 0x3f) + GameMap->BaseElevation;
+    const MCMapTile& tile = GameMap()->Map[GameMap()->Width * CellRow + CellColumn];
+    const int32_t elevationLevel = static_cast<int32_t>((tile.Cells >> 7) & 0x3f) + GameMap()->BaseElevation;
     CellElevation = static_cast<float>(elevationLevel) * MCTerrain::MetersPerElevLevel;
 
     // No extent radius in the FIT: measure it from the appearance's bounds.
@@ -469,7 +478,7 @@ auto MCBuilding::Update() -> int32_t
         const float dy = buildingAppearance->UpperLeft.Y - buildingAppearance->LowerRight.Y;
         const float radius = std::sqrt(dx * dx + dy * dy) / WorldUnitsPerMeter * 1.25f;
 
-        if (static_cast<float>(MCCollisionSystem::GridRadius) < radius)
+        if (static_cast<float>(CollisionSystem()->GridRadius()) < radius)
         {
             Fatal(static_cast<int32_t>(std::floor(static_cast<double>(radius))), " Object extent radius TOO large ");
         }
@@ -496,15 +505,15 @@ auto MCBuilding::SetAlignment(int32_t align) -> void
 
     if (Alignment == -1)
     {
-        SensorSystem->SetTeam(ClanTeam);
+        SensorSystem->SetTeam(ClanTeam());
     }
     else if (Alignment == 1)
     {
-        SensorSystem->SetTeam(InnerSphereTeam);
+        SensorSystem->SetTeam(InnerSphereTeam());
     }
     else if (Alignment == 0)
     {
-        SensorSystem->SetTeam(AlliedTeam);
+        SensorSystem->SetTeam(AlliedTeam());
     }
 }
 
@@ -537,11 +546,16 @@ auto MCBuilding::LightOnFire(float timeToBurn) -> void
 
     if (FireObject == nullptr)
     {
-        MCGameObject* effect = CreateBlownEffect(this, static_cast<int32_t>(type->BlownEffectId));
+        std::unique_ptr<MCGameObject> effect = CreateBlownEffect(this, static_cast<int32_t>(type->BlownEffectId));
 
-        if (effect != nullptr && effect->ObjectClass != FIRE)
+        if (effect != nullptr && effect->ObjectClass != MCObjectClass::Fire)
         {
-            DestroyObject(effect);
+            DestroyObject(effect.get());
+        }
+        else
+        {
+            // The fire goes on the lists itself.
+            effect.release();
         }
     }
 
@@ -638,7 +652,7 @@ auto MCBuilding::Render() -> void
         }
     }
 
-    if (GetContactType(HomeTeam->Id) == 2)
+    if (GetContactType(HomeTeam()->Id) == 2)
     {
         // A sensor contact: a blip sized by tonnage.
         uint8_t* shape;
@@ -801,7 +815,7 @@ auto MCBuilding::Destroy() -> void
 
     if (SensorSystem != nullptr)
     {
-        SensorSystemManager->FreeSensor(SensorSystem);
+        SensorSystemManager()->FreeSensor(SensorSystem);
         SensorSystem = nullptr;
     }
 
@@ -833,7 +847,7 @@ auto MCBuilding::SetSensorData(MCTeam* newTeam, float range, int setTeam) -> voi
 
     if (SensorSystem == nullptr)
     {
-        SensorSystem = SensorSystemManager->NewSensor();
+        SensorSystem = SensorSystemManager()->NewSensor();
 
         if (SensorSystem == nullptr)
         {
@@ -895,7 +909,7 @@ auto MCBuilding::Init(MCObjectType* objType) -> int32_t
     }
 
     auto* type = static_cast<MCBuildingType*>(this->ObjType);
-    ObjectClass = BUILDING;
+    ObjectClass = MCObjectClass::Building;
     SoundHandle = 0xffffffff;
 
     if (0.0 < type->ExtentRadius)
@@ -914,7 +928,7 @@ auto MCBuilding::Init(MCObjectType* objType) -> int32_t
 
     // Original behaviour (OB-016): a building with no team (TeamID -1) reads TeamTable[-1], the global before it in
     // MCX.EXE: homeTeam.
-    Team = type->TeamId == -1 ? HomeTeam : TeamTable[type->TeamId];
+    Team = type->TeamId == -1 ? HomeTeam() : TeamById(type->TeamId);
     const float range = type->SensorRange;
 
     if (-1.0 < range)
@@ -923,19 +937,19 @@ auto MCBuilding::Init(MCObjectType* objType) -> int32_t
         {
             case 0:
             {
-                SetSensorData(InnerSphereTeam, range, 0);
+                SetSensorData(InnerSphereTeam(), range, 0);
                 SetAlignment(1);
                 break;
             }
             case 1:
             {
-                SetSensorData(ClanTeam, range, 0);
+                SetSensorData(ClanTeam(), range, 0);
                 SetAlignment(-1);
                 break;
             }
             case 2:
             {
-                SetSensorData(AlliedTeam, range, 0);
+                SetSensorData(AlliedTeam(), range, 0);
                 SetAlignment(0);
                 break;
             }
@@ -971,7 +985,7 @@ auto MCBuilding::CreateBuildingMarines() -> void
 
         MCMechWarrior* warrior = Scenario->Warriors[i];
 
-        if (warrior == nullptr || warrior->Alignment == HomeTeam->Alignment)
+        if (warrior == nullptr || warrior->Alignment == HomeTeam()->Alignment)
         {
             continue;
         }
@@ -986,7 +1000,8 @@ auto MCBuilding::CreateBuildingMarines() -> void
             }
         }
 
-        auto* marine = static_cast<MCMover*>(CreateObject(DefaultPilotId));
+        std::unique_ptr<MCMover> newMarine = CreateObjectAs<MCMover>(DefaultPilotId);
+        MCMover* marine = newMarine.get();
 
         if (marine == nullptr)
         {
@@ -1015,7 +1030,7 @@ auto MCBuilding::CreateBuildingMarines() -> void
         warrior->SetVehicle(marine);
         warrior->Lobotomy();
         marine->SetControl(2, 3, -1);
-        marine->SetTeam(ClanTeam);
+        marine->SetTeam(ClanTeam());
         // Somewhere within the extent radius of the building.
         const float extentX = ObjType->ExtentRadius;
         const float extentY = ObjType->ExtentRadius;
@@ -1027,7 +1042,7 @@ auto MCBuilding::CreateBuildingMarines() -> void
         marinePosition.Y = offsetY + Position.Y;
         marinePosition.Z = offsetZ + Position.Z;
         marine->SetPosition(marinePosition);
-        GameObjectMap->AddObject(marine);
+        GameObjectMap()->AddObject(marine);
         marine->BounceToAdjCell();
         marine->BounceToAdjCell();
         auto* marineAppearance = static_cast<MCElementalActor*>(marine->GetAppearance());
@@ -1041,18 +1056,18 @@ auto MCBuilding::CreateBuildingMarines() -> void
         marine->IdNumber = 2500000;
         marine->SetPartId(0xfff - NumMarines++);
         marine->SetAlignment(GetAlignment());
-        MCObjectQueueNode* list = GetAlignment() == -1 ? ClanMechList : InnerSphereMechList;
+        MCObjectList* list = GetAlignment() == -1 ? ClanMechList() : InnerSphereMechList();
 
         if (list != nullptr)
         {
-            list->AddNode(marine);
+            list->Add(std::move(newMarine));
         }
 
         marine->SetPotentialContact(0);
         marine->SetExists(1);
         warrior->ClearAttackOrders();
         warrior->ClearMoveOrders();
-        warrior->OrderMoveToPoint(0, 1, 0, MCVector3D(0.0f, 0.0f, 0.0f), -1, 1);
+        warrior->OrderMoveToPoint(0, 1, MCOrderOrigin::Player, MCVector3D(0.0f, 0.0f, 0.0f), -1, 1);
 
         if (++marinesMade == marinesWanted)
         {
@@ -1094,18 +1109,21 @@ auto MCBuilding::HandleWeaponHit(MCWeaponShotInfo* shotInfo, int addMultiplayChu
         {
             if (type->BlownEffectId != 0xffffffff)
             {
-                MCGameObject* effect = CreateBlownEffect(this, static_cast<int32_t>(type->BlownEffectId));
+                std::unique_ptr<MCGameObject> effect =
+                    CreateBlownEffect(this, static_cast<int32_t>(type->BlownEffectId));
 
                 if (effect != nullptr)
                 {
-                    if (effect->ObjectClass == FIRE)
+                    if (effect->ObjectClass == MCObjectClass::Fire)
                     {
+                        // The fire goes on the lists itself, on this update.
+                        effect.release();
                         FireObject->Update();
                         Burning = 1;
                     }
-                    else if (ObjectList->Head != nullptr)
+                    else
                     {
-                        ObjectList->Head->AddNode(effect);
+                        AddToDefaultList(std::move(effect));
                     }
                 }
             }

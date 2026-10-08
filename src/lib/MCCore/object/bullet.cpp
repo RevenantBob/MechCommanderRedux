@@ -15,13 +15,14 @@
 #include "network/multplyr.h"
 #include "object/explode.h"
 #include "object/mech.h"
-#include "object/object.h"
-#include "object/objque.h"
+#include "object/MCObjectSystem.h"
+#include "object/MCObjectQueue.h"
 #include "object/smoke.h"
 #include "sound/soundsys.h"
 #include "sprite/MCArmAppearance.h"
 #include "terrain/MCTerrain.h"
 #include "terrain/MCTacticalMap.h"
+#include "object/MCObjectType.h"
 
 namespace
 {
@@ -71,9 +72,9 @@ MCBulletType::MCBulletType()
     SmokeObjectId = 0xffffffff;
 }
 
-auto MCBulletType::CreateInstance() -> MCBaseObject*
+auto MCBulletType::CreateInstance() -> std::unique_ptr<MCBaseObject>
 {
-    auto* newBullet = new MCBullet;
+    auto newBullet = std::make_unique<MCBullet>();
 
     if (newBullet == nullptr)
     {
@@ -142,9 +143,9 @@ auto MCBulletType::Init(MCFile* objFile, uint32_t fileSize) -> int32_t
     }
 
     result = MCObjectType::Init(&bulletFile);
-    ObjectTypeManager->Load(static_cast<int32_t>(BulletHitEffect), 1);
-    ObjectTypeManager->Load(static_cast<int32_t>(BulletMissEffect), 1);
-    ObjectTypeManager->Load(static_cast<int32_t>(SmokeObjectId), 1);
+    ObjectTypeManager()->Load(static_cast<int32_t>(BulletHitEffect), 1);
+    ObjectTypeManager()->Load(static_cast<int32_t>(BulletMissEffect), 1);
+    ObjectTypeManager()->Load(static_cast<int32_t>(SmokeObjectId), 1);
     return result;
 }
 
@@ -246,7 +247,8 @@ auto MCBullet::Update() -> int32_t
     if (Target != nullptr)
     {
         // Port fix (OB-017): follow the hot spot the hit effect plays at (the original used ownerHotSpot).
-        const uint32_t hotSpot = Target->ObjectClass == TURRET ? 0xffffffff : static_cast<uint32_t>(TargetHotSpot);
+        const uint32_t hotSpot =
+            Target->ObjectClass == MCObjectClass::Turret ? 0xffffffff : static_cast<uint32_t>(TargetHotSpot);
         SetTargetPosition(Target->GetPositionFromHS(hotSpot));
     }
 
@@ -324,7 +326,7 @@ auto MCBullet::Update() -> int32_t
     DrawRotation = -150;
 
     // Port fix: the original reads the owner's class without checking it for null.
-    if (shooter != nullptr && shooter->ObjectClass == BATTLEMECH)
+    if (shooter != nullptr && shooter->ObjectClass == MCObjectClass::BattleMech)
     {
         const MCFrameOfRef frame = shooter->GetFrame();
         float cosFacing = UnitX.Y * frame.I.Y + UnitX.X * frame.I.X + UnitX.Z * frame.I.Z;
@@ -374,7 +376,7 @@ auto MCBullet::Update() -> int32_t
     }
 
     const MCBulletType* bulletType = static_cast<MCBulletType*>(ObjType);
-    MCGameObject* effect = CreateObject(
+    std::unique_ptr<MCGameObject> effect = CreateObject(
         static_cast<int32_t>(Target == nullptr ? bulletType->BulletMissEffect : bulletType->BulletHitEffect));
 
     if (effect == nullptr)
@@ -384,7 +386,8 @@ auto MCBullet::Update() -> int32_t
 
     if (Target != nullptr)
     {
-        const uint32_t hotSpot = Target->ObjectClass == TURRET ? 0xffffffff : static_cast<uint32_t>(TargetHotSpot);
+        const uint32_t hotSpot =
+            Target->ObjectClass == MCObjectClass::Turret ? 0xffffffff : static_cast<uint32_t>(TargetHotSpot);
         MCVector3D hitPos = Target->GetPositionFromHS(hotSpot);
         effect->SetPosition(hitPos);
     }
@@ -393,10 +396,7 @@ auto MCBullet::Update() -> int32_t
         effect->SetPosition(*TargetPosition);
     }
 
-    if (ObjectList->Head != nullptr)
-    {
-        ObjectList->Head->AddNode(effect);
-    }
+    AddToDefaultList(std::move(effect));
 
     // A miss leaves a crater and sets off a live mine where it lands.
     if (Target == nullptr && TargetPosition != nullptr)
@@ -407,15 +407,15 @@ auto MCBullet::Update() -> int32_t
         int32_t tileC = 0;
         int32_t cellR = 0;
         int32_t cellC = 0;
-        GameMap->WorldToMapPos(*TargetPosition, tileR, tileC, cellR, cellC);
+        GameMap()->WorldToMapPos(*TargetPosition, tileR, tileC, cellR, cellC);
 
         // Port fix: a miss can land off the map, where the original reads (and writes) outside it.
-        if (!GameMap->OnMap(tileR, tileC))
+        if (!GameMap()->OnMap(tileR, tileC))
         {
             return result;
         }
 
-        MCMapTile& tile = GameMap->Map[GameMap->Width * tileR + tileC];
+        MCMapTile& tile = GameMap()->Map[GameMap()->Width * tileR + tileC];
 
         if ((tile.Overlay & 0x1800) == 0x1000 || (tile.Overlay & 0x6000) == 0x4000)
         {
@@ -507,15 +507,15 @@ auto MCBullet::Init(MCObjectType* objType) -> int32_t
 
     if (static_cast<int32_t>(bulletType->SmokeObjectId) != -1)
     {
-        Smoke = static_cast<MCSmoke*>(CreateObject(static_cast<int32_t>(bulletType->SmokeObjectId)));
+        Smoke = CreateObjectAs<MCSmoke>(static_cast<int32_t>(bulletType->SmokeObjectId)).release();
     }
 
     if (static_cast<int32_t>(bulletType->LightObjectId) != -1)
     {
-        Light = CreateObject(static_cast<int32_t>(bulletType->LightObjectId));
+        Light = CreateObject(static_cast<int32_t>(bulletType->LightObjectId)).release();
     }
 
-    ObjectClass = BULLET;
+    ObjectClass = MCObjectClass::Bullet;
     return 0;
 }
 

@@ -1,7 +1,7 @@
 #pragma once
 
-#include "object/gameobj.h"
-#include "object/objtype.h"
+#include "object/MCBigGameObject.h"
+#include "object/MCObjectType.h"
 
 class MCAppearance;
 class MCFile;
@@ -21,7 +21,7 @@ public:
     /// <summary>Resets the common type data and this type's fields (one shape, no arrays).</summary>
     void Init();
     /// <summary>Makes a <see cref="MCFire"/> of this type and gives it the next object id.</summary>
-    MCBaseObject* CreateInstance() override;
+    std::unique_ptr<MCBaseObject> CreateInstance() override;
     /// <summary>Frees the six per-shape arrays.</summary>
     void Destroy() override;
     /// <summary>

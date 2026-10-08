@@ -1,7 +1,7 @@
 #include "stdafx.h"
 #include "abl/MCAblRoutineList.h"
 #include "abl/MCAblDebugger.h"
-#include "ai/move.h"
+#include "ai/MCMoveSystem.h"
 #include "gui/asystem.h"
 #include "gui/atextbox.h"
 #include "iface/iface.h"
@@ -17,19 +17,18 @@
 #include "object/artlry.h"
 #include "object/bldng.h"
 #include "object/bridge.h"
-#include "object/cmponent.h"
-#include "object/comndr.h"
-#include "object/contact.h"
-#include "object/gameobj.h"
+#include "object/MCMasterComponent.h"
+#include "object/MCForces.h"
+#include "object/MCContactSystem.h"
+#include "object/MCBigGameObject.h"
 #include "object/gate.h"
-#include "object/group.h"
+#include "object/MCMoverGroup.h"
 #include "object/gvehicl.h"
 #include "object/mover.h"
-#include "object/object.h"
-#include "object/objque.h"
-#include "object/objtype.h"
+#include "object/MCObjectSystem.h"
+#include "object/MCObjectQueue.h"
+#include "object/MCObjectType.h"
 #include "object/tbldng.h"
-#include "object/team.h"
 #include "object/terrobj.h"
 #include "object/train.h"
 #include "object/turret.h"
@@ -119,7 +118,8 @@ auto ExecHbWait(MCAblRuntime& abl) -> MCAblType*
     if (abl.Brain.IsUnitOrder == 0)
     {
         // The original rounds with the 1.5 * 2^52 addition trick: to nearest, ties to even.
-        result = abl.Brain.Warrior->OrderWait(0, 1, static_cast<int32_t>(std::nearbyint(seconds)), clearLastTarget);
+        result = abl.Brain.Warrior->OrderWait(0, MCOrderOrigin::Commander,
+                                              static_cast<int32_t>(std::nearbyint(seconds)), clearLastTarget);
     }
     else
     {
@@ -160,11 +160,11 @@ auto ExecHbMoveToPoint(MCAblRuntime& abl) -> MCAblType*
 
     if (abl.Brain.IsUnitOrder == 0)
     {
-        result = abl.Brain.Warrior->OrderMoveToPoint(0, 1, 1, goal, -1, params);
+        result = abl.Brain.Warrior->OrderMoveToPoint(0, 1, MCOrderOrigin::Commander, goal, -1, params);
     }
     else
     {
-        result = abl.Brain.Group->OrderMoveToPoint(1, 1, goal, params);
+        result = abl.Brain.Group->OrderMoveToPoint(1, MCOrderOrigin::Commander, goal, params);
     }
 
     abl.Top().Integer = result;
@@ -191,11 +191,12 @@ auto ExecHbMoveToObject(MCAblRuntime& abl) -> MCAblType*
         {
             if (abl.Brain.IsUnitOrder == 0)
             {
-                abl.Top().Integer = abl.Brain.Warrior->OrderMoveToObject(0, 1, 1, object, -1, flag == 1 ? 1 : 0);
+                abl.Top().Integer =
+                    abl.Brain.Warrior->OrderMoveToObject(0, 1, MCOrderOrigin::Commander, object, -1, flag == 1 ? 1 : 0);
             }
             else
             {
-                abl.Top().Integer = abl.Brain.Group->OrderMoveToObject(1, 1, object, 1);
+                abl.Top().Integer = abl.Brain.Group->OrderMoveToObject(1, MCOrderOrigin::Commander, object, 1);
             }
 
             abl.GetCodeToken();
@@ -219,12 +220,12 @@ auto ExecHbMoveToContact(MCAblRuntime& abl) -> MCAblType*
     {
         if (abl.Brain.IsUnitOrder != 0)
         {
-            result = abl.Brain.Group->OrderMoveToObject(1, 1, abl.Brain.Contact, 1);
+            result = abl.Brain.Group->OrderMoveToObject(1, MCOrderOrigin::Commander, abl.Brain.Contact, 1);
         }
         else
         {
-            result =
-                abl.Brain.Warrior->OrderMoveToObject(0, 1, 1, abl.Brain.Contact, -1, abl.Top().Integer == 1 ? 1 : 0);
+            result = abl.Brain.Warrior->OrderMoveToObject(0, 1, MCOrderOrigin::Commander, abl.Brain.Contact, -1,
+                                                          abl.Top().Integer == 1 ? 1 : 0);
         }
     }
 
@@ -239,11 +240,11 @@ auto ExecHbOrderPowerDown(MCAblRuntime& abl) -> MCAblType*
 
     if (abl.Brain.IsUnitOrder != 0)
     {
-        abl.Top().Integer = abl.Brain.Group->OrderPowerDown(ORDER_ORIGIN_COMMANDER);
+        abl.Top().Integer = abl.Brain.Group->OrderPowerDown(MCOrderOrigin::Commander);
     }
     else
     {
-        abl.Top().Integer = abl.Brain.Warrior->OrderPowerDown(0, ORDER_ORIGIN_COMMANDER);
+        abl.Top().Integer = abl.Brain.Warrior->OrderPowerDown(0, MCOrderOrigin::Commander);
     }
 
     abl.GetCodeToken();
@@ -256,11 +257,11 @@ auto ExecHbOrderPowerUp(MCAblRuntime& abl) -> MCAblType*
 
     if (abl.Brain.IsUnitOrder != 0)
     {
-        abl.Top().Integer = abl.Brain.Group->OrderPowerUp(ORDER_ORIGIN_COMMANDER);
+        abl.Top().Integer = abl.Brain.Group->OrderPowerUp(MCOrderOrigin::Commander);
     }
     else
     {
-        abl.Top().Integer = abl.Brain.Warrior->OrderPowerUp(0, ORDER_ORIGIN_COMMANDER);
+        abl.Top().Integer = abl.Brain.Warrior->OrderPowerUp(0, MCOrderOrigin::Commander);
     }
 
     abl.GetCodeToken();
@@ -293,18 +294,18 @@ auto ExecHbOrderAttackObject(MCAblRuntime& abl) -> MCAblType*
 
     if (partId != 0)
     {
-        target = static_cast<MCGameObject*>(ObjectList->FindObjectFromPart(static_cast<int32_t>(partId)));
+        target = static_cast<MCGameObject*>(ObjectList()->FindObjectFromPart(static_cast<int32_t>(partId)));
     }
 
     if (abl.Brain.IsUnitOrder != 0)
     {
-        abl.Top().Integer =
-            abl.Brain.Group->OrderAttackObject(1, target, attackType, attackMethod, attackRange, -1, params);
+        abl.Top().Integer = abl.Brain.Group->OrderAttackObject(MCOrderOrigin::Commander, target, attackType,
+                                                               attackMethod, attackRange, -1, params);
     }
     else
     {
-        abl.Top().Integer =
-            abl.Brain.Warrior->OrderAttackObject(0, 1, target, attackType, attackMethod, attackRange, -1, params);
+        abl.Top().Integer = abl.Brain.Warrior->OrderAttackObject(0, MCOrderOrigin::Commander, target, attackType,
+                                                                 attackMethod, attackRange, -1, params);
     }
 
     abl.GetCodeToken();
@@ -327,8 +328,8 @@ auto ExecHbOrderAttackContact(MCAblRuntime& abl) -> MCAblType*
 
     if (abl.Brain.Contact)
     {
-        result = abl.Brain.Warrior->OrderAttackObject(0, 1, abl.Brain.Contact, attackType, attackMethod, attackRange,
-                                                      -1, params);
+        result = abl.Brain.Warrior->OrderAttackObject(0, MCOrderOrigin::Commander, abl.Brain.Contact, attackType,
+                                                      attackMethod, attackRange, -1, params);
     }
 
     abl.Top().Integer = result;
@@ -369,7 +370,7 @@ auto ExecHbObjectChangeSides(MCAblRuntime& abl) -> void
         Fatal(0, " Cannot ABL:ObjectChangeSides for Mover Units ");
     }
 
-    MCBaseObject* object = ObjectList->FindObjectFromPart(partId);
+    MCBaseObject* object = ObjectList()->FindObjectFromPart(partId);
 
     if (object && object->GetObjectType())
     {

@@ -246,7 +246,7 @@ auto MCPlayerControl::Update() -> int32_t
 
     switch (Me->ObjectClass)
     {
-        case BATTLEMECH:
+        case MCObjectClass::BattleMech:
         {
             auto* data = static_cast<MCMechControlData*>(ControlData);
             data->Reset();
@@ -260,7 +260,7 @@ auto MCPlayerControl::Update() -> int32_t
             return 1;
         }
 
-        case GROUNDVEHICLE:
+        case MCObjectClass::GroundVehicle:
         {
             auto* data = static_cast<MCGroundVehicleControlData*>(ControlData);
             data->Reset();
@@ -268,7 +268,7 @@ auto MCPlayerControl::Update() -> int32_t
             break;
         }
 
-        case ELEMENTAL:
+        case MCObjectClass::Elemental:
         {
             auto* data = static_cast<MCElementalControlData*>(ControlData);
             data->Reset();

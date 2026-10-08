@@ -1,6 +1,6 @@
 #include "stdafx.h"
 #include "object/bridge.h"
-#include "ai/move.h"
+#include "ai/MCMoveSystem.h"
 #include "camera/MCCamera.h"
 #include "color/MCPalette.h"
 #include "engine/MCByteFlag.h"
@@ -18,14 +18,17 @@
 #include "main/main.h"
 #include "network/multplyr.h"
 #include "object/fire.h"
-#include "object/object.h"
-#include "object/objevnt.h"
-#include "object/team.h"
+#include "object/MCObjectSystem.h"
+#include "object/MCObjectEvent.h"
+#include "object/MCForces.h"
 #include "sound/soundsys.h"
 #include "terrain/MCTerrain.h"
 #include "terrain/MCTacticalMap.h"
 #include "terrain/MCTerrainTiles.h"
 #include "platform/MCRenderer.h"
+#include "object/MCObjectType.h"
+#include "object/MCObjectTypeManager.h"
+#include "object/MCWeaponShotInfo.h"
 
 namespace
 {
@@ -53,8 +56,8 @@ namespace
         int32_t cellC = 0;
         tileR = 0;
         tileC = 0;
-        GameMap->WorldToMapPos(object->Position, tileR, tileC, cellR, cellC);
-        return GameMap->Map[GameMap->Width * tileR + tileC];
+        GameMap()->WorldToMapPos(object->Position, tileR, tileC, cellR, cellC);
+        return GameMap()->Map[GameMap()->Width * tileR + tileC];
     }
 
     /// <summary>How many of the tile's nine cells are passable.</summary>
@@ -140,9 +143,9 @@ auto MCMiscTerrainObjectType::Init() -> void
     ForestEdgeShapes = nullptr;
 }
 
-auto MCMiscTerrainObjectType::CreateInstance() -> MCBaseObject*
+auto MCMiscTerrainObjectType::CreateInstance() -> std::unique_ptr<MCBaseObject>
 {
-    auto* newObject = new MCMiscTerrainObject;
+    auto newObject = std::make_unique<MCMiscTerrainObject>();
 
     if (newObject == nullptr)
     {
@@ -257,7 +260,7 @@ auto MCMiscTerrainObjectType::Init(MCFile* objFile, uint32_t fileSize) -> int32_
     }
 
     uint32_t size = edgesFile.FileSize();
-    ForestEdgeShapes = static_cast<uint8_t*>(MCObjectTypeManager::ObjectTypeCache.Allocate(size));
+    ForestEdgeShapes = static_cast<uint8_t*>(ObjectTypeManager()->TypeData.Allocate(size));
     size = edgesFile.FileSize();
     edgesFile.Read(ForestEdgeShapes, static_cast<int32_t>(size));
     MCRenderer::RegisterData(ForestEdgeShapes, size, MCDataKind::Shapes);
@@ -270,8 +273,8 @@ auto MCMiscTerrainObjectType::HandleCollision(MCGameObject* collidee, MCGameObje
     // A mech or vehicle running into a light wall knocks it down (250 points, the server's job in multiplayer).
     auto* object = static_cast<MCMiscTerrainObject*>(collidee);
 
-    if (object->TerrainObjectKind == MISC_LIGHT_WALL && BATTLEMECH <= collider->ObjectClass &&
-        collider->ObjectClass < ELEMENTAL)
+    if (object->TerrainObjectKind == MISC_LIGHT_WALL && MCObjectClass::BattleMech <= collider->ObjectClass &&
+        collider->ObjectClass < MCObjectClass::Elemental)
     {
         MCWeaponShotInfo shot;
         shot.Init(collider, -1, 250.0f, 0, 0.0f);
@@ -680,7 +683,7 @@ auto MCMiscTerrainObject::SetDamage(float newDamage) -> void
                     break;
             }
 
-            const int32_t area = GlobalMoveMap->CalcArea(tileR, tileC);
+            const int32_t area = GlobalMoveMap()->CalcArea(tileR, tileC);
 
             if (area < 0)
             {
@@ -688,7 +691,7 @@ auto MCMiscTerrainObject::SetDamage(float newDamage) -> void
             }
             else
             {
-                GlobalMoveMap->CloseArea(area);
+                GlobalMoveMap()->CloseArea(area);
             }
 
             SetAllCells(tile, 0);
@@ -760,7 +763,7 @@ auto MCMiscTerrainObject::Init(MCObjectType* objType) -> int32_t
 
     JustCreated = 1;
     CollisionsOn = 0;
-    ObjectClass = MISCTERRAINOBJECT;
+    ObjectClass = MCObjectClass::MiscTerrainObject;
     Damage = 0.0f;
     Alignment = 0;
     return 0;
@@ -862,7 +865,7 @@ auto MCMiscTerrainObject::HandleWeaponHit(MCWeaponShotInfo* shotInfo, int addMul
             if (FireObject == nullptr &&
                 (newDamage < static_cast<float>(static_cast<int32_t>(type->ForestDmgLevel)) || threshold <= newDamage))
             {
-                MCGameObject* fire = CreateObject(static_cast<int32_t>(type->ForestFireFX));
+                MCGameObject* fire = CreateObject(static_cast<int32_t>(type->ForestFireFX)).release();
 
                 if (fire != nullptr)
                 {

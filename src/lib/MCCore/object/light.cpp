@@ -10,14 +10,15 @@
 #include "main/main.h"
 #include "sprite/MCVfxAppearance.h"
 #include "terrain/MCTerrain.h"
+#include "object/MCObjectType.h"
 
 //---------------------------------------------------------------------------
 // LightType
 //---------------------------------------------------------------------------
 
-auto MCLightType::CreateInstance() -> MCBaseObject*
+auto MCLightType::CreateInstance() -> std::unique_ptr<MCBaseObject>
 {
-    auto* newLight = new MCLight;
+    auto newLight = std::make_unique<MCLight>();
 
     if (newLight == nullptr)
     {
@@ -211,7 +212,7 @@ auto MCLight::Init(MCObjectType* objType) -> int32_t
         return result;
     }
 
-    ObjectClass = LIGHT;
+    ObjectClass = MCObjectClass::Light;
     Finished = 0;
     return 0;
 }

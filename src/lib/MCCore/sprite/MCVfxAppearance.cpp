@@ -8,9 +8,9 @@
 #include "engine/MCVfxElement.h"
 #include "lib/MCFatal.h"
 #include "main/main.h"
-#include "object/gameobj.h"
+#include "object/MCBigGameObject.h"
 #include "object/tbldng.h"
-#include "object/team.h"
+#include "object/MCForces.h"
 #include "object/terrobj.h"
 #include "object/tree.h"
 #include "sprite/MCShape.h"
@@ -26,22 +26,22 @@ namespace
     /// </summary>
     auto PixelOffset(MCGameObject* obj, int32_t& offsetX, int32_t& offsetY) -> bool
     {
-        switch (static_cast<int32_t>(obj->ObjectClass))
+        switch (obj->ObjectClass)
         {
-            case TREE:
+            case MCObjectClass::Tree:
             {
                 offsetX = static_cast<MCTree*>(obj)->PixelOffsetX;
                 offsetY = static_cast<MCTree*>(obj)->PixelOffsetY;
                 return true;
             }
-            case TERRAINOBJECT:
-            case 0x17: // No class sets 0x17; the original reads the same offsets.
+            case MCObjectClass::TerrainObject:
+            case static_cast<MCObjectClass>(0x17): // No class sets 0x17; the original reads the same offsets.
             {
                 offsetX = static_cast<MCTerrainObject*>(obj)->PixelOffsetX;
                 offsetY = static_cast<MCTerrainObject*>(obj)->PixelOffsetY;
                 return true;
             }
-            case TREEBUILDING:
+            case MCObjectClass::TreeBuilding:
             {
                 offsetX = static_cast<MCTreeBuilding*>(obj)->PixelOffsetX;
                 offsetY = static_cast<MCTreeBuilding*>(obj)->PixelOffsetY;
@@ -125,7 +125,7 @@ auto MCVfxAppearance::RecalcBounds(MCCamera* cam) -> int
         y += static_cast<float>(offsetY) * scale;
 
         // Faithful: trees and tree buildings then take their bounds at full size.
-        if (Owner->ObjectClass == TREE || Owner->ObjectClass == TREEBUILDING)
+        if (Owner->ObjectClass == MCObjectClass::Tree || Owner->ObjectClass == MCObjectClass::TreeBuilding)
         {
             scale = 1.0f;
         }
@@ -224,7 +224,7 @@ auto MCVfxAppearance::Render(int32_t depthFixup) -> int32_t
 
     if (obj->Selected != 0)
     {
-        const int32_t homeAlignment = HomeTeam->Alignment;
+        const int32_t homeAlignment = HomeTeam()->Alignment;
 
         if (obj->GetAlignment() == homeAlignment || obj->GetAlignment() == 0 || static_cast<uint8_t>(obj->Status) == 2)
         {
@@ -378,7 +378,7 @@ auto MCVfxAppearance::DrawBars() -> void
 {
     // Only tree buildings get a damage bar here.
     MCGameObject* obj = Owner;
-    MCDrawDamageBar(this, GetAppearanceType(), obj->ObjectClass == TREEBUILDING ? obj : nullptr);
+    MCDrawDamageBar(this, GetAppearanceType(), obj->ObjectClass == MCObjectClass::TreeBuilding ? obj : nullptr);
 }
 
 auto MCDrawDamageBar(MCAppearance* appearance, MCAppearanceType* type, MCGameObject* obj) -> void

@@ -3,6 +3,7 @@
 #include "abl/MCAblModule.h"
 
 #include "color/MCPalette.h"
+#include "object/MCObjectQueue.h"
 
 // The scenario: one battle (mission\scenario.cpp). Scenario::init reads the scenario FIT and starts every game system
 // (palette, cameras, objects, sprites, terrain, ABL, teams, warriors, parts, objectives); Scenario::run is the
@@ -14,9 +15,7 @@ class MCPalette;
 class MCMechWarrior;
 class MCBaseObject;
 class MCGameObject;
-class MCObjectQueue;
 class MCTeam;
-class MCCollisionSystem;
 class MCTrainManager;
 class MCObjectMap;
 struct MCAblSymbol;
@@ -253,7 +252,7 @@ public:
     /// <summary>The areas for <see cref="ObjectInArea"/> (never filled in MCX.EXE: numAreas stays 0).</summary>
     MCScenarioArea* Areas = nullptr;
     /// <summary>The objects made at the start but not yet in play (created later by the script).</summary>
-    MCObjectQueue* ScenarioObjectList = nullptr;
+    std::unique_ptr<MCObjectQueue> ScenarioObjectList;
     /// <summary><c>NumObjectives</c> (at most 9).</summary>
     uint32_t NumObjectives = 0;
     /// <summary><c>Duration</c> from the game system block.</summary>
@@ -336,7 +335,6 @@ extern int CollisionSwitch;
 extern int32_t TonnageDivisor;
 /// <summary>Resource points per bonus unit (200).</summary>
 extern int32_t ResourcesPerTonDivided;
-extern MCCollisionSystem* CollisionSystem;
 /// <summary>Every mover by part id (0xe00 entries).</summary>
 extern MCBaseObject* MoverRoster[0xe00];
 /// <summary>Mission "MineLayThrottle" (50 when missing): a mine layer's top throttle while laying.</summary>
@@ -345,12 +343,9 @@ extern int32_t MineLayThrottle;
 extern int32_t MineSweepThrottle;
 /// <summary>Mission "MineWaitTime": the seconds a mine layer waits on a cell before laying.</summary>
 extern float MineWaitTime;
-/// <summary>The teams: [1] the clan team, [2] the allied team (set in <see cref="MCScenario::Init"/>).</summary>
-extern MCTeam* TeamTable[3];
 extern MCTrainManager* TrainManager;
 /// <summary>The scenario's frame (turn) counter.</summary>
 extern int32_t Turn;
-extern MCObjectMap* GameObjectMap;
 /// <summary>The <c>VisualRangeTable</c> of the game system file (256 entries).</summary>
 extern int32_t VisualRangeTable[256];
 /// <summary>Difficulty weapon percentages for the player (<c>PlayerWeapons</c>: easy, hard).</summary>

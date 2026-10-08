@@ -1,6 +1,6 @@
 #include "stdafx.h"
 #include "object/tree.h"
-#include "ai/move.h"
+#include "ai/MCMoveSystem.h"
 #include "appear/MCAppearanceType.h"
 #include "appear/MCAppearanceTypeList.h"
 #include "camera/MCCamera.h"
@@ -20,17 +20,20 @@
 #include "main/main.h"
 #include "network/multplyr.h"
 #include "object/bldng.h"
-#include "object/collsn.h"
+#include "object/MCCollisionSystem.h"
 #include "object/fire.h"
-#include "object/object.h"
-#include "object/objevnt.h"
-#include "object/team.h"
+#include "object/MCObjectSystem.h"
+#include "object/MCObjectEvent.h"
+#include "object/MCForces.h"
 #include "sound/soundsys.h"
 #include "sprite/MCVfxAppearance.h"
 #include "terrain/MCTerrain.h"
 #include "terrain/MCTacticalMap.h"
 #include "vfx/MCVfxFunctions.h"
 #include "platform/MCRenderer.h"
+#include "object/MCObjectType.h"
+#include "object/MCObjectTypeManager.h"
+#include "object/MCWeaponShotInfo.h"
 
 namespace
 {
@@ -65,7 +68,7 @@ namespace
         }
 
         const uint32_t size = shadowFile.FileSize();
-        shadow = static_cast<uint8_t*>(MCObjectTypeManager::ObjectTypeCache.Allocate(size));
+        shadow = static_cast<uint8_t*>(ObjectTypeManager()->TypeData.Allocate(size));
         shadowFile.Read(shadow, static_cast<int32_t>(size));
         MCRenderer::RegisterData(shadow, size, MCDataKind::Shapes);
         shadowFile.Close();
@@ -93,9 +96,9 @@ MCTreeType::MCTreeType()
     DestroyedShadow = nullptr;
 }
 
-auto MCTreeType::CreateInstance() -> MCBaseObject*
+auto MCTreeType::CreateInstance() -> std::unique_ptr<MCBaseObject>
 {
-    auto* newTree = new MCTree;
+    auto newTree = std::make_unique<MCTree>();
 
     if (newTree == nullptr)
     {
@@ -113,9 +116,9 @@ auto MCTreeType::CreateInstance() -> MCBaseObject*
 
 auto MCTreeType::Destroy() -> void
 {
-    MCObjectTypeManager::ObjectTypeCache.Free(NormalShadow);
+    ObjectTypeManager()->TypeData.Free(NormalShadow);
     NormalShadow = nullptr;
-    MCObjectTypeManager::ObjectTypeCache.Free(DestroyedShadow);
+    ObjectTypeManager()->TypeData.Free(DestroyedShadow);
     DestroyedShadow = nullptr;
 }
 
@@ -165,7 +168,8 @@ auto MCTreeType::Init(MCFile* objFile, uint32_t fileSize) -> int32_t
 auto MCTreeType::HandleCollision(MCGameObject* collidee, MCGameObject* collider) -> int
 {
     // A mover (not artillery or fire) knocks a standing tree over, away from itself.
-    if (MOVER <= collider->ObjectClass || collider->ObjectClass == ARTILLERY || collider->ObjectClass == FIRE)
+    if (MCObjectClass::Mover <= collider->ObjectClass || collider->ObjectClass == MCObjectClass::Artillery ||
+        collider->ObjectClass == MCObjectClass::Fire)
     {
         return 1;
     }
@@ -373,11 +377,11 @@ auto MCTree::Update() -> int32_t
     TileRow = VertexNumber / verticesBlockSide + (BlockNumber / MCTerrain::BlocksMapSide) * verticesBlockSide;
     TileWorldY = static_cast<float>(halfMap - TileRow) * MCTerrain::MetersPerVertex;
     const auto inBounds = [&]
-    { return TileRow < 0 || GameMap->Height <= TileRow || TileCol < 0 || GameMap->Width <= TileCol ? 0u : 1u; };
+    { return TileRow < 0 || GameMap()->Height <= TileRow || TileCol < 0 || GameMap()->Width <= TileCol ? 0u : 1u; };
     Assert(inBounds(), 0, " tree MapTile Out of Bounds ");
     Assert(inBounds(), 0, " Map Tile out of bounds ");
-    const MCMapTile& tile = GameMap->Map[GameMap->Width * TileRow + TileCol];
-    const int32_t elevationLevel = static_cast<int32_t>((tile.Cells >> 7) & 0x3f) + GameMap->BaseElevation;
+    const MCMapTile& tile = GameMap()->Map[GameMap()->Width * TileRow + TileCol];
+    const int32_t elevationLevel = static_cast<int32_t>((tile.Cells >> 7) & 0x3f) + GameMap()->BaseElevation;
     Appearance->Visible = 1;
     TileElevation = static_cast<float>(elevationLevel) * MCTerrain::MetersPerElevLevel;
 
@@ -388,7 +392,7 @@ auto MCTree::Update() -> int32_t
     const double dy = static_cast<double>(Appearance->UpperLeft.Y) - Appearance->LowerRight.Y;
     const auto radius = static_cast<float>(std::sqrt(dy * dy + dx * dx) / WorldUnitsPerMeter);
 
-    if (static_cast<float>(MCCollisionSystem::GridRadius) < radius)
+    if (static_cast<float>(CollisionSystem()->GridRadius()) < radius)
     {
         Fatal(static_cast<int32_t>(std::floor(static_cast<double>(radius))), " Object extent radius TOO large ");
     }
@@ -626,7 +630,7 @@ auto MCTree::Init(MCObjectType* objType) -> int32_t
         return result;
     }
 
-    ObjectClass = TREE;
+    ObjectClass = MCObjectClass::Tree;
     Burnt = 0;
     return 0;
 }
@@ -668,7 +672,7 @@ auto MCTree::HandleWeaponHit(MCWeaponShotInfo* shotInfo, int addMultiplayChunk) 
     {
         if (ObjType->ExplosionObject != -1)
         {
-            auto* fire = static_cast<MCFire*>(CreateObject(ObjType->ExplosionObject));
+            auto* fire = CreateObjectAs<MCFire>(ObjType->ExplosionObject).release();
 
             if (fire != nullptr)
             {

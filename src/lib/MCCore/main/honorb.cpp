@@ -27,7 +27,7 @@
 #include "main/logistics.h"
 #include "mission/mission.h"
 #include "mission/scenario.h"
-#include "object/objtype.h"
+#include "object/MCObjectType.h"
 #include "object/warrior.h"
 #include "platform/MCFileSystem.h"
 #include "platform/MCInput.h"
@@ -35,6 +35,7 @@
 #include "sound/soundsys.h"
 #include "sprite/MCSpriteManager.h"
 #include "terrain/MCTerrainTiles.h"
+#include "object/MCObjectTypeManager.h"
 
 char CampaignFile[20] = "campaign";
 char MissionName[80] = "MechCmdr1.fit";

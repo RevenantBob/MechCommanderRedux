@@ -7,7 +7,7 @@
 #include "lib/MCFrameOfRef.h"
 #include "lib/MCVector2D.h"
 #include "lib/MCDice.h"
-#include "object/gameobj.h"
+#include "object/MCBigGameObject.h"
 
 namespace
 {

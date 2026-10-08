@@ -1,8 +1,11 @@
 #pragma once
 
-#include "ai/move.h"
-#include "ai/tacordr.h"
-#include "object/gameobj.h"
+#include "ai/MCMoveSystem.h"
+#include "ai/MCTacticalOrder.h"
+#include "object/MCBigGameObject.h"
+#include "object/MCSortList.h"
+#include "object/MCWeaponFireChunk.h"
+#include "object/MCWeaponShotInfo.h"
 
 class MCAppearance;
 class MCControl;

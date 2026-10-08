@@ -1,8 +1,8 @@
 #include "stdafx.h"
 #include "object/smokmgr.h"
 #include "lib/MCFitIniFile.h"
-#include "object/object.h"
-#include "object/objtype.h"
+#include "object/MCObjectSystem.h"
+#include "object/MCObjectType.h"
 
 int32_t TotalSmokeSpheres = 0;
 int32_t TotalSmokeShapeSize = 0;
@@ -35,13 +35,13 @@ auto MCSmokeManager::Init(MCFitIniFile* scenarioFile) -> int32_t
     }
 
     // Preload the smoke types the game makes on its own.
-    ObjectTypeManager->Load(0xb, 1);
-    ObjectTypeManager->Load(0x1c2, 1);
-    ObjectTypeManager->Load(0x1c5, 1);
-    ObjectTypeManager->Load(0x28c, 1);
-    ObjectTypeManager->Load(0x293, 1);
-    ObjectTypeManager->Load(0x2bd, 1);
-    ObjectTypeManager->Load(0x296, 1);
+    ObjectTypeManager()->Load(0xb, 1);
+    ObjectTypeManager()->Load(0x1c2, 1);
+    ObjectTypeManager()->Load(0x1c5, 1);
+    ObjectTypeManager()->Load(0x28c, 1);
+    ObjectTypeManager()->Load(0x293, 1);
+    ObjectTypeManager()->Load(0x2bd, 1);
+    ObjectTypeManager()->Load(0x296, 1);
     NumFreeSpheres = TotalSmokeSpheres;
     return 0;
 }

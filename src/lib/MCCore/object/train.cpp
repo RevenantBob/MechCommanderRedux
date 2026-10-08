@@ -1,6 +1,6 @@
 #include "stdafx.h"
 #include "object/train.h"
-#include "ai/move.h"
+#include "ai/MCMoveSystem.h"
 #include "appear/MCAppearanceType.h"
 #include "appear/MCAppearanceTypeList.h"
 #include "camera/MCCamera.h"
@@ -21,17 +21,19 @@
 #include "mission/scenario.h"
 #include "network/multplyr.h"
 #include "object/bldng.h"
-#include "object/collsn.h"
+#include "object/MCCollisionSystem.h"
 #include "object/explode.h"
 #include "object/mech.h"
-#include "object/object.h"
-#include "object/objque.h"
-#include "object/team.h"
+#include "object/MCObjectSystem.h"
+#include "object/MCObjectQueue.h"
+#include "object/MCForces.h"
 #include "sound/soundsys.h"
 #include "sprite/MCGVAppearance.h"
 #include "terrain/MCTerrain.h"
 #include "terrain/MCTacticalMap.h"
 #include "vfx/MCVfxFunctions.h"
+#include "object/MCObjectType.h"
+#include "object/MCWeaponShotInfo.h"
 
 namespace
 {
@@ -67,10 +69,10 @@ namespace
         int32_t tileC = 0;
         int32_t cellR = 0;
         int32_t cellC = 0;
-        GameMap->WorldToMapPos(car->GetPosition(), tileR, tileC, cellR, cellC);
+        GameMap()->WorldToMapPos(car->GetPosition(), tileR, tileC, cellR, cellC);
         const auto lock = [&]
         {
-            MCMapTile& tile = GameMap->Map[GameMap->Width * tileR + tileC];
+            MCMapTile& tile = GameMap()->Map[GameMap()->Width * tileR + tileC];
             const auto shift = static_cast<uint32_t>(cellC + cellR * 3);
             tile.Overlay = (locked << ((shift + 0xf) & 0x1f)) | (~(0x8000u << (shift & 0x1f)) & tile.Overlay);
         };
@@ -119,20 +121,6 @@ namespace
                 lock();
             }
         }
-    }
-
-    /// <summary>The object list named <paramref name="listName"/>, or null.</summary>
-    MCObjectQueueNode* FindObjectList(const char* listName)
-    {
-        for (MCObjectQueueNode* list = ObjectList->Head; list != nullptr; list = list->Next)
-        {
-            if (list->operator==(listName) != 0)
-            {
-                return list;
-            }
-        }
-
-        return nullptr;
     }
 } // namespace
 
@@ -331,7 +319,7 @@ auto MCTrain::Update() -> void
 
 auto MCTrain::AddCar(MCTrainCar* car) -> int32_t
 {
-    if (car->ObjectClass != TRAINCAR)
+    if (car->ObjectClass != MCObjectClass::TrainCar)
     {
         return static_cast<int32_t>(0xdefc0005);
     }
@@ -553,9 +541,9 @@ MCTrainCarType::MCTrainCarType()
     NameId = 0;
 }
 
-auto MCTrainCarType::CreateInstance() -> MCBaseObject*
+auto MCTrainCarType::CreateInstance() -> std::unique_ptr<MCBaseObject>
 {
-    auto* newCar = new MCTrainCar;
+    auto newCar = std::make_unique<MCTrainCar>();
 
     if (newCar == nullptr)
     {
@@ -666,7 +654,7 @@ auto MCTrainCarType::HandleCollision(MCGameObject* collidee, MCGameObject* colli
     if (car->Derailed == 1)
     {
         // A derailed car is only hurt by mechs, vehicles and elementals.
-        if (collider->ObjectClass < BATTLEMECH || ELEMENTAL < collider->ObjectClass)
+        if (collider->ObjectClass < MCObjectClass::BattleMech || MCObjectClass::Elemental < collider->ObjectClass)
         {
             return 0;
         }
@@ -683,9 +671,9 @@ auto MCTrainCarType::HandleCollision(MCGameObject* collidee, MCGameObject* colli
 
     switch (collider->ObjectClass)
     {
-        case BATTLEMECH:
-        case GROUNDVEHICLE:
-        case ELEMENTAL:
+        case MCObjectClass::BattleMech:
+        case MCObjectClass::GroundVehicle:
+        case MCObjectClass::Elemental:
         {
             const int32_t hitLocation = collider->CalcHitLocation(car, -1, 1, 0);
             const auto angle = static_cast<float>(collider->RelFacingTo(car->GetPosition(), -1));
@@ -696,8 +684,8 @@ auto MCTrainCarType::HandleCollision(MCGameObject* collidee, MCGameObject* colli
             return 0;
         }
 
-        case BUILDING:
-        case TREEBUILDING:
+        case MCObjectClass::Building:
+        case MCObjectClass::TreeBuilding:
         {
             train->Speed = 0.0f;
             MCWeaponShotInfo shot;
@@ -758,7 +746,7 @@ auto MCTrainCar::HandleStaticCollision() -> void
     GetBlockAndVertexNumber(blockNumber, vertexNumber);
     char listName[12];
     std::sprintf(listName, "TBlk%d", blockNumber);
-    MCObjectQueueNode* list = FindObjectList(listName);
+    MCObjectList* list = ObjectList()->FindList(listName);
 
     // Port fix: the original reads the list's objects without checking that the block has a list.
     if (list == nullptr)
@@ -767,9 +755,9 @@ auto MCTrainCar::HandleStaticCollision() -> void
     }
 
     // The terrain objects of its own block, on its own vertex.
-    MCBaseObject* object = list->Head;
-
-    while (object != nullptr)
+    // Port fix (OB-015): every object is checked; the original only stepped to the next one after an
+    // object with a type, so one without hung the game.
+    for (MCBaseObject* object : *list)
     {
         auto* other = static_cast<MCGameObject*>(object);
 
@@ -780,13 +768,13 @@ auto MCTrainCar::HandleStaticCollision() -> void
 
             switch (other->ObjectClass)
             {
-                case BUILDING:
-                case TREE:
-                case TERRAINOBJECT:
-                case TREEBUILDING:
+                case MCObjectClass::Building:
+                case MCObjectClass::Tree:
+                case MCObjectClass::TerrainObject:
+                case MCObjectClass::TreeBuilding:
                     other->GetBlockAndVertexNumber(otherBlock, otherVertex);
                     break;
-                case MISCTERRAINOBJECT:
+                case MCObjectClass::MiscTerrainObject:
                     // Original behaviour (OB-022): walls, bridges and forests read the train car's own vertex, so they
                     // always match.
                     GetBlockAndVertexNumber(otherBlock, otherVertex);
@@ -797,13 +785,9 @@ auto MCTrainCar::HandleStaticCollision() -> void
 
             if (vertexNumber == otherVertex)
             {
-                CollisionSystem->DetectStaticCollision(this, other);
+                CollisionSystem()->DetectStaticCollision(this, other);
             }
         }
-
-        // Port fix (OB-015): the original only steps to the next object after one with a type, so an object
-        // without one hangs the game here.
-        object = object->Next;
     }
 }
 
@@ -816,7 +800,7 @@ auto MCTrainCar::Init(MCObjectType* objType) -> int32_t
         return result;
     }
 
-    ObjectClass = TRAINCAR;
+    ObjectClass = MCObjectClass::TrainCar;
 
     if (objType != nullptr)
     {
@@ -979,12 +963,12 @@ auto MCTrainCar::Update() -> int32_t
         int32_t tileC = 0;
         int32_t cellR = 0;
         int32_t cellC = 0;
-        GameMap->WorldToMapPos(GetPosition(), tileR, tileC, cellR, cellC);
-        OnMap = tileR < 0 || GameMap->Height <= tileR || tileC < 0 || GameMap->Width <= tileC ? 0 : 1;
+        GameMap()->WorldToMapPos(GetPosition(), tileR, tileC, cellR, cellC);
+        OnMap = tileR < 0 || GameMap()->Height <= tileR || tileC < 0 || GameMap()->Width <= tileC ? 0 : 1;
 
         if (OnMap != 0)
         {
-            const uint32_t overlayType = GameMap->Map[GameMap->Width * tileR + tileC].Overlay & 0x7f;
+            const uint32_t overlayType = GameMap()->Map[GameMap()->Width * tileR + tileC].Overlay & 0x7f;
 
             if (overlayType == 0x38 || overlayType == 0x3a)
             {
@@ -1038,7 +1022,7 @@ auto MCTrainCar::Render() -> void
             Appearance->Update();
         }
 
-        const int32_t contactType = GetContactType(HomeTeam->Id);
+        const int32_t contactType = GetContactType(HomeTeam()->Id);
 
         if (contactType == 2)
         {
@@ -1231,7 +1215,7 @@ auto MCTrainCar::Derail(float angle) -> void
     {
         const int32_t tileR = objectPosition->TileR;
         const int32_t tileC = objectPosition->TileC;
-        const MCMapTile& tile = GameMap->Map[GameMap->Width * tileR + tileC];
+        const MCMapTile& tile = GameMap()->Map[GameMap()->Width * tileR + tileC];
 
         if ((tile.Cells & 0x7f) == 0x2b)
         {
@@ -1251,10 +1235,10 @@ auto MCTrainCar::Derail(float angle) -> void
                                     ((tileR - vbs * (tileR / vbs)) - tileC / vbs) * vbs) *
                                        8 +
                                    0x1000;
-            auto* hit = static_cast<MCGameObject*>(ObjectList->FindObjectFromPart(partId));
+            auto* hit = static_cast<MCGameObject*>(ObjectList()->FindObjectFromPart(partId));
 
             // Port fix: the original reads the object's class without checking that one was found.
-            if (hit != nullptr && hit->ObjectClass == MISCTERRAINOBJECT)
+            if (hit != nullptr && hit->ObjectClass == MCObjectClass::MiscTerrainObject)
             {
                 MCWeaponShotInfo shot;
                 shot.Init(nullptr, 0, Train->GetTotalTonnage() * 0.1f + 0.5f, 0, 0.0f);
@@ -1286,10 +1270,10 @@ auto MCTrainCar::MineCheck() -> void
     int32_t tileC = 0;
     int32_t cellR = 0;
     int32_t cellC = 0;
-    GameMap->WorldToMapPos(GetPosition(), tileR, tileC, cellR, cellC);
+    GameMap()->WorldToMapPos(GetPosition(), tileR, tileC, cellR, cellC);
     // Each side's mines only go off under the other side.
-    const uint32_t mine = Alignment == -1 || Alignment == 0 ? GameMap->GetInnerSphereMine(tileR, tileC, cellR, cellC)
-                                                            : GameMap->GetClanMine(tileR, tileC, cellR, cellC);
+    const uint32_t mine = Alignment == -1 || Alignment == 0 ? GameMap()->GetInnerSphereMine(tileR, tileC, cellR, cellC)
+                                                            : GameMap()->GetClanMine(tileR, tileC, cellR, cellC);
 
     if (mine == 0)
     {
@@ -1302,7 +1286,7 @@ auto MCTrainCar::MineCheck() -> void
     MCWeaponShotInfo shot;
     shot.Init(nullptr, -2, MineBaseDamage, hitLocation, 0.0f);
     HandleWeaponHit(&shot, MPlayer != nullptr ? 1 : 0);
-    MCMapTile& tile = GameMap->Map[GameMap->Width * tileR + tileC];
+    MCMapTile& tile = GameMap()->Map[GameMap()->Width * tileR + tileC];
 
     if (GetAlignment() == -1 || GetAlignment() == 0)
     {
@@ -1466,15 +1450,15 @@ auto MCTrainCar::RelativePosition(float angle, float distance, uint32_t flags) -
         int32_t tileC;
         int32_t cellR;
         int32_t cellC;
-        GameMap->WorldToMapPos(point, tileR, tileC, cellR, cellC);
+        GameMap()->WorldToMapPos(point, tileR, tileC, cellR, cellC);
 
         // Port fix: the walk can leave the map, where the original reads outside it. Off the map is impassable.
-        if (!GameMap->OnMap(tileR, tileC))
+        if (!GameMap()->OnMap(tileR, tileC))
         {
             return 0u;
         }
 
-        return GameMap->Map[GameMap->Width * tileR + tileC].GetCellPassable(cellR, cellC);
+        return GameMap()->Map[GameMap()->Width * tileR + tileC].GetCellPassable(cellR, cellC);
     };
 
     uint32_t passable = cellPassable();
@@ -1508,7 +1492,7 @@ auto MCTrainCar::RelativePosition(float angle, float distance, uint32_t flags) -
     MCVector3D result;
     result.X = previous.X;
     result.Y = previous.Y;
-    result.Z = GameMap->GetTerrainElevation(ground);
+    result.Z = GameMap()->GetTerrainElevation(ground);
     return result;
 }
 

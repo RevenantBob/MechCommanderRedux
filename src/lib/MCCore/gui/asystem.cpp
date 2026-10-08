@@ -35,7 +35,7 @@
 #include "mission/mission.h"
 #include "mission/scenario.h"
 #include "network/multplyr.h"
-#include "object/team.h"
+#include "object/MCForces.h"
 #include "sound/soundsys.h"
 #include "terrain/MCTerrain.h"
 #include "terrain/MCTacticalMap.h"

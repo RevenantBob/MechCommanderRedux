@@ -1,6 +1,6 @@
 #pragma once
 
-#include "object/control.h"
+#include "object/MCControl.h"
 
 /// <summary>An elemental's control requests for one frame.</summary>
 /// <remarks>Original source: <c>object\elemctrl.cpp</c>, <c>object\elemctrl.h</c>; 0x14 bytes.</remarks>

@@ -135,10 +135,37 @@
     <ClCompile Include="abl\MCScrollingTextWindow.cpp">
       <Filter>abl</Filter>
     </ClCompile>
-    <ClCompile Include="ai\move.cpp">
+    <ClCompile Include="ai\MCGlobalMap.cpp">
       <Filter>ai</Filter>
     </ClCompile>
-    <ClCompile Include="ai\tacordr.cpp">
+    <ClCompile Include="ai\MCMoveChunk.cpp">
+      <Filter>ai</Filter>
+    </ClCompile>
+    <ClCompile Include="ai\MCMoveGeometry.cpp">
+      <Filter>ai</Filter>
+    </ClCompile>
+    <ClCompile Include="ai\MCMoveMap.cpp">
+      <Filter>ai</Filter>
+    </ClCompile>
+    <ClCompile Include="ai\MCMovePath.cpp">
+      <Filter>ai</Filter>
+    </ClCompile>
+    <ClCompile Include="ai\MCMovePathManager.cpp">
+      <Filter>ai</Filter>
+    </ClCompile>
+    <ClCompile Include="ai\MCMoveSystem.cpp">
+      <Filter>ai</Filter>
+    </ClCompile>
+    <ClCompile Include="ai\MCObjectMap.cpp">
+      <Filter>ai</Filter>
+    </ClCompile>
+    <ClCompile Include="ai\MCRefit.cpp">
+      <Filter>ai</Filter>
+    </ClCompile>
+    <ClCompile Include="ai\MCScenarioMap.cpp">
+      <Filter>ai</Filter>
+    </ClCompile>
+    <ClCompile Include="ai\MCTacticalOrder.cpp">
       <Filter>ai</Filter>
     </ClCompile>
     <ClCompile Include="appear\MCAppearance.cpp">
@@ -406,9 +433,6 @@
     <ClCompile Include="object\artlry.cpp">
       <Filter>object</Filter>
     </ClCompile>
-    <ClCompile Include="object\baseobj.cpp">
-      <Filter>object</Filter>
-    </ClCompile>
     <ClCompile Include="object\bldng.cpp">
       <Filter>object</Filter>
     </ClCompile>
@@ -418,25 +442,7 @@
     <ClCompile Include="object\bullet.cpp">
       <Filter>object</Filter>
     </ClCompile>
-    <ClCompile Include="object\cmponent.cpp">
-      <Filter>object</Filter>
-    </ClCompile>
-    <ClCompile Include="object\collsn.cpp">
-      <Filter>object</Filter>
-    </ClCompile>
-    <ClCompile Include="object\comndr.cpp">
-      <Filter>object</Filter>
-    </ClCompile>
-    <ClCompile Include="object\contact.cpp">
-      <Filter>object</Filter>
-    </ClCompile>
-    <ClCompile Include="object\control.cpp">
-      <Filter>object</Filter>
-    </ClCompile>
     <ClCompile Include="object\debris.cpp">
-      <Filter>object</Filter>
-    </ClCompile>
-    <ClCompile Include="object\dyn.cpp">
       <Filter>object</Filter>
     </ClCompile>
     <ClCompile Include="object\elemctrl.cpp">
@@ -454,13 +460,7 @@
     <ClCompile Include="object\fire.cpp">
       <Filter>object</Filter>
     </ClCompile>
-    <ClCompile Include="object\gameobj.cpp">
-      <Filter>object</Filter>
-    </ClCompile>
     <ClCompile Include="object\gate.cpp">
-      <Filter>object</Filter>
-    </ClCompile>
-    <ClCompile Include="object\group.cpp">
       <Filter>object</Filter>
     </ClCompile>
     <ClCompile Include="object\gvehctrl.cpp">
@@ -481,6 +481,90 @@
     <ClCompile Include="object\light.cpp">
       <Filter>object</Filter>
     </ClCompile>
+    <ClCompile Include="object\MCBaseObject.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
+    <ClCompile Include="object\MCBigGameObject.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
+    <ClCompile Include="object\MCCollisionGrid.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
+    <ClCompile Include="object\MCCollisionSystem.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
+    <ClCompile Include="object\MCCommander.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
+    <ClCompile Include="object\MCContactSystem.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
+    <ClCompile Include="object\MCControl.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
+    <ClCompile Include="object\MCDynamics.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
+    <ClCompile Include="object\MCForces.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
+    <ClCompile Include="object\MCGameObject.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
+    <ClCompile Include="object\MCMasterComponent.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
+    <ClCompile Include="object\MCMoverGroup.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
+    <ClCompile Include="object\MCObjectBlockManager.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
+    <ClCompile Include="object\MCObjectEvent.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
+    <ClCompile Include="object\MCObjectList.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
+    <ClCompile Include="object\MCObjectQueue.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
+    <ClCompile Include="object\MCObjectSystem.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
+    <ClCompile Include="object\MCObjectType.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
+    <ClCompile Include="object\MCObjectTypeManager.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
+    <ClCompile Include="object\MCObjectWatcher.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
+    <ClCompile Include="object\MCPotentialContact.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
+    <ClCompile Include="object\MCSensorSystem.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
+    <ClCompile Include="object\MCSortList.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
+    <ClCompile Include="object\MCTeam.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
+    <ClCompile Include="object\MCWeaponChunkDebug.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
+    <ClCompile Include="object\MCWeaponFireChunk.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
+    <ClCompile Include="object\MCWeaponHitChunk.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
+    <ClCompile Include="object\MCWeaponShotInfo.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
     <ClCompile Include="object\mech.cpp">
       <Filter>object</Filter>
     </ClCompile>
@@ -496,24 +580,6 @@
     <ClCompile Include="object\netctrl.cpp">
       <Filter>object</Filter>
     </ClCompile>
-    <ClCompile Include="object\objblck.cpp">
-      <Filter>object</Filter>
-    </ClCompile>
-    <ClCompile Include="object\object.cpp">
-      <Filter>object</Filter>
-    </ClCompile>
-    <ClCompile Include="object\objevnt.cpp">
-      <Filter>object</Filter>
-    </ClCompile>
-    <ClCompile Include="object\objque.cpp">
-      <Filter>object</Filter>
-    </ClCompile>
-    <ClCompile Include="object\objtype.cpp">
-      <Filter>object</Filter>
-    </ClCompile>
-    <ClCompile Include="object\objwtch.cpp">
-      <Filter>object</Filter>
-    </ClCompile>
     <ClCompile Include="object\plyrctrl.cpp">
       <Filter>object</Filter>
     </ClCompile>
@@ -526,13 +592,7 @@
     <ClCompile Include="object\smokmgr.cpp">
       <Filter>object</Filter>
     </ClCompile>
-    <ClCompile Include="object\sortlist.cpp">
-      <Filter>object</Filter>
-    </ClCompile>
     <ClCompile Include="object\tbldng.cpp">
-      <Filter>object</Filter>
-    </ClCompile>
-    <ClCompile Include="object\team.cpp">
       <Filter>object</Filter>
     </ClCompile>
     <ClCompile Include="object\terrobj.cpp">
@@ -811,10 +871,37 @@
     <ClInclude Include="abl\MCScrollingTextWindow.h">
       <Filter>abl</Filter>
     </ClInclude>
-    <ClInclude Include="ai\move.h">
+    <ClInclude Include="ai\MCGlobalMap.h">
       <Filter>ai</Filter>
     </ClInclude>
-    <ClInclude Include="ai\tacordr.h">
+    <ClInclude Include="ai\MCMoveChunk.h">
+      <Filter>ai</Filter>
+    </ClInclude>
+    <ClInclude Include="ai\MCMoveGeometry.h">
+      <Filter>ai</Filter>
+    </ClInclude>
+    <ClInclude Include="ai\MCMoveMap.h">
+      <Filter>ai</Filter>
+    </ClInclude>
+    <ClInclude Include="ai\MCMovePath.h">
+      <Filter>ai</Filter>
+    </ClInclude>
+    <ClInclude Include="ai\MCMovePathManager.h">
+      <Filter>ai</Filter>
+    </ClInclude>
+    <ClInclude Include="ai\MCMoveSystem.h">
+      <Filter>ai</Filter>
+    </ClInclude>
+    <ClInclude Include="ai\MCObjectMap.h">
+      <Filter>ai</Filter>
+    </ClInclude>
+    <ClInclude Include="ai\MCRefit.h">
+      <Filter>ai</Filter>
+    </ClInclude>
+    <ClInclude Include="ai\MCScenarioMap.h">
+      <Filter>ai</Filter>
+    </ClInclude>
+    <ClInclude Include="ai\MCTacticalOrder.h">
       <Filter>ai</Filter>
     </ClInclude>
     <ClInclude Include="appear\MCAppearance.h">
@@ -1107,9 +1194,6 @@
     <ClInclude Include="object\artlry.h">
       <Filter>object</Filter>
     </ClInclude>
-    <ClInclude Include="object\baseobj.h">
-      <Filter>object</Filter>
-    </ClInclude>
     <ClInclude Include="object\bldng.h">
       <Filter>object</Filter>
     </ClInclude>
@@ -1119,25 +1203,7 @@
     <ClInclude Include="object\bullet.h">
       <Filter>object</Filter>
     </ClInclude>
-    <ClInclude Include="object\cmponent.h">
-      <Filter>object</Filter>
-    </ClInclude>
-    <ClInclude Include="object\collsn.h">
-      <Filter>object</Filter>
-    </ClInclude>
-    <ClInclude Include="object\comndr.h">
-      <Filter>object</Filter>
-    </ClInclude>
-    <ClInclude Include="object\contact.h">
-      <Filter>object</Filter>
-    </ClInclude>
-    <ClInclude Include="object\control.h">
-      <Filter>object</Filter>
-    </ClInclude>
     <ClInclude Include="object\debris.h">
-      <Filter>object</Filter>
-    </ClInclude>
-    <ClInclude Include="object\dyn.h">
       <Filter>object</Filter>
     </ClInclude>
     <ClInclude Include="object\elemctrl.h">
@@ -1155,13 +1221,7 @@
     <ClInclude Include="object\fire.h">
       <Filter>object</Filter>
     </ClInclude>
-    <ClInclude Include="object\gameobj.h">
-      <Filter>object</Filter>
-    </ClInclude>
     <ClInclude Include="object\gate.h">
-      <Filter>object</Filter>
-    </ClInclude>
-    <ClInclude Include="object\group.h">
       <Filter>object</Filter>
     </ClInclude>
     <ClInclude Include="object\gvehctrl.h">
@@ -1182,6 +1242,93 @@
     <ClInclude Include="object\light.h">
       <Filter>object</Filter>
     </ClInclude>
+    <ClInclude Include="object\MCBaseObject.h">
+      <Filter>object</Filter>
+    </ClInclude>
+    <ClInclude Include="object\MCBigGameObject.h">
+      <Filter>object</Filter>
+    </ClInclude>
+    <ClInclude Include="object\MCCollisionGrid.h">
+      <Filter>object</Filter>
+    </ClInclude>
+    <ClInclude Include="object\MCCollisionSystem.h">
+      <Filter>object</Filter>
+    </ClInclude>
+    <ClInclude Include="object\MCCommander.h">
+      <Filter>object</Filter>
+    </ClInclude>
+    <ClInclude Include="object\MCContactSystem.h">
+      <Filter>object</Filter>
+    </ClInclude>
+    <ClInclude Include="object\MCControl.h">
+      <Filter>object</Filter>
+    </ClInclude>
+    <ClInclude Include="object\MCDynamics.h">
+      <Filter>object</Filter>
+    </ClInclude>
+    <ClInclude Include="object\MCForces.h">
+      <Filter>object</Filter>
+    </ClInclude>
+    <ClInclude Include="object\MCGameObject.h">
+      <Filter>object</Filter>
+    </ClInclude>
+    <ClInclude Include="object\MCMasterComponent.h">
+      <Filter>object</Filter>
+    </ClInclude>
+    <ClInclude Include="object\MCMoverGroup.h">
+      <Filter>object</Filter>
+    </ClInclude>
+    <ClInclude Include="object\MCObjectBlockManager.h">
+      <Filter>object</Filter>
+    </ClInclude>
+    <ClInclude Include="object\MCObjectEvent.h">
+      <Filter>object</Filter>
+    </ClInclude>
+    <ClInclude Include="object\MCObjectList.h">
+      <Filter>object</Filter>
+    </ClInclude>
+    <ClInclude Include="object\MCObjectQueue.h">
+      <Filter>object</Filter>
+    </ClInclude>
+    <ClInclude Include="object\MCObjectSystem.h">
+      <Filter>object</Filter>
+    </ClInclude>
+    <ClInclude Include="object\MCObjectType.h">
+      <Filter>object</Filter>
+    </ClInclude>
+    <ClInclude Include="object\MCObjectTypeManager.h">
+      <Filter>object</Filter>
+    </ClInclude>
+    <ClInclude Include="object\MCObjectWatcher.h">
+      <Filter>object</Filter>
+    </ClInclude>
+    <ClInclude Include="object\MCPotentialContact.h">
+      <Filter>object</Filter>
+    </ClInclude>
+    <ClInclude Include="object\MCSalvageItem.h">
+      <Filter>object</Filter>
+    </ClInclude>
+    <ClInclude Include="object\MCSensorSystem.h">
+      <Filter>object</Filter>
+    </ClInclude>
+    <ClInclude Include="object\MCSortList.h">
+      <Filter>object</Filter>
+    </ClInclude>
+    <ClInclude Include="object\MCTeam.h">
+      <Filter>object</Filter>
+    </ClInclude>
+    <ClInclude Include="object\MCWeaponChunkDebug.h">
+      <Filter>object</Filter>
+    </ClInclude>
+    <ClInclude Include="object\MCWeaponFireChunk.h">
+      <Filter>object</Filter>
+    </ClInclude>
+    <ClInclude Include="object\MCWeaponHitChunk.h">
+      <Filter>object</Filter>
+    </ClInclude>
+    <ClInclude Include="object\MCWeaponShotInfo.h">
+      <Filter>object</Filter>
+    </ClInclude>
     <ClInclude Include="object\mech.h">
       <Filter>object</Filter>
     </ClInclude>
@@ -1197,24 +1344,6 @@
     <ClInclude Include="object\netctrl.h">
       <Filter>object</Filter>
     </ClInclude>
-    <ClInclude Include="object\objblck.h">
-      <Filter>object</Filter>
-    </ClInclude>
-    <ClInclude Include="object\object.h">
-      <Filter>object</Filter>
-    </ClInclude>
-    <ClInclude Include="object\objevnt.h">
-      <Filter>object</Filter>
-    </ClInclude>
-    <ClInclude Include="object\objque.h">
-      <Filter>object</Filter>
-    </ClInclude>
-    <ClInclude Include="object\objtype.h">
-      <Filter>object</Filter>
-    </ClInclude>
-    <ClInclude Include="object\objwtch.h">
-      <Filter>object</Filter>
-    </ClInclude>
     <ClInclude Include="object\plyrctrl.h">
       <Filter>object</Filter>
     </ClInclude>
@@ -1227,13 +1356,7 @@
     <ClInclude Include="object\smokmgr.h">
       <Filter>object</Filter>
     </ClInclude>
-    <ClInclude Include="object\sortlist.h">
-      <Filter>object</Filter>
-    </ClInclude>
     <ClInclude Include="object\tbldng.h">
-      <Filter>object</Filter>
-    </ClInclude>
-    <ClInclude Include="object\team.h">
       <Filter>object</Filter>
     </ClInclude>
     <ClInclude Include="object\terrobj.h">

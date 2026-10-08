@@ -18,14 +18,16 @@
 #include "network/multplyr.h"
 #include "object/explode.h"
 #include "object/mech.h"
-#include "object/object.h"
-#include "object/objque.h"
+#include "object/MCObjectSystem.h"
+#include "object/MCObjectQueue.h"
 #include "object/smoke.h"
 #include "sound/soundsys.h"
 #include "sprite/MCArmAppearance.h"
 #include "terrain/MCTerrain.h"
 #include "terrain/MCTacticalMap.h"
 #include "vfx/MCVfx.h"
+#include "object/MCObjectType.h"
+#include "object/MCWeaponShotInfo.h"
 
 namespace
 {
@@ -81,9 +83,9 @@ MCProjectileLaserType::MCProjectileLaserType()
     }
 }
 
-auto MCProjectileLaserType::CreateInstance() -> MCBaseObject*
+auto MCProjectileLaserType::CreateInstance() -> std::unique_ptr<MCBaseObject>
 {
-    auto* newLaser = new MCProjectileLaser;
+    auto newLaser = std::make_unique<MCProjectileLaser>();
 
     if (newLaser == nullptr)
     {
@@ -207,8 +209,8 @@ auto MCProjectileLaserType::Init(MCFile* objFile, uint32_t fileSize) -> int32_t
     }
 
     result = MCObjectType::Init(&laserFile);
-    ObjectTypeManager->Load(static_cast<int32_t>(ProjectileHitEffect), 1);
-    ObjectTypeManager->Load(static_cast<int32_t>(ProjectileMissEffect), 1);
+    ObjectTypeManager()->Load(static_cast<int32_t>(ProjectileHitEffect), 1);
+    ObjectTypeManager()->Load(static_cast<int32_t>(ProjectileMissEffect), 1);
     return result;
 }
 
@@ -321,7 +323,8 @@ auto MCProjectileLaser::Update() -> int32_t
         if (Target != nullptr)
         {
             // Port fix (OB-017): the original aimed at the target's hot spot numbered like the owner's (ownerHotSpot).
-            const uint32_t hotSpot = Target->ObjectClass == TURRET ? 0xffffffff : static_cast<uint32_t>(TargetHotSpot);
+            const uint32_t hotSpot =
+                Target->ObjectClass == MCObjectClass::Turret ? 0xffffffff : static_cast<uint32_t>(TargetHotSpot);
             SetTargetPosition(Target->GetPositionFromHS(hotSpot));
         }
 
@@ -370,7 +373,7 @@ auto MCProjectileLaser::Update() -> int32_t
     DrawRotation = -150;
 
     // Port fix: the original reads the owner's class without checking it for null.
-    if (shooter != nullptr && shooter->ObjectClass == BATTLEMECH)
+    if (shooter != nullptr && shooter->ObjectClass == MCObjectClass::BattleMech)
     {
         MCFrameOfRef ownerFrame = shooter->GetFrame();
         const float cosFacing = UnitX.Y * ownerFrame.I.Y + UnitX.X * ownerFrame.I.X + UnitX.Z * ownerFrame.I.Z;
@@ -390,7 +393,8 @@ auto MCProjectileLaser::Update() -> int32_t
     if (Target != nullptr)
     {
         // Port fix (OB-017): aim at the hot spot the hit effect plays at (the original used ownerHotSpot).
-        const uint32_t hotSpot = Target->ObjectClass == TURRET ? 0xffffffff : static_cast<uint32_t>(TargetHotSpot);
+        const uint32_t hotSpot =
+            Target->ObjectClass == MCObjectClass::Turret ? 0xffffffff : static_cast<uint32_t>(TargetHotSpot);
         SetTargetPosition(Target->GetPositionFromHS(hotSpot));
     }
 
@@ -479,7 +483,8 @@ auto MCProjectileLaser::Update() -> int32_t
         if (Target != nullptr)
         {
             // Port fix (OB-017): see above.
-            const uint32_t hotSpot = Target->ObjectClass == TURRET ? 0xffffffff : static_cast<uint32_t>(TargetHotSpot);
+            const uint32_t hotSpot =
+                Target->ObjectClass == MCObjectClass::Turret ? 0xffffffff : static_cast<uint32_t>(TargetHotSpot);
             SetTargetPosition(Target->GetPositionFromHS(hotSpot));
         }
 
@@ -551,7 +556,7 @@ auto MCProjectileLaser::Update() -> int32_t
         }
     }
 
-    MCGameObject* effect = CreateObject(
+    std::unique_ptr<MCGameObject> effect = CreateObject(
         static_cast<int32_t>(Target == nullptr ? laserType->ProjectileMissEffect : laserType->ProjectileHitEffect));
 
     if (effect == nullptr)
@@ -561,7 +566,8 @@ auto MCProjectileLaser::Update() -> int32_t
 
     if (Target != nullptr)
     {
-        const uint32_t hotSpot = Target->ObjectClass == TURRET ? 0xffffffff : static_cast<uint32_t>(TargetHotSpot);
+        const uint32_t hotSpot =
+            Target->ObjectClass == MCObjectClass::Turret ? 0xffffffff : static_cast<uint32_t>(TargetHotSpot);
         MCVector3D hitPos = Target->GetPositionFromHS(hotSpot);
         effect->SetPosition(hitPos);
     }
@@ -570,10 +576,7 @@ auto MCProjectileLaser::Update() -> int32_t
         effect->SetPosition(*TargetPosition);
     }
 
-    if (ObjectList->Head != nullptr)
-    {
-        ObjectList->Head->AddNode(effect);
-    }
+    AddToDefaultList(std::move(effect));
 
     // A miss leaves a crater and sets off a live mine where it lands.
     if (Target == nullptr && TargetPosition != nullptr)
@@ -584,15 +587,15 @@ auto MCProjectileLaser::Update() -> int32_t
         int32_t tileC = 0;
         int32_t cellR = 0;
         int32_t cellC = 0;
-        GameMap->WorldToMapPos(*TargetPosition, tileR, tileC, cellR, cellC);
+        GameMap()->WorldToMapPos(*TargetPosition, tileR, tileC, cellR, cellC);
 
         // Port fix: a miss can land off the map, where the original reads (and writes) outside it.
-        if (!GameMap->OnMap(tileR, tileC))
+        if (!GameMap()->OnMap(tileR, tileC))
         {
             return 0;
         }
 
-        MCMapTile& tile = GameMap->Map[GameMap->Width * tileR + tileC];
+        MCMapTile& tile = GameMap()->Map[GameMap()->Width * tileR + tileC];
 
         if ((tile.Overlay & 0x1800) == 0x1000 || (tile.Overlay & 0x6000) == 0x4000)
         {
@@ -720,15 +723,15 @@ auto MCProjectileLaser::Init(MCObjectType* objType) -> int32_t
 
     if (static_cast<int32_t>(laserType->SmokeObjectId) != -1)
     {
-        Smoke = static_cast<MCSmoke*>(CreateObject(static_cast<int32_t>(laserType->SmokeObjectId)));
+        Smoke = CreateObjectAs<MCSmoke>(static_cast<int32_t>(laserType->SmokeObjectId)).release();
     }
 
     if (static_cast<int32_t>(laserType->LightObjectId) != -1)
     {
-        Light = CreateObject(static_cast<int32_t>(laserType->LightObjectId));
+        Light = CreateObject(static_cast<int32_t>(laserType->LightObjectId)).release();
     }
 
-    ObjectClass = PROJECTILELASER;
+    ObjectClass = MCObjectClass::ProjectileLaser;
     return 0;
 }
 

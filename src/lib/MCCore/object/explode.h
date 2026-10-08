@@ -1,7 +1,7 @@
 #pragma once
 
-#include "object/gameobj.h"
-#include "object/objtype.h"
+#include "object/MCBigGameObject.h"
+#include "object/MCObjectType.h"
 
 class MCAppearance;
 class MCFile;
@@ -18,7 +18,7 @@ public:
     ~MCExplosionType() override { Destroy(); }
 
     /// <summary>Makes an <see cref="MCExplosion"/> of this type and gives it the next object id.</summary>
-    MCBaseObject* CreateInstance() override;
+    std::unique_ptr<MCBaseObject> CreateInstance() override;
     void Destroy() override;
     /// <summary>
     /// Reads DmgLevel, SoundEffectId, ExplosionRadius (default 0), LightObjectId (default -1) and DamageChunkSize

@@ -1,7 +1,7 @@
 #include "stdafx.h"
 #include "iface/iface.h"
-#include "ai/move.h"
-#include "ai/tacordr.h"
+#include "ai/MCMoveSystem.h"
+#include "ai/MCTacticalOrder.h"
 #include "appear/MCAppearance.h"
 #include "camera/MCCamera.h"
 #include "camera/MCMainWindow.h"
@@ -28,21 +28,20 @@
 #include "mission/scenario.h"
 #include "network/multplyr.h"
 #include "object/artlry.h"
-#include "object/baseobj.h"
+#include "object/MCBaseObject.h"
 #include "object/bldng.h"
 #include "object/bridge.h"
-#include "object/comndr.h"
-#include "object/gameobj.h"
+#include "object/MCForces.h"
+#include "object/MCBigGameObject.h"
 #include "object/gate.h"
-#include "object/group.h"
+#include "object/MCMoverGroup.h"
 #include "object/mech.h"
 #include "object/mover.h"
-#include "object/object.h"
-#include "object/objevnt.h"
-#include "object/objque.h"
-#include "object/objtype.h"
+#include "object/MCObjectSystem.h"
+#include "object/MCObjectEvent.h"
+#include "object/MCObjectQueue.h"
+#include "object/MCObjectType.h"
 #include "object/tbldng.h"
-#include "object/team.h"
 #include "object/train.h"
 #include "object/turret.h"
 #include "object/warrior.h"
@@ -453,7 +452,7 @@ auto MCMechIcon::GetColors() -> void
             // A mech's torsos (1..3) show the worse of their front and rear armour.
             int16_t percent;
 
-            if (shown->ObjectClass == BATTLEMECH && i > 0 && i < 4)
+            if (shown->ObjectClass == MCObjectClass::BattleMech && i > 0 && i < 4)
             {
                 const int16_t front = ArmorPercent(shown->Armor[i].CurArmor, shown->Armor[i].MaxArmor);
                 const int16_t rear = ArmorPercent(shown->Armor[i + 7].CurArmor, shown->Armor[i + 7].MaxArmor);
@@ -511,20 +510,12 @@ auto MCMechIcon::Display() -> void
 auto MCMechIcon::SetID(int32_t newPartId) -> void
 {
     // A mover, or else a salvage craft among the scenario's objects.
-    Mover = ObjectList->FindObjectFromPart(newPartId);
+    Mover = ObjectList()->FindObjectFromPart(newPartId);
 
     if (Mover == nullptr)
     {
-        MCBaseObject* object = nullptr;
-
-        while (Scenario->ScenarioObjectList->Traverse(object) != nullptr)
-        {
-            if (object->PartId == newPartId)
-            {
-                Mover = object;
-                break;
-            }
-        }
+        Mover = Scenario->ScenarioObjectList->FindIf([newPartId](MCBaseObject* object)
+                                                     { return object->PartId == newPartId; });
     }
 
     if (Mover != nullptr)
@@ -694,9 +685,9 @@ auto MCFriendlyMechIcon::Enter() -> void
                 if (TheInterface->NumSelectedMechs == 1 && static_cast<MCMover*>(shown)->NeedsRefit(0) != 0)
                 {
                     const int32_t selectedId = TheInterface->NumSelectedMechs < 1 ? -1 : TheInterface->SelectedMechs[0];
-                    auto* selected = static_cast<MCGameObject*>(ObjectList->FindObjectFromPart(selectedId));
+                    auto* selected = static_cast<MCGameObject*>(ObjectList()->FindObjectFromPart(selectedId));
 
-                    if (selected != nullptr && selected->ObjectClass == GROUNDVEHICLE &&
+                    if (selected != nullptr && selected->ObjectClass == MCObjectClass::GroundVehicle &&
                         selected->GetRefitPoints() > 0.0f)
                     {
                         Application->SetCurrentCursor(static_cast<MCCursorType>(10));
@@ -768,7 +759,7 @@ auto MCFriendlyMechIcon::DrawIcon(MCGuiPort* target) -> void
     FillPortBox(target, 2, 2, 0x31, 9, LanceColorArray[Lance]);
 
     // A vehicle with a name shows it instead of its pilot.
-    if (shown->ObjectClass == GROUNDVEHICLE && shown->GetIfaceName() != nullptr)
+    if (shown->ObjectClass == MCObjectClass::GroundVehicle && shown->GetIfaceName() != nullptr)
     {
         WhiteFont->WriteString(target->Frame(), 5, 3,
                                reinterpret_cast<uint8_t*>(const_cast<char*>(shown->GetIfaceName())), -1);
@@ -846,7 +837,7 @@ auto MCFriendlyMechIcon::DrawPilot(MCGuiPort* target) -> void
 
     VfxPaneCopy(PilotImage->Frame(), 0, 0, target->Frame(), 0x1c, 0xe, 0xfff);
 
-    if (shown->ObjectClass == BATTLEMECH && shown->GetPilot()->Callsign != nullptr)
+    if (shown->ObjectClass == MCObjectClass::BattleMech && shown->GetPilot()->Callsign != nullptr)
     {
         WhiteFont->WriteString(target->Frame(), 5, 3, reinterpret_cast<uint8_t*>(shown->GetPilot()->Callsign), -1);
     }
@@ -858,7 +849,7 @@ auto MCFriendlyMechIcon::DrawWeapon(MCGuiPort* target) -> void
     int32_t start = 2;
     auto* shown = static_cast<MCMover*>(Mover);
 
-    if (shown == nullptr || shown->ObjectClass != BATTLEMECH)
+    if (shown == nullptr || shown->ObjectClass != MCObjectClass::BattleMech)
     {
         FillPortBox(target, 2, 0xb, 0x2e, 0xc, 0x10);
         start = 0xd;
@@ -907,16 +898,17 @@ auto MCFriendlyMechIcon::DrawWeapon(MCGuiPort* target) -> void
 
 auto MCFriendlyMechIcon::SetID(int32_t newPartId) -> void
 {
-    MCBaseObject* object = ObjectList->FindObjectFromPart(newPartId);
+    MCBaseObject* object = ObjectList()->FindObjectFromPart(newPartId);
 
     if (object == nullptr)
     {
         return;
     }
 
-    const int32_t objectClass = object->ObjectClass;
+    const MCObjectClass objectClass = object->ObjectClass;
 
-    if (objectClass != BATTLEMECH && objectClass != GROUNDVEHICLE && objectClass != ELEMENTAL && objectClass != MOVER)
+    if (objectClass != MCObjectClass::BattleMech && objectClass != MCObjectClass::GroundVehicle &&
+        objectClass != MCObjectClass::Elemental && objectClass != MCObjectClass::Mover)
     {
         return;
     }
@@ -924,7 +916,7 @@ auto MCFriendlyMechIcon::SetID(int32_t newPartId) -> void
     MCFile shapeFile;
     char shapeName[20];
 
-    if (objectClass == BATTLEMECH)
+    if (objectClass == MCObjectClass::BattleMech)
     {
         DiagramX = 2;
         DiagramY = 0xe;
@@ -1547,7 +1539,7 @@ auto MCLanceIcon::Init(int16_t lanceNumber) -> int32_t
     Assert(LongLinkImage->Init(const_cast<char*>("guiub03.tga")) == 0, 0, "Can't load lance icon's long line");
     Assert(LastLinkImage->Init(const_cast<char*>("guiub04.tga")) == 0, 0, "Can't load lance icon's second curve");
 
-    Group = HomeCommander->GetGroup(lanceNumber);
+    Group = HomeCommander()->GetGroup(lanceNumber);
     LanceId = Group->GetId();
     return result;
 }
@@ -1603,18 +1595,16 @@ auto MCLanceIcon::Display() -> void
 auto MCLanceIcon::HandleEvent(MCGuiEvent* event) -> void
 {
     MCTacticalOrder tacOrder;
-    tacOrder.Init();
+    tacOrder.Reset();
 
     if (event->Type == 1)
     {
         Application->Grab(this);
-        tacOrder.Destroy();
         return;
     }
 
     if (event->Type != 4 || Application->GrabbedObject() != this)
     {
-        tacOrder.Destroy();
         return;
     }
 
@@ -1629,21 +1619,20 @@ auto MCLanceIcon::HandleEvent(MCGuiEvent* event) -> void
 
         if (command == 1)
         {
-            code = TACTICAL_ORDER_EJECT;
+            code = MCTacticalOrderCode::Eject;
         }
         else if (command == 0x15)
         {
-            code = TACTICAL_ORDER_POWERUP;
+            code = MCTacticalOrderCode::PowerUp;
         }
         else
         {
-            code = TACTICAL_ORDER_POWERDOWN;
+            code = MCTacticalOrderCode::PowerDown;
         }
 
-        tacOrder.Init(ORDER_ORIGIN_PLAYER, code, 1);
+        tacOrder.Reset(MCOrderOrigin::Player, code, 1);
         Group->HandleTacticalOrder(tacOrder, 1, nullptr, 0);
         TheInterface->UpdateInterface();
-        tacOrder.Destroy();
         return;
     }
 
@@ -1657,7 +1646,6 @@ auto MCLanceIcon::HandleEvent(MCGuiEvent* event) -> void
         TheInterface->SelectLance(Group);
         TheInterface->CommandParser->AddSubject(Group, 0);
         TheInterface->UpdateInterface();
-        tacOrder.Destroy();
         return;
     }
 
@@ -1666,7 +1654,6 @@ auto MCLanceIcon::HandleEvent(MCGuiEvent* event) -> void
         TheInterface->DeselectLance(Group);
         TheInterface->CommandParser->RemoveSubject(Group);
         TheInterface->UpdateInterface();
-        tacOrder.Destroy();
         return;
     }
 
@@ -1675,7 +1662,6 @@ auto MCLanceIcon::HandleEvent(MCGuiEvent* event) -> void
     TheInterface->SelectLance(Group);
     TheInterface->CommandParser->AddSubject(Group, 1);
     TheInterface->UpdateInterface();
-    tacOrder.Destroy();
 }
 
 auto MCLanceIcon::Enter() -> void
@@ -1892,20 +1878,20 @@ namespace
     bool IsMoverClass(const MCBaseObject* object)
     {
         const MCObjectClass objectClass = object->ObjectClass;
-        return objectClass == BATTLEMECH || objectClass == GROUNDVEHICLE || objectClass == ELEMENTAL ||
-               objectClass == MOVER;
+        return objectClass == MCObjectClass::BattleMech || objectClass == MCObjectClass::GroundVehicle ||
+               objectClass == MCObjectClass::Elemental || objectClass == MCObjectClass::Mover;
     }
 
     /// <summary>Whether the tactical map may show <paramref name="object"/>'s data: a revealed non-elemental mover.</summary>
     bool CanShowInfo(MCGameObject* object)
     {
-        return IsMoverClass(object) && object->ObjectClass != ELEMENTAL && object->IsRevealed() != 0;
+        return IsMoverClass(object) && object->ObjectClass != MCObjectClass::Elemental && object->IsRevealed() != 0;
     }
 
     /// <summary>A bridge (a misc terrain object of kind 5): clicking one moves onto it.</summary>
     bool IsBridge(MCBaseObject* object)
     {
-        return object->ObjectClass == MISCTERRAINOBJECT &&
+        return object->ObjectClass == MCObjectClass::MiscTerrainObject &&
                static_cast<MCMiscTerrainObject*>(object)->TerrainObjectKind == 5;
     }
 
@@ -1984,7 +1970,7 @@ namespace
 auto MCInterfaceObject::HandleEvent(MCGuiEvent* event) -> void
 {
     MCTacticalOrder order;
-    order.Init();
+    order.Reset();
 
     // Mission messages and keys.
     if (event->Type > 8)
@@ -1996,7 +1982,6 @@ auto MCInterfaceObject::HandleEvent(MCGuiEvent* event) -> void
                 Scenario->CreatePartObject(event->Data);
             }
 
-            order.Destroy();
             return;
         }
 
@@ -2007,7 +1992,6 @@ auto MCInterfaceObject::HandleEvent(MCGuiEvent* event) -> void
                 Scenario->DestroyPartObject(event->Data);
             }
 
-            order.Destroy();
             return;
         }
 
@@ -2018,7 +2002,6 @@ auto MCInterfaceObject::HandleEvent(MCGuiEvent* event) -> void
                 RemoveMech(event->Data);
             }
 
-            order.Destroy();
             return;
         }
 
@@ -2196,7 +2179,7 @@ auto MCInterfaceObject::HandleEvent(MCGuiEvent* event) -> void
 
                 if (AnySelected(0) != 0)
                 {
-                    order.Init(ORDER_ORIGIN_PLAYER, TACTICAL_ORDER_STOP, 0);
+                    order.Reset(MCOrderOrigin::Player, MCTacticalOrderCode::Stop, 0);
 
                     if (CommandParser != nullptr)
                     {
@@ -2211,7 +2194,7 @@ auto MCInterfaceObject::HandleEvent(MCGuiEvent* event) -> void
 
                 if (AnySelected(0) != 0)
                 {
-                    order.Init(ORDER_ORIGIN_PLAYER, TACTICAL_ORDER_POWERUP, 0);
+                    order.Reset(MCOrderOrigin::Player, MCTacticalOrderCode::PowerUp, 0);
 
                     if (CommandParser != nullptr)
                     {
@@ -2226,7 +2209,7 @@ auto MCInterfaceObject::HandleEvent(MCGuiEvent* event) -> void
 
                 if (AnySelected(0) != 0)
                 {
-                    order.Init(ORDER_ORIGIN_PLAYER, TACTICAL_ORDER_POWERDOWN, 0);
+                    order.Reset(MCOrderOrigin::Player, MCTacticalOrderCode::PowerDown, 0);
 
                     if (CommandParser != nullptr)
                     {
@@ -2377,11 +2360,11 @@ auto MCInterfaceObject::HandleEvent(MCGuiEvent* event) -> void
                 // Select a lance.
                 const int32_t lance = key == Keys[33] ? 0 : key == Keys[34] ? 1 : key == Keys[35] ? 2 : 3;
 
-                if (HomeCommander->GetGroup(lance)->NumMovers > 0)
+                if (HomeCommander()->GetGroup(lance)->NumMovers() > 0)
                 {
                     ClearMechSelection();
-                    SelectLance(HomeCommander->GetGroup(lance));
-                    CommandParser->AddSubject(HomeCommander->GetGroup(lance), 0);
+                    SelectLance(HomeCommander()->GetGroup(lance));
+                    CommandParser->AddSubject(HomeCommander()->GetGroup(lance), 0);
                     SoundSystem->PlayDigitalSample(0x30, 1, nullptr, 0, 0);
                 }
             }
@@ -2390,10 +2373,10 @@ auto MCInterfaceObject::HandleEvent(MCGuiEvent* event) -> void
                 // Add a lance to the selection.
                 const int32_t lance = key == Keys[37] ? 0 : key == Keys[38] ? 1 : key == Keys[39] ? 2 : 3;
 
-                if (HomeCommander->GetGroup(lance)->NumMovers > 0)
+                if (HomeCommander()->GetGroup(lance)->NumMovers() > 0)
                 {
-                    SelectLance(HomeCommander->GetGroup(lance));
-                    CommandParser->AddSubject(HomeCommander->GetGroup(lance), 1);
+                    SelectLance(HomeCommander()->GetGroup(lance));
+                    CommandParser->AddSubject(HomeCommander()->GetGroup(lance), 1);
                     SoundSystem->PlayDigitalSample(0x30, 1, nullptr, 0, 0);
                 }
             }
@@ -2423,13 +2406,12 @@ auto MCInterfaceObject::HandleEvent(MCGuiEvent* event) -> void
 
                 if ((key == Keys[31] || key == Keys[32]) && AnySelected(0) != 0 && NumSelectedMechs == 1)
                 {
-                    MCBaseObject* selected = ObjectList->FindObjectFromPart(SelectedMechs[0]);
+                    MCBaseObject* selected = ObjectList()->FindObjectFromPart(SelectedMechs[0]);
 
-                    if (selected == nullptr || selected->ObjectClass != BATTLEMECH ||
+                    if (selected == nullptr || selected->ObjectClass != MCObjectClass::BattleMech ||
                         static_cast<MCBattleMech*>(selected)->SecondStepPrinted == 0 ||
                         static_cast<MCBattleMech*>(selected)->FirstStepPrinted < 1)
                     {
-                        order.Destroy();
                         return;
                     }
 
@@ -2446,7 +2428,6 @@ auto MCInterfaceObject::HandleEvent(MCGuiEvent* event) -> void
             Application->CursorHidden = 0;
         }
 
-        order.Destroy();
         return;
     }
 
@@ -2558,12 +2539,10 @@ auto MCInterfaceObject::HandleEvent(MCGuiEvent* event) -> void
             if (key == Keys[75] && Scenario != nullptr)
             {
                 SelectVisibleMechs();
-                order.Destroy();
                 return;
             }
         }
 
-        order.Destroy();
         return;
     }
 
@@ -2577,26 +2556,20 @@ auto MCInterfaceObject::HandleEvent(MCGuiEvent* event) -> void
         CommandOneShot = 0;
         Application->CursorHidden = 0;
         UpdateInterface();
-        order.Destroy();
     };
 
     auto sendOrder = [&](int sortMovers)
     {
         GetCommandParser()->SendTacOrder(order, sortMovers);
         UpdateInterface();
-        order.Destroy();
     };
 
-    auto finish = [&]()
-    {
-        UpdateInterface();
-        order.Destroy();
-    };
+    auto finish = [&]() { UpdateInterface(); };
 
     // Sends the forced order to the selected movers' pilots (and to the server in multiplayer).
     auto queueForcedOrder = [&](MCTacticalOrder& forcedOrder)
     {
-        forcedOrder.Pack(nullptr, nullptr);
+        forcedOrder.Pack();
 
         if (MPlayer != nullptr && MPlayer->IsServer == 0)
         {
@@ -2656,7 +2629,6 @@ auto MCInterfaceObject::HandleEvent(MCGuiEvent* event) -> void
             // Left button down on the map: remember where, or give the forced order.
             if (event->Target != MainHolder()->GetActivePane())
             {
-                order.Destroy();
                 return;
             }
 
@@ -2668,19 +2640,17 @@ auto MCInterfaceObject::HandleEvent(MCGuiEvent* event) -> void
             if (ForceOrderActive == 0)
             {
                 MouseDown = 1;
-                order.Destroy();
                 return;
             }
 
             if (ForceOrderType == -1)
             {
                 SoundSystem->PlayDigitalSample(0x46, 1, nullptr, 0, 0);
-                order.Destroy();
                 return;
             }
 
             MCTacticalOrder forcedOrder;
-            forcedOrder.Init();
+            forcedOrder.Reset();
             target = event->Target;
             MCVector2D screenPos = windowPoint(target);
             // Port fix: zeroed; the original left the point uninitialised when the window has no camera.
@@ -2697,13 +2667,13 @@ auto MCInterfaceObject::HandleEvent(MCGuiEvent* event) -> void
 
             if (ForceOrderType == 2)
             {
-                forcedOrder.Init(ORDER_ORIGIN_PLAYER, TACTICAL_ORDER_JUMPTO_POINT, 0);
+                forcedOrder.Reset(MCOrderOrigin::Player, MCTacticalOrderCode::JumpToPoint, 0);
                 forcedOrder.InitWayPath(&node);
                 forcedOrder.MoveParams.Wait = 0;
             }
             else
             {
-                forcedOrder.Init(ORDER_ORIGIN_PLAYER, TACTICAL_ORDER_MOVETO_POINT, 0);
+                forcedOrder.Reset(MCOrderOrigin::Player, MCTacticalOrderCode::MoveToPoint, 0);
                 forcedOrder.InitWayPath(&node);
                 forcedOrder.MoveParams.WayPath.Mode[0] = static_cast<uint8_t>(ForceOrderType);
                 forcedOrder.MoveParams.Wait = 0;
@@ -2715,8 +2685,6 @@ auto MCInterfaceObject::HandleEvent(MCGuiEvent* event) -> void
             }
 
             queueForcedOrder(forcedOrder);
-            forcedOrder.Destroy();
-            order.Destroy();
             return;
         }
 
@@ -2725,7 +2693,6 @@ auto MCInterfaceObject::HandleEvent(MCGuiEvent* event) -> void
             // Left button up: ends a drag selection, or gives the order the click means.
             if (MouseDown == 0)
             {
-                order.Destroy();
                 return;
             }
 
@@ -2736,7 +2703,6 @@ auto MCInterfaceObject::HandleEvent(MCGuiEvent* event) -> void
             {
                 MainHolder()->SetActivePane(target);
                 UpdateMouseState(event);
-                order.Destroy();
                 return;
             }
 
@@ -2818,15 +2784,14 @@ auto MCInterfaceObject::HandleEvent(MCGuiEvent* event) -> void
                 MCVector2D screenPos = windowPoint(target);
                 MCVector3D strikePos;
                 camera->InverseProject(screenPos, strikePos);
-                HomeCommander->SetNumLargeStrikes(HomeCommander->NumLargeStrikes + 1);
-                CallArtillery(HomeCommander->Id, 1, strikePos, 3, 0);
+                HomeCommander()->SetNumLargeStrikes(HomeCommander()->NumLargeStrikes + 1);
+                CallArtillery(HomeCommander()->Id, 1, strikePos, 3, 0);
 
                 for (const MCGuiOwned<MCArtilleryButton>& button : TacticalMap->ArtilleryButtons)
                 {
                     button->Draw();
                 }
 
-                order.Destroy();
                 return;
             }
 
@@ -2837,7 +2802,8 @@ auto MCInterfaceObject::HandleEvent(MCGuiEvent* event) -> void
                 clickedPartId = clicked->PartId;
 
                 // Aimed shots only work on mechs; on anything else they are plain attacks.
-                if (clicked->ObjectClass != BATTLEMECH && CurrentCommand >= 0x17 && CurrentCommand <= 0x1e)
+                if (clicked->ObjectClass != MCObjectClass::BattleMech && CurrentCommand >= 0x17 &&
+                    CurrentCommand <= 0x1e)
                 {
                     command = 0xb;
                 }
@@ -2848,7 +2814,6 @@ auto MCInterfaceObject::HandleEvent(MCGuiEvent* event) -> void
         case 6:
         {
             ClearMechSelection();
-            order.Destroy();
             return;
         }
         case 7:
@@ -2929,19 +2894,16 @@ auto MCInterfaceObject::HandleEvent(MCGuiEvent* event) -> void
                         const int32_t boxX = x - DragTarget->GlobalX();
                         static_cast<MCViewWindow*>(dragWindow)->SelectionBox[2] = static_cast<float>(boxX);
                         static_cast<MCViewWindow*>(dragWindow)->SelectionBox[3] = static_cast<float>(boxY);
-                        order.Destroy();
                         return;
                     }
                 }
             }
 
-            order.Destroy();
             return;
         }
 
         default:
         {
-            order.Destroy();
             return;
         }
     }
@@ -2949,7 +2911,7 @@ auto MCInterfaceObject::HandleEvent(MCGuiEvent* event) -> void
     // The click (event 4): what it means depends on what is under the mouse and the command mode.
     auto initAttack = [&]()
     {
-        order.Init(ORDER_ORIGIN_PLAYER, TACTICAL_ORDER_ATTACK_OBJECT, 0);
+        order.Reset(MCOrderOrigin::Player, MCTacticalOrderCode::AttackObject, 0);
         order.Target = clicked;
         order.AttackParams.Type = 1;
         order.AttackParams.Method = 0;
@@ -2960,7 +2922,7 @@ auto MCInterfaceObject::HandleEvent(MCGuiEvent* event) -> void
     // An order on the clicked object: its code, the way path's run flag and the wait flag.
     auto initObjectOrder = [&](MCTacticalOrderCode code, uint8_t run, int32_t wait)
     {
-        order.Init(ORDER_ORIGIN_PLAYER, code, 0);
+        order.Reset(MCOrderOrigin::Player, code, 0);
         order.Target = clicked;
         order.MoveParams.WayPath.Mode[0] = run;
         order.MoveParams.Wait = wait;
@@ -2969,7 +2931,7 @@ auto MCInterfaceObject::HandleEvent(MCGuiEvent* event) -> void
     // Command 0x1f: move onto the object with move mode 1.
     auto initMoveMode1 = [&]()
     {
-        order.Init(ORDER_ORIGIN_PLAYER, TACTICAL_ORDER_MOVETO_OBJECT, 0);
+        order.Reset(MCOrderOrigin::Player, MCTacticalOrderCode::MoveToObject, 0);
         order.Target = clicked;
         order.MoveParams.WayPath.Mode[0] = 0;
         order.MoveParams.Wait = 0;
@@ -2984,7 +2946,7 @@ auto MCInterfaceObject::HandleEvent(MCGuiEvent* event) -> void
             return false;
         }
 
-        order.Init(ORDER_ORIGIN_PLAYER, TACTICAL_ORDER_JUMPTO_OBJECT, 0);
+        order.Reset(MCOrderOrigin::Player, MCTacticalOrderCode::JumpToObject, 0);
         order.Target = static_cast<MCGameObject*>(MouseObject);
         order.MoveParams.WayPath.Mode[0] = 2;
         order.MoveParams.Wait = 0;
@@ -2999,7 +2961,7 @@ auto MCInterfaceObject::HandleEvent(MCGuiEvent* event) -> void
         node.Location = MouseWorldPos;
         node.Run = run;
         node.Next = nullptr;
-        order.Init(ORDER_ORIGIN_PLAYER, code, 0);
+        order.Reset(MCOrderOrigin::Player, code, 0);
         order.InitWayPath(&node);
         order.MoveParams.Wait = 0;
     };
@@ -3080,19 +3042,19 @@ auto MCInterfaceObject::HandleEvent(MCGuiEvent* event) -> void
                     // Eject, stop, power up and down go to the mover alone.
                     if (command == 1)
                     {
-                        order.Init(ORDER_ORIGIN_PLAYER, TACTICAL_ORDER_EJECT, 0);
+                        order.Reset(MCOrderOrigin::Player, MCTacticalOrderCode::Eject, 0);
                     }
                     else if (command == 2)
                     {
-                        order.Init(ORDER_ORIGIN_PLAYER, TACTICAL_ORDER_STOP, 0);
+                        order.Reset(MCOrderOrigin::Player, MCTacticalOrderCode::Stop, 0);
                     }
                     else if (command == 0x15)
                     {
-                        order.Init(ORDER_ORIGIN_PLAYER, TACTICAL_ORDER_POWERUP, 1);
+                        order.Reset(MCOrderOrigin::Player, MCTacticalOrderCode::PowerUp, 1);
                     }
                     else
                     {
-                        order.Init(ORDER_ORIGIN_PLAYER, TACTICAL_ORDER_POWERDOWN, 1);
+                        order.Reset(MCOrderOrigin::Player, MCTacticalOrderCode::PowerDown, 1);
                     }
 
                     if (MPlayer == nullptr || MPlayer->IsServer != 0)
@@ -3116,13 +3078,13 @@ auto MCInterfaceObject::HandleEvent(MCGuiEvent* event) -> void
 
                 case 3:
                 {
-                    initObjectOrder(TACTICAL_ORDER_MOVETO_OBJECT, 1, 1);
+                    initObjectOrder(MCTacticalOrderCode::MoveToObject, 1, 1);
                     sendOrder(1);
                     return;
                 }
                 case 9:
                 {
-                    order.Init(ORDER_ORIGIN_PLAYER, TACTICAL_ORDER_REFIT, 0);
+                    order.Reset(MCOrderOrigin::Player, MCTacticalOrderCode::Refit, 0);
                     order.Target = clicked;
                     order.MoveParams.WayPath.Mode[0] = 1;
                     sendOrder(0);
@@ -3141,7 +3103,7 @@ auto MCInterfaceObject::HandleEvent(MCGuiEvent* event) -> void
                 }
                 case 0x13:
                 {
-                    initObjectOrder(TACTICAL_ORDER_GUARD, 0, 1);
+                    initObjectOrder(MCTacticalOrderCode::Guard, 0, 1);
                     sendOrder(1);
                     return;
                 }
@@ -3199,7 +3161,7 @@ auto MCInterfaceObject::HandleEvent(MCGuiEvent* event) -> void
                         if (MechBar != nullptr && MechBar->LanceIcons[i] != nullptr &&
                             MechBar->LanceIcons[i]->Group != nullptr)
                         {
-                            MechBar->LanceIcons[i]->NumActiveMovers = MechBar->LanceIcons[i]->Group->NumMovers;
+                            MechBar->LanceIcons[i]->NumActiveMovers = MechBar->LanceIcons[i]->Group->NumMovers();
                         }
                     }
 
@@ -3210,10 +3172,9 @@ auto MCInterfaceObject::HandleEvent(MCGuiEvent* event) -> void
                     CommandOneShot = 0;
                     Application->CursorHidden = 0;
                     ClearMechSelection();
-                    SelectLance(HomeCommander->GetGroup(lance));
-                    CommandParser->AddSubject(HomeCommander->GetGroup(lance), 0);
+                    SelectLance(HomeCommander()->GetGroup(lance));
+                    CommandParser->AddSubject(HomeCommander()->GetGroup(lance), 0);
                     UpdateInterface();
-                    order.Destroy();
                     return;
                 }
 
@@ -3302,7 +3263,7 @@ auto MCInterfaceObject::HandleEvent(MCGuiEvent* event) -> void
                 return;
             }
 
-            order.Init(ORDER_ORIGIN_PLAYER, TACTICAL_ORDER_ATTACK_OBJECT, 0);
+            order.Reset(MCOrderOrigin::Player, MCTacticalOrderCode::AttackObject, 0);
             clicked = static_cast<MCGameObject*>(MouseObject);
             order.MoveParams.WayPath.Mode[0] = CurrentCommand == 3;
             order.AttackParams.Type = 1;
@@ -3321,13 +3282,13 @@ auto MCInterfaceObject::HandleEvent(MCGuiEvent* event) -> void
             {
                 case 3:
                 {
-                    initObjectOrder(TACTICAL_ORDER_MOVETO_OBJECT, 1, 1);
+                    initObjectOrder(MCTacticalOrderCode::MoveToObject, 1, 1);
                     sendOrder(0);
                     return;
                 }
                 case 0x13:
                 {
-                    initObjectOrder(TACTICAL_ORDER_GUARD, 1, 1);
+                    initObjectOrder(MCTacticalOrderCode::Guard, 1, 1);
                     sendOrder(1);
                     return;
                 }
@@ -3365,7 +3326,7 @@ auto MCInterfaceObject::HandleEvent(MCGuiEvent* event) -> void
                         camera->InverseProject(screenPos, node.Location);
                         node.Run = 0;
                         node.Next = nullptr;
-                        order.Init(ORDER_ORIGIN_PLAYER, TACTICAL_ORDER_JUMPTO_POINT, 0);
+                        order.Reset(MCOrderOrigin::Player, MCTacticalOrderCode::JumpToPoint, 0);
                         order.InitWayPath(&node);
                         order.MoveParams.Wait = 0;
                     }
@@ -3407,7 +3368,7 @@ auto MCInterfaceObject::HandleEvent(MCGuiEvent* event) -> void
                             return;
                         }
 
-                        order.Init(ORDER_ORIGIN_PLAYER, TACTICAL_ORDER_CAPTURE, 0);
+                        order.Reset(MCOrderOrigin::Player, MCTacticalOrderCode::Capture, 0);
                         order.Target = clicked;
                         order.MoveParams.WayPath.Mode[0] = 1;
                         sendOrder(0);
@@ -3477,7 +3438,7 @@ auto MCInterfaceObject::HandleEvent(MCGuiEvent* event) -> void
                         [[fallthrough]];
                     }
                     default:
-                        initObjectOrder(TACTICAL_ORDER_MOVETO_OBJECT, command == 3, 1);
+                        initObjectOrder(MCTacticalOrderCode::MoveToObject, command == 3, 1);
                         break;
                 }
             }
@@ -3519,7 +3480,7 @@ auto MCInterfaceObject::HandleEvent(MCGuiEvent* event) -> void
             {
                 case 3:
                 {
-                    initObjectOrder(TACTICAL_ORDER_GUARD, 1, 0);
+                    initObjectOrder(MCTacticalOrderCode::Guard, 1, 0);
                     sendOrder(1);
                     return;
                 }
@@ -3561,7 +3522,7 @@ auto MCInterfaceObject::HandleEvent(MCGuiEvent* event) -> void
                 default:
                 {
                     // Including 0x13: guard it.
-                    initObjectOrder(TACTICAL_ORDER_GUARD, 0, 1);
+                    initObjectOrder(MCTacticalOrderCode::Guard, 0, 1);
                     sendOrder(1);
                     return;
                 }
@@ -3575,7 +3536,7 @@ auto MCInterfaceObject::HandleEvent(MCGuiEvent* event) -> void
             {
                 case 3:
                 {
-                    initObjectOrder(TACTICAL_ORDER_MOVETO_OBJECT, 1, 0);
+                    initObjectOrder(MCTacticalOrderCode::MoveToObject, 1, 0);
                     sendOrder(1);
                     return;
                 }
@@ -3605,7 +3566,7 @@ auto MCInterfaceObject::HandleEvent(MCGuiEvent* event) -> void
                 }
                 default:
                 {
-                    initObjectOrder(TACTICAL_ORDER_MOVETO_OBJECT, 0, 0);
+                    initObjectOrder(MCTacticalOrderCode::MoveToObject, 0, 0);
                     sendOrder(1);
                     return;
                 }
@@ -3629,7 +3590,7 @@ auto MCInterfaceObject::HandleEvent(MCGuiEvent* event) -> void
                 {
                     if (!IsBridge(clicked))
                     {
-                        initObjectOrder(TACTICAL_ORDER_MOVETO_OBJECT, 1, 0);
+                        initObjectOrder(MCTacticalOrderCode::MoveToObject, 1, 0);
                         sendOrder(1);
                         return;
                     }
@@ -3637,7 +3598,7 @@ auto MCInterfaceObject::HandleEvent(MCGuiEvent* event) -> void
                     // A bridge: move onto the point clicked (the attack order goes out unchanged without a camera).
                     if (unprojectClick())
                     {
-                        initPointOrder(TACTICAL_ORDER_MOVETO_POINT, 1);
+                        initPointOrder(MCTacticalOrderCode::MoveToPoint, 1);
                         order.MoveParams.WayPath.Mode[0] = 1;
                     }
 
@@ -3646,7 +3607,7 @@ auto MCInterfaceObject::HandleEvent(MCGuiEvent* event) -> void
                 }
                 case 0xa:
                 {
-                    order.Init(ORDER_ORIGIN_PLAYER, TACTICAL_ORDER_GETFIXED, 0);
+                    order.Reset(MCOrderOrigin::Player, MCTacticalOrderCode::GetFixed, 0);
                     order.Target = clicked;
                     order.MoveParams.WayPath.Mode[0] = 1;
                     sendOrder(0);
@@ -3660,13 +3621,13 @@ auto MCInterfaceObject::HandleEvent(MCGuiEvent* event) -> void
                         return;
                     }
 
-                    initPointOrder(TACTICAL_ORDER_JUMPTO_POINT, 0);
+                    initPointOrder(MCTacticalOrderCode::JumpToPoint, 0);
                     sendOrder(1);
                     return;
                 }
                 case 0x13:
                 {
-                    initObjectOrder(TACTICAL_ORDER_GUARD, 0, 0);
+                    initObjectOrder(MCTacticalOrderCode::Guard, 0, 0);
                     sendOrder(1);
                     return;
                 }
@@ -3699,12 +3660,12 @@ auto MCInterfaceObject::HandleEvent(MCGuiEvent* event) -> void
                     if (static_cast<uint8_t>(clicked->Status) == 2 || static_cast<uint8_t>(clicked->Status) == 1)
                     {
                         // Wrecked: move to it.
-                        initObjectOrder(TACTICAL_ORDER_MOVETO_OBJECT, 0, 0);
+                        initObjectOrder(MCTacticalOrderCode::MoveToObject, 0, 0);
                         sendOrder(0);
                         return;
                     }
 
-                    if (!IsBridge(clicked) && clicked->GetAlignment() != HomeTeam->Alignment)
+                    if (!IsBridge(clicked) && clicked->GetAlignment() != HomeTeam()->Alignment)
                     {
                         // Someone else's: attack it.
                         order.AttackParams.Range = -4;
@@ -3719,7 +3680,7 @@ auto MCInterfaceObject::HandleEvent(MCGuiEvent* event) -> void
                         return;
                     }
 
-                    initPointOrder(TACTICAL_ORDER_MOVETO_POINT, command == 3);
+                    initPointOrder(MCTacticalOrderCode::MoveToPoint, command == 3);
                     order.MoveParams.WayPath.Mode[0] = command == 3;
                     sendOrder(0);
                     return;
@@ -3754,7 +3715,7 @@ auto MCInterfaceObject::HandleEvent(MCGuiEvent* event) -> void
                 case 0x1e:
                 {
                     // Attack the point.
-                    order.Init(ORDER_ORIGIN_PLAYER, TACTICAL_ORDER_ATTACK_POINT, 0);
+                    order.Reset(MCOrderOrigin::Player, MCTacticalOrderCode::AttackPoint, 0);
                     order.AttackParams.TargetPoint = MouseWorldPos;
                     order.Target = nullptr;
                     order.AttackParams.Type = 1;
@@ -3774,7 +3735,7 @@ auto MCInterfaceObject::HandleEvent(MCGuiEvent* event) -> void
                     break;
             }
 
-            initPointOrder(TACTICAL_ORDER_MOVETO_POINT, 0);
+            initPointOrder(MCTacticalOrderCode::MoveToPoint, 0);
             order.MoveParams.WayPath.Mode[0] = 0;
 
             switch (command)
@@ -3798,14 +3759,14 @@ auto MCInterfaceObject::HandleEvent(MCGuiEvent* event) -> void
                         return;
                     }
 
-                    initPointOrder(TACTICAL_ORDER_JUMPTO_POINT, 0);
+                    initPointOrder(MCTacticalOrderCode::JumpToPoint, 0);
                     order.MoveParams.WayPath.Mode[0] = 0;
                     sendOrder(1);
                     return;
                 }
                 case 0x13:
                 {
-                    initPointOrder(TACTICAL_ORDER_GUARD, 0);
+                    initPointOrder(MCTacticalOrderCode::Guard, 0);
                     order.MoveParams.WayPath.Mode[0] = 0;
                     sendOrder(1);
                     return;
@@ -4066,9 +4027,9 @@ auto MCInterfaceObject::RemoveMech(int32_t partId) -> void
                     NumSelectedMechs--;
                 }
 
-                if (ObjectList != nullptr)
+                if (ObjectList() != nullptr)
                 {
-                    MCBaseObject* object = ObjectList->FindObjectFromPart(partId);
+                    MCBaseObject* object = ObjectList()->FindObjectFromPart(partId);
                     MCObjectEvent deselect;
                     deselect.Init(0x1d, nullptr);
 
@@ -4086,7 +4047,7 @@ auto MCInterfaceObject::RemoveMech(int32_t partId) -> void
                 lanceIcon->Linked = 0;
                 MCMoverGroup* group = lanceIcon->Group;
 
-                for (int16_t i = 0; i < group->NumMovers; i++)
+                for (int16_t i = 0; i < group->NumMovers(); i++)
                 {
                     if (group->Movers[i]->IsDisabled() == 0)
                     {
@@ -4152,9 +4113,9 @@ auto MCInterfaceObject::SelectMech(int32_t partId) -> void
         return;
     }
 
-    if (ObjectList != nullptr)
+    if (ObjectList() != nullptr)
     {
-        auto* object = static_cast<MCGameObject*>(ObjectList->FindObjectFromPart(partId));
+        auto* object = static_cast<MCGameObject*>(ObjectList()->FindObjectFromPart(partId));
 
         // Port fix: the original asks a missing object whether it is disabled.
         if (object != nullptr && object->IsDisabled() != 0)
@@ -4178,14 +4139,14 @@ auto MCInterfaceObject::SelectMech(int32_t partId) -> void
 auto MCInterfaceObject::SelectVisibleMechs() -> void
 {
     ClearMechSelection();
-    MCObjectQueueNode* list = HomeTeam->Alignment == -1 ? ClanMechList : InnerSphereMechList;
+    MCObjectList* list = HomeTeam()->Alignment == -1 ? ClanMechList() : InnerSphereMechList();
 
     if (list == nullptr)
     {
         return;
     }
 
-    for (MCBaseObject* object = list->Head; object != nullptr; object = object->Next)
+    for (MCBaseObject* object : *list)
     {
         if (!IsMoverClass(object))
         {
@@ -4242,7 +4203,7 @@ auto MCInterfaceObject::DeselectMech(int32_t partId) -> void
                 DeselectLance(group);
                 CommandParser->RemoveSubject(group);
 
-                for (int16_t i = 0; i < group->NumMovers; i++)
+                for (int16_t i = 0; i < group->NumMovers(); i++)
                 {
                     MCMover* member = group->Movers[i];
 
@@ -4256,9 +4217,9 @@ auto MCInterfaceObject::DeselectMech(int32_t partId) -> void
         }
     }
 
-    if (ObjectList != nullptr)
+    if (ObjectList() != nullptr)
     {
-        MCBaseObject* object = ObjectList->FindObjectFromPart(partId);
+        MCBaseObject* object = ObjectList()->FindObjectFromPart(partId);
         deselect.Init(0x1d, nullptr);
 
         if (object != nullptr)
@@ -4272,9 +4233,9 @@ auto MCInterfaceObject::SelectEnemy(int32_t partId) -> void
 {
     MCObjectEvent select;
 
-    if (ObjectList != nullptr)
+    if (ObjectList() != nullptr)
     {
-        MCBaseObject* object = ObjectList->FindObjectFromPart(partId);
+        MCBaseObject* object = ObjectList()->FindObjectFromPart(partId);
         select.Init(0x1c, nullptr);
         select.SelectionIndex = 0;
 
@@ -4303,7 +4264,7 @@ auto MCInterfaceObject::SelectLance(MCMoverGroup* group) -> void
     if (lanceIcon->Linked == 0)
     {
         // Not a linked lance: select its movers one by one.
-        for (int32_t i = 0; i < group->NumMovers; i++)
+        for (int32_t i = 0; i < group->NumMovers(); i++)
         {
             if (group->Movers[i] != nullptr)
             {
@@ -4322,7 +4283,7 @@ auto MCInterfaceObject::SelectLance(MCMoverGroup* group) -> void
         SelectedLances[NumSelectedLances] = group;
         NumSelectedLances++;
 
-        for (int32_t i = 0; i < group->NumMovers; i++)
+        for (int32_t i = 0; i < group->NumMovers(); i++)
         {
             if (group->Movers[i] != nullptr)
             {
@@ -4364,7 +4325,7 @@ auto MCInterfaceObject::DeselectLance(MCMoverGroup* group) -> void
         SelectedLances[index] = nullptr;
     }
 
-    for (int32_t i = 0; i < group->NumMovers; i++)
+    for (int32_t i = 0; i < group->NumMovers(); i++)
     {
         DeselectMech(group->Movers[i] != nullptr ? group->Movers[i]->PartId : -1);
     }
@@ -4466,7 +4427,7 @@ auto MCInterfaceObject::UpdateMouseState(MCGuiEvent* event) -> void
     char format[256] = {};
     CursorOffset = 0;
 
-    if (ScreenWindow == nullptr || ObjectList == nullptr)
+    if (ScreenWindow == nullptr || ObjectList() == nullptr)
     {
         return;
     }
@@ -4528,7 +4489,7 @@ auto MCInterfaceObject::UpdateMouseState(MCGuiEvent* event) -> void
     else
     {
         objectEvent.Init(0, event);
-        auto* object = static_cast<MCGameObject*>(ObjectList->FindObjectFromEvent(&objectEvent));
+        auto* object = static_cast<MCGameObject*>(ObjectList()->FindObjectFromEvent(&objectEvent));
         MouseObject = object;
 
         if (object == nullptr)
@@ -4538,13 +4499,13 @@ auto MCInterfaceObject::UpdateMouseState(MCGuiEvent* event) -> void
         else
         {
             int tagged = 0;
-            const int32_t contactType = object->GetContactType(HomeTeam->Id, tagged);
+            const int32_t contactType = object->GetContactType(HomeTeam()->Id, tagged);
 
             if (tagged == 0 && contactType == 2)
             {
                 MouseObjectType = 4;
             }
-            else if (HomeTeam->LineOfSight(object->GetPosition()) == 0)
+            else if (HomeTeam()->LineOfSight(object->GetPosition()) == 0)
             {
                 MouseObjectType = 7;
             }
@@ -4552,14 +4513,14 @@ auto MCInterfaceObject::UpdateMouseState(MCGuiEvent* event) -> void
             {
                 const auto isScrap = [object]()
                 {
-                    return object->ObjectClass == MISCTERRAINOBJECT &&
+                    return object->ObjectClass == MCObjectClass::MiscTerrainObject &&
                            static_cast<MCMiscTerrainObject*>(object)->TerrainObjectKind == 5;
                 };
 
-                switch (static_cast<int32_t>(object->ObjectClass))
+                switch (object->ObjectClass)
                 {
-                    case BATTLEMECH:
-                    case GROUNDVEHICLE:
+                    case MCObjectClass::BattleMech:
+                    case MCObjectClass::GroundVehicle:
                     {
                         auto* mover = static_cast<MCMover*>(object);
                         tag->HelpObject = object;
@@ -4593,8 +4554,8 @@ auto MCInterfaceObject::UpdateMouseState(MCGuiEvent* event) -> void
                             break;
                         }
 
-                        if ((mover->IsCaptured() != 0 && mover->GetAlignment() == HomeTeam->Alignment) ||
-                            AlliedTeam == mover->GetTeam())
+                        if ((mover->IsCaptured() != 0 && mover->GetAlignment() == HomeTeam()->Alignment) ||
+                            AlliedTeam() == mover->GetTeam())
                         {
                             // Captured by the player, or an ally.
                             sprintf(text, "%s", mover->GetIfaceName());
@@ -4603,7 +4564,7 @@ auto MCInterfaceObject::UpdateMouseState(MCGuiEvent* event) -> void
                             break;
                         }
 
-                        if (MPlayer != nullptr && mover->GetAlignment() == HomeTeam->Alignment)
+                        if (MPlayer != nullptr && mover->GetAlignment() == HomeTeam()->Alignment)
                         {
                             // A teammate's mover.
                             NetPlayerName(object, format);
@@ -4647,7 +4608,8 @@ auto MCInterfaceObject::UpdateMouseState(MCGuiEvent* event) -> void
                         }
                         else
                         {
-                            CLoadString(ThisInstance, object->ObjectClass == BATTLEMECH ? 0x9c : 0x9d, format, 0xfe);
+                            CLoadString(ThisInstance, object->ObjectClass == MCObjectClass::BattleMech ? 0x9c : 0x9d,
+                                        format, 0xfe);
                             sprintf(text, format, mover->GetIfaceName());
                         }
 
@@ -4655,41 +4617,41 @@ auto MCInterfaceObject::UpdateMouseState(MCGuiEvent* event) -> void
                         break;
                     }
 
-                    case ARTILLERY:
-                    case DEBRIS:
-                    case 0x14:
+                    case MCObjectClass::Artillery:
+                    case MCObjectClass::Debris:
+                    case static_cast<MCObjectClass>(0x14):
                     {
                         MouseObjectType = 7;
                         MouseObject = nullptr;
                         break;
                     }
-                    case BUILDING:
-                    case MISCTERRAINOBJECT:
-                    case TREEBUILDING:
-                    case TURRET:
-                    case GATE:
+                    case MCObjectClass::Building:
+                    case MCObjectClass::MiscTerrainObject:
+                    case MCObjectClass::TreeBuilding:
+                    case MCObjectClass::Turret:
+                    case MCObjectClass::Gate:
                     {
-                        if (object->ObjectClass == BUILDING)
+                        if (object->ObjectClass == MCObjectClass::Building)
                         {
                             sprintf(text, "%s", static_cast<MCBuilding*>(object)->Name.c_str());
                         }
 
-                        if (object->ObjectClass == TREEBUILDING)
+                        if (object->ObjectClass == MCObjectClass::TreeBuilding)
                         {
                             sprintf(text, "%s", static_cast<MCTreeBuilding*>(object)->Name.c_str());
                         }
 
-                        if (object->ObjectClass == TURRET)
+                        if (object->ObjectClass == MCObjectClass::Turret)
                         {
                             sprintf(text, "%s", static_cast<MCTurret*>(object)->Name.c_str());
                         }
 
-                        if (object->ObjectClass == GATE)
+                        if (object->ObjectClass == MCObjectClass::Gate)
                         {
                             sprintf(text, "%s", static_cast<MCGate*>(object)->Name.c_str());
                         }
 
-                        if (object->ObjectClass == MISCTERRAINOBJECT)
+                        if (object->ObjectClass == MCObjectClass::MiscTerrainObject)
                         {
                             uint32_t stringId = 0;
 
@@ -4729,23 +4691,24 @@ auto MCInterfaceObject::UpdateMouseState(MCGuiEvent* event) -> void
                         }
 
                         // A turret shows its tag only while deployed (or fixed).
-                        if (object->ObjectClass != TURRET || static_cast<MCTurret*>(object)->WeaponDeployed != 0 ||
+                        if (object->ObjectClass != MCObjectClass::Turret ||
+                            static_cast<MCTurret*>(object)->WeaponDeployed != 0 ||
                             static_cast<MCTurret*>(object)->FixedTurret != 0)
                         {
                             HighlightedObject = object;
                             object->SetSelected(1);
                             tag->HelpObject = object;
 
-                            if (object->IsCaptured() != 0 && object->GetAlignment() == HomeTeam->Alignment)
+                            if (object->IsCaptured() != 0 && object->GetAlignment() == HomeTeam()->Alignment)
                             {
                                 showTag(0x1f, 0xc);
                             }
-                            else if (object->GetAlignment() == HomeTeam->Alignment)
+                            else if (object->GetAlignment() == HomeTeam()->Alignment)
                             {
                                 showTag(0, 0xb);
                             }
-                            else if (object->GetAlignment() != HomeTeam->Alignment &&
-                                     HomeTeam->LineOfSight(object->GetPosition()) != 0)
+                            else if (object->GetAlignment() != HomeTeam()->Alignment &&
+                                     HomeTeam()->LineOfSight(object->GetPosition()) != 0)
                             {
                                 showTag(0, 0xef);
                             }
@@ -4755,7 +4718,7 @@ auto MCInterfaceObject::UpdateMouseState(MCGuiEvent* event) -> void
                     }
                     default:
                     {
-                        if (object->GetAlignment() == HomeTeam->Alignment || object->IsDestroyed() != 0 || isScrap())
+                        if (object->GetAlignment() == HomeTeam()->Alignment || object->IsDestroyed() != 0 || isScrap())
                         {
                             MouseObjectType = 5;
                         }
@@ -4765,25 +4728,25 @@ auto MCInterfaceObject::UpdateMouseState(MCGuiEvent* event) -> void
                         }
                         break;
                     }
-                    case CAMERADRONE:
+                    case MCObjectClass::CameraDrone:
                     {
                         MouseObjectType = 5;
                         CLoadString(ThisInstance, 0x96, format, 0xfe);
                         sprintf(text, format);
                         tag->HelpObject = object;
 
-                        if (object->GetAlignment() == HomeTeam->Alignment)
+                        if (object->GetAlignment() == HomeTeam()->Alignment)
                         {
                             showTag(0, 0xb);
                         }
-                        else if (object->GetAlignment() != HomeTeam->Alignment &&
-                                 HomeTeam->LineOfSight(object->GetPosition()) != 0)
+                        else if (object->GetAlignment() != HomeTeam()->Alignment &&
+                                 HomeTeam()->LineOfSight(object->GetPosition()) != 0)
                         {
                             showTag(0, 0xef);
                         }
                         break;
                     }
-                    case TRAINCAR:
+                    case MCObjectClass::TrainCar:
                     {
                         tag->HelpObject = object;
                         sprintf(text, "%s", static_cast<MCTrainCar*>(object)->Name.c_str());
@@ -4794,17 +4757,17 @@ auto MCInterfaceObject::UpdateMouseState(MCGuiEvent* event) -> void
                         {
                             showTag(0x1f, 0xc);
                         }
-                        else if (object->GetAlignment() == HomeTeam->Alignment)
+                        else if (object->GetAlignment() == HomeTeam()->Alignment)
                         {
                             showTag(0, 0xb);
                         }
-                        else if (object->GetAlignment() != HomeTeam->Alignment &&
-                                 HomeTeam->LineOfSight(object->GetPosition()) != 0)
+                        else if (object->GetAlignment() != HomeTeam()->Alignment &&
+                                 HomeTeam()->LineOfSight(object->GetPosition()) != 0)
                         {
                             showTag(0, 0xef);
                         }
 
-                        MouseObjectType = object->GetAlignment() == HomeTeam->Alignment ? 3 : 1;
+                        MouseObjectType = object->GetAlignment() == HomeTeam()->Alignment ? 3 : 1;
                         break;
                     }
                 }
@@ -4823,7 +4786,7 @@ auto MCInterfaceObject::UpdateMouseState(MCGuiEvent* event) -> void
 
         for (int32_t i = 0; allowed && i < NumSelectedMechs; i++)
         {
-            MCBaseObject* object = ObjectList->FindObjectFromPart(SelectedMechs[i]);
+            MCBaseObject* object = ObjectList()->FindObjectFromPart(SelectedMechs[i]);
 
             // A mover whose order queue is full takes no more.
             if (IsMoverClass(object) && static_cast<MCMover*>(object)->GetPilot() != nullptr &&
@@ -4857,7 +4820,7 @@ auto MCInterfaceObject::UpdateMouseState(MCGuiEvent* event) -> void
 
             if (command != 0x11)
             {
-                if (GameMap->CellPassable(point) != 0)
+                if (GameMap()->CellPassable(point) != 0)
                 {
                     SetCursorOffset(mousePos);
 
@@ -4923,10 +4886,10 @@ auto MCInterfaceObject::UpdateMouseState(MCGuiEvent* event) -> void
     CaptureBlocked = 0;
 
     if (object != nullptr && object->IsCaptureable() != 0 && (CurrentCommand == 0 || CurrentCommand == 3) &&
-        object->GetAlignment() != HomeTeam->Alignment && HomeTeam->LineOfSight(object->GetPosition()) != 0)
+        object->GetAlignment() != HomeTeam()->Alignment && HomeTeam()->LineOfSight(object->GetPosition()) != 0)
     {
         CanCapture = 1;
-        CaptureBlocked = object->GetCaptureBlocker(HomeTeam->Alignment) != nullptr ? 1 : 0;
+        CaptureBlocked = object->GetCaptureBlocker(HomeTeam()->Alignment) != nullptr ? 1 : 0;
     }
 
     if (HighlightedObject != nullptr && (object == nullptr || object->IsBuilding() == 0))
@@ -4950,7 +4913,7 @@ auto MCInterfaceObject::UpdateMouseState(MCGuiEvent* event) -> void
         {
             setCursor(8);
         }
-        else if (MouseObject != nullptr && MouseObject->ObjectClass == BATTLEMECH)
+        else if (MouseObject != nullptr && MouseObject->ObjectClass == MCObjectClass::BattleMech)
         {
             setCursor(5);
         }
@@ -5081,7 +5044,7 @@ auto MCInterfaceObject::UpdateMouseState(MCGuiEvent* event) -> void
                     return;
                 }
 
-                if (GameMap->CellPassable(point) != 0)
+                if (GameMap()->CellPassable(point) != 0)
                 {
                     moveCursor();
                 }
@@ -5098,7 +5061,8 @@ auto MCInterfaceObject::UpdateMouseState(MCGuiEvent* event) -> void
     if (CurrentCommand == 0x33)
     {
         // Command 0x33 wants a revealed mover (not an elemental).
-        if (object != nullptr && IsMoverClass(object) && object->ObjectClass != ELEMENTAL && object->IsRevealed() != 0)
+        if (object != nullptr && IsMoverClass(object) && object->ObjectClass != MCObjectClass::Elemental &&
+            object->IsRevealed() != 0)
         {
             setCursor(0xe);
         }
@@ -5381,7 +5345,7 @@ auto MCInterfaceObject::UpdateMouseState(MCGuiEvent* event) -> void
                 return;
             }
 
-            if (GameMap->CellPassable(point) != 0)
+            if (GameMap()->CellPassable(point) != 0)
             {
                 moveCursor();
             }
@@ -5453,9 +5417,9 @@ auto MCInterfaceObject::UpdateMouseState(MCGuiEvent* event) -> void
                 {
                     // Walking onto it: the move cursor for a wreck, scrap or the player's own; else the attack cursor.
                     if (static_cast<uint8_t>(object->Status) == 2 || static_cast<uint8_t>(object->Status) == 1 ||
-                        (object->ObjectClass == MISCTERRAINOBJECT &&
+                        (object->ObjectClass == MCObjectClass::MiscTerrainObject &&
                          static_cast<MCMiscTerrainObject*>(object)->TerrainObjectKind == 5) ||
-                        object->GetAlignment() == HomeTeam->Alignment)
+                        object->GetAlignment() == HomeTeam()->Alignment)
                     {
                         SetCursorOffset(mousePos);
                         cursor = 0xf;
@@ -5554,12 +5518,12 @@ auto MCInterfaceObject::CallStrike(int strikeType, MCVector3D* position, MCGameO
     const MCVector3D location = *position;
 
     int32_t commanderId = 0;
-    MCTeam* team = InnerSphereTeam;
+    MCTeam* team = InnerSphereTeam();
 
     if (forCommander != 0)
     {
-        commanderId = HomeCommander->GetId();
-        team = HomeCommander->GetTeam();
+        commanderId = HomeCommander()->GetId();
+        team = HomeCommander()->GetTeam();
     }
     else if (forClans != 0)
     {
@@ -5568,7 +5532,7 @@ auto MCInterfaceObject::CallStrike(int strikeType, MCVector3D* position, MCGameO
             Fatal(0, " Iface.CallStrike: Need more info than clanStrike in MPlayer ");
         }
 
-        team = ClanTeam;
+        team = ClanTeam();
         commanderId = 1;
     }
 
@@ -5639,7 +5603,7 @@ auto MCInterfaceObject::CanSelectionJump() -> int
 
     for (int32_t i = 0; i < NumSelectedMechs; i++)
     {
-        MCBaseObject* object = ObjectList->FindObjectFromPart(SelectedMechs[i]);
+        MCBaseObject* object = ObjectList()->FindObjectFromPart(SelectedMechs[i]);
 
         if (!IsMoverClass(object) || static_cast<MCMover*>(object)->CanJump() == 0)
         {
@@ -5657,12 +5621,12 @@ auto MCInterfaceObject::CanSelectionJumpTo(MCVector3D position, MCGameObject* ta
     int result = 1;
 
     // Not onto one of the player's own movers.
-    if (target != nullptr && IsMoverClass(target) && target->GetTeam() == HomeTeam)
+    if (target != nullptr && IsMoverClass(target) && target->GetTeam() == HomeTeam())
     {
         return 0;
     }
 
-    if (GameMap->CellPassable(position) == 0)
+    if (GameMap()->CellPassable(position) == 0)
     {
         return 0;
     }
@@ -5671,7 +5635,7 @@ auto MCInterfaceObject::CanSelectionJumpTo(MCVector3D position, MCGameObject* ta
 
     for (int32_t i = 0; i < numMovers; i++)
     {
-        MCBaseObject* object = ObjectList->FindObjectFromPart(SelectedMechs[i]);
+        MCBaseObject* object = ObjectList()->FindObjectFromPart(SelectedMechs[i]);
 
         if (IsMoverClass(object) && static_cast<MCMover*>(object)->GetPilot() != nullptr &&
             !InJumpRange(static_cast<MCMover*>(object), position, fromWayPoint != 0))
@@ -5690,7 +5654,7 @@ auto MCInterfaceObject::CanSelectionJumpTo(MCVector3D position, MCGameObject* ta
             continue;
         }
 
-        for (int32_t j = 0; j < group->NumMovers; j++)
+        for (int32_t j = 0; j < group->NumMovers(); j++)
         {
             MCMover* mover = group->Movers[j];
 
@@ -5722,7 +5686,7 @@ auto MCInterfaceObject::AnySelected(int needsCommand) -> int
     // A live mover with weapons can take an attack command.
     for (int32_t i = 0; i < NumSelectedMechs; i++)
     {
-        auto* object = static_cast<MCGameObject*>(ObjectList->FindObjectFromPart(SelectedMechs[i]));
+        auto* object = static_cast<MCGameObject*>(ObjectList()->FindObjectFromPart(SelectedMechs[i]));
 
         if (object != nullptr && object->IsDisabled() == 0 && IsMoverClass(object) &&
             static_cast<MCMover*>(object)->NumWeapons != 0)
@@ -5740,7 +5704,7 @@ auto MCInterfaceObject::AnySelected(int needsCommand) -> int
             continue;
         }
 
-        for (int32_t j = 0; j < group->NumMovers; j++)
+        for (int32_t j = 0; j < group->NumMovers(); j++)
         {
             if (group->Movers[j] != nullptr && group->Movers[j]->NumWeapons != 0)
             {
@@ -5756,7 +5720,7 @@ auto MCInterfaceObject::AnySelected(int needsCommand) -> int
 auto MCInterfaceObject::SetUnit(int32_t groupId, int32_t numMovers, MCGameObject** movers, int32_t pointIndex) -> void
 {
     auto** moverList = reinterpret_cast<MCMover**>(movers);
-    HomeCommander->SetGroup(groupId, numMovers, moverList, pointIndex);
+    HomeCommander()->SetGroup(groupId, numMovers, moverList, pointIndex);
 
     if (MPlayer != nullptr)
     {
@@ -5774,9 +5738,9 @@ auto MCInterfaceObject::SetUnit(int32_t groupId, int32_t numMovers, MCGameObject
 
     for (int32_t lance = 0; lance < 4; lance++)
     {
-        MCMoverGroup* group = HomeCommander->GetGroup(lance);
+        MCMoverGroup* group = HomeCommander()->GetGroup(lance);
 
-        for (int32_t i = 0; i < group->NumMovers; i++)
+        for (int32_t i = 0; i < group->NumMovers(); i++)
         {
             if (group->Movers[i] != nullptr)
             {
@@ -5825,7 +5789,7 @@ auto MCInterfaceObject::SetCursorOffset(MCVector2D screenPos) -> void
 
     for (int32_t i = 0; i < count; i++)
     {
-        auto* object = static_cast<MCGameObject*>(ObjectList->FindObjectFromPart(SelectedMechs[i]));
+        auto* object = static_cast<MCGameObject*>(ObjectList()->FindObjectFromPart(SelectedMechs[i]));
 
         if (object != nullptr)
         {
@@ -5883,9 +5847,9 @@ auto MCInterfaceObject::RefitCheck(MCGameObject* target) -> int
         return 0;
     }
 
-    MCBaseObject* object = ObjectList->FindObjectFromPart(SelectedMechs[0]);
+    MCBaseObject* object = ObjectList()->FindObjectFromPart(SelectedMechs[0]);
 
-    if (object != nullptr && object->ObjectClass == GROUNDVEHICLE)
+    if (object != nullptr && object->ObjectClass == MCObjectClass::GroundVehicle)
     {
         auto* vehicle = static_cast<MCMover*>(object);
 
@@ -5904,7 +5868,7 @@ auto MCInterfaceObject::GetFixedCheck(MCGameObject* target) -> int
 {
     int result = 0;
 
-    if (target == nullptr || target->ObjectClass != TREEBUILDING)
+    if (target == nullptr || target->ObjectClass != MCObjectClass::TreeBuilding)
     {
         return 0;
     }
@@ -5914,12 +5878,12 @@ auto MCInterfaceObject::GetFixedCheck(MCGameObject* target) -> int
         return 0;
     }
 
-    if (HomeTeam->Alignment != target->GetAlignment() || NumSelectedMechs != 1)
+    if (HomeTeam()->Alignment != target->GetAlignment() || NumSelectedMechs != 1)
     {
         return 0;
     }
 
-    MCBaseObject* object = ObjectList->FindObjectFromPart(SelectedMechs[0]);
+    MCBaseObject* object = ObjectList()->FindObjectFromPart(SelectedMechs[0]);
 
     if (object == nullptr || !IsMoverClass(object))
     {
@@ -5929,8 +5893,8 @@ auto MCInterfaceObject::GetFixedCheck(MCGameObject* target) -> int
     auto* mover = static_cast<MCMover*>(object);
     const int32_t mechBay = static_cast<MCTreeBuilding*>(target)->MechBay;
 
-    if (mover->NeedsRefit(0) != 0 &&
-        ((mover->ObjectClass == BATTLEMECH && mechBay != 0) || (mover->ObjectClass == GROUNDVEHICLE && mechBay == 0)))
+    if (mover->NeedsRefit(0) != 0 && ((mover->ObjectClass == MCObjectClass::BattleMech && mechBay != 0) ||
+                                      (mover->ObjectClass == MCObjectClass::GroundVehicle && mechBay == 0)))
     {
         MCVector3D bayPosition = target->GetPosition();
 

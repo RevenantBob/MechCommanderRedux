@@ -1,7 +1,7 @@
 #include "stdafx.h"
 #include "abl/MCAblRoutineList.h"
 #include "abl/MCAblDebugger.h"
-#include "ai/move.h"
+#include "ai/MCMoveSystem.h"
 #include "gui/asystem.h"
 #include "gui/atextbox.h"
 #include "iface/iface.h"
@@ -17,19 +17,18 @@
 #include "object/artlry.h"
 #include "object/bldng.h"
 #include "object/bridge.h"
-#include "object/cmponent.h"
-#include "object/comndr.h"
-#include "object/contact.h"
-#include "object/gameobj.h"
+#include "object/MCMasterComponent.h"
+#include "object/MCForces.h"
+#include "object/MCContactSystem.h"
+#include "object/MCBigGameObject.h"
 #include "object/gate.h"
-#include "object/group.h"
+#include "object/MCMoverGroup.h"
 #include "object/gvehicl.h"
 #include "object/mover.h"
-#include "object/object.h"
-#include "object/objque.h"
-#include "object/objtype.h"
+#include "object/MCObjectSystem.h"
+#include "object/MCObjectQueue.h"
+#include "object/MCObjectType.h"
 #include "object/tbldng.h"
-#include "object/team.h"
 #include "object/terrobj.h"
 #include "object/train.h"
 #include "object/turret.h"
@@ -195,7 +194,7 @@ auto ExecHbSelectObject(MCAblRuntime& abl) -> MCAblType*
         previousId = abl.Brain.Object->PartId;
     }
 
-    MCBaseObject* object = ObjectList->FindObjectFromPart(abl.Top().Integer);
+    MCBaseObject* object = ObjectList()->FindObjectFromPart(abl.Top().Integer);
 
     if (object)
     {
@@ -300,35 +299,36 @@ auto ExecHbGetEnemyCount(MCAblRuntime& abl) -> MCAblType*
         {
             if (IsMover(object))
             {
-                abl.Top().Integer = object->GetTeam()->NumLosContacts;
+                abl.Top().Integer = object->GetTeam()->NumLosContacts();
             }
-            else if (object->ObjectClass == ARTILLERY || object->ObjectClass == BUILDING ||
-                     object->ObjectClass == TREEBUILDING)
+            else if (object->ObjectClass == MCObjectClass::Artillery ||
+                     object->ObjectClass == MCObjectClass::Building ||
+                     object->ObjectClass == MCObjectClass::TreeBuilding)
             {
                 int32_t alignment = object->GetAlignment();
 
                 if (alignment == -1)
                 {
-                    abl.Top().Integer = ClanTeam->NumLosContacts;
+                    abl.Top().Integer = ClanTeam()->NumLosContacts();
                 }
                 else if (alignment == 1)
                 {
-                    abl.Top().Integer = InnerSphereTeam->NumLosContacts;
+                    abl.Top().Integer = InnerSphereTeam()->NumLosContacts();
                 }
             }
         }
     }
     else if (partId == 500)
     {
-        abl.Top().Integer = InnerSphereTeam->NumLosContacts;
+        abl.Top().Integer = InnerSphereTeam()->NumLosContacts();
     }
     else if (partId == 0x1f5)
     {
-        abl.Top().Integer = ClanTeam->NumLosContacts;
+        abl.Top().Integer = ClanTeam()->NumLosContacts();
     }
-    else if (partId == 0x1f6 && AlliedTeam)
+    else if (partId == 0x1f6 && AlliedTeam())
     {
-        abl.Top().Integer = AlliedTeam->NumLosContacts;
+        abl.Top().Integer = AlliedTeam()->NumLosContacts();
     }
 
     abl.GetCodeToken();

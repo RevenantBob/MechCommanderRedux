@@ -374,11 +374,11 @@ TEST_CASE("services: MCMock records calls and returns queued results")
 /// </summary>
 TEST_CASE("services: the tiny map is flat and passable with the cells it blocks")
 {
-    MCScenarioMap* const before = GameMap;
+    MCScenarioMap* const before = GameMap();
     {
         MCTinyMap map(8);
-        CHECK_EQ(GameMap->Width, 8);
-        CHECK_EQ(GameMap->Height, 8);
+        CHECK_EQ(GameMap()->Width, 8);
+        CHECK_EQ(GameMap()->Height, 8);
         CHECK(map.Passable(0, 0));
         CHECK(map.Passable(23, 23));
         CHECK(!map.Passable(24, 0));
@@ -394,13 +394,13 @@ TEST_CASE("services: the tiny map is flat and passable with the cells it blocks"
             int32_t tileC = 0;
             int32_t cellR = 0;
             int32_t cellC = 0;
-            GameMap->WorldToMapPos(map.CellCentre(row, col), tileR, tileC, cellR, cellC);
-            CHECK_EQ(tileR * MAPCELL_DIM + cellR, row);
-            CHECK_EQ(tileC * MAPCELL_DIM + cellC, col);
+            GameMap()->WorldToMapPos(map.CellCentre(row, col), tileR, tileC, cellR, cellC);
+            CHECK_EQ(tileR * MapCellDim + cellR, row);
+            CHECK_EQ(tileC * MapCellDim + cellC, col);
         }
     }
 
-    CHECK(GameMap == before);
+    CHECK(GameMap() == before);
 }
 
 /// <summary>The retail fixture reads files the game reads (here from the FastFiles) into memory.</summary>

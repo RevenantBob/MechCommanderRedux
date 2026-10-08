@@ -6,9 +6,14 @@ class MCAblRuntime;
 class MCAblSymbolTable;
 class MCAppearanceTypeList;
 class MCCameraList;
+class MCCollisionSystem;
+class MCContactSystem;
 class MCCraterManager;
 class MCElementBuffer;
 class MCFastFileSet;
+class MCForces;
+class MCMoveSystem;
+class MCObjectSystem;
 class MCPalette;
 class MCSpriteManager;
 class MCTerrain;
@@ -76,6 +81,21 @@ public:
 
     /// <summary>The mission's cameras (null outside a mission).</summary>
     MCCameraList* CameraList() const;
+
+    /// <summary>The mission's movement maps and path finders (null outside a mission).</summary>
+    MCMoveSystem* MoveSystem() const;
+
+    /// <summary>The mission's sides: its teams and commanders (null outside a mission).</summary>
+    MCForces* Forces() const;
+
+    /// <summary>The mission's sensors and potential contacts (null outside a mission).</summary>
+    MCContactSystem* ContactSystem() const;
+
+    /// <summary>The mission's collision system (null outside a mission).</summary>
+    MCCollisionSystem* CollisionSystem() const;
+
+    /// <summary>The mission's objects: their types, lists and watchers (null outside a mission).</summary>
+    MCObjectSystem* ObjectSystem() const;
 
     /// <summary>ABL's symbols and types (null outside AblInit .. AblClose).</summary>
     MCAblSymbolTable* AblSymbols() const;
@@ -145,6 +165,26 @@ public:
     /// <returns>The cameras this context had.</returns>
     std::unique_ptr<MCCameraList> SetCameraList(std::unique_ptr<MCCameraList> cameraList);
 
+    /// <summary>Gives this context its own movement maps (null: the ones it was installed over, if any).</summary>
+    /// <returns>The movement maps this context had.</returns>
+    std::unique_ptr<MCMoveSystem> SetMoveSystem(std::unique_ptr<MCMoveSystem> moveSystem);
+
+    /// <summary>Gives this context its own forces (null: the ones it was installed over, if any).</summary>
+    /// <returns>The forces this context had.</returns>
+    std::unique_ptr<MCForces> SetForces(std::unique_ptr<MCForces> forces);
+
+    /// <summary>Gives this context its own sensors and contacts (null: the ones it was installed over, if any).</summary>
+    /// <returns>The contact system this context had.</returns>
+    std::unique_ptr<MCContactSystem> SetContactSystem(std::unique_ptr<MCContactSystem> contactSystem);
+
+    /// <summary>Gives this context its own collision system (null: the one it was installed over, if any).</summary>
+    /// <returns>The collision system this context had.</returns>
+    std::unique_ptr<MCCollisionSystem> SetCollisionSystem(std::unique_ptr<MCCollisionSystem> collisionSystem);
+
+    /// <summary>Gives this context its own object system (null: the one it was installed over, if any).</summary>
+    /// <returns>The object system this context had.</returns>
+    std::unique_ptr<MCObjectSystem> SetObjectSystem(std::unique_ptr<MCObjectSystem> objectSystem);
+
     /// <summary>Gives this context its own ABL symbol table (null: the one it was installed over, if any).</summary>
     /// <returns>The symbol table this context had.</returns>
     std::unique_ptr<MCAblSymbolTable> SetAblSymbols(std::unique_ptr<MCAblSymbolTable> symbols);
@@ -181,6 +221,12 @@ private:
     std::unique_ptr<MCAppearanceTypeList> _AppearanceTypeList;
     std::unique_ptr<MCTerrain> _Terrain;
     std::unique_ptr<MCCameraList> _CameraList;
+    std::unique_ptr<MCMoveSystem> _MoveSystem;
+    std::unique_ptr<MCForces> _Forces;
+    std::unique_ptr<MCContactSystem> _ContactSystem;
+    std::unique_ptr<MCCollisionSystem> _CollisionSystem;
+    /// <summary>After the systems its objects reach for as they go: it goes before them.</summary>
+    std::unique_ptr<MCObjectSystem> _ObjectSystem;
     std::unique_ptr<MCAblSymbolTable> _AblSymbols;
     /// <summary>Declared after the symbols: it goes first (its modules' watches point into the symbols).</summary>
     std::unique_ptr<MCAblRuntime> _AblRuntime;
@@ -200,9 +246,10 @@ public:
     MCTestContextScope& operator=(const MCTestContextScope&) = delete;
 
     /// <summary>The installed context, to give it services.</summary>
-    MCGameContext& Context() { return _Context; }
+    MCGameContext& Context() { return *_Context; }
 
 private:
     MCGameContext* _Previous = nullptr;
-    MCGameContext _Context;
+    /// <summary>Deleted while still current: the objects of its systems reach for them as they go.</summary>
+    std::unique_ptr<MCGameContext> _Context;
 };
