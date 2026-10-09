@@ -7,8 +7,9 @@
 //
 // Port: SessionManager runs over platform/MCDirectPlay (TCP/UDP) instead of DirectPlay. MPlayer stays null in a
 // single-player game, as in the original. The chunk classes that
-// single-player code also uses live with their objects: MoveChunk (ai/move.h), StatusChunk (object/mover.h),
-// WeaponFireChunk and WeaponHitChunk (object/gameobj.h), ArtilleryChunk (object/artlry.h). WorldStateChunk is here.
+// single-player code also uses live with their objects: MoveChunk (ai/MCMoveChunk.h), StatusChunk
+// (object/MCStatusChunk.h), WeaponFireChunk and WeaponHitChunk (object/MCWeaponFireChunk.h, object/MCWeaponHitChunk.h),
+// ArtilleryChunk (object/MCArtilleryChunk.h). WorldStateChunk is here.
 
 #include "linkup/ficommonnetwork.h"
 #include "linkup/linkedlist.h"

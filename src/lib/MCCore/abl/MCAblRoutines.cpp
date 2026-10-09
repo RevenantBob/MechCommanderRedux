@@ -13,14 +13,23 @@
 #include "main/main.h"
 #include "mission/scenario.h"
 #include "network/multplyr.h"
-#include "object/artlry.h"
-#include "object/bldng.h"
-#include "object/bridge.h"
+#include "object/MCArtillery.h"
+#include "object/MCArtilleryType.h"
+#include "object/MCArtilleryChunk.h"
+#include "object/MCCameraDrone.h"
+#include "object/MCCameraDroneType.h"
+#include "object/MCBuilding.h"
+#include "object/MCBuildingType.h"
+#include "object/MCBuildingMarines.h"
+#include "object/MCObjectDrawing.h"
+#include "object/MCMiscTerrainObject.h"
+#include "object/MCMiscTerrainObjectType.h"
 #include "object/MCMasterComponent.h"
 #include "object/MCForces.h"
 #include "object/MCContactSystem.h"
 #include "object/MCBigGameObject.h"
-#include "object/gate.h"
+#include "object/MCGate.h"
+#include "object/MCGateType.h"
 #include "object/MCMoverGroup.h"
 #include "object/MCGroundVehicle.h"
 #include "object/MCGroundVehicleType.h"
@@ -30,9 +39,14 @@
 #include "object/MCObjectSystem.h"
 #include "object/MCObjectQueue.h"
 #include "object/MCObjectType.h"
-#include "object/tbldng.h"
-#include "object/terrobj.h"
-#include "object/train.h"
+#include "object/MCTreeBuilding.h"
+#include "object/MCTreeBuildingType.h"
+#include "object/MCTerrainObject.h"
+#include "object/MCTerrainObjectType.h"
+#include "object/MCTrain.h"
+#include "object/MCTrainCar.h"
+#include "object/MCTrainCarType.h"
+#include "object/MCTrainManager.h"
 #include "object/MCTurret.h"
 #include "object/MCTurretType.h"
 #include "object/MCMechWarrior.h"
@@ -170,29 +184,29 @@ auto GetDamageLevel(MCGameObject* object, uint32_t& damageLevel) -> bool
         {
             MCMiscTerrainObjectType* miscType = static_cast<MCMiscTerrainObjectType*>(type);
 
-            switch (static_cast<MCMiscTerrainObject*>(object)->TerrainObjectKind)
+            switch (static_cast<MCMiscTerrainObject*>(object)->Kind)
             {
-                case 5:
+                case MCMiscTerrainKind::Bridge:
                 {
                     damageLevel = miscType->BridgeDmgLevel;
                     return true;
                 }
-                case 6:
+                case MCMiscTerrainKind::Forest:
                 {
                     damageLevel = miscType->ForestDmgLevel;
                     return true;
                 }
-                case 7:
+                case MCMiscTerrainKind::Wall:
                 {
                     damageLevel = miscType->WallDmgLevel;
                     return true;
                 }
-                case 8:
+                case MCMiscTerrainKind::MediumWall:
                 {
                     damageLevel = miscType->MediumWallDmgLevel;
                     return true;
                 }
-                case 9:
+                case MCMiscTerrainKind::LightWall:
                 {
                     damageLevel = miscType->LightWallDmgLevel;
                     return true;

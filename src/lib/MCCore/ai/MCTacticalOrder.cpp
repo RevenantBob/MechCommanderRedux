@@ -7,7 +7,10 @@
 #include "lib/MCFatal.h"
 #include "main/main.h"
 #include "network/multplyr.h"
-#include "object/bldng.h"
+#include "object/MCBuilding.h"
+#include "object/MCBuildingType.h"
+#include "object/MCBuildingMarines.h"
+#include "object/MCObjectDrawing.h"
 #include "object/MCElemental.h"
 #include "object/MCElementalType.h"
 #include "object/MCElementalGameSystem.h"
@@ -23,7 +26,8 @@
 #include "object/MCMoverGameSystem.h"
 #include "object/MCObjectQueue.h"
 #include "object/MCObjectSystem.h"
-#include "object/tbldng.h"
+#include "object/MCTreeBuilding.h"
+#include "object/MCTreeBuildingType.h"
 #include "object/MCMechWarrior.h"
 #include "sprite/MCMechActor.h"
 #include "terrain/MCTacticalMap.h"
@@ -1211,18 +1215,18 @@ auto MCTacticalOrder::CaptureStatus(MCMechWarrior* pilot) -> bool
                 // Original behaviour (OB-031): every seat pass moves all the prisoners into that seat, so only the
                 // last prisoner is kept, in the first seat.
                 MCGroundVehicle* carrier = static_cast<MCGroundVehicle*>(vehicle);
-                MCMechWarrior** prisoners = prize->ObjectClass == MCObjectClass::Building
-                                                ? static_cast<MCBuilding*>(prize)->PrisonSlots
-                                                : static_cast<MCTreeBuilding*>(prize)->PrisonSlots;
+                std::span<MCMechWarrior*> prisoners = prize->ObjectClass == MCObjectClass::Building
+                                                          ? std::span(static_cast<MCBuilding*>(prize)->PrisonSlots)
+                                                          : std::span(static_cast<MCTreeBuilding*>(prize)->PrisonSlots);
 
                 for (int32_t seat = 0; seat < carrier->Seats; seat++)
                 {
-                    for (int32_t slot = 0; slot < 4; slot++)
+                    for (MCMechWarrior*& prisoner : prisoners)
                     {
-                        if (prisoners[slot] != nullptr)
+                        if (prisoner != nullptr)
                         {
-                            carrier->Passengers[seat] = prisoners[slot];
-                            prisoners[slot] = nullptr;
+                            carrier->Passengers[seat] = prisoner;
+                            prisoner = nullptr;
                         }
                     }
                 }

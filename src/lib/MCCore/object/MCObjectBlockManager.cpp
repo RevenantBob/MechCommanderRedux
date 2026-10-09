@@ -7,11 +7,18 @@
 #include "network/multplyr.h"
 #include "object/MCObjectSystem.h"
 #include "object/MCSensorSystem.h"
-#include "object/bldng.h"
-#include "object/bridge.h"
-#include "object/gate.h"
-#include "object/tbldng.h"
-#include "object/terrobj.h"
+#include "object/MCBuilding.h"
+#include "object/MCBuildingType.h"
+#include "object/MCBuildingMarines.h"
+#include "object/MCObjectDrawing.h"
+#include "object/MCMiscTerrainObject.h"
+#include "object/MCMiscTerrainObjectType.h"
+#include "object/MCGate.h"
+#include "object/MCGateType.h"
+#include "object/MCTreeBuilding.h"
+#include "object/MCTreeBuildingType.h"
+#include "object/MCTerrainObject.h"
+#include "object/MCTerrainObjectType.h"
 #include "object/MCTurret.h"
 #include "object/MCTurretType.h"
 #include "sprite/MCVfxAppearance.h"
@@ -151,7 +158,7 @@ auto MCObjectBlockManager::LoadMiscTerrainObjects(std::span<const uint8_t> recor
         std::unique_ptr<MCMiscTerrainObject> object = CreateObjectAs<MCMiscTerrainObject>(MiscTerrainObjectType);
         object->VertexNumber = vertexNumber;
         object->BlockNumber = blockNumber;
-        object->TerrainObjectKind = kind;
+        object->Kind = static_cast<MCMiscTerrainKind>(kind);
         object->SetPartId(NextPartId(blockNumber, vertexNumber));
 
         if (record[3] != 0)
@@ -291,8 +298,8 @@ auto MCObjectBlockManager::SetupObjectQueue(uint32_t blockNumber, std::span<cons
                 {
                     auto* building = static_cast<MCTreeBuilding*>(object.get());
                     object->SetDamage(DestroyedDamage<MCTreeBuildingType>(object.get()));
-                    building->HitOnce = 1;
-                    building->Collapsed = 1;
+                    building->HitOnce = true;
+                    building->Collapsed = true;
                     building->CollisionsOn = 0;
                     building->Status = 2;
 
@@ -301,7 +308,7 @@ auto MCObjectBlockManager::SetupObjectQueue(uint32_t blockNumber, std::span<cons
                         building->SensorSystem->Disable();
                     }
 
-                    static_cast<MCVfxAppearance*>(building->Appearance)->SetTypeId(static_cast<MCActorState>(5), 0xff);
+                    building->Appearance->SetTypeId(MCActorState::FallenDamaged, 0xff);
                 }
                 break;
             }

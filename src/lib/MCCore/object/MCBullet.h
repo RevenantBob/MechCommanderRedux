@@ -1,0 +1,69 @@
+#pragma once
+
+#include "object/MCBigGameObject.h"
+#include "object/MCWeaponShotInfo.h"
+
+class MCArmAppearance;
+class MCSmoke;
+
+/// <summary>
+/// A projectile that flies from its owner's hot spot to a target (or a target position), then applies its shots'
+/// damage and creates a hit or miss effect; a miss on a mined cell sets the mine off.
+/// </summary>
+/// <remarks>Original source: <c>object\bullet.cpp</c>, <c>object\bullet.h</c>.</remarks>
+class MCBullet : public MCBigGameObject
+{
+public:
+    MCBullet();
+    ~MCBullet() override;
+
+    /// <summary>Makes the arm appearance and the smoke and light objects of the type.</summary>
+    int32_t Init(MCObjectType* objType) override;
+    using MCBigGameObject::Init;
+    int32_t Kill() override { return 0; }
+    /// <summary>
+    /// Moves the bullet toward its target; once it stops getting closer applies the shots to the target and creates
+    /// the hit (or miss) effect.
+    /// </summary>
+    /// <returns>1 while flying (or while the smoke trail lasts), 0 when done.</returns>
+    int32_t Update() override;
+    void Render() override;
+
+    /// <summary>Projects the bullet to the screen; true unless its appearance is off screen.</summary>
+    bool IsVisible();
+    void SetOwner(MCBaseObject* newOwner) { Owner = static_cast<MCGameObject*>(newOwner); }
+    void SetTarget(MCBaseObject* newTarget) { Target = static_cast<MCGameObject*>(newTarget); }
+    /// <summary>Sets the position the bullet flies to.</summary>
+    void SetTargetPosition(MCVector3D position) { TargetPosition = position; }
+    /// <summary>Sets the owner and the hot spot it fires from, and the target position.</summary>
+    void Connect(MCGameObject* source, MCVector3D targetPos, int32_t sourceHotSpot);
+    /// <summary>A new shot to apply on arrival (the caller fills it).</summary>
+    MCWeaponShotInfo& NewShot() { return Shots.emplace_back(); }
+
+    /// <summary>Set until the first update, which plays the sound and places the bullet.</summary>
+    bool JustCreated = true;
+    /// <summary>The object that fired the bullet.</summary>
+    MCGameObject* Owner = nullptr;
+    /// <summary>The owner's hot spot the bullet leaves from.</summary>
+    int32_t OwnerHotSpot = 0;
+    /// <summary>The object the bullet flies to and damages; null for a shot at a position.</summary>
+    MCGameObject* Target = nullptr;
+    /// <summary>The target's hot spot where the hit effect is placed (not used for turret targets).</summary>
+    int32_t TargetHotSpot = 0;
+    /// <summary>Where the bullet flies to, once set.</summary>
+    std::optional<MCVector3D> TargetPosition;
+    /// <summary>The smallest squared ground distance to the target so far (starts at 1e8); growing again means arrival.</summary>
+    float ClosestDistanceSq = 0;
+    /// <summary>The arm appearance of the bullet.</summary>
+    std::unique_ptr<MCArmAppearance> Appearance;
+    /// <summary>The shots applied to the target on arrival.</summary>
+    std::vector<MCWeaponShotInfo> Shots;
+    /// <summary>The smoke trail.</summary>
+    std::unique_ptr<MCSmoke> Smoke;
+    /// <summary>The bullet's own flight position (the object position follows the owner's hot spot).</summary>
+    MCVector3D BulletPosition;
+    /// <summary>The light that travels with the bullet.</summary>
+    std::unique_ptr<MCGameObject> Light;
+    /// <summary>The draw rotation of the appearance: -150, or 150 when a mech owner faces the other way.</summary>
+    int32_t DrawRotation = 0;
+};

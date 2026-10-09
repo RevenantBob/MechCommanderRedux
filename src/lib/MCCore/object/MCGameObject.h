@@ -41,9 +41,6 @@ public:
 
     /// <summary>Takes the type and its alignment.</summary>
     int32_t Init(MCObjectType* objType) override;
-    /// <summary>Resets the fields: class GAMEOBJECT, no type, position or status.</summary>
-    /// <remarks>The laser re-runs it on a live object (its own Init()).</remarks>
-    void Init() override;
     MCObjectType* GetObjectType() override { return ObjType; }
     int32_t Kill() override { return 0; }
     int32_t Update() override { return 0; }

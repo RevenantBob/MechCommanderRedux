@@ -10,8 +10,10 @@
 #include "engine/MCElementBuffer.h"
 #include "object/MCCollisionSystem.h"
 #include "object/MCContactSystem.h"
+#include "object/MCEffectSystem.h"
 #include "object/MCForces.h"
 #include "object/MCObjectSystem.h"
+#include "object/MCTrainManager.h"
 #include "lib/MCFastFileSet.h"
 #include "sprite/MCSpriteManager.h"
 #include "terrain/MCTerrain.h"
@@ -92,6 +94,8 @@ MCGameContext::~MCGameContext()
     _AblRuntime.reset();
     _AblSymbols.reset();
     _ObjectSystem.reset();
+    _TrainManager.reset();
+    _EffectSystem.reset();
     _CollisionSystem.reset();
     _ContactSystem.reset();
     _Forces.reset();
@@ -219,6 +223,26 @@ MCCollisionSystem* MCGameContext::CollisionSystem() const
 std::unique_ptr<MCCollisionSystem> MCGameContext::SetCollisionSystem(std::unique_ptr<MCCollisionSystem> collisionSystem)
 {
     return std::exchange(_CollisionSystem, std::move(collisionSystem));
+}
+
+MCEffectSystem* MCGameContext::EffectSystem() const
+{
+    return FindSystem(_EffectSystem, _Parent, &MCGameContext::EffectSystem);
+}
+
+std::unique_ptr<MCEffectSystem> MCGameContext::SetEffectSystem(std::unique_ptr<MCEffectSystem> effectSystem)
+{
+    return std::exchange(_EffectSystem, std::move(effectSystem));
+}
+
+MCTrainManager* MCGameContext::TrainManager() const
+{
+    return FindSystem(_TrainManager, _Parent, &MCGameContext::TrainManager);
+}
+
+std::unique_ptr<MCTrainManager> MCGameContext::SetTrainManager(std::unique_ptr<MCTrainManager> trainManager)
+{
+    return std::exchange(_TrainManager, std::move(trainManager));
 }
 
 MCObjectSystem* MCGameContext::ObjectSystem() const

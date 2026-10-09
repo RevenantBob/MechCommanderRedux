@@ -11,23 +11,38 @@
 #include "mission/scenario.h"
 #include "network/multplyr.h"
 #include "object/MCAIControl.h"
-#include "object/artlry.h"
-#include "object/bldng.h"
-#include "object/bridge.h"
-#include "object/bullet.h"
+#include "object/MCArtillery.h"
+#include "object/MCArtilleryType.h"
+#include "object/MCArtilleryChunk.h"
+#include "object/MCCameraDrone.h"
+#include "object/MCCameraDroneType.h"
+#include "object/MCBuilding.h"
+#include "object/MCBuildingType.h"
+#include "object/MCBuildingMarines.h"
+#include "object/MCObjectDrawing.h"
+#include "object/MCMiscTerrainObject.h"
+#include "object/MCMiscTerrainObjectType.h"
+#include "object/MCBullet.h"
+#include "object/MCBulletType.h"
 #include "object/MCCollisionSystem.h"
-#include "object/explode.h"
+#include "object/MCExplosion.h"
+#include "object/MCExplosionType.h"
 #include "object/MCMoverGroup.h"
 #include "object/MCGroundVehicleControlData.h"
 #include "object/MCGroundVehicleDynamics.h"
-#include "object/jet.h"
-#include "object/laser.h"
+#include "object/MCJet.h"
+#include "object/MCJetType.h"
+#include "object/MCLaser.h"
+#include "object/MCLaserType.h"
 #include "object/MCMechGameSystem.h"
-#include "object/prjlase.h"
+#include "object/MCProjectileLaser.h"
+#include "object/MCProjectileLaserType.h"
 #include "object/MCNetControl.h"
 #include "object/MCObjectSystem.h"
 #include "object/MCObjectQueue.h"
-#include "object/smoke.h"
+#include "object/MCSmoke.h"
+#include "object/MCSmokeType.h"
+#include "object/MCEffectSystem.h"
 #include "object/MCMechWarrior.h"
 #include "sound/soundsys.h"
 #include "terrain/MCTerrain.h"
@@ -93,7 +108,8 @@ auto MCGroundVehicle::HandleStaticCollision() -> void
             {
                 GetBlockAndVertexNumber(otherBlock, otherVertex);
 
-                if (static_cast<uint32_t>(static_cast<MCMiscTerrainObject*>(other)->TerrainObjectKind) > 6)
+                // The walls (and, compared unsigned, an object of no kind).
+                if (static_cast<uint32_t>(std::to_underlying(static_cast<MCMiscTerrainObject*>(other)->Kind)) > 6)
                 {
                     collides = 1;
                 }

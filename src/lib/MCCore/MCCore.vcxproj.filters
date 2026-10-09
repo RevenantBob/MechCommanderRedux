@@ -427,40 +427,16 @@
     <ClCompile Include="network\multplyr.cpp">
       <Filter>network</Filter>
     </ClCompile>
-    <ClCompile Include="object\artlry.cpp">
-      <Filter>object</Filter>
-    </ClCompile>
-    <ClCompile Include="object\bldng.cpp">
-      <Filter>object</Filter>
-    </ClCompile>
-    <ClCompile Include="object\bridge.cpp">
-      <Filter>object</Filter>
-    </ClCompile>
-    <ClCompile Include="object\bullet.cpp">
-      <Filter>object</Filter>
-    </ClCompile>
-    <ClCompile Include="object\debris.cpp">
-      <Filter>object</Filter>
-    </ClCompile>
-    <ClCompile Include="object\explode.cpp">
-      <Filter>object</Filter>
-    </ClCompile>
-    <ClCompile Include="object\fire.cpp">
-      <Filter>object</Filter>
-    </ClCompile>
-    <ClCompile Include="object\gate.cpp">
-      <Filter>object</Filter>
-    </ClCompile>
-    <ClCompile Include="object\jet.cpp">
-      <Filter>object</Filter>
-    </ClCompile>
-    <ClCompile Include="object\laser.cpp">
-      <Filter>object</Filter>
-    </ClCompile>
-    <ClCompile Include="object\light.cpp">
-      <Filter>object</Filter>
-    </ClCompile>
     <ClCompile Include="object\MCAIControl.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
+    <ClCompile Include="object\MCArtillery.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
+    <ClCompile Include="object\MCArtilleryChunk.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
+    <ClCompile Include="object\MCArtilleryType.cpp">
       <Filter>object</Filter>
     </ClCompile>
     <ClCompile Include="object\MCBaseObject.cpp">
@@ -484,6 +460,27 @@
     <ClCompile Include="object\MCBigGameObject.cpp">
       <Filter>object</Filter>
     </ClCompile>
+    <ClCompile Include="object\MCBuilding.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
+    <ClCompile Include="object\MCBuildingMarines.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
+    <ClCompile Include="object\MCBuildingType.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
+    <ClCompile Include="object\MCBullet.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
+    <ClCompile Include="object\MCBulletType.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
+    <ClCompile Include="object\MCCameraDrone.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
+    <ClCompile Include="object\MCCameraDroneType.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
     <ClCompile Include="object\MCCollisionGrid.cpp">
       <Filter>object</Filter>
     </ClCompile>
@@ -496,7 +493,16 @@
     <ClCompile Include="object\MCContactSystem.cpp">
       <Filter>object</Filter>
     </ClCompile>
+    <ClCompile Include="object\MCDebris.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
+    <ClCompile Include="object\MCDebrisType.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
     <ClCompile Include="object\MCDynamics.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
+    <ClCompile Include="object\MCEffectSystem.cpp">
       <Filter>object</Filter>
     </ClCompile>
     <ClCompile Include="object\MCElemental.cpp">
@@ -517,10 +523,28 @@
     <ClCompile Include="object\MCElementalType.cpp">
       <Filter>object</Filter>
     </ClCompile>
+    <ClCompile Include="object\MCExplosion.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
+    <ClCompile Include="object\MCExplosionType.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
+    <ClCompile Include="object\MCFire.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
+    <ClCompile Include="object\MCFireType.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
     <ClCompile Include="object\MCForces.cpp">
       <Filter>object</Filter>
     </ClCompile>
     <ClCompile Include="object\MCGameObject.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
+    <ClCompile Include="object\MCGate.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
+    <ClCompile Include="object\MCGateType.cpp">
       <Filter>object</Filter>
     </ClCompile>
     <ClCompile Include="object\MCGroundVehicle.cpp">
@@ -542,6 +566,24 @@
       <Filter>object</Filter>
     </ClCompile>
     <ClCompile Include="object\MCGroundVehicleType.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
+    <ClCompile Include="object\MCJet.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
+    <ClCompile Include="object\MCJetType.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
+    <ClCompile Include="object\MCLaser.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
+    <ClCompile Include="object\MCLaserType.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
+    <ClCompile Include="object\MCLight.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
+    <ClCompile Include="object\MCLightType.cpp">
       <Filter>object</Filter>
     </ClCompile>
     <ClCompile Include="object\MCMasterComponent.cpp">
@@ -568,6 +610,12 @@
     <ClCompile Include="object\MCMechWarriorOrders.cpp">
       <Filter>object</Filter>
     </ClCompile>
+    <ClCompile Include="object\MCMiscTerrainObject.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
+    <ClCompile Include="object\MCMiscTerrainObjectType.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
     <ClCompile Include="object\MCMover.cpp">
       <Filter>object</Filter>
     </ClCompile>
@@ -587,6 +635,9 @@
       <Filter>object</Filter>
     </ClCompile>
     <ClCompile Include="object\MCObjectBlockManager.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
+    <ClCompile Include="object\MCObjectDrawing.cpp">
       <Filter>object</Filter>
     </ClCompile>
     <ClCompile Include="object\MCObjectEvent.cpp">
@@ -619,7 +670,19 @@
     <ClCompile Include="object\MCPotentialContact.cpp">
       <Filter>object</Filter>
     </ClCompile>
+    <ClCompile Include="object\MCProjectileLaser.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
+    <ClCompile Include="object\MCProjectileLaserType.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
     <ClCompile Include="object\MCSensorSystem.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
+    <ClCompile Include="object\MCSmoke.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
+    <ClCompile Include="object\MCSmokeType.cpp">
       <Filter>object</Filter>
     </ClCompile>
     <ClCompile Include="object\MCSortList.cpp">
@@ -634,10 +697,43 @@
     <ClCompile Include="object\MCTeam.cpp">
       <Filter>object</Filter>
     </ClCompile>
+    <ClCompile Include="object\MCTerrainObject.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
+    <ClCompile Include="object\MCTerrainObjectType.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
+    <ClCompile Include="object\MCTrain.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
+    <ClCompile Include="object\MCTrainCar.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
+    <ClCompile Include="object\MCTrainCarType.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
+    <ClCompile Include="object\MCTrainManager.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
+    <ClCompile Include="object\MCTree.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
+    <ClCompile Include="object\MCTreeBuilding.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
+    <ClCompile Include="object\MCTreeBuildingType.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
+    <ClCompile Include="object\MCTreeType.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
     <ClCompile Include="object\MCTurret.cpp">
       <Filter>object</Filter>
     </ClCompile>
     <ClCompile Include="object\MCTurretType.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
+    <ClCompile Include="object\MCVertexPlacement.cpp">
       <Filter>object</Filter>
     </ClCompile>
     <ClCompile Include="object\MCWeaponChunkDebug.cpp">
@@ -650,27 +746,6 @@
       <Filter>object</Filter>
     </ClCompile>
     <ClCompile Include="object\MCWeaponShotInfo.cpp">
-      <Filter>object</Filter>
-    </ClCompile>
-    <ClCompile Include="object\prjlase.cpp">
-      <Filter>object</Filter>
-    </ClCompile>
-    <ClCompile Include="object\smoke.cpp">
-      <Filter>object</Filter>
-    </ClCompile>
-    <ClCompile Include="object\smokmgr.cpp">
-      <Filter>object</Filter>
-    </ClCompile>
-    <ClCompile Include="object\tbldng.cpp">
-      <Filter>object</Filter>
-    </ClCompile>
-    <ClCompile Include="object\terrobj.cpp">
-      <Filter>object</Filter>
-    </ClCompile>
-    <ClCompile Include="object\train.cpp">
-      <Filter>object</Filter>
-    </ClCompile>
-    <ClCompile Include="object\tree.cpp">
       <Filter>object</Filter>
     </ClCompile>
     <ClCompile Include="platform\MCAllocator.cpp">
@@ -1251,40 +1326,16 @@
     <ClInclude Include="network\multplyr.h">
       <Filter>network</Filter>
     </ClInclude>
-    <ClInclude Include="object\artlry.h">
-      <Filter>object</Filter>
-    </ClInclude>
-    <ClInclude Include="object\bldng.h">
-      <Filter>object</Filter>
-    </ClInclude>
-    <ClInclude Include="object\bridge.h">
-      <Filter>object</Filter>
-    </ClInclude>
-    <ClInclude Include="object\bullet.h">
-      <Filter>object</Filter>
-    </ClInclude>
-    <ClInclude Include="object\debris.h">
-      <Filter>object</Filter>
-    </ClInclude>
-    <ClInclude Include="object\explode.h">
-      <Filter>object</Filter>
-    </ClInclude>
-    <ClInclude Include="object\fire.h">
-      <Filter>object</Filter>
-    </ClInclude>
-    <ClInclude Include="object\gate.h">
-      <Filter>object</Filter>
-    </ClInclude>
-    <ClInclude Include="object\jet.h">
-      <Filter>object</Filter>
-    </ClInclude>
-    <ClInclude Include="object\laser.h">
-      <Filter>object</Filter>
-    </ClInclude>
-    <ClInclude Include="object\light.h">
-      <Filter>object</Filter>
-    </ClInclude>
     <ClInclude Include="object\MCAIControl.h">
+      <Filter>object</Filter>
+    </ClInclude>
+    <ClInclude Include="object\MCArtillery.h">
+      <Filter>object</Filter>
+    </ClInclude>
+    <ClInclude Include="object\MCArtilleryChunk.h">
+      <Filter>object</Filter>
+    </ClInclude>
+    <ClInclude Include="object\MCArtilleryType.h">
       <Filter>object</Filter>
     </ClInclude>
     <ClInclude Include="object\MCBaseObject.h">
@@ -1297,6 +1348,27 @@
       <Filter>object</Filter>
     </ClInclude>
     <ClInclude Include="object\MCBigGameObject.h">
+      <Filter>object</Filter>
+    </ClInclude>
+    <ClInclude Include="object\MCBuilding.h">
+      <Filter>object</Filter>
+    </ClInclude>
+    <ClInclude Include="object\MCBuildingMarines.h">
+      <Filter>object</Filter>
+    </ClInclude>
+    <ClInclude Include="object\MCBuildingType.h">
+      <Filter>object</Filter>
+    </ClInclude>
+    <ClInclude Include="object\MCBullet.h">
+      <Filter>object</Filter>
+    </ClInclude>
+    <ClInclude Include="object\MCBulletType.h">
+      <Filter>object</Filter>
+    </ClInclude>
+    <ClInclude Include="object\MCCameraDrone.h">
+      <Filter>object</Filter>
+    </ClInclude>
+    <ClInclude Include="object\MCCameraDroneType.h">
       <Filter>object</Filter>
     </ClInclude>
     <ClInclude Include="object\MCCollisionGrid.h">
@@ -1314,7 +1386,16 @@
     <ClInclude Include="object\MCControl.h">
       <Filter>object</Filter>
     </ClInclude>
+    <ClInclude Include="object\MCDebris.h">
+      <Filter>object</Filter>
+    </ClInclude>
+    <ClInclude Include="object\MCDebrisType.h">
+      <Filter>object</Filter>
+    </ClInclude>
     <ClInclude Include="object\MCDynamics.h">
+      <Filter>object</Filter>
+    </ClInclude>
+    <ClInclude Include="object\MCEffectSystem.h">
       <Filter>object</Filter>
     </ClInclude>
     <ClInclude Include="object\MCElemental.h">
@@ -1332,6 +1413,18 @@
     <ClInclude Include="object\MCElementalType.h">
       <Filter>object</Filter>
     </ClInclude>
+    <ClInclude Include="object\MCExplosion.h">
+      <Filter>object</Filter>
+    </ClInclude>
+    <ClInclude Include="object\MCExplosionType.h">
+      <Filter>object</Filter>
+    </ClInclude>
+    <ClInclude Include="object\MCFire.h">
+      <Filter>object</Filter>
+    </ClInclude>
+    <ClInclude Include="object\MCFireType.h">
+      <Filter>object</Filter>
+    </ClInclude>
     <ClInclude Include="object\MCForces.h">
       <Filter>object</Filter>
     </ClInclude>
@@ -1339,6 +1432,12 @@
       <Filter>object</Filter>
     </ClInclude>
     <ClInclude Include="object\MCGameSystemReader.h">
+      <Filter>object</Filter>
+    </ClInclude>
+    <ClInclude Include="object\MCGate.h">
+      <Filter>object</Filter>
+    </ClInclude>
+    <ClInclude Include="object\MCGateType.h">
       <Filter>object</Filter>
     </ClInclude>
     <ClInclude Include="object\MCGroundVehicle.h">
@@ -1356,6 +1455,24 @@
     <ClInclude Include="object\MCGroundVehicleType.h">
       <Filter>object</Filter>
     </ClInclude>
+    <ClInclude Include="object\MCJet.h">
+      <Filter>object</Filter>
+    </ClInclude>
+    <ClInclude Include="object\MCJetType.h">
+      <Filter>object</Filter>
+    </ClInclude>
+    <ClInclude Include="object\MCLaser.h">
+      <Filter>object</Filter>
+    </ClInclude>
+    <ClInclude Include="object\MCLaserType.h">
+      <Filter>object</Filter>
+    </ClInclude>
+    <ClInclude Include="object\MCLight.h">
+      <Filter>object</Filter>
+    </ClInclude>
+    <ClInclude Include="object\MCLightType.h">
+      <Filter>object</Filter>
+    </ClInclude>
     <ClInclude Include="object\MCMasterComponent.h">
       <Filter>object</Filter>
     </ClInclude>
@@ -1369,6 +1486,12 @@
       <Filter>object</Filter>
     </ClInclude>
     <ClInclude Include="object\MCMechWarrior.h">
+      <Filter>object</Filter>
+    </ClInclude>
+    <ClInclude Include="object\MCMiscTerrainObject.h">
+      <Filter>object</Filter>
+    </ClInclude>
+    <ClInclude Include="object\MCMiscTerrainObjectType.h">
       <Filter>object</Filter>
     </ClInclude>
     <ClInclude Include="object\MCMover.h">
@@ -1390,6 +1513,9 @@
       <Filter>object</Filter>
     </ClInclude>
     <ClInclude Include="object\MCObjectBlockManager.h">
+      <Filter>object</Filter>
+    </ClInclude>
+    <ClInclude Include="object\MCObjectDrawing.h">
       <Filter>object</Filter>
     </ClInclude>
     <ClInclude Include="object\MCObjectEvent.h">
@@ -1425,10 +1551,22 @@
     <ClInclude Include="object\MCPotentialContact.h">
       <Filter>object</Filter>
     </ClInclude>
+    <ClInclude Include="object\MCProjectileLaser.h">
+      <Filter>object</Filter>
+    </ClInclude>
+    <ClInclude Include="object\MCProjectileLaserType.h">
+      <Filter>object</Filter>
+    </ClInclude>
     <ClInclude Include="object\MCSalvageItem.h">
       <Filter>object</Filter>
     </ClInclude>
     <ClInclude Include="object\MCSensorSystem.h">
+      <Filter>object</Filter>
+    </ClInclude>
+    <ClInclude Include="object\MCSmoke.h">
+      <Filter>object</Filter>
+    </ClInclude>
+    <ClInclude Include="object\MCSmokeType.h">
       <Filter>object</Filter>
     </ClInclude>
     <ClInclude Include="object\MCSortList.h">
@@ -1443,10 +1581,43 @@
     <ClInclude Include="object\MCTeam.h">
       <Filter>object</Filter>
     </ClInclude>
+    <ClInclude Include="object\MCTerrainObject.h">
+      <Filter>object</Filter>
+    </ClInclude>
+    <ClInclude Include="object\MCTerrainObjectType.h">
+      <Filter>object</Filter>
+    </ClInclude>
+    <ClInclude Include="object\MCTrain.h">
+      <Filter>object</Filter>
+    </ClInclude>
+    <ClInclude Include="object\MCTrainCar.h">
+      <Filter>object</Filter>
+    </ClInclude>
+    <ClInclude Include="object\MCTrainCarType.h">
+      <Filter>object</Filter>
+    </ClInclude>
+    <ClInclude Include="object\MCTrainManager.h">
+      <Filter>object</Filter>
+    </ClInclude>
+    <ClInclude Include="object\MCTree.h">
+      <Filter>object</Filter>
+    </ClInclude>
+    <ClInclude Include="object\MCTreeBuilding.h">
+      <Filter>object</Filter>
+    </ClInclude>
+    <ClInclude Include="object\MCTreeBuildingType.h">
+      <Filter>object</Filter>
+    </ClInclude>
+    <ClInclude Include="object\MCTreeType.h">
+      <Filter>object</Filter>
+    </ClInclude>
     <ClInclude Include="object\MCTurret.h">
       <Filter>object</Filter>
     </ClInclude>
     <ClInclude Include="object\MCTurretType.h">
+      <Filter>object</Filter>
+    </ClInclude>
+    <ClInclude Include="object\MCVertexPlacement.h">
       <Filter>object</Filter>
     </ClInclude>
     <ClInclude Include="object\MCWeaponChunkDebug.h">
@@ -1459,27 +1630,6 @@
       <Filter>object</Filter>
     </ClInclude>
     <ClInclude Include="object\MCWeaponShotInfo.h">
-      <Filter>object</Filter>
-    </ClInclude>
-    <ClInclude Include="object\prjlase.h">
-      <Filter>object</Filter>
-    </ClInclude>
-    <ClInclude Include="object\smoke.h">
-      <Filter>object</Filter>
-    </ClInclude>
-    <ClInclude Include="object\smokmgr.h">
-      <Filter>object</Filter>
-    </ClInclude>
-    <ClInclude Include="object\tbldng.h">
-      <Filter>object</Filter>
-    </ClInclude>
-    <ClInclude Include="object\terrobj.h">
-      <Filter>object</Filter>
-    </ClInclude>
-    <ClInclude Include="object\train.h">
-      <Filter>object</Filter>
-    </ClInclude>
-    <ClInclude Include="object\tree.h">
       <Filter>object</Filter>
     </ClInclude>
     <ClInclude Include="platform\MCAllocator.h">

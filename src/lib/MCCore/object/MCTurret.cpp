@@ -16,21 +16,34 @@
 #include "main/main.h"
 #include "mission/scenario.h"
 #include "network/multplyr.h"
-#include "object/artlry.h"
-#include "object/bldng.h"
-#include "object/bullet.h"
+#include "object/MCArtillery.h"
+#include "object/MCArtilleryType.h"
+#include "object/MCArtilleryChunk.h"
+#include "object/MCCameraDrone.h"
+#include "object/MCCameraDroneType.h"
+#include "object/MCBuilding.h"
+#include "object/MCBuildingType.h"
+#include "object/MCBuildingMarines.h"
+#include "object/MCObjectDrawing.h"
+#include "object/MCBullet.h"
+#include "object/MCBulletType.h"
 #include "object/MCMasterComponent.h"
-#include "object/fire.h"
+#include "object/MCFire.h"
+#include "object/MCFireType.h"
+#include "object/MCEffectSystem.h"
 #include "object/MCGroundVehicle.h"
 #include "object/MCGroundVehicleGameSystem.h"
-#include "object/laser.h"
+#include "object/MCLaser.h"
+#include "object/MCLaserType.h"
 #include "object/MCBattleMech.h"
 #include "object/MCMechGameSystem.h"
 #include "object/MCObjectSystem.h"
 #include "object/MCObjectEvent.h"
 #include "object/MCObjectQueue.h"
-#include "object/prjlase.h"
-#include "object/smoke.h"
+#include "object/MCProjectileLaser.h"
+#include "object/MCProjectileLaserType.h"
+#include "object/MCSmoke.h"
+#include "object/MCSmokeType.h"
 #include "object/MCForces.h"
 #include "object/MCMechWarrior.h"
 #include "object/MCMoverGameSystem.h"
@@ -98,11 +111,7 @@ namespace
         {
             auto* bullet = static_cast<MCBullet*>(fx.get());
 
-            if (bullet->NumShots != 5)
-            {
-                bullet->ShotInfo[bullet->NumShots++].Init(shot.Attacker, shot.MasterId, shot.Damage, shot.HitLocation,
-                                                          shot.EntryAngle);
-            }
+            bullet->NewShot().Init(shot.Attacker, shot.MasterId, shot.Damage, shot.HitLocation, shot.EntryAngle);
 
             if (target == nullptr)
             {
@@ -320,19 +329,7 @@ namespace
 
 MCTurret::MCTurret() = default;
 
-MCTurret::~MCTurret()
-{
-    if (FireObject != nullptr)
-    {
-        FireObject->SetPotentialContact(0);
-        FireObject->BurningObject = nullptr;
-    }
-}
-
-auto MCTurret::KillFireObject() -> void
-{
-    static_cast<void>(FireObject.release());
-}
+MCTurret::~MCTurret() = default;
 
 auto MCTurret::IsVisible(MCCamera* cam) -> int
 {
@@ -1124,7 +1121,7 @@ auto MCTurret::LightOnFire(float timeToBurn) -> void
 
             if (newFire->ObjectClass == MCObjectClass::Fire)
             {
-                FireObject.reset(static_cast<MCFire*>(newFire.release()));
+                FireObject.Light(std::unique_ptr<MCFire>(static_cast<MCFire*>(newFire.release())));
                 FireObject->SetPotentialContact(3);
                 FireObject->BurningObject = this;
                 FireObject->SetTonnage(40.0f);
@@ -1465,7 +1462,7 @@ auto MCTurret::HandleWeaponHit(MCWeaponShotInfo* shotInfo, int addMultiplayChunk
 
                 if (newFire->ObjectClass == MCObjectClass::Fire)
                 {
-                    FireObject.reset(static_cast<MCFire*>(newFire.release()));
+                    FireObject.Light(std::unique_ptr<MCFire>(static_cast<MCFire*>(newFire.release())));
                     FireObject->SetPotentialContact(3);
                     FireObject->BurningObject = this;
                     FireObject->SetTonnage(40.0f);

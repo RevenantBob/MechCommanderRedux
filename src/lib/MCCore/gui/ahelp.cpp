@@ -5,7 +5,8 @@
 #include "engine/MCFont.h"
 #include "gui/aport.h"
 #include "main/main.h"
-#include "object/bridge.h"
+#include "object/MCMiscTerrainObject.h"
+#include "object/MCMiscTerrainObjectType.h"
 #include "platform/MCFrameLog.h"
 #include "vfx/MCVfxFunctions.h"
 

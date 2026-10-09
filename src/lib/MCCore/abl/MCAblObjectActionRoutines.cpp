@@ -14,14 +14,23 @@
 #include "main/main.h"
 #include "mission/scenario.h"
 #include "network/multplyr.h"
-#include "object/artlry.h"
-#include "object/bldng.h"
-#include "object/bridge.h"
+#include "object/MCArtillery.h"
+#include "object/MCArtilleryType.h"
+#include "object/MCArtilleryChunk.h"
+#include "object/MCCameraDrone.h"
+#include "object/MCCameraDroneType.h"
+#include "object/MCBuilding.h"
+#include "object/MCBuildingType.h"
+#include "object/MCBuildingMarines.h"
+#include "object/MCObjectDrawing.h"
+#include "object/MCMiscTerrainObject.h"
+#include "object/MCMiscTerrainObjectType.h"
 #include "object/MCMasterComponent.h"
 #include "object/MCForces.h"
 #include "object/MCContactSystem.h"
 #include "object/MCBigGameObject.h"
-#include "object/gate.h"
+#include "object/MCGate.h"
+#include "object/MCGateType.h"
 #include "object/MCMoverGroup.h"
 #include "object/MCGroundVehicle.h"
 #include "object/MCGroundVehicleType.h"
@@ -31,9 +40,14 @@
 #include "object/MCObjectSystem.h"
 #include "object/MCObjectQueue.h"
 #include "object/MCObjectType.h"
-#include "object/tbldng.h"
-#include "object/terrobj.h"
-#include "object/train.h"
+#include "object/MCTreeBuilding.h"
+#include "object/MCTreeBuildingType.h"
+#include "object/MCTerrainObject.h"
+#include "object/MCTerrainObjectType.h"
+#include "object/MCTrain.h"
+#include "object/MCTrainCar.h"
+#include "object/MCTrainCarType.h"
+#include "object/MCTrainManager.h"
 #include "object/MCTurret.h"
 #include "object/MCTurretType.h"
 #include "object/MCMechWarrior.h"
@@ -265,8 +279,7 @@ auto ExecHbSetAnimation(MCAblRuntime& abl) -> void
         {
             if (object->ObjectClass == MCObjectClass::Building)
             {
-                auto* buildingAppearance =
-                    static_cast<MCVfxBuildingAppearance*>(static_cast<MCBuilding*>(object)->Appearance);
+                MCVfxBuildingAppearance* buildingAppearance = static_cast<MCBuilding*>(object)->Appearance.get();
 
                 if (state >= buildingAppearance->BuildType->AnimStates.size())
                 {
@@ -281,8 +294,8 @@ auto ExecHbSetAnimation(MCAblRuntime& abl) -> void
             }
             else if (object->ObjectClass == MCObjectClass::TreeBuilding)
             {
-                static_cast<MCVfxAppearance*>(static_cast<MCTreeBuilding*>(object)->Appearance)
-                    ->SetTypeId(static_cast<MCActorState>(state), static_cast<uint8_t>(subState));
+                static_cast<MCTreeBuilding*>(object)->Appearance->SetTypeId(static_cast<MCActorState>(state),
+                                                                            static_cast<uint8_t>(subState));
             }
         }
     }
@@ -776,7 +789,7 @@ auto ExecHbAddPrisoner(MCAblRuntime& abl) -> MCAblType*
         if (prisoner)
         {
             // Original behaviour (OB-046): the prisoner goes into every empty slot, not just the first.
-            MCMechWarrior** prisonSlots = nullptr;
+            std::span<MCMechWarrior*> prisonSlots;
 
             if (object->ObjectClass == MCObjectClass::Building)
             {
@@ -787,15 +800,12 @@ auto ExecHbAddPrisoner(MCAblRuntime& abl) -> MCAblType*
                 prisonSlots = static_cast<MCTreeBuilding*>(object)->PrisonSlots;
             }
 
-            if (prisonSlots)
+            for (MCMechWarrior*& slot : prisonSlots)
             {
-                for (int32_t slot = 0; slot < 4; slot++)
+                if (slot == nullptr)
                 {
-                    if (prisonSlots[slot] == nullptr)
-                    {
-                        prisonSlots[slot] = prisoner;
-                        result = 0;
-                    }
+                    slot = prisoner;
+                    result = 0;
                 }
             }
         }

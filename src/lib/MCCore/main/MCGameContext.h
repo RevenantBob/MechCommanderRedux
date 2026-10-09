@@ -9,6 +9,7 @@ class MCCameraList;
 class MCCollisionSystem;
 class MCContactSystem;
 class MCCraterManager;
+class MCEffectSystem;
 class MCElementBuffer;
 class MCFastFileSet;
 class MCForces;
@@ -17,6 +18,7 @@ class MCObjectSystem;
 class MCPalette;
 class MCSpriteManager;
 class MCTerrain;
+class MCTrainManager;
 
 /// <summary>
 /// Everything the game reaches for that a test may want to replace: the port services (clock, dice, files, sound
@@ -93,6 +95,12 @@ public:
 
     /// <summary>The mission's collision system (null outside a mission).</summary>
     MCCollisionSystem* CollisionSystem() const;
+
+    /// <summary>The mission's fires and smoke bookkeeping (null outside a mission).</summary>
+    MCEffectSystem* EffectSystem() const;
+
+    /// <summary>The mission's trains (null outside a mission, and in a mission without trains).</summary>
+    MCTrainManager* TrainManager() const;
 
     /// <summary>The mission's objects: their types, lists and watchers (null outside a mission).</summary>
     MCObjectSystem* ObjectSystem() const;
@@ -181,6 +189,14 @@ public:
     /// <returns>The collision system this context had.</returns>
     std::unique_ptr<MCCollisionSystem> SetCollisionSystem(std::unique_ptr<MCCollisionSystem> collisionSystem);
 
+    /// <summary>Gives this context its own fires and smoke (null: the ones it was installed over, if any).</summary>
+    /// <returns>The effect system this context had.</returns>
+    std::unique_ptr<MCEffectSystem> SetEffectSystem(std::unique_ptr<MCEffectSystem> effectSystem);
+
+    /// <summary>Gives this context its own trains (null: the ones it was installed over, if any).</summary>
+    /// <returns>The train manager this context had.</returns>
+    std::unique_ptr<MCTrainManager> SetTrainManager(std::unique_ptr<MCTrainManager> trainManager);
+
     /// <summary>Gives this context its own object system (null: the one it was installed over, if any).</summary>
     /// <returns>The object system this context had.</returns>
     std::unique_ptr<MCObjectSystem> SetObjectSystem(std::unique_ptr<MCObjectSystem> objectSystem);
@@ -225,6 +241,8 @@ private:
     std::unique_ptr<MCForces> _Forces;
     std::unique_ptr<MCContactSystem> _ContactSystem;
     std::unique_ptr<MCCollisionSystem> _CollisionSystem;
+    std::unique_ptr<MCEffectSystem> _EffectSystem;
+    std::unique_ptr<MCTrainManager> _TrainManager;
     /// <summary>After the systems its objects reach for as they go: it goes before them.</summary>
     std::unique_ptr<MCObjectSystem> _ObjectSystem;
     std::unique_ptr<MCAblSymbolTable> _AblSymbols;

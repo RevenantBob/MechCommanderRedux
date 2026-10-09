@@ -14,6 +14,12 @@ class MCGameObject;
 extern uint32_t NextIdNumber;
 
 /// <summary>
+/// Reads the effect id <paramref name="name"/> as the original's unchecked reads did: the file's value, 0 when the entry
+/// is missing, <paramref name="value"/> left alone on any other error.
+/// </summary>
+void ReadEffectId(MCFitIniFile& file, std::string_view name, uint32_t& value);
+
+/// <summary>
 /// The common part of every object type: what it looks like, what it leaves behind when destroyed or when it
 /// explodes, its size, icon and alignment. A type is loaded once from the object packet file (<c>OBJECT.PAK</c>) and
 /// shared, reference counted, by every object made from it.
@@ -25,7 +31,7 @@ class MCObjectType
 {
 public:
     MCObjectType() = default;
-    virtual ~MCObjectType() { Destroy(); }
+    virtual ~MCObjectType() = default;
     MCObjectType(const MCObjectType&) = delete;
     MCObjectType& operator=(const MCObjectType&) = delete;
 
@@ -34,8 +40,6 @@ public:
     /// nothing.
     /// </summary>
     virtual int32_t Init(MCFile* objFile, uint32_t fileSize) { return 0; }
-    /// <summary>A type's teardown, which its destructor calls (none here).</summary>
-    virtual void Destroy() {}
     /// <summary>Makes a new object of this type and gives it the next id number.</summary>
     virtual std::unique_ptr<MCBaseObject> CreateInstance();
     /// <summary>
@@ -48,18 +52,6 @@ public:
     /// explosion at its position.
     /// </summary>
     virtual int HandleDestruction(MCGameObject* collidee, MCGameObject* collider);
-
-    /// <summary>Sets every field to its default (no objects, appearance or icon); the types' own inits re-run it.</summary>
-    void Init()
-    {
-        TypeClass = -1;
-        DestroyedObject = -1;
-        ExplosionObject = -1;
-        AppearName = 0;
-        ExtentRadius = 0.0f;
-        KeepMe = 0;
-        IconNumber = -1;
-    }
 
     /// <summary>
     /// Reads the "ObjectType" block: Type, Appearance, ExplosionObject, DestroyedObject, ExtentRadius, and the

@@ -27,8 +27,15 @@
 #include "main/main.h"
 #include "mission/mission.h"
 #include "network/multplyr.h"
-#include "object/artlry.h"
-#include "object/bldng.h"
+#include "object/MCArtillery.h"
+#include "object/MCArtilleryType.h"
+#include "object/MCArtilleryChunk.h"
+#include "object/MCCameraDrone.h"
+#include "object/MCCameraDroneType.h"
+#include "object/MCBuilding.h"
+#include "object/MCBuildingType.h"
+#include "object/MCBuildingMarines.h"
+#include "object/MCObjectDrawing.h"
 #include "object/MCMasterComponent.h"
 #include "object/MCCollisionSystem.h"
 #include "object/MCForces.h"
@@ -36,7 +43,9 @@
 #include "object/MCElemental.h"
 #include "object/MCElementalType.h"
 #include "object/MCElementalGameSystem.h"
-#include "object/fire.h"
+#include "object/MCFire.h"
+#include "object/MCFireType.h"
+#include "object/MCEffectSystem.h"
 #include "object/MCMoverGroup.h"
 #include "object/MCGroundVehicle.h"
 #include "object/MCGroundVehicleType.h"
@@ -49,9 +58,12 @@
 #include "object/MCObjectSystem.h"
 #include "object/MCObjectQueue.h"
 #include "object/MCObjectType.h"
-#include "object/smoke.h"
-#include "object/smokmgr.h"
-#include "object/train.h"
+#include "object/MCSmoke.h"
+#include "object/MCSmokeType.h"
+#include "object/MCTrain.h"
+#include "object/MCTrainCar.h"
+#include "object/MCTrainCarType.h"
+#include "object/MCTrainManager.h"
 #include "object/MCMechWarrior.h"
 #include "sound/soundsys.h"
 #include "sprite/MCVfxBuildingAppearance.h"
@@ -79,7 +91,6 @@ MCBaseObject* MoverRoster[0xe00] = {};
 int32_t MineLayThrottle = 0;
 int32_t MineSweepThrottle = 0;
 float MineWaitTime = 0.0f;
-MCTrainManager* TrainManager = nullptr;
 int32_t VisualRangeTable[256] = {};
 int32_t GlobalPlayerWeapons[2] = {};
 int32_t GlobalEnemySkills[2] = {};
@@ -497,18 +508,23 @@ auto MCScenario::Init(char* scenarioName, char* terrainName) -> int32_t
     result = gameSystemFile->ReadIdFloat("MineWaitTime", MineWaitTime);
     RequireOk(result, " Could not find mine Wait time in Mine Block ");
 
+    // The smoke sphere and shape budgets are read and not used: smokes take what they need (OB-152).
     result = gameSystemFile->SeekBlock("Smoke");
     RequireOk(result, " Could not find Smoke Block in GameSys ");
-    result = gameSystemFile->ReadIdLong("MaxSmokeSpheres", TotalSmokeSpheres);
+    int32_t maxSmokeSpheres = 0;
+    result = gameSystemFile->ReadIdLong("MaxSmokeSpheres", maxSmokeSpheres);
     RequireOk(result, " Could not find total Smoke Count in GameSys ");
-    result = gameSystemFile->ReadIdLong("TotalSmokeShapeSize", TotalSmokeShapeSize);
+    int32_t totalSmokeShapeSize = 0;
+    result = gameSystemFile->ReadIdLong("TotalSmokeShapeSize", totalSmokeShapeSize);
     RequireOk(result, " Could not find total Smoke Shape Size in GameSys ");
 
     result = gameSystemFile->SeekBlock("Fire");
     RequireOk(result, " Could not find Fire Block in GameSys ");
-    result = gameSystemFile->ReadIdLong("MaxFiresBurning", MaxFiresBurning);
+    int32_t maxFiresBurning = 0;
+    result = gameSystemFile->ReadIdLong("MaxFiresBurning", maxFiresBurning);
     RequireOk(result, " COuld not find max fires burning in gameSys ");
-    result = gameSystemFile->ReadIdFloat("MaxFireBurnTime", MaxFireBurnTime);
+    float maxFireBurnTime = 0.0f;
+    result = gameSystemFile->ReadIdFloat("MaxFireBurnTime", maxFireBurnTime);
     RequireOk(result, " COuld not find max fire burn time in gameSys ");
     UpdateDisplay(0, 1, 30, 1, 5);
 
@@ -811,13 +827,15 @@ auto MCScenario::Init(char* scenarioName, char* terrainName) -> int32_t
     MCGameContext::Current().SetContactSystem(std::move(*contacts));
     UpdateDisplay(0, 1, 20, 1, 25);
 
-    SmokeManager = new MCSmokeManager;
-    result = SmokeManager->Init(ScenarioFile);
+    std::expected<std::unique_ptr<MCEffectSystem>, MCFitError> effects =
+        MCEffectSystem::Create(*ScenarioFile, maxFiresBurning, maxFireBurnTime);
 
-    if (result != 0)
+    if (!effects)
     {
-        return result;
+        return std::to_underlying(effects.error());
     }
+
+    MCGameContext::Current().SetEffectSystem(std::move(*effects));
 
     UpdateDisplay(0, 1, 30, 1, 35);
 
@@ -1149,20 +1167,13 @@ auto MCScenario::Init(char* scenarioName, char* terrainName) -> int32_t
 
     //---------------------------------------------------------------------------------------------------------------
     // Trains, elemental carriers and buses: parts that carry other parts.
-    TrainManager = nullptr;
+    MCGameContext::Current().SetTrainManager(nullptr);
     result = ScenarioFile->SeekBlock("Trains");
 
     if (result == 0)
     {
         int32_t numTrains = 0;
-        TrainManager = new MCTrainManager;
-
-        if (TrainManager != nullptr)
-        {
-            TrainManager->Init();
-        }
-
-        Assert(TrainManager != nullptr, 0, "Couldn't create manager");
+        MCGameContext::Current().SetTrainManager(std::make_unique<MCTrainManager>());
         result = ScenarioFile->ReadIdLong("NumTrains", numTrains);
         RequireOk(result, " Could not find number of trains");
 
@@ -1176,7 +1187,7 @@ auto MCScenario::Init(char* scenarioName, char* terrainName) -> int32_t
             result = ScenarioFile->ReadIdLong("NumCars", numCars);
             RequireOk(result, " Could not find number of cars in train block");
             Assert(0 < numCars, static_cast<uint32_t>(result), " Need at least one car in train...");
-            MCTrain* train = TrainManager->CreateTrain();
+            MCTrain* train = TrainManager()->CreateTrain();
 
             for (int32_t carNumber = 0; carNumber < numCars; carNumber++)
             {
@@ -1569,9 +1580,9 @@ auto MCScenario::Run() -> int32_t
     Terrain()->Update();
     PathManager()->Update();
 
-    if (TrainManager != nullptr)
+    if (MCTrainManager* trains = TrainManager(); trains != nullptr)
     {
-        TrainManager->UpdateTrains();
+        trains->UpdateTrains();
     }
 
     ObjectList()->Update();
@@ -1665,14 +1676,7 @@ auto MCScenario::Destroy() -> void
     MCObjectSystem::Stop();
     MCGameContext::Current().SetContactSystem(nullptr);
 
-    if (TrainManager != nullptr)
-    {
-        // Faithful: destroyed twice (once here, once by the inlined destructor).
-        TrainManager->Destroy();
-        TrainManager->Destroy();
-        delete TrainManager;
-        TrainManager = nullptr;
-    }
+    MCGameContext::Current().SetTrainManager(nullptr);
 
     Assert(Parts != nullptr, 0, " parts already NULL ");
     Parts.reset();
@@ -1692,12 +1696,7 @@ auto MCScenario::Destroy() -> void
         }
     }
 
-    if (SmokeManager != nullptr)
-    {
-        SmokeManager->Destroy();
-        delete SmokeManager;
-        SmokeManager = nullptr;
-    }
+    MCGameContext::Current().SetEffectSystem(nullptr);
 
     Assert(AppearanceTypeList() != nullptr, 0, " appearanceTypeList already NULL ");
     MCGameContext::Current().SetAppearanceTypeList(nullptr);
@@ -1713,8 +1712,6 @@ auto MCScenario::Destroy() -> void
     }
 
     MCGameContext::Current().SetMoveSystem(nullptr);
-
-    MCFire::MaxFiresList.reset();
 
     DestroyWarriors();
 

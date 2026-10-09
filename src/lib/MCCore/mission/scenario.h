@@ -343,7 +343,6 @@ extern int32_t MineLayThrottle;
 extern int32_t MineSweepThrottle;
 /// <summary>Mission "MineWaitTime": the seconds a mine layer waits on a cell before laying.</summary>
 extern float MineWaitTime;
-extern MCTrainManager* TrainManager;
 /// <summary>The scenario's frame (turn) counter.</summary>
 extern int32_t Turn;
 /// <summary>The <c>VisualRangeTable</c> of the game system file (256 entries).</summary>

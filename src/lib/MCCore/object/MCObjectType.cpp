@@ -6,6 +6,20 @@
 
 uint32_t NextIdNumber = 0x30000001;
 
+void ReadEffectId(MCFitIniFile& file, std::string_view name, uint32_t& value)
+{
+    const MCFitResult<uint32_t> id = file.Read<uint32_t>(name);
+
+    if (id.has_value())
+    {
+        value = *id;
+    }
+    else if (id.error() == MCFitError::VariableNotFound)
+    {
+        value = 0;
+    }
+}
+
 auto MCObjectType::CreateInstance() -> std::unique_ptr<MCBaseObject>
 {
     auto object = std::make_unique<MCBaseObject>();

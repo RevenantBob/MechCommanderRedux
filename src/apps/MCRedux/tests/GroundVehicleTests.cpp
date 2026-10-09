@@ -9,7 +9,9 @@
 #include "object/MCGroundVehicleDynamics.h"
 #include "object/MCGroundVehicleType.h"
 #include "object/MCGroundVehicleGameSystem.h"
-#include "object/smoke.h"
+#include "object/MCSmoke.h"
+#include "object/MCSmokeType.h"
+#include "object/MCEffectSystem.h"
 
 namespace
 {
@@ -264,8 +266,8 @@ TEST_CASE("ground vehicle game system: the vehicle blocks of gamesys.fit, the cr
 
 /// <summary>
 /// A disabled vehicle smokes; destroyed, its wreck smokes instead. Port fix (OB-148): the wreck's smoke replaces the
-/// disabled one, which gives its spheres back to the smoke manager, so a vehicle never holds more than one smoke's
-/// spheres. (The original left the first smoke behind with its spheres.)
+/// disabled one, which gives its spheres back, so a vehicle never holds more than one smoke's spheres. (The original
+/// left the first smoke behind with its spheres.)
 /// </summary>
 TEST_CASE_ISOLATED("game: a destroyed vehicle's smoke replaces its disabled smoke, which gives its spheres back")
 {
@@ -288,11 +290,13 @@ TEST_CASE_ISOLATED("game: a destroyed vehicle's smoke replaces its disabled smok
     }
 
     REQUIRE(vehicle != nullptr);
-    REQUIRE(SmokeManager != nullptr);
-    const int32_t freeBefore = SmokeManager->NumFreeSpheres;
+    REQUIRE(EffectSystem() != nullptr);
+    const int32_t outBefore = EffectSystem()->SmokeSpheresOut();
     vehicle->Disable(0);
     REQUIRE(vehicle->Smoke != nullptr);
-    CHECK_EQ(SmokeManager->NumFreeSpheres, freeBefore - vehicle->Smoke->NumSpheres);
+    const auto smokeSpheres = static_cast<int32_t>(vehicle->Smoke->Spheres.size());
+    CHECK(0 < smokeSpheres);
+    CHECK_EQ(EffectSystem()->SmokeSpheresOut(), outBefore + smokeSpheres);
 
     // Destroyed, its death timer about to run out: the next update blows it up and makes the wreck's smoke.
     vehicle->Status = 2;
@@ -300,5 +304,5 @@ TEST_CASE_ISOLATED("game: a destroyed vehicle's smoke replaces its disabled smok
     vehicle->Update();
     REQUIRE(vehicle->Smoke != nullptr);
     CHECK(vehicle->DeathExplosionDone);
-    CHECK_EQ(SmokeManager->NumFreeSpheres, freeBefore - vehicle->Smoke->NumSpheres);
+    CHECK_EQ(EffectSystem()->SmokeSpheresOut(), outBefore + static_cast<int32_t>(vehicle->Smoke->Spheres.size()));
 }

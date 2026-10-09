@@ -55,10 +55,9 @@ constexpr bool IsMoverClass(MCObjectClass objectClass)
 /// <see cref="MCObjectType"/>'s <c>CreateInstance</c> and owned by the <see cref="MCObjectList"/> that holds them.
 /// </summary>
 /// <remarks>
-/// Original source: <c>object\baseobj.h</c>, <c>object\baseobj.cpp</c>. The hierarchy keeps MCX.EXE's two-phase set-up
-/// (the constructor, then <see cref="Init(MCObjectType*)"/> from the type) and the <see cref="Init()"/> and
-/// <see cref="Destroy"/> hooks each class's constructor and destructor call, until the classes below
-/// <see cref="MCBigGameObject"/> become constructors and destructors of their own (P3-obj-2..4).
+/// Original source: <c>object\baseobj.h</c>, <c>object\baseobj.cpp</c>. The hierarchy keeps MCX.EXE's two-phase set-up:
+/// the constructor, then <see cref="Init(MCObjectType*)"/> from the type, whose failure the type's
+/// <c>CreateInstance</c> answers with no object.
 /// </remarks>
 class MCBaseObject
 {
@@ -71,10 +70,6 @@ public:
 
     /// <summary>Sets the object up for its type; the base keeps its fields.</summary>
     virtual int32_t Init(MCObjectType* objType) { return 0; }
-    /// <summary>A class's reset of its own fields, which its constructor calls (none here).</summary>
-    virtual void Init() {}
-    /// <summary>A class's teardown, which its destructor calls (none here).</summary>
-    virtual void Destroy() {}
     /// <summary>The object's type (none for a bare BaseObject).</summary>
     virtual MCObjectType* GetObjectType() { return nullptr; }
     virtual int32_t Kill() { return 0; }

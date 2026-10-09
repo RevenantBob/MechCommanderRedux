@@ -60,21 +60,6 @@ auto MCGameObject::Init(MCObjectType* type) -> int32_t
     return 0;
 }
 
-auto MCGameObject::Init() -> void
-{
-    ObjectClass = MCObjectClass::GameObject;
-    IdNumber = 0;
-    PartId = -1;
-    ObjType = nullptr;
-    Position.Z = 0.0f;
-    Position.Y = 0.0f;
-    Position.X = 0.0f;
-    Selected = 0;
-    CollisionsOn = 0;
-    Alignment = 0;
-    Status = 0;
-}
-
 auto MCGameObject::GetPositionFromHS(uint32_t) -> MCVector3D
 {
     return Position;

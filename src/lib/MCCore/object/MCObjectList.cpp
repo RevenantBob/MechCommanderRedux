@@ -9,7 +9,8 @@
 #include "object/MCObjectEvent.h"
 #include "object/MCObjectQueue.h"
 #include "object/MCObjectType.h"
-#include "object/bridge.h"
+#include "object/MCMiscTerrainObject.h"
+#include "object/MCMiscTerrainObjectType.h"
 #include "terrain/MCTerrain.h"
 
 int UpdateObjects = 1;
@@ -222,7 +223,7 @@ auto MCObjectList::FindObjectFromEvent(MCObjectEvent* event, int skipDisabled) -
             // The box sits 70 pixels below the vertex: 50 pixels each way for kind 5, 30 otherwise, halved when
             // zoomed out.
             const float scale = cam->CameraScale == 1 ? 0.5f : 1.0f;
-            const float halfSize = misc->TerrainObjectKind == 5 ? 50.0f : 30.0f;
+            const float halfSize = misc->Kind == MCMiscTerrainKind::Bridge ? 50.0f : 30.0f;
             const float centerX = static_cast<float>(screenX);
             const float centerY =
                 scale * 70.0f + static_cast<float>(Terrain()->ScreenPosY[Terrain()->BlockOffsets[block] + vertex]);

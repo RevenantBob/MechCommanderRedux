@@ -1,11 +1,11 @@
 #pragma once
 
 #include "object/MCBigGameObject.h"
+#include "object/MCFire.h"
 #include "object/MCWeaponShotInfo.h"
 
 class MCAppearance;
 class MCCamera;
-class MCFire;
 class MCGameObject;
 class MCObjectEvent;
 class MCSmoke;
@@ -23,7 +23,6 @@ public:
     static constexpr int32_t NumChunkLists = 2;
 
     MCTurret();
-    /// <summary>Lets go of the fire (taking it off the contacts).</summary>
     ~MCTurret() override;
 
     /// <summary>Makes the GV (fixed) or PU (pop-up) appearance and takes the type's weapon, tonnage and name.</summary>
@@ -52,9 +51,9 @@ public:
 
     /// <summary>Takes the damage; past the type's damage level the turret is destroyed, catches fire and explodes.</summary>
     int32_t HandleWeaponHit(MCWeaponShotInfo* shotInfo, int addMultiplayChunk) override;
-    /// <summary>The fire burnt out, on its own list's update: its list owns it, so the turret lets go. (The
-    /// turret never runs its fire's update, so the fire doesn't get there.)</summary>
-    void KillFireObject() override;
+    /// <summary>The fire ended: the turret forgets it. (The turret never runs its fire's update, so it never burns
+    /// out.)</summary>
+    void KillFireObject() override { FireObject.BurntOut(); }
     /// <summary>Stores the tile offset and the vertex and block numbers the turret stands on.</summary>
     void SetTerrainPosition(MCVector2D& position, MCVector2D& numbers) override
     {
@@ -141,8 +140,8 @@ public:
     float TileElevation = 0;
     /// <summary>Set once the turret has been set on fire.</summary>
     bool OnFire = false;
-    /// <summary>The fire burning on the turret (its owner points back at the turret); the turret owns it.</summary>
-    std::unique_ptr<MCFire> FireObject;
+    /// <summary>The fire burning on the turret (it points back at the turret); the turret draws it.</summary>
+    MCFireLink FireObject;
     /// <summary>Set when the turret is destroyed: it no longer acts.</summary>
     bool Destroyed = false;
     /// <summary>The turret's yaw in degrees, turned toward the target at the type's yaw rate.</summary>

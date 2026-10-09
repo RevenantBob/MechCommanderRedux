@@ -14,7 +14,8 @@
 #include "object/MCGroundVehicle.h"
 #include "object/MCGroundVehicleType.h"
 #include "object/MCGroundVehicleGameSystem.h"
-#include "object/tbldng.h"
+#include "object/MCTreeBuilding.h"
+#include "object/MCTreeBuildingType.h"
 #include "sound/radio.h"
 #include "terrain/MCTerrain.h"
 

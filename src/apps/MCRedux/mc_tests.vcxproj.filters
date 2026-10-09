@@ -42,6 +42,9 @@
     <ClCompile Include="tests\DirectPlayTests.cpp">
       <Filter>tests</Filter>
     </ClCompile>
+    <ClCompile Include="tests\EffectTests.cpp">
+      <Filter>tests</Filter>
+    </ClCompile>
     <ClCompile Include="tests\ElementalTests.cpp">
       <Filter>tests</Filter>
     </ClCompile>

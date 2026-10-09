@@ -40,6 +40,12 @@ public:
     void DetectCollision(MCGameObject* obj1, MCGameObject* obj2);
     /// <summary>An object against a static one (a mover passes those its own cell lets it through).</summary>
     void DetectStaticCollision(MCGameObject* obj1, MCGameObject* obj2);
+    /// <summary>
+    /// <paramref name="object"/> against every object with a type in terrain block <paramref name="blockNumber"/>'s
+    /// two lists (its trees and light walls, then the rest), as fires, explosions and artillery check the blocks
+    /// around them.
+    /// </summary>
+    void DetectBlockCollisions(MCGameObject* object, int32_t blockNumber);
     /// <summary>Calls both objects' types' collision handlers; an object whose destruction handler asks is removed and
     /// deleted.</summary>
     void CheckExtents(MCGameObject* obj1, MCGameObject* obj2);

@@ -123,6 +123,29 @@ auto MCCollisionSystem::DetectStaticCollision(MCGameObject* obj1, MCGameObject* 
     CheckExtents(obj1, obj2);
 }
 
+auto MCCollisionSystem::DetectBlockCollisions(MCGameObject* object, int32_t blockNumber) -> void
+{
+    for (const char* prefix : {"TBlk", "RBlk"})
+    {
+        MCObjectList* list = ObjectList()->FindList(std::format("{}{}", prefix, blockNumber));
+
+        if (list == nullptr)
+        {
+            continue;
+        }
+
+        // Port fix (OB-015): every object is checked; the original only stepped to the next one after an object with
+        // a type, so one without hung the game.
+        for (MCBaseObject* other : *list)
+        {
+            if (other->GetObjectType() != nullptr)
+            {
+                DetectStaticCollision(object, static_cast<MCGameObject*>(other));
+            }
+        }
+    }
+}
+
 auto MCCollisionSystem::CheckExtents(MCGameObject* obj1, MCGameObject* obj2) -> void
 {
     MCObjectType* type1 = obj1->GetObjectType();

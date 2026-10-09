@@ -10,16 +10,23 @@
 #include "mission/scenario.h"
 #include "network/multplyr.h"
 #include "object/MCAIControl.h"
-#include "object/artlry.h"
-#include "object/bullet.h"
+#include "object/MCArtillery.h"
+#include "object/MCArtilleryType.h"
+#include "object/MCArtilleryChunk.h"
+#include "object/MCCameraDrone.h"
+#include "object/MCCameraDroneType.h"
+#include "object/MCBullet.h"
+#include "object/MCBulletType.h"
 #include "object/MCMasterComponent.h"
 #include "object/MCMoverGroup.h"
 #include "object/MCGroundVehicleGameSystem.h"
-#include "object/laser.h"
+#include "object/MCLaser.h"
+#include "object/MCLaserType.h"
 #include "object/MCBattleMech.h"
 #include "object/MCMechGameSystem.h"
 #include "object/MCObjectSystem.h"
-#include "object/prjlase.h"
+#include "object/MCProjectileLaser.h"
+#include "object/MCProjectileLaserType.h"
 #include "object/MCMechWarrior.h"
 #include "object/MCMoverGameSystem.h"
 #include "sound/soundsys.h"
@@ -34,14 +41,10 @@ namespace
     /// <summary>How far (world units) a missed shot lands from the target, either way.</summary>
     constexpr float MISS_SCATTER = 25.0f;
 
-    /// <summary>Adds a shot to a bullet, when it has room (5 at most).</summary>
+    /// <summary>Adds a shot to a bullet.</summary>
     void AddBulletShot(MCBullet* bullet, MCWeaponShotInfo& shot)
     {
-        if (bullet->NumShots != 5)
-        {
-            bullet->ShotInfo[bullet->NumShots++].Init(shot.Attacker, shot.MasterId, shot.Damage, shot.HitLocation,
-                                                      shot.EntryAngle);
-        }
+        bullet->NewShot().Init(shot.Attacker, shot.MasterId, shot.Damage, shot.HitLocation, shot.EntryAngle);
     }
 
     /// <summary>

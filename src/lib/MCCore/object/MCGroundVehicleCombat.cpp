@@ -10,22 +10,37 @@
 #include "mission/scenario.h"
 #include "network/multplyr.h"
 #include "object/MCAIControl.h"
-#include "object/artlry.h"
-#include "object/bldng.h"
-#include "object/bridge.h"
-#include "object/bullet.h"
+#include "object/MCArtillery.h"
+#include "object/MCArtilleryType.h"
+#include "object/MCArtilleryChunk.h"
+#include "object/MCCameraDrone.h"
+#include "object/MCCameraDroneType.h"
+#include "object/MCBuilding.h"
+#include "object/MCBuildingType.h"
+#include "object/MCBuildingMarines.h"
+#include "object/MCObjectDrawing.h"
+#include "object/MCMiscTerrainObject.h"
+#include "object/MCMiscTerrainObjectType.h"
+#include "object/MCBullet.h"
+#include "object/MCBulletType.h"
 #include "object/MCMasterComponent.h"
 #include "object/MCCollisionSystem.h"
-#include "object/explode.h"
+#include "object/MCExplosion.h"
+#include "object/MCExplosionType.h"
 #include "object/MCMoverGroup.h"
-#include "object/jet.h"
-#include "object/laser.h"
+#include "object/MCJet.h"
+#include "object/MCJetType.h"
+#include "object/MCLaser.h"
+#include "object/MCLaserType.h"
 #include "object/MCBattleMech.h"
 #include "object/MCMechGameSystem.h"
-#include "object/prjlase.h"
+#include "object/MCProjectileLaser.h"
+#include "object/MCProjectileLaserType.h"
 #include "object/MCNetControl.h"
 #include "object/MCObjectSystem.h"
-#include "object/smoke.h"
+#include "object/MCSmoke.h"
+#include "object/MCSmokeType.h"
+#include "object/MCEffectSystem.h"
 #include "object/MCMechWarrior.h"
 #include "sound/soundsys.h"
 #include "terrain/MCTerrain.h"
@@ -408,11 +423,7 @@ namespace
         {
             auto* bullet = static_cast<MCBullet*>(fx.get());
 
-            if (bullet->NumShots != 5)
-            {
-                bullet->ShotInfo[bullet->NumShots++].Init(shot.Attacker, shot.MasterId, shot.Damage, shot.HitLocation,
-                                                          shot.EntryAngle);
-            }
+            bullet->NewShot().Init(shot.Attacker, shot.MasterId, shot.Damage, shot.HitLocation, shot.EntryAngle);
 
             if (target == nullptr)
             {
