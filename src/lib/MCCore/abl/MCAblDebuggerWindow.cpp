@@ -9,7 +9,7 @@ MCAblDebuggerWindow::~MCAblDebuggerWindow()
     MCGuiTitleWindow::Destroy();
 }
 
-auto MCAblDebuggerWindow::Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, char* name) -> int32_t
+auto MCAblDebuggerWindow::Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, const char* name) -> int32_t
 {
     int32_t err = MCGuiTitleWindow::Init(xPos, yPos, width, height, name);
 

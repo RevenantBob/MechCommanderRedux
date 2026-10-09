@@ -12,7 +12,7 @@
 #include "camera/MCCameraList.h"
 #include "engine/MCCraterManager.h"
 #include "engine/MCElementBuffer.h"
-#include "gui/asystem.h"
+#include "gui/MCGuiSystem.h"
 #include "gui/updisp.h"
 #include "lib/MCFile.h"
 #include "lib/MCPacketFile.h"
@@ -368,7 +368,7 @@ auto MCScenario::LoadPalette(MCFitIniFile& file) -> void
 
     OldPalette = MCGameContext::Current().SetPalette(std::move(*palette));
     InitAlphaLookup(GamePalette()->Colors());
-    Application->ActivatePalette(GamePalette()->RgbData.data(), 10, 0xf6);
+    GuiSystem()->ActivatePalette(GamePalette()->RgbData.data(), 10, 0xf6);
     UpdateDisplay(0, 1, 20, 1, 7);
 }
 
@@ -678,7 +678,7 @@ auto MCScenario::LoadScript(MCFitIniFile& file) -> void
         display->SetTitle(windowTitle.c_str());
     }
 
-    MCStrCopy(WindowTitle, windowTitle.c_str());
+    WindowTitle = windowTitle;
     UpdateDisplay(0, 1, 30, 1, 75);
 
     ScenarioScriptHandle = AblPreProcess(GamePath(MissionPath, ScenarioScript, ".abl"));

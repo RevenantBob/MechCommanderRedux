@@ -1,7 +1,7 @@
 #include "stdafx.h"
 #include "MCTest.h"
 #include "TestGame.h"
-#include "gui/asystem.h"
+#include "gui/MCGuiSystem.h"
 #include "platform/MCDisplay.h"
 #include "platform/MCInput.h"
 

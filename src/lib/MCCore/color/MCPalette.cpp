@@ -1,6 +1,6 @@
 #include "stdafx.h"
 #include "color/MCPalette.h"
-#include "gui/asystem.h"
+#include "gui/MCGuiSystem.h"
 #include "lib/MCFile.h"
 #include "lib/MCFitIniFile.h"
 #include "platform/MCRenderer.h"
@@ -142,7 +142,7 @@ auto MCPalette::GetFadeTable(int32_t index) -> uint8_t*
 
 auto MCPalette::Activate() -> void
 {
-    Application->ActivatePalette(RgbData.data(), 0, ColorCount);
+    GuiSystem()->ActivatePalette(RgbData.data(), 0, ColorCount);
 }
 
 auto MCPalette::TweakPalette(int32_t start, std::span<const MCVfxRgb> colors) -> void

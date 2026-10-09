@@ -230,7 +230,7 @@ auto MCTacticalInterface::HandleMouse(MCGuiEvent* event) -> void
 
             if (DragTarget != nullptr)
             {
-                Application->CursorHidden = 0;
+                GuiSystem()->CursorHidden = 0;
 
                 if (event->ShiftKey == 0)
                 {
@@ -240,7 +240,7 @@ auto MCTacticalInterface::HandleMouse(MCGuiEvent* event) -> void
                 }
 
                 DeselectEnemy();
-                Application->Release();
+                GuiSystem()->Release();
                 auto* dragWindow = static_cast<MCViewWindow*>(DragTarget);
                 const float* box = dragWindow->SelectionBox.data();
                 const auto left = static_cast<int32_t>(std::min(box[0], box[2]));
@@ -280,7 +280,7 @@ auto MCTacticalInterface::HandleMouse(MCGuiEvent* event) -> void
                 if (IsLanceLink(CurrentMode))
                 {
                     SetMode(MCInterfaceMode::None);
-                    Application->CursorHidden = 0;
+                    GuiSystem()->CursorHidden = 0;
                 }
 
                 UpdateInterface();
@@ -365,13 +365,13 @@ auto MCTacticalInterface::HandleMouse(MCGuiEvent* event) -> void
                 return;
             }
 
-            Application->SetCurrentCursor(static_cast<MCCursorType>(MCInterfaceCursor::Normal));
-            Application->CursorHidden = 1;
+            GuiSystem()->SetCurrentCursor(static_cast<MCCursorType>(MCInterfaceCursor::Normal));
+            GuiSystem()->CursorHidden = 1;
 
             if (DragTarget == nullptr)
             {
                 DragTarget = event->Target;
-                Application->Grab(DragTarget);
+                GuiSystem()->Grab(DragTarget);
                 static_cast<MCViewWindow*>(DragTarget)->SelectionBox[0] = MouseDownX;
                 static_cast<MCViewWindow*>(DragTarget)->SelectionBox[1] = MouseDownY;
             }
@@ -434,7 +434,7 @@ auto MCTacticalInterface::HandleClick(MCGuiEvent* event, MCGuiObject* target) ->
     auto endLanceLink = [&]()
     {
         SetMode(MCInterfaceMode::None);
-        Application->CursorHidden = 0;
+        GuiSystem()->CursorHidden = 0;
         UpdateInterface();
     };
 
@@ -681,7 +681,7 @@ auto MCTacticalInterface::HandleClick(MCGuiEvent* event, MCGuiObject* target) ->
                     SetUnit(lance, movers, pointIndex);
                     MechBar->PlaceButtons(true);
                     SetMode(MCInterfaceMode::None);
-                    Application->CursorHidden = 0;
+                    GuiSystem()->CursorHidden = 0;
                     ClearMechSelection();
                     SelectLance(HomeCommander()->GetGroup(lance));
                     CommandParser->AddSubject(HomeCommander()->GetGroup(lance));
@@ -927,7 +927,7 @@ auto MCTacticalInterface::HandleClick(MCGuiEvent* event, MCGuiObject* target) ->
                     case MCInterfaceMode::LinkLance4:
                     {
                         SetMode(MCInterfaceMode::None);
-                        Application->CursorHidden = 0;
+                        GuiSystem()->CursorHidden = 0;
                         [[fallthrough]];
                     }
                     default:

@@ -562,7 +562,7 @@ void MCSoundSystem::UpdateRadio()
         window->StartSmackerMovie(movie, 0) == 0)
     {
         window->SetDepth(0x5a);
-        ScreenWindow->AddChild(window);
+        ScreenWindow()->AddChild(window);
         window->Draw();
     }
 }

@@ -13,6 +13,7 @@ class MCEffectSystem;
 class MCElementBuffer;
 class MCFastFileSet;
 class MCForces;
+class MCGuiSystem;
 class MCMission;
 class MCMoveSystem;
 class MCObjectSystem;
@@ -132,6 +133,10 @@ public:
     /// <summary>The player's command interface (null before the GUI's start-up makes it).</summary>
     MCTacticalInterface* TacticalInterface() const;
 
+    /// <summary>The GUI: the window tree, the display, the input routing, the timers and the fonts (null before the
+    /// program's start makes it).</summary>
+    MCGuiSystem* GuiSystem() const;
+
     /// <summary>Gives this context its own clock.</summary>
     /// <returns>The clock, still reachable as its own type.</returns>
     template <std::derived_from<MCClock> T> T& SetClock(std::unique_ptr<T> clock)
@@ -249,6 +254,10 @@ public:
     /// <returns>The interface this context had.</returns>
     std::unique_ptr<MCTacticalInterface> SetTacticalInterface(std::unique_ptr<MCTacticalInterface> tacticalInterface);
 
+    /// <summary>Gives this context its own GUI system (null: the one it was installed over, if any).</summary>
+    /// <returns>The GUI system this context had.</returns>
+    std::unique_ptr<MCGuiSystem> SetGuiSystem(std::unique_ptr<MCGuiSystem> guiSystem);
+
 private:
     friend class MCTestContextScope;
 
@@ -298,6 +307,8 @@ private:
     std::unique_ptr<MCMission> _Mission;
     /// <summary>Goes after the objects (a mover going takes itself off the mech bar), before the other systems.</summary>
     std::unique_ptr<MCTacticalInterface> _TacticalInterface;
+    /// <summary>Goes after every system holding GUI objects (they take themselves off it as they go).</summary>
+    std::unique_ptr<MCGuiSystem> _GuiSystem;
 };
 
 /// <summary>

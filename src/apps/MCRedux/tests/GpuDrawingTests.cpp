@@ -4,8 +4,8 @@
 #include "TestGame.h"
 #include "ai/MCTacticalOrder.h"
 #include "camera/MCCamera.h"
-#include "gui/aport.h"
-#include "gui/asystem.h"
+#include "gui/MCGuiPort.h"
+#include "gui/MCGuiSystem.h"
 #include "gui/awindow.h"
 #include "logistics/logbri.h"
 #include "gui/updisp.h"
@@ -209,7 +209,7 @@ TEST_CASE_ISOLATED("game: the GPU draws the shape transforms as the software ren
     }
 
     MCRenderer::RegisterData(table.data(), table.size(), MCDataKind::Tables);
-    MCPane* pane = ScreenPort->Frame();
+    MCPane* pane = ScreenPort()->Frame();
     const int32_t width = pane->X1 - pane->X0 + 1;
     const int32_t height = pane->Y1 - pane->Y0 + 1;
     const int32_t places[][2] = {{width / 2, height / 2}, {2, 3}, {width - 3, height - 2}, {width / 3, -4}};
@@ -300,7 +300,7 @@ TEST_CASE_ISOLATED("game: the GPU keeps shapes by their registered address")
 
     REQUIRE_EQ(files.size(), size_t{2});
     std::vector<uint8_t> memory(std::max(files[0].size(), files[1].size()));
-    MCPane* pane = ScreenPort->Frame();
+    MCPane* pane = ScreenPort()->Frame();
     const int32_t x = (pane->X1 - pane->X0) / 2;
     const int32_t y = (pane->Y1 - pane->Y0) / 2;
 
@@ -387,7 +387,7 @@ TEST_CASE_ISOLATED("game: the GPU keeps colour tables by their registered addres
     }
 
     REQUIRE(shapes != nullptr);
-    MCPane* pane = ScreenPort->Frame();
+    MCPane* pane = ScreenPort()->Frame();
     const int32_t x = (pane->X1 - pane->X0) / 2;
     const int32_t y = (pane->Y1 - pane->Y0) / 2;
 
@@ -473,7 +473,7 @@ TEST_CASE_ISOLATED("game: the GPU blends translucent colours over what is shown"
     MCTestGame::RunFrame(1.0f / 15.0f);
     const auto before = display->ReadFrame();
     REQUIRE(before.has_value());
-    MCPane* pane = ScreenPort->Frame();
+    MCPane* pane = ScreenPort()->Frame();
     const int32_t shadowX = 200;
     const int32_t lightX = 400;
     const int32_t y = 200;

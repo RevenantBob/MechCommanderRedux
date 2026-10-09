@@ -1,8 +1,8 @@
 #pragma once
 
 #include "gui/MCGuiOwned.h"
-#include "gui/asystem.h"
-#include "gui/aport.h"
+#include "gui/MCGuiSystem.h"
+#include "gui/MCGuiPort.h"
 
 class MCMoverGroup;
 

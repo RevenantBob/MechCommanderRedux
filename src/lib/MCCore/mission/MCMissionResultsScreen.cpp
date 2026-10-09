@@ -4,9 +4,9 @@
 #include "logistics/invblock.h"
 #include "main/logistics.h"
 #include "color/MCPalette.h"
-#include "gui/abutton.h"
-#include "gui/afont.h"
-#include "gui/aport.h"
+#include "gui/MCGuiButton.h"
+#include "gui/MCGuiFont.h"
+#include "gui/MCGuiPort.h"
 #include "gui/atextbox.h"
 #include "gui/updisp.h"
 #include "iface/MCFriendlyMechIcon.h"
@@ -141,7 +141,7 @@ namespace
     /// <summary>Writes <paramref name="text"/> with <paramref name="font"/> at (<paramref name="x"/>, <paramref name="y"/>).</summary>
     void WriteText(MCGuiFont* font, MCPane* pane, int32_t x, int32_t y, std::string text, int32_t width = -1)
     {
-        font->WriteString(pane, x, y, reinterpret_cast<uint8_t*>(text.data()), width);
+        font->WriteString(pane, x, y, text.data(), width);
     }
 
     /// <summary>The move-on button's event routine: on release, closes the results screen.</summary>
@@ -252,7 +252,7 @@ auto MCMissionResultsScreen::Destroy() -> void
     // The debriefing text box belongs to the tactical map; it is only taken off the screen.
     RemoveChild(_TextObject);
     MCGuiObject::Destroy();
-    Application->CursorHidden = 0;
+    GuiSystem()->CursorHidden = 0;
 
     if (!_ScenarioEnded && Scenario() != nullptr)
     {
@@ -314,18 +314,18 @@ auto MCMissionResultsScreen::HandleEvent(MCGuiEvent* event) -> void
 
             if (PtInRect(&_ScrollUpRect, point))
             {
-                Application->Grab(this);
+                GuiSystem()->Grab(this);
                 _ScrollUpButton->ShowGuiWindow(1);
-                Application->AddTimer(this, ScrollDelayTimer, TacticalInterface()->ScrollStart, 0, 0, 0);
+                GuiSystem()->AddTimer(this, ScrollDelayTimer, TacticalInterface()->ScrollStart, 0, 0, 0);
                 _TextObject->ReceiveClick(-1, 0);
                 return;
             }
 
             if (PtInRect(&_ScrollDownRect, point))
             {
-                Application->Grab(this);
+                GuiSystem()->Grab(this);
                 _ScrollDownButton->ShowGuiWindow(1);
-                Application->AddTimer(this, ScrollDelayTimer, TacticalInterface()->ScrollStart, 0, 0, 0);
+                GuiSystem()->AddTimer(this, ScrollDelayTimer, TacticalInterface()->ScrollStart, 0, 0, 0);
                 _TextObject->ReceiveClick(1, 0);
                 return;
             }
@@ -341,9 +341,9 @@ auto MCMissionResultsScreen::HandleEvent(MCGuiEvent* event) -> void
         }
         case MouseUpEvent:
         {
-            Application->RemoveTimer(this, ScrollDelayTimer);
-            Application->RemoveTimer(this, ScrollRepeatTimer);
-            Application->Release();
+            GuiSystem()->RemoveTimer(this, ScrollDelayTimer);
+            GuiSystem()->RemoveTimer(this, ScrollRepeatTimer);
+            GuiSystem()->Release();
 
             if (_ScrollUpButton != nullptr)
             {
@@ -372,8 +372,8 @@ auto MCMissionResultsScreen::HandleEvent(MCGuiEvent* event) -> void
             if (timerId == ScrollDelayTimer)
             {
                 // The first repeat delay has passed: repeat five times as fast.
-                Application->RemoveTimer(this, ScrollDelayTimer);
-                Application->AddTimer(this, ScrollRepeatTimer, TacticalInterface()->ScrollStart / 5, 0, 0, 0);
+                GuiSystem()->RemoveTimer(this, ScrollDelayTimer);
+                GuiSystem()->AddTimer(this, ScrollRepeatTimer, TacticalInterface()->ScrollStart / 5, 0, 0, 0);
             }
             else if (timerId != ScrollRepeatTimer)
             {
@@ -411,11 +411,11 @@ auto MCMissionResultsScreen::Display() -> void
 {
     uint8_t* hazePalette = GamePalette()->GetHazePalette(-7);
     MCScreenVertex vertices[4] = {};
-    vertices[1].X = Application->Width() - 1;
-    vertices[2].X = Application->Width() - 1;
-    vertices[2].Y = Application->Height() - 1;
-    vertices[3].Y = Application->Height() - 1;
-    VfxTranslatePolygon(ScreenPort->Frame(), std::span(vertices, 4), hazePalette);
+    vertices[1].X = GuiSystem()->Width() - 1;
+    vertices[2].X = GuiSystem()->Width() - 1;
+    vertices[2].Y = GuiSystem()->Height() - 1;
+    vertices[3].Y = GuiSystem()->Height() - 1;
+    VfxTranslatePolygon(ScreenPort()->Frame(), std::span(vertices, 4), hazePalette);
 
     if (MPlayer == nullptr)
     {
@@ -458,7 +458,7 @@ auto MCMissionResultsScreen::Display() -> void
     // (The original copied the window's picture to the screen and displayed the children.)
     if (DisplayPort != nullptr)
     {
-        DrawInFramePass(DisplayPort);
+        DrawInFramePass(DisplayPort.get());
     }
 }
 
@@ -1001,15 +1001,15 @@ auto MCMissionResultsScreen::Activate() -> int32_t
     EventsToMissionResultsScreen = 1;
     _SkipAnimation = false;
     Mission()->StopScenarioCallbacks();
-    Application->CursorHidden = 0;
-    Application->SetCurrentCursor(static_cast<MCCursorType>(0));
-    Application->CursorHidden = 1;
-    Application->Release();
+    GuiSystem()->CursorHidden = 0;
+    GuiSystem()->SetCurrentCursor(static_cast<MCCursorType>(0));
+    GuiSystem()->CursorHidden = 1;
+    GuiSystem()->Release();
 
     _StepIndex = 0;
     _Step = MCResultsStep::ResourcePoints;
     _NextDrawTime = MouseTicks;
-    ScreenWindow->AddChild(this);
+    ScreenWindow()->AddChild(this);
     SetDepth(0x5f);
 
     // The move-on button's label: "mission failed" when the scenario (or the home side) lost.
@@ -1056,7 +1056,7 @@ auto MCMissionResultsScreen::Activate() -> int32_t
     {
         if (IsMPlayerGame != 0)
         {
-            Application->AddTimer(this, TimeoutTimer, 90000, 0, 0, 0);
+            GuiSystem()->AddTimer(this, TimeoutTimer, 90000, 0, 0, 0);
         }
 
         _Results = GatherMultiplayerResults(scenario);

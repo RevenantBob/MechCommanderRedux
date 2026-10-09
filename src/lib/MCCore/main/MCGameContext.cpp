@@ -18,6 +18,7 @@
 #include "sound/MCSoundSystem.h"
 #include "mission/MCMission.h"
 #include "mission/MCScenario.h"
+#include "gui/MCGuiSystem.h"
 #include "iface/MCTacticalInterface.h"
 #include "lib/MCFastFileSet.h"
 #include "sprite/MCSpriteManager.h"
@@ -118,6 +119,7 @@ MCGameContext::~MCGameContext()
     _SpriteManager.reset();
     _CraterManager.reset();
     _ElementList.reset();
+    _GuiSystem.reset();
     _Palette.reset();
     _FastFiles.reset();
     _Net.reset();
@@ -326,6 +328,16 @@ std::unique_ptr<MCTacticalInterface> MCGameContext::SetTacticalInterface(
     std::unique_ptr<MCTacticalInterface> tacticalInterface)
 {
     return std::exchange(_TacticalInterface, std::move(tacticalInterface));
+}
+
+MCGuiSystem* MCGameContext::GuiSystem() const
+{
+    return FindSystem(_GuiSystem, _Parent, &MCGameContext::GuiSystem);
+}
+
+std::unique_ptr<MCGuiSystem> MCGameContext::SetGuiSystem(std::unique_ptr<MCGuiSystem> guiSystem)
+{
+    return std::exchange(_GuiSystem, std::move(guiSystem));
 }
 
 MCSoundSystem* MCGameContext::SoundSystem() const

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "gui/asystem.h"
+#include "gui/MCGuiSystem.h"
 
 class MCGameObject;
 
@@ -13,7 +13,7 @@ class MCFloatHelp : public MCGuiObject
 {
 public:
     /// <summary>No back colour, text colour 0x1f, no text; then aObject::init; object type 7.</summary>
-    int32_t Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, char* name) override;
+    int32_t Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, const char* name) override;
     /// <summary>Draws the box and the text.</summary>
     void Draw() override;
     /// <summary>Port: draws itself each frame from its text.</summary>

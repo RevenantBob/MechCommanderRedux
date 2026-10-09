@@ -14,7 +14,7 @@
 #include "engine/MCEllipseElement.h"
 #include "engine/MCVfxElement.h"
 #include "vfx/MCVfxFunctions.h"
-#include "gui/asystem.h"
+#include "gui/MCGuiSystem.h"
 #include "iface/MCTacticalInterface.h"
 #include "lib/MCFatal.h"
 #include "lib/MCFitIniFile.h"

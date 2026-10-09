@@ -1,6 +1,6 @@
 #pragma once
 
-#include "gui/asystem.h"
+#include "gui/MCGuiSystem.h"
 
 class MCGameObject;
 

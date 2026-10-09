@@ -1,6 +1,6 @@
 #include "stdafx.h"
 #include "logistics/logdlg.h"
-#include "gui/afont.h"
+#include "gui/MCGuiFont.h"
 #include "gui/updisp.h"
 #include "lib/MCFatal.h"
 #include "logistics/logbri.h"
@@ -55,7 +55,7 @@ char* LogisticDlgfade = reinterpret_cast<char*>(AlphaTable.data()) + 0x10c * 256
 
 // lDialogButton
 
-auto MCLogDialogButton::Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, char* name) -> int32_t
+auto MCLogDialogButton::Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, const char* name) -> int32_t
 {
     PressedDown = 0;
     Result = 0;
@@ -105,7 +105,7 @@ auto MCLogDialogBox::Init(int32_t xPos, int32_t yPos, int32_t width, int32_t hei
     PicturePort = nullptr;
     // The original loaded the box's frame (lspcb00) as its port; the box draws the frame each frame instead.
     MCLogObject::Init(xPos, yPos, width, height, nullptr, nullptr);
-    SetTransparent(-1);
+    SetTransparent(true);
     ShowGuiWindow(0);
     FadedBackground = nullptr;
 }
@@ -125,9 +125,9 @@ auto MCLogDialogBox::DrawBackground() -> void
     {
         // The original copied the screen under the box into fadedBackground here and darkened it, then filled it
         // with 0x10, which is all the box shows of it.
-        Application->SetCursorVisible(0);
+        GuiSystem()->SetCursorVisible(0);
         UpdateDisplay(0, 0, 0, 0, 0);
-        Application->SetCursorVisible(-1);
+        GuiSystem()->SetCursorVisible(true);
         NeedBackground = 0;
     }
 
@@ -164,7 +164,7 @@ auto MCLogDialogBox::DrawPressed() -> void
 
     if (MCLogPort* picture = LogArtf("%slogart\\%s", ArtPath, art.Name); picture != nullptr)
     {
-        picture->CopyTo(_OwnPort->Frame(), art.X, art.Y, -1);
+        picture->CopyTo(_OwnPort->Frame(), art.X, art.Y, true);
     }
 }
 
@@ -177,7 +177,7 @@ auto MCLogDialogBox::DrawBox() -> void
     fill.X1 = fill.X0 + frameArt->Width() - 1;
     fill.Y1 = fill.Y0 + frameArt->Height() - 1;
     VfxPaneWipe(&fill, 0x10);
-    frameArt->CopyTo(port, 0, 0, -1);
+    frameArt->CopyTo(port, 0, 0, true);
 
     // Without a spinner its place is left as the frame is (the original copied a transparent block there).
     if (Spinner != 0)
@@ -186,16 +186,16 @@ auto MCLogDialogBox::DrawBox() -> void
         VfxPaneCopy(LogArtf("%slogart\\lspcb06.tga", ArtPath)->Frame(), 0, 0, port, 0x92, 0x5b, -1);
     }
 
-    LogArtf("%slogart\\lspcb01.tga", ArtPath)->CopyTo(port, 0x3f, 0x82, -1);
+    LogArtf("%slogart\\lspcb01.tga", ArtPath)->CopyTo(port, 0x3f, 0x82, true);
 
     if (TwoButton != 0)
     {
-        LogArtf("%slogart\\lspcb02.tga", ArtPath)->CopyTo(port, 0x76, 0x82, -1);
+        LogArtf("%slogart\\lspcb02.tga", ArtPath)->CopyTo(port, 0x76, 0x82, true);
     }
 
     if (PicturePort != nullptr)
     {
-        PicturePort->CopyTo(port, 10, 0x1b, -1);
+        PicturePort->CopyTo(port, 10, 0x1b, true);
     }
 }
 
@@ -213,15 +213,15 @@ auto MCLogDialogBox::Activate() -> void
 {
     NeedBackground = -1;
     FreePort(FadedBackground);
-    Application->Grab(this);
+    GuiSystem()->Grab(this);
     BringToFront(0);
     DrawBackground();
-    ShowGuiWindow(-1);
+    ShowGuiWindow(true);
 }
 
 auto MCLogDialogBox::Deactivate(int dialogResult) -> void
 {
-    Application->Release();
+    GuiSystem()->Release();
     ShowGuiWindow(0);
 
     if (Callback != nullptr)
@@ -327,8 +327,8 @@ auto MCPurchaseDlg::HandleEvent(MCGuiEvent* event) -> void
                     DrawBackground();
                     Pressed = PressedPart::Up;
                     SpinUp = 1;
-                    Application->AddTimer(this, 6, 200, 0, 0, 0);
-                    Application->Grab(this);
+                    GuiSystem()->AddTimer(this, 6, 200, 0, 0, 0);
+                    GuiSystem()->Grab(this);
 
                     if (canAddOne())
                     {
@@ -345,8 +345,8 @@ auto MCPurchaseDlg::HandleEvent(MCGuiEvent* event) -> void
                     DrawBackground();
                     Pressed = PressedPart::Down;
                     SpinUp = 0;
-                    Application->AddTimer(this, 6, 200, 0, 0, 0);
-                    Application->Grab(this);
+                    GuiSystem()->AddTimer(this, 6, 200, 0, 0, 0);
+                    GuiSystem()->Grab(this);
 
                     if (Quantity != 0)
                     {
@@ -363,7 +363,7 @@ auto MCPurchaseDlg::HandleEvent(MCGuiEvent* event) -> void
         case 4:
         {
             DrawBackground();
-            Application->RemoveTimer(this, 6);
+            GuiSystem()->RemoveTimer(this, 6);
             break;
         }
         case 9:
@@ -421,37 +421,37 @@ auto MCPurchaseDlg::Draw() -> void
     MCPane* port = _OwnPort->Frame();
     // Labels: price, resource points, quantity, remaining.
     CLoadString(ThisInstance, 0x48, text, 0xfe);
-    MedWhiteFont->WriteString(port, 0x15, 0x47, reinterpret_cast<uint8_t*>(text), -1);
+    MedWhiteFont->WriteString(port, 0x15, 0x47, text, -1);
     CLoadString(ThisInstance, 0x4b, text, 0xfe);
-    MedWhiteFont->WriteString(port, 0x91, 0x47, reinterpret_cast<uint8_t*>(text), -1);
+    MedWhiteFont->WriteString(port, 0x91, 0x47, text, -1);
     CLoadString(ThisInstance, 0x49, text, 0xfe);
-    MedWhiteFont->WriteString(port, 0x15, 0x57, reinterpret_cast<uint8_t*>(text), -1);
+    MedWhiteFont->WriteString(port, 0x15, 0x57, text, -1);
     CLoadString(ThisInstance, 0x4a, text, 0xfe);
-    MedWhiteFont->WriteString(port, 0x16, 0x6c, reinterpret_cast<uint8_t*>(text), -1);
+    MedWhiteFont->WriteString(port, 0x16, 0x6c, text, -1);
     CLoadString(ThisInstance, 0x4b, text, 0xfe);
-    MedWhiteFont->WriteString(port, 0x91, 0x6c, reinterpret_cast<uint8_t*>(text), -1);
+    MedWhiteFont->WriteString(port, 0x91, 0x6c, text, -1);
 
     if (Title != nullptr)
     {
-        MedWhiteFont->WriteString(port, 0x2a, 0x20, reinterpret_cast<uint8_t*>(Title), -1);
+        MedWhiteFont->WriteString(port, 0x2a, 0x20, Title, -1);
     }
 
     if (Subtitle != nullptr)
     {
         MCGuiFont* font = PurchaseType == 3 ? MedRedFont : MedWhiteFont;
-        font->WriteString(port, 0x2a, 0x2e, reinterpret_cast<uint8_t*>(Subtitle), -1);
+        font->WriteString(port, 0x2a, 0x2e, Subtitle, -1);
     }
 
     // The numbers are right-aligned at 0x8e, measured in the black font.
     std::snprintf(text, sizeof(text), "%d", UnitCost < 0 ? -UnitCost : UnitCost);
-    int32_t textWidth = MedBlackFont->Width(reinterpret_cast<uint8_t*>(text));
-    MedWhiteFont->WriteString(port, 0x8e - textWidth, 0x47, reinterpret_cast<uint8_t*>(text), -1);
+    int32_t textWidth = MedBlackFont->Width(text);
+    MedWhiteFont->WriteString(port, 0x8e - textWidth, 0x47, text, -1);
     std::snprintf(text, sizeof(text), "%d", ResourcePoints - Quantity * UnitCost);
-    textWidth = MedBlackFont->Width(reinterpret_cast<uint8_t*>(text));
-    MedWhiteFont->WriteString(port, 0x8e - textWidth, 0x6c, reinterpret_cast<uint8_t*>(text), -1);
+    textWidth = MedBlackFont->Width(text);
+    MedWhiteFont->WriteString(port, 0x8e - textWidth, 0x6c, text, -1);
     std::snprintf(text, sizeof(text), "%d", Quantity);
-    textWidth = MedBlackFont->Width(reinterpret_cast<uint8_t*>(text));
-    MedWhiteFont->WriteString(port, (0x11 - textWidth) / 2 + 0x7e, 0x55, reinterpret_cast<uint8_t*>(text), -1);
+    textWidth = MedBlackFont->Width(text);
+    MedWhiteFont->WriteString(port, (0x11 - textWidth) / 2 + 0x7e, 0x55, text, -1);
 
     // The item kind's icon (mech, part, component, vehicle; sell/buy). Another type loads the quantity text as a
     // file name, as the original did.
@@ -462,7 +462,7 @@ auto MCPurchaseDlg::Draw() -> void
 
     if (icon != nullptr)
     {
-        icon->CopyTo(port, 3, 3, -1);
+        icon->CopyTo(port, 3, 3, true);
     }
 
     DrawPressed();
@@ -472,16 +472,16 @@ auto MCPurchaseDlg::Activate() -> void
 {
     NeedBackground = -1;
     FreePort(FadedBackground);
-    Application->Grab(this);
+    GuiSystem()->Grab(this);
     BringToFront(0);
     DrawBackground();
-    ShowGuiWindow(-1);
+    ShowGuiWindow(true);
 }
 
 auto MCPurchaseDlg::Deactivate(int dialogResult) -> void
 {
-    Application->RemoveTimer(this, 6);
-    Application->Release();
+    GuiSystem()->RemoveTimer(this, 6);
+    GuiSystem()->Release();
     ShowGuiWindow(0);
 
     if (PurchaseCallback != nullptr)
@@ -497,7 +497,7 @@ auto MCPurchaseDlg::SetCallback(void (*newCallback)(int, int32_t)) -> void
 
 // ReusableDialog
 
-auto MCReusableDialog::Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, char* name) -> int32_t
+auto MCReusableDialog::Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, const char* name) -> int32_t
 {
     (void)xPos;
     (void)yPos;
@@ -515,7 +515,7 @@ auto MCReusableDialog::Init(int32_t xPos, int32_t yPos, int32_t width, int32_t h
     result = BottomPiece->Init(const_cast<char*>("dbox_bottom.tga"));
     Assert(result == 0, result, "Error initializing reusable dialog");
     const int32_t boxWidth = TopPiece->Width();
-    result = MCLogObject::Init(Application->Width() / 2 - boxWidth / 2, 200, boxWidth,
+    result = MCLogObject::Init(GuiSystem()->Width() / 2 - boxWidth / 2, 200, boxWidth,
                                BottomPiece->Height() + MiddlePiece->Height() + TopPiece->Height(), nullptr, nullptr);
     Assert(result == 0, result, "Error initializing reusable dialog");
 
@@ -568,7 +568,7 @@ auto MCReusableDialog::Draw() -> void
 
     if (TopPiece != nullptr)
     {
-        TopPiece->CopyTo(Lport()->Frame(), 0, 0, -1);
+        TopPiece->CopyTo(Lport()->Frame(), 0, 0, true);
         pieceY = TopPiece->Height();
     }
 
@@ -576,14 +576,14 @@ auto MCReusableDialog::Draw() -> void
     {
         if (MiddlePiece != nullptr)
         {
-            MiddlePiece->CopyTo(Lport()->Frame(), 0, pieceY, -1);
+            MiddlePiece->CopyTo(Lport()->Frame(), 0, pieceY, true);
             pieceY += MiddlePiece->Height();
         }
     }
 
     if (BottomPiece != nullptr)
     {
-        BottomPiece->CopyTo(Lport()->Frame(), 0, pieceY, -1);
+        BottomPiece->CopyTo(Lport()->Frame(), 0, pieceY, true);
     }
 
     // The text, word-wrapped to the box.
@@ -593,11 +593,11 @@ auto MCReusableDialog::Draw() -> void
     {
         int32_t length = static_cast<int32_t>(std::strlen(Text));
         auto* line = reinterpret_cast<uint8_t*>(Text);
-        int32_t fit = MedBlueFont->CharactersToWidth(line, Width() - 0x14, -1);
+        int32_t fit = MedBlueFont->CharactersToWidth(reinterpret_cast<const char*>(line), Width() - 0x14, true);
 
         if (fit == length)
         {
-            MedBlueFont->WriteString(_OwnPort->Frame(), 0xc, lineY, line, -1);
+            MedBlueFont->WriteString(_OwnPort->Frame(), 0xc, lineY, reinterpret_cast<const char*>(line), -1);
         }
         else
         {
@@ -606,7 +606,7 @@ auto MCReusableDialog::Draw() -> void
                 const uint8_t saved = line[fit];
                 uint8_t* next = line + fit;
                 *next = 0;
-                MedBlueFont->WriteString(_OwnPort->Frame(), 0xc, lineY, line, -1);
+                MedBlueFont->WriteString(_OwnPort->Frame(), 0xc, lineY, reinterpret_cast<const char*>(line), -1);
 
                 *next = saved;
                 if (saved != 0)
@@ -615,14 +615,14 @@ auto MCReusableDialog::Draw() -> void
                 }
 
                 length = static_cast<int32_t>(std::strlen(reinterpret_cast<char*>(next)));
-                fit = MedBlueFont->CharactersToWidth(next, Width() - 0x14, -1);
+                fit = MedBlueFont->CharactersToWidth(reinterpret_cast<const char*>(next), Width() - 0x14, true);
                 lineY += MedBlueFont->Height() + 3;
                 line = next;
             }
         }
     }
 
-    for (int32_t i = 0; i < NumChildren; i++)
+    for (size_t i = 0; i < ChildList.size(); i++)
     {
         DrawChild(ChildList[i]);
     }
@@ -651,7 +651,7 @@ auto MCReusableDialog::HandleEvent(MCGuiEvent* event) -> void
     }
 
     // While grabbed, clicks go to the child under the mouse.
-    if (Application->GrabbedObject() == this)
+    if (GuiSystem()->GrabbedObject() == this)
     {
         MCGuiObject* target = FindObject(event->X, event->Y);
 
@@ -667,22 +667,22 @@ auto MCReusableDialog::HandleEvent(MCGuiEvent* event) -> void
 
 auto MCReusableDialog::Activate() -> void
 {
-    Application->Grab(this);
+    GuiSystem()->Grab(this);
     // The original painted the dialog afresh: a press left on its buttons was gone.
     OkButton->PressedDown = 0;
     CancelButton->PressedDown = 0;
     MoveTo(0x140 - Width() / 2, 0xf0 - Height() / 2, 0);
-    ShowGuiWindow(-1);
+    ShowGuiWindow(true);
 
     if (Timeout > 0)
     {
-        Application->AddTimer(this, 0, Timeout, 0, 0, 0);
+        GuiSystem()->AddTimer(this, 0, Timeout, 0, 0, 0);
     }
 }
 
 auto MCReusableDialog::Deactivate(int32_t dialogResult) -> void
 {
-    Application->Release();
+    GuiSystem()->Release();
     ShowGuiWindow(0);
 
     // Port: the original also skipped a callback pointer IsBadReadPtr rejected; a function pointer is always valid.
@@ -700,7 +700,7 @@ auto MCReusableDialog::Deactivate(int32_t dialogResult) -> void
     Callback = nullptr;
     OkButton->Callback()->SetExec(nullptr);
     CancelButton->Callback()->SetExec(nullptr);
-    Application->RemoveTimer(this, 0);
+    GuiSystem()->RemoveTimer(this, 0);
     Timeout = 0;
     TimeoutResult = 0;
 }
@@ -717,7 +717,7 @@ auto MCReusableDialog::SetText(char* newText) -> void
     std::strcpy(Text, newText);
     // Count the wrapped lines; each middle piece holds two.
     auto* line = reinterpret_cast<uint8_t*>(Text);
-    int32_t fit = MedBlueFont->CharactersToWidth(line, Width() - 0x14, -1);
+    int32_t fit = MedBlueFont->CharactersToWidth(reinterpret_cast<const char*>(line), Width() - 0x14, true);
     int32_t lines = 1;
 
     while (fit >= 1 && fit < static_cast<int32_t>(size - 1))
@@ -725,7 +725,7 @@ auto MCReusableDialog::SetText(char* newText) -> void
         line += fit + 1;
         lines++;
         size = std::strlen(reinterpret_cast<char*>(line)) + 1;
-        fit = MedBlueFont->CharactersToWidth(line, Width() - 0x14, -1);
+        fit = MedBlueFont->CharactersToWidth(reinterpret_cast<const char*>(line), Width() - 0x14, true);
     }
 
     NumMiddlePieces = (lines + 1) / 2;
@@ -740,7 +740,7 @@ auto MCReusableDialog::SetTwoButton(int twoButtons) -> void
 
     if (TwoButton != 0)
     {
-        CancelButton->ShowGuiWindow(-1);
+        CancelButton->ShowGuiWindow(true);
         CancelButton->MoveTo(0x68, buttonY, 0);
         OkButton->MoveTo(0x23, buttonY, 0);
         return;
@@ -785,7 +785,7 @@ auto MCRefitDialog::Draw() -> void
 
     if (TopPiece != nullptr)
     {
-        TopPiece->CopyTo(Lport()->Frame(), 0, 0, -1);
+        TopPiece->CopyTo(Lport()->Frame(), 0, 0, true);
         pieceY = TopPiece->Height();
     }
 
@@ -793,14 +793,14 @@ auto MCRefitDialog::Draw() -> void
     {
         if (MiddlePiece != nullptr)
         {
-            MiddlePiece->CopyTo(Lport()->Frame(), 0, pieceY, -1);
+            MiddlePiece->CopyTo(Lport()->Frame(), 0, pieceY, true);
             pieceY += MiddlePiece->Height();
         }
     }
 
     if (BottomPiece != nullptr)
     {
-        BottomPiece->CopyTo(Lport()->Frame(), 0, pieceY, -1);
+        BottomPiece->CopyTo(Lport()->Frame(), 0, pieceY, true);
     }
 
     char message[264];
@@ -823,8 +823,7 @@ auto MCRefitDialog::Draw() -> void
                 items[comma] = '\0';
             }
 
-            MedBlueFont->WriteString(_OwnPort->Frame(), 0x14, lineY, reinterpret_cast<uint8_t*>(items.data() + item),
-                                     -1);
+            MedBlueFont->WriteString(_OwnPort->Frame(), 0x14, lineY, items.data() + item, -1);
             lineY += MedBlueFont->Height() + 3;
 
             if (comma != std::string::npos)
@@ -838,7 +837,7 @@ auto MCRefitDialog::Draw() -> void
     CLoadString(ThisInstance, 0x62, message, 0xfe);
     WrapText(message, lineY + 3 + fontHeight);
 
-    for (int32_t i = 0; i < NumChildren; i++)
+    for (size_t i = 0; i < ChildList.size(); i++)
     {
         DrawChild(ChildList[i]);
     }
@@ -848,11 +847,11 @@ auto MCRefitDialog::WrapText(char* string, int32_t yPos) -> int32_t
 {
     auto* line = reinterpret_cast<uint8_t*>(string);
     const int32_t length = static_cast<int32_t>(std::strlen(string));
-    int32_t fit = MedBlueFont->CharactersToWidth(line, Width() - 0x14, -1);
+    int32_t fit = MedBlueFont->CharactersToWidth(reinterpret_cast<const char*>(line), Width() - 0x14, true);
 
     if (fit == length)
     {
-        MedBlueFont->WriteString(_OwnPort->Frame(), 0xc, yPos, line, -1);
+        MedBlueFont->WriteString(_OwnPort->Frame(), 0xc, yPos, reinterpret_cast<const char*>(line), -1);
         return yPos;
     }
     while (fit > 0)
@@ -862,7 +861,7 @@ auto MCRefitDialog::WrapText(char* string, int32_t yPos) -> int32_t
         // on past it (OB-075).
         const bool last = *end == 0;
         *end = 0;
-        MedBlueFont->WriteString(_OwnPort->Frame(), 0xc, yPos, line, -1);
+        MedBlueFont->WriteString(_OwnPort->Frame(), 0xc, yPos, reinterpret_cast<const char*>(line), -1);
         yPos += MedBlueFont->Height() + 3;
 
         if (last)
@@ -872,13 +871,13 @@ auto MCRefitDialog::WrapText(char* string, int32_t yPos) -> int32_t
 
         *end = ' ';
         line = end + 1;
-        fit = MedBlueFont->CharactersToWidth(line, Width() - 0x14, -1);
+        fit = MedBlueFont->CharactersToWidth(reinterpret_cast<const char*>(line), Width() - 0x14, true);
     }
 
     return yPos;
 }
 
-auto MCRefitDialog::Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, char* name) -> int32_t
+auto MCRefitDialog::Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, const char* name) -> int32_t
 {
     Drawn = 0;
     return MCReusableDialog::Init(xPos, yPos, width, height, name);

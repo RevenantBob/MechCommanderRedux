@@ -246,28 +246,13 @@
     <ClCompile Include="gameos\MCSoundResource.cpp">
       <Filter>gameos</Filter>
     </ClCompile>
-    <ClCompile Include="gui\aanim.cpp">
-      <Filter>gui</Filter>
-    </ClCompile>
-    <ClCompile Include="gui\abutton.cpp">
-      <Filter>gui</Filter>
-    </ClCompile>
-    <ClCompile Include="gui\afont.cpp">
-      <Filter>gui</Filter>
-    </ClCompile>
     <ClCompile Include="gui\ahelp.cpp">
       <Filter>gui</Filter>
     </ClCompile>
     <ClCompile Include="gui\alistbox.cpp">
       <Filter>gui</Filter>
     </ClCompile>
-    <ClCompile Include="gui\aport.cpp">
-      <Filter>gui</Filter>
-    </ClCompile>
     <ClCompile Include="gui\ascroll.cpp">
-      <Filter>gui</Filter>
-    </ClCompile>
-    <ClCompile Include="gui\asystem.cpp">
       <Filter>gui</Filter>
     </ClCompile>
     <ClCompile Include="gui\atextbox.cpp">
@@ -276,7 +261,52 @@
     <ClCompile Include="gui\awindow.cpp">
       <Filter>gui</Filter>
     </ClCompile>
-    <ClCompile Include="gui\mchwcursor.cpp">
+    <ClCompile Include="gui\MCGuiAnimation.cpp">
+      <Filter>gui</Filter>
+    </ClCompile>
+    <ClCompile Include="gui\MCGuiButton.cpp">
+      <Filter>gui</Filter>
+    </ClCompile>
+    <ClCompile Include="gui\MCGuiCallback.cpp">
+      <Filter>gui</Filter>
+    </ClCompile>
+    <ClCompile Include="gui\MCGuiFont.cpp">
+      <Filter>gui</Filter>
+    </ClCompile>
+    <ClCompile Include="gui\MCGuiGlobals.cpp">
+      <Filter>gui</Filter>
+    </ClCompile>
+    <ClCompile Include="gui\MCGuiHolderObject.cpp">
+      <Filter>gui</Filter>
+    </ClCompile>
+    <ClCompile Include="gui\MCGuiInput.cpp">
+      <Filter>gui</Filter>
+    </ClCompile>
+    <ClCompile Include="gui\MCGuiMessageBox.cpp">
+      <Filter>gui</Filter>
+    </ClCompile>
+    <ClCompile Include="gui\MCGuiObject.cpp">
+      <Filter>gui</Filter>
+    </ClCompile>
+    <ClCompile Include="gui\MCGuiPort.cpp">
+      <Filter>gui</Filter>
+    </ClCompile>
+    <ClCompile Include="gui\MCGuiSpinner.cpp">
+      <Filter>gui</Filter>
+    </ClCompile>
+    <ClCompile Include="gui\MCGuiStartup.cpp">
+      <Filter>gui</Filter>
+    </ClCompile>
+    <ClCompile Include="gui\MCGuiSystem.cpp">
+      <Filter>gui</Filter>
+    </ClCompile>
+    <ClCompile Include="gui\MCGuiSystemDisplay.cpp">
+      <Filter>gui</Filter>
+    </ClCompile>
+    <ClCompile Include="gui\MCGuiTimerManager.cpp">
+      <Filter>gui</Filter>
+    </ClCompile>
+    <ClCompile Include="gui\MCHardwareCursor.cpp">
       <Filter>gui</Filter>
     </ClCompile>
     <ClCompile Include="gui\scrlpane.cpp">
@@ -1159,28 +1189,13 @@
     <ClInclude Include="gameos\MCSoundResource.h">
       <Filter>gameos</Filter>
     </ClInclude>
-    <ClInclude Include="gui\aanim.h">
-      <Filter>gui</Filter>
-    </ClInclude>
-    <ClInclude Include="gui\abutton.h">
-      <Filter>gui</Filter>
-    </ClInclude>
-    <ClInclude Include="gui\afont.h">
-      <Filter>gui</Filter>
-    </ClInclude>
     <ClInclude Include="gui\ahelp.h">
       <Filter>gui</Filter>
     </ClInclude>
     <ClInclude Include="gui\alistbox.h">
       <Filter>gui</Filter>
     </ClInclude>
-    <ClInclude Include="gui\aport.h">
-      <Filter>gui</Filter>
-    </ClInclude>
     <ClInclude Include="gui\ascroll.h">
-      <Filter>gui</Filter>
-    </ClInclude>
-    <ClInclude Include="gui\asystem.h">
       <Filter>gui</Filter>
     </ClInclude>
     <ClInclude Include="gui\atextbox.h">
@@ -1189,10 +1204,55 @@
     <ClInclude Include="gui\awindow.h">
       <Filter>gui</Filter>
     </ClInclude>
+    <ClInclude Include="gui\MCGuiAnimation.h">
+      <Filter>gui</Filter>
+    </ClInclude>
+    <ClInclude Include="gui\MCGuiButton.h">
+      <Filter>gui</Filter>
+    </ClInclude>
+    <ClInclude Include="gui\MCGuiCallback.h">
+      <Filter>gui</Filter>
+    </ClInclude>
+    <ClInclude Include="gui\MCGuiEvent.h">
+      <Filter>gui</Filter>
+    </ClInclude>
+    <ClInclude Include="gui\MCGuiFont.h">
+      <Filter>gui</Filter>
+    </ClInclude>
+    <ClInclude Include="gui\MCGuiGlobals.h">
+      <Filter>gui</Filter>
+    </ClInclude>
+    <ClInclude Include="gui\MCGuiHolderObject.h">
+      <Filter>gui</Filter>
+    </ClInclude>
+    <ClInclude Include="gui\MCGuiInput.h">
+      <Filter>gui</Filter>
+    </ClInclude>
+    <ClInclude Include="gui\MCGuiMessageBox.h">
+      <Filter>gui</Filter>
+    </ClInclude>
+    <ClInclude Include="gui\MCGuiObject.h">
+      <Filter>gui</Filter>
+    </ClInclude>
     <ClInclude Include="gui\MCGuiOwned.h">
       <Filter>gui</Filter>
     </ClInclude>
-    <ClInclude Include="gui\mchwcursor.h">
+    <ClInclude Include="gui\MCGuiPort.h">
+      <Filter>gui</Filter>
+    </ClInclude>
+    <ClInclude Include="gui\MCGuiSpinner.h">
+      <Filter>gui</Filter>
+    </ClInclude>
+    <ClInclude Include="gui\MCGuiStartup.h">
+      <Filter>gui</Filter>
+    </ClInclude>
+    <ClInclude Include="gui\MCGuiSystem.h">
+      <Filter>gui</Filter>
+    </ClInclude>
+    <ClInclude Include="gui\MCGuiTimerManager.h">
+      <Filter>gui</Filter>
+    </ClInclude>
+    <ClInclude Include="gui\MCHardwareCursor.h">
       <Filter>gui</Filter>
     </ClInclude>
     <ClInclude Include="gui\scrlpane.h">

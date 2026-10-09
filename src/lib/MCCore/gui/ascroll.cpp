@@ -1,6 +1,6 @@
 #include "stdafx.h"
 #include "gui/ascroll.h"
-#include "gui/aport.h"
+#include "gui/MCGuiPort.h"
 #include "platform/MCInput.h"
 #include "vfx/MCVfxFunctions.h"
 
@@ -29,24 +29,24 @@ auto ScrollEventHandler(MCGuiObject* obj, MCGuiEvent* event) -> void
     {
         case 1:
         {
-            Application->Grab(obj);
-            Application->AddTimer(obj, RepeatDelayTimer, 1000, 0, 0, 0);
+            GuiSystem()->Grab(obj);
+            GuiSystem()->AddTimer(obj, RepeatDelayTimer, 1000, 0, 0, 0);
             APostMessage(obj->Parent, id);
             break;
         }
         case 4:
         {
-            Application->Release();
-            Application->RemoveTimer(obj, RepeatDelayTimer);
-            Application->RemoveTimer(obj, RepeatTimer);
+            GuiSystem()->Release();
+            GuiSystem()->RemoveTimer(obj, RepeatDelayTimer);
+            GuiSystem()->RemoveTimer(obj, RepeatTimer);
             break;
         }
         case TimerEvent:
         {
             if (event->Data == RepeatDelayTimer)
             {
-                Application->RemoveTimer(obj, RepeatDelayTimer);
-                Application->AddTimer(obj, RepeatTimer, 200, 0, 0, 0);
+                GuiSystem()->RemoveTimer(obj, RepeatDelayTimer);
+                GuiSystem()->AddTimer(obj, RepeatTimer, 200, 0, 0, 0);
             }
 
             APostMessage(obj->Parent, id);
@@ -69,16 +69,16 @@ auto ScrollTabHandler(MCGuiObject* obj, MCGuiEvent* event) -> void
             const int32_t cursorX = obj->Width() / 2 + obj->GlobalX();
             const int32_t cursorY = obj->Height() / 2 + obj->GlobalY();
             MCInput::SetCursorPos(cursorX, cursorY);
-            Application->Grab(obj);
+            GuiSystem()->Grab(obj);
             break;
         }
 
         case 4:
-            Application->Release();
+            GuiSystem()->Release();
             break;
         case 7:
         {
-            if (Application->GrabbedObject() == obj)
+            if (GuiSystem()->GrabbedObject() == obj)
             {
                 const int32_t offset = event->Y - bar->GlobalY();
                 const int32_t steps = (bar->ScrollMax * offset) / (bar->Height() - 0x12);
@@ -124,7 +124,7 @@ auto ScrollTabPaint(MCGuiObject* obj) -> void
 
 MCGuiScrollBar::MCGuiScrollBar() = default;
 
-auto MCGuiScrollBar::Init(int32_t xPos, int32_t yPos, int32_t, int32_t height, char* name) -> int32_t
+auto MCGuiScrollBar::Init(int32_t xPos, int32_t yPos, int32_t, int32_t height, const char* name) -> int32_t
 {
     constexpr int32_t outOfMemory = -0x1111fffe;
 
@@ -365,55 +365,37 @@ auto MCGuiScrollBar::ResizeAreas() -> void
     DownArea->MoveTo(1, tabTop + 0x19, 0);
 }
 
-auto MCGuiScrollArea::Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, char*) -> int32_t
+auto MCGuiScrollArea::Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, const char*) -> int32_t
 {
     WinWidth = width;
     WinY = yPos;
     WinHeight = height;
     WinX = xPos;
-    WinState = 0;
-    ShowWindow = 1;
-    DragOn = 0;
-    DisplayPort = nullptr;
-
-    if (FramePane != nullptr)
-    {
-        delete FramePane;
-        FramePane = nullptr;
-    }
-
-    FramePane = new (std::nothrow) MCPane;
-
-    if (FramePane == nullptr)
-    {
-        return -0x1111fffe;
-    }
-
-    FramePane->Window = ScreenPort->Bitmap();
+    WinState = MCGuiWindowState::Normal;
+    ShowWindow = true;
+    DragOn = false;
+    DisplayPort.reset();
+    FramePane = std::make_unique<MCPane>();
+    FramePane->Window = ScreenPort()->Bitmap();
     FramePane->X0 = xPos;
     FramePane->Y0 = yPos;
     FramePane->X1 = xPos + width;
     FramePane->Y1 = yPos + height;
     PaintRoutine = nullptr;
     EventRoutine = nullptr;
-    NumChildren = 0;
+    ChildList.clear();
     Parent = nullptr;
     WinDepth = 0;
-    WindowAnimation = nullptr;
-    Animating = 0;
-    IconAnimation = nullptr;
+    WindowAnimation.reset();
+    Animating = false;
+    IconAnimation.reset();
     return 0;
 }
 
 auto MCGuiScrollArea::Destroy() -> void
 {
-    if (FramePane != nullptr)
-    {
-        delete FramePane;
-        FramePane = nullptr;
-    }
-
-    NumChildren = 0;
+    FramePane.reset();
+    ChildList.clear();
 
     if (Parent != nullptr)
     {
@@ -421,7 +403,7 @@ auto MCGuiScrollArea::Destroy() -> void
     }
 
     Parent = nullptr;
-    Animating = 0;
+    Animating = false;
 }
 
 auto MCGuiScrollArea::HandleEvent(MCGuiEvent* event) -> void

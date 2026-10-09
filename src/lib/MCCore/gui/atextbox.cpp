@@ -1,9 +1,9 @@
 #include "stdafx.h"
 #include "gui/atextbox.h"
 #include "camera/MCCamera.h"
-#include "gui/abutton.h"
-#include "gui/afont.h"
-#include "gui/aport.h"
+#include "gui/MCGuiButton.h"
+#include "gui/MCGuiFont.h"
+#include "gui/MCGuiPort.h"
 #include "iface/MCTacticalInterface.h"
 #include "lib/MCFatal.h"
 #include "linkup/dpmessage.h"
@@ -64,7 +64,7 @@ namespace
     }
 }
 
-auto MCGuiTextObject::Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, char* newText) -> int32_t
+auto MCGuiTextObject::Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, const char* newText) -> int32_t
 {
     const int32_t result = MCGuiObject::Init(xPos, yPos, width, height, nullptr);
 
@@ -107,7 +107,7 @@ auto MCGuiTextObject::HandleEvent(MCGuiEvent* event) -> void
     {
         if (event->Type == 1)
         {
-            Application->SetText(this);
+            GuiSystem()->SetText(this);
 
             if (Parent != nullptr)
             {
@@ -115,7 +115,7 @@ auto MCGuiTextObject::HandleEvent(MCGuiEvent* event) -> void
                 ARedrawScreen();
             }
         }
-        else if (event->Type == 10 && Application->TextObject() == this)
+        else if (event->Type == 10 && GuiSystem()->TextObject() == this)
         {
             const uint8_t key = event->Key;
 
@@ -162,7 +162,7 @@ auto MCGuiTextObject::Draw() -> void
     VfxPaneWipe(DisplayPort->Frame(), BackgroundColor);
     DrawFramed(0, 0);
 
-    if (Application->TextObject() == this)
+    if (GuiSystem()->TextObject() == this)
     {
         // The caret.
         shown[TextLength] = 0x7f;
@@ -172,18 +172,18 @@ auto MCGuiTextObject::Draw() -> void
     // Drop leading characters until the rest fits.
     uint8_t* start = reinterpret_cast<uint8_t*>(shown);
 
-    while (*start != 0 && TextFont->Width(start) > Width() - 6)
+    while (*start != 0 && TextFont->Width(reinterpret_cast<const char*>(start)) > Width() - 6)
     {
         start++;
     }
 
     if (*start != 0)
     {
-        TextFont->WriteString(DisplayPort->Frame(), 3, 3, start, -1);
+        TextFont->WriteString(DisplayPort->Frame(), 3, 3, reinterpret_cast<const char*>(start), -1);
     }
 }
 
-auto MCGuiTextObject::SetText(char* newText) -> void
+auto MCGuiTextObject::SetText(const char* newText) -> void
 {
     if (newText == nullptr)
     {
@@ -215,20 +215,20 @@ auto ScrollTabEventHandler(MCGuiObject* obj, MCGuiEvent* event) -> void
     {
         case 1:
         {
-            Application->Grab(obj);
+            GuiSystem()->Grab(obj);
             obj->StartDrag(0, event->Y - obj->GlobalY());
             break;
         }
         case 4:
         {
-            Application->Release();
+            GuiSystem()->Release();
             obj->StopDrag();
             break;
         }
         case 7:
         {
             // Any grab will do (the original doesn't check that it is this thumb).
-            if (Application->GrabbedObject() == nullptr)
+            if (GuiSystem()->GrabbedObject() == nullptr)
             {
                 break;
             }
@@ -256,88 +256,21 @@ auto ScrollTabEventHandler(MCGuiObject* obj, MCGuiEvent* event) -> void
     }
 }
 
-auto MCGuiScrollTextObject::Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, char* text) -> int32_t
+auto MCGuiScrollTextObject::Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, const char* text) -> int32_t
 {
-    // aObject::init, inlined with an aScrollPort for the port.
-    WinHeight = height;
-    MaxHeight = height;
-    NormalHeight = height;
-    IconHeight = height;
+    // The base's init, with a scroll port (pixels from malloc) for the port.
+    const bool live = DrawsLive();
     InitFailed = 0;
-    WinWidth = width;
-    WinX = xPos;
-    WinY = yPos;
-    MaxWidth = width;
-    MaxX = xPos;
-    MaxY = yPos;
-    NormalWidth = width;
-    NormalX = xPos;
-    NormalY = yPos;
-    IconWidth = width;
-    IconX = xPos;
-    IconY = yPos;
-    HideOffset = 0;
-    HomeX = xPos;
-    HomeY = yPos;
-    WinState = 0;
-    ShowWindow = 1;
-    DragOn = 0;
-    Transparent = 0;
-    BackgroundColor = 0xff;
-
-    if (DisplayPort != nullptr)
-    {
-        DisplayPort->Destroy();
-        delete DisplayPort;
-        DisplayPort = nullptr;
-    }
-
-    DisplayPort = new MCGuiScrollPort;
-
-    if (DisplayPort == nullptr)
-    {
-        InitFailed = 1;
-        return 3;
-    }
-
-    int32_t result = DrawsLive() ? DisplayPort->InitView(width, height) : DisplayPort->Init(width, height);
+    Transparent = false;
+    Place(xPos, yPos, width, height);
+    DisplayPort = std::make_unique<MCGuiScrollPort>();
+    int32_t result = live ? DisplayPort->InitView(width, height) : DisplayPort->Init(width, height);
 
     if (result != 0)
     {
         InitFailed = 1;
         return result;
     }
-
-    if (FramePane != nullptr)
-    {
-        delete FramePane;
-        FramePane = nullptr;
-    }
-
-    FramePane = new (std::nothrow) MCPane;
-
-    if (FramePane == nullptr)
-    {
-        InitFailed = 1;
-        return 3;
-    }
-
-    FramePane->Window = ScreenPort->Bitmap();
-    FramePane->X0 = xPos;
-    FramePane->Y0 = yPos;
-    FramePane->X1 = xPos + width;
-    FramePane->Y1 = yPos + height;
-    Hidden = 0;
-    HideDirection = 3;
-    PaintRoutine = nullptr;
-    EventRoutine = nullptr;
-    NumChildren = 0;
-    Parent = nullptr;
-    WinDepth = 0;
-    WindowAnimation = nullptr;
-    Animating = 0;
-    IconAnimation = nullptr;
-    ObjectType = -1;
 
     ScrollTab = new MCGuiObject;
 
@@ -435,8 +368,7 @@ auto MCGuiScrollTextObject::Draw() -> void
 
         do
         {
-            Fonts[fontRow][FontIndex]->WriteStringToNewline(Port()->Frame(), lineX, lineY,
-                                                            reinterpret_cast<uint8_t*>(line));
+            Fonts[fontRow][FontIndex]->WriteStringToNewline(Port()->Frame(), lineX, lineY, line);
             line = std::strchr(line, '\n');
 
             if (pieces > 0)
@@ -461,7 +393,7 @@ auto MCGuiScrollTextObject::Draw() -> void
         lineY += lineHeight;
     }
 
-    for (int32_t i = 0; i < NumChildren; i++)
+    for (size_t i = 0; i < ChildList.size(); i++)
     {
         if (DrawsChild(ChildList[i]))
         {
@@ -491,10 +423,10 @@ auto MCGuiScrollTextObject::Display() -> void
 
     if (Port() != nullptr)
     {
-        VfxPaneCopy(Port()->Frame(), 0, 0, FramePane, 0, -FirstPixel, -1);
+        VfxPaneCopy(Port()->Frame(), 0, 0, FramePane.get(), 0, -FirstPixel, -1);
     }
 
-    for (int32_t i = 0; i < NumChildren; i++)
+    for (size_t i = 0; i < ChildList.size(); i++)
     {
         ChildList[i]->Display();
     }
@@ -538,7 +470,7 @@ auto MCGuiScrollTextObject::ResetPortSize() -> void
     Port()->Resize(Port()->Width(), portHeight);
 }
 
-auto MCGuiScrollTextObject::Print(char* line, uint8_t color) -> void
+auto MCGuiScrollTextObject::Print(const char* line, uint8_t color) -> void
 {
     const int32_t used = TextLength;
     char* buffer = TextBuffer.get();
@@ -606,7 +538,7 @@ auto MCGuiScrollTextObject::PrintWrapped(char* line, uint8_t color, int32_t wrap
         MCGuiFont* font = Fonts[0][FontIndex];
         char* split = nullptr;
 
-        if (font->Width(reinterpret_cast<uint8_t*>(line)) > wrapWidth - 6)
+        if (font->Width(line) > wrapWidth - 6)
         {
             split = std::strrchr(line, ' ');
 
@@ -616,7 +548,7 @@ auto MCGuiScrollTextObject::PrintWrapped(char* line, uint8_t color, int32_t wrap
                 *split = '\0';
                 char* cut = split;
 
-                while (font->Width(reinterpret_cast<uint8_t*>(line)) > wrapWidth - 6)
+                while (font->Width(line) > wrapWidth - 6)
                 {
                     split = std::strrchr(line, ' ');
 
@@ -673,7 +605,7 @@ auto MCGuiScrollTextObject::CalcFirstPixel(int32_t thumbY) -> void
 
 auto MCGuiScrollTextObject::PositionScrollTab() -> void
 {
-    if (Application->GrabbedObject() == ScrollTab)
+    if (GuiSystem()->GrabbedObject() == ScrollTab)
     {
         return;
     }
@@ -767,7 +699,7 @@ auto MCGuiScrollTextObject::MouseWheel(int32_t steps, int32_t xPos, int32_t yPos
     return true;
 }
 
-auto MCGuiTransparentTextObject::Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, char* newText)
+auto MCGuiTransparentTextObject::Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, const char* newText)
     -> int32_t
 {
     const int32_t result = MCGuiObject::Init(xPos, yPos, width, height, nullptr);
@@ -793,7 +725,7 @@ auto MCGuiTransparentTextObject::Draw() -> void
 
     while (line != nullptr)
     {
-        LgGreyFont->WriteStringToNewline(Port()->Frame(), 0, lineY, reinterpret_cast<uint8_t*>(line));
+        LgGreyFont->WriteStringToNewline(Port()->Frame(), 0, lineY, line);
         line = std::strchr(line, '\n');
 
         if (line != nullptr)
@@ -825,13 +757,13 @@ auto MCGuiTransparentTextObject::Display() -> void
 
     CopySprite(GlobalPane, DisplayPort->Bitmap(), WinX, WinY, WinWidth, WinHeight, 0, 1);
 
-    for (int32_t i = 0; i < NumChildren; i++)
+    for (size_t i = 0; i < ChildList.size(); i++)
     {
         ChildList[i]->Display();
     }
 }
 
-auto MCGuiTransparentTextObject::SetText(char* newText) -> void
+auto MCGuiTransparentTextObject::SetText(const char* newText) -> void
 {
     int32_t textHeight = 0;
     int32_t textWidth = 0;
@@ -858,7 +790,7 @@ auto MCGuiTransparentTextObject::SetText(char* newText) -> void
                 *newline = '\0';
             }
 
-            const int32_t lineWidth = LgGreyFont->Width(reinterpret_cast<uint8_t*>(line));
+            const int32_t lineWidth = LgGreyFont->Width(line);
 
             if (textWidth < lineWidth)
             {
@@ -889,7 +821,7 @@ auto ScenarioChatCallback(MCFidpMessage* message, void*) -> void
     }
 }
 
-auto MCGuiChatInput::Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, char* newText) -> int32_t
+auto MCGuiChatInput::Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, const char* newText) -> int32_t
 {
     int32_t result = MCGuiObject::Init(xPos, yPos, width, height, nullptr);
     Assert(result == 0, static_cast<uint32_t>(result), " Couldn't init chatsend window");
@@ -958,7 +890,7 @@ auto MCGuiChatInput::DrawAndCheck(int32_t maxLines) -> int
     {
         // The first line leaves room for the team button.
         int32_t lineLength = static_cast<int32_t>(std::strlen(reinterpret_cast<char*>(line)));
-        int32_t fits = InputFont->CharactersToWidth(line, Width() - 0x18, 0);
+        int32_t fits = InputFont->CharactersToWidth(reinterpret_cast<const char*>(line), Width() - 0x18, 0);
 
         while (fits > 0 && fits < lineLength && (maxLines == 0 || extraLines < maxLines))
         {
@@ -968,12 +900,12 @@ auto MCGuiChatInput::DrawAndCheck(int32_t maxLines) -> int
             {
                 const uint8_t saved = *next;
                 *next = 0;
-                InputFont->WriteString(DisplayPort->Frame(), 0x14, lineY, line, -1);
+                InputFont->WriteString(DisplayPort->Frame(), 0x14, lineY, reinterpret_cast<const char*>(line), -1);
                 *next = saved;
             }
 
             lineLength = static_cast<int32_t>(std::strlen(reinterpret_cast<char*>(next)));
-            fits = InputFont->CharactersToWidth(next, Width() - 0x14, 1);
+            fits = InputFont->CharactersToWidth(reinterpret_cast<const char*>(next), Width() - 0x14, 1);
             lineY += 3 + InputFont->Height();
             line = next;
             extraLines++;
@@ -981,7 +913,7 @@ auto MCGuiChatInput::DrawAndCheck(int32_t maxLines) -> int
 
         if (maxLines == 0)
         {
-            InputFont->WriteString(DisplayPort->Frame(), 0x14, lineY, line, -1);
+            InputFont->WriteString(DisplayPort->Frame(), 0x14, lineY, reinterpret_cast<const char*>(line), -1);
         }
     }
 
@@ -1002,7 +934,7 @@ auto MCGuiChatInput::HandleEvent(MCGuiEvent* event) -> void
         {
             if (Scenario() != nullptr && EventsToMissionResultsScreen == 0 && GameAsked == 0)
             {
-                Application->SetText(this);
+                GuiSystem()->SetText(this);
             }
             break;
         }
@@ -1018,7 +950,7 @@ auto MCGuiChatInput::HandleEvent(MCGuiEvent* event) -> void
         }
         case 10:
         {
-            if (Application->TextObject() != this || EventsToMissionResultsScreen != 0)
+            if (GuiSystem()->TextObject() != this || EventsToMissionResultsScreen != 0)
             {
                 break;
             }
@@ -1066,7 +998,7 @@ auto MCGuiChatInput::HandleEvent(MCGuiEvent* event) -> void
                 std::memset(Text, 0, 0xff);
                 CursorPos = 0;
                 SetCursorPos(0);
-                Application->ReleaseText();
+                GuiSystem()->ReleaseText();
                 CursorVisible = 1;
             }
             else if (CursorPos < 0xff && ((key > 0x1f && key < 0x7f) || (key > 0xbe && key < 0xfe)) && key != '%')
@@ -1104,11 +1036,11 @@ auto MCGuiChatInput::HandleEvent(MCGuiEvent* event) -> void
         {
             if (event->Data == 7)
             {
-                Application->AddTimer(this, 0, static_cast<int32_t>(MCPort::CaretBlinkTime()), 0, 0, 0);
+                GuiSystem()->AddTimer(this, 0, static_cast<int32_t>(MCPort::CaretBlinkTime()), 0, 0, 0);
             }
             else if (event->Data == 8)
             {
-                Application->RemoveTimer(this, 0);
+                GuiSystem()->RemoveTimer(this, 0);
                 CursorVisible = 1;
             }
             break;
@@ -1138,17 +1070,17 @@ auto MCGuiChatInput::SetCursorPos(int32_t pos) -> void
     if (Text[0] != '\0')
     {
         int32_t lineLength = static_cast<int32_t>(std::strlen(Text));
-        int32_t fits = InputFont->CharactersToWidth(line, Width() - 0x18, 0);
+        int32_t fits = InputFont->CharactersToWidth(reinterpret_cast<const char*>(line), Width() - 0x18, 0);
 
         while (fits > 0 && fits < lineLength)
         {
             line += fits;
             lineLength = static_cast<int32_t>(std::strlen(reinterpret_cast<char*>(line)));
-            fits = InputFont->CharactersToWidth(line, Width() - 0x14, 0);
+            fits = InputFont->CharactersToWidth(reinterpret_cast<const char*>(line), Width() - 0x14, 0);
             CursorY += InputFont->Height() + 3;
         }
 
-        CursorX = InputFont->Width(line) + 0x15;
+        CursorX = InputFont->Width(reinterpret_cast<const char*>(line)) + 0x15;
     }
 
     if (saved != '\0')
@@ -1157,7 +1089,7 @@ auto MCGuiChatInput::SetCursorPos(int32_t pos) -> void
     }
 }
 
-auto MCGuiChatWindow::Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, char* name) -> int32_t
+auto MCGuiChatWindow::Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, const char* name) -> int32_t
 {
     int32_t result = MCGuiObject::Init(xPos, yPos, width, height, name);
 
@@ -1219,7 +1151,7 @@ auto MCGuiChatWindow::ProcessChatString(uint32_t playerId, char* text, int32_t c
 
     // The original scrolled its picture up by the new text's height, wiped the bottom and wrote the text there; the
     // line is kept and draw shows the lines that way. Lines scrolled wholly off the top are dropped.
-    MCSmuti& formatter = Application->TextFormatter;
+    MCSmuti& formatter = GuiSystem()->TextFormatter;
     const int32_t textHeight = formatter.Process(reinterpret_cast<uint8_t*>(line), nullptr, Port()->Width(), 0);
     ChatLines.push_back(ChatLine{line, textHeight});
     int32_t below = 0;
@@ -1240,7 +1172,7 @@ auto MCGuiChatWindow::Draw() -> void
 {
     // The picture was wiped to 0x10 at init, and every scroll wiped the rows it uncovered.
     VfxPaneWipe(Port()->Frame(), 0x10);
-    MCSmuti& formatter = Application->TextFormatter;
+    MCSmuti& formatter = GuiSystem()->TextFormatter;
     // Each line lies above the ones after it; the newest ends a row above the bottom.
     int32_t lineY = Port()->Height() - 1;
 

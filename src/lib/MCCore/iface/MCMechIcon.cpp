@@ -48,7 +48,7 @@ namespace
     }
 }
 
-auto MCMechIcon::Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, char* bitmapName) -> int32_t
+auto MCMechIcon::Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, const char* bitmapName) -> int32_t
 {
     int32_t result = MCGuiObject::Init(xPos, yPos, width, height, bitmapName);
 
@@ -86,7 +86,7 @@ auto MCMechIcon::Destroy() -> void
 auto MCMechIcon::Draw() -> void
 {
     // Port: the colours are brought up to date by UpdateModel (the original called GetColors here).
-    DrawIcon(DisplayPort);
+    DrawIcon(DisplayPort.get());
 }
 
 auto MCMechIcon::UpdateModel() -> void
@@ -131,7 +131,7 @@ auto MCMechIcon::Leave() -> void
         bar->Draw();
     }
 
-    Application->SetCurrentCursor(static_cast<MCCursorType>(MCInterfaceCursor::Normal));
+    GuiSystem()->SetCurrentCursor(static_cast<MCCursorType>(MCInterfaceCursor::Normal));
     MCGuiObject::Leave();
 }
 

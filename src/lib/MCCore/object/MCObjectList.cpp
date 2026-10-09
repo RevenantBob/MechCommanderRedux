@@ -3,7 +3,7 @@
 #include "appear/MCAppearance.h"
 #include "appear/MCAppearanceType.h"
 #include "camera/MCCamera.h"
-#include "gui/asystem.h"
+#include "gui/MCGuiSystem.h"
 #include "main/main.h"
 #include "object/MCBigGameObject.h"
 #include "object/MCObjectEvent.h"

@@ -22,7 +22,7 @@ class MCViewWindow : public MCGuiTitleWindow
 public:
     ~MCViewWindow() override;
     /// <summary>aObject::init, clears the fields; depth 5.</summary>
-    int32_t Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, char* name) override;
+    int32_t Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, const char* name) override;
     /// <summary>Lets go of the world surface, then aObject::destroy.</summary>
     void Destroy() override;
     /// <summary>

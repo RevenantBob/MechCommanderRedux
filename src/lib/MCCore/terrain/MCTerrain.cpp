@@ -3,7 +3,7 @@
 #include "ai/MCMoveSystem.h"
 #include "camera/MCCamera.h"
 #include "engine/MCByteFlag.h"
-#include "gui/asystem.h"
+#include "gui/MCGuiSystem.h"
 #include "iface/MCTacticalInterface.h"
 #include "lib/MCFatal.h"
 #include "lib/MCFitIniFile.h"
@@ -76,8 +76,8 @@ namespace
     /// </summary>
     int32_t GrownGridSide(int32_t dataVertices)
     {
-        int32_t screenWidth = Application->Width();
-        int32_t screenHeight = Application->Height();
+        int32_t screenWidth = GuiSystem()->Width();
+        int32_t screenHeight = GuiSystem()->Height();
 
         if (const MCDisplay* display = MCInput::Display(); display != nullptr)
         {
@@ -312,7 +312,7 @@ auto MCTerrain::Load(std::string_view fileName) -> std::expected<void, std::stri
     }
 
     TacticalInterface()->TacticalMap = TacticalMap.get();
-    ScreenWindow->AddChild(TacticalMap.get());
+    ScreenWindow()->AddChild(TacticalMap.get());
     TacticalMap->RefreshPage();
     terrainFile.Close();
     SetTopLeftElevation(MapTopLeft3d100.Z);

@@ -1,6 +1,6 @@
 #include "stdafx.h"
 #include "logistics/purchase.h"
-#include "gui/afont.h"
+#include "gui/MCGuiFont.h"
 #include "gui/scrlpane.h"
 #include "lib/MCFatal.h"
 #include "lib/MCIDString.h"
@@ -91,7 +91,7 @@ namespace
 
     void WriteText(MCGuiFont* font, MCLogPort* port, int32_t x, int32_t y, const char* text)
     {
-        font->WriteString(port->Frame(), x, y, reinterpret_cast<uint8_t*>(const_cast<char*>(text)), -1);
+        font->WriteString(port->Frame(), x, y, text, -1);
     }
 
     /// <summary>Loads "<c>artPath</c>logart\..." (<paramref name="format"/> with the art path and a number) into <paramref name="port"/>.</summary>
@@ -1101,8 +1101,8 @@ auto MCMechPurchaseBlock::HandleEvent(MCGuiEvent* event) -> void
                 }
 
                 PlaySample(0x35);
-                Application->SetCursorVisible(0);
-                Application->Grab(this);
+                GuiSystem()->SetCursorVisible(0);
+                GuiSystem()->Grab(this);
                 MechDrag.X = event->X - 0x10;
                 MechDrag.Y = event->Y - 0x10;
                 MakeDragIcon(MechDrag, [this](MCLogPort* surface) { OnBeginDrag(surface); });
@@ -1129,13 +1129,13 @@ auto MCMechPurchaseBlock::HandleEvent(MCGuiEvent* event) -> void
                 return;
             }
 
-            if (Application->GrabbedObject() == nullptr)
+            if (GuiSystem()->GrabbedObject() == nullptr)
             {
                 return;
             }
 
-            Application->SetCursorVisible(1);
-            Application->Release();
+            GuiSystem()->SetCursorVisible(1);
+            GuiSystem()->Release();
             MechDrag.Carrying = 0;
             MechDrag.Dragging = 0;
             DeleteDragIcon();
@@ -1739,8 +1739,8 @@ auto MCVehiclePurchaseBlock::HandleEvent(MCGuiEvent* event) -> void
                 }
 
                 PlaySample(0x35);
-                Application->SetCursorVisible(0);
-                Application->Grab(this);
+                GuiSystem()->SetCursorVisible(0);
+                GuiSystem()->Grab(this);
                 VehicleDrag.X = event->X - 0x10;
                 VehicleDrag.Y = event->Y - 0x10;
                 MakeDragIcon(VehicleDrag, [this](MCLogPort* surface) { OnBeginDrag(surface); });
@@ -1767,13 +1767,13 @@ auto MCVehiclePurchaseBlock::HandleEvent(MCGuiEvent* event) -> void
 
             VehicleDrag.Carrying = 0;
 
-            if (Application->GrabbedObject() == nullptr)
+            if (GuiSystem()->GrabbedObject() == nullptr)
             {
                 return;
             }
 
-            Application->Release();
-            Application->SetCursorVisible(1);
+            GuiSystem()->Release();
+            GuiSystem()->SetCursorVisible(1);
             VehicleDrag.Dragging = 0;
             DeleteDragIcon();
 
@@ -2054,8 +2054,8 @@ auto MCCompPurchaseBlock::HandleEvent(MCGuiEvent* event) -> void
                 }
 
                 PlaySample(0x35);
-                Application->SetCursorVisible(1);
-                Application->Grab(this);
+                GuiSystem()->SetCursorVisible(1);
+                GuiSystem()->Grab(this);
                 CompDrag.Y = event->Y - 0x10;
                 CompDrag.X = event->X - 0x10;
                 MakeDragIcon(CompDrag, [this](MCLogPort* surface) { OnBeginDrag(surface); });
@@ -2080,13 +2080,13 @@ auto MCCompPurchaseBlock::HandleEvent(MCGuiEvent* event) -> void
                 return;
             }
 
-            if (Application->GrabbedObject() == nullptr)
+            if (GuiSystem()->GrabbedObject() == nullptr)
             {
                 return;
             }
 
-            Application->SetCursorVisible(1);
-            Application->Release();
+            GuiSystem()->SetCursorVisible(1);
+            GuiSystem()->Release();
             CompDrag.Dragging = 0;
             CompDrag.Carrying = 0;
             DeleteDragIcon();
@@ -2268,7 +2268,7 @@ auto MCPilotPurchaseBlock::HandleEvent(MCGuiEvent* event) -> void
                 }
 
                 SoundSystem()->PlayPilotSpeech(Pilot->PilotAudio, 10);
-                Application->Grab(this);
+                GuiSystem()->Grab(this);
                 PilotDrag.Y = event->Y - 0x10;
                 PilotDrag.X = event->X - 0x10;
                 MakeDragIcon(PilotDrag, [this](MCLogPort* surface) { OnBeginDrag(surface); });
@@ -2295,12 +2295,12 @@ auto MCPilotPurchaseBlock::HandleEvent(MCGuiEvent* event) -> void
 
             PilotDrag.Carrying = 0;
 
-            if (Application->GrabbedObject() == nullptr)
+            if (GuiSystem()->GrabbedObject() == nullptr)
             {
                 break;
             }
 
-            Application->Release();
+            GuiSystem()->Release();
             PilotDrag.Dragging = 0;
             DeleteDragIcon();
 

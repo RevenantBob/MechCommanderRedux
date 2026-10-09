@@ -1,8 +1,8 @@
 #include "stdafx.h"
 #include "gui/alistbox.h"
-#include "gui/abutton.h"
-#include "gui/afont.h"
-#include "gui/aport.h"
+#include "gui/MCGuiButton.h"
+#include "gui/MCGuiFont.h"
+#include "gui/MCGuiPort.h"
 #include "gui/ascroll.h"
 #include "gui/atextbox.h"
 #include "vfx/MCVfxFunctions.h"
@@ -29,7 +29,7 @@ namespace
 
 MCGuiListBox::MCGuiListBox() = default;
 
-auto MCGuiListBox::Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, char* name) -> int32_t
+auto MCGuiListBox::Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, const char* name) -> int32_t
 {
     int32_t result = MCGuiObject::Init(xPos, yPos, width, height, name);
 
@@ -95,8 +95,8 @@ auto MCGuiListBox::HandleEvent(MCGuiEvent* event) -> void
     {
         case 1:
         {
-            Application->SetText(this);
-            Application->Grab(this);
+            GuiSystem()->SetText(this);
+            GuiSystem()->Grab(this);
             const int32_t item = (event->Y - GlobalY()) / ItemHeight + TopItem;
             SelectedItem = item;
 
@@ -110,11 +110,11 @@ auto MCGuiListBox::HandleEvent(MCGuiEvent* event) -> void
         }
 
         case 4:
-            Application->Release();
+            GuiSystem()->Release();
             break;
         case 7:
         {
-            if (Application->GrabbedObject() != this)
+            if (GuiSystem()->GrabbedObject() != this)
             {
                 break;
             }
@@ -371,7 +371,7 @@ auto MCGuiListBox::Draw() -> void
             VfxPaneWipe(&line, 0xb);
         }
 
-        ItemFont->WriteString(DisplayPort->Frame(), 2, lineY + 4, reinterpret_cast<uint8_t*>(itemText), -1);
+        ItemFont->WriteString(DisplayPort->Frame(), 2, lineY + 4, itemText, -1);
         VfxLineDraw(DisplayPort->Frame(), 1, lineY, Width() - 2, lineY, 0xf);
         itemText += ItemLength;
         lineY += ItemHeight;
@@ -493,7 +493,7 @@ MCGuiComboBox::~MCGuiComboBox()
     Destroy();
 }
 
-auto MCGuiComboBox::Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, char* name) -> int32_t
+auto MCGuiComboBox::Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, const char* name) -> int32_t
 {
     const int32_t result = MCGuiObject::Init(xPos, yPos, width, height, name);
 

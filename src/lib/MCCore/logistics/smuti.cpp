@@ -1,7 +1,7 @@
 #include "stdafx.h"
 #include "logistics/smuti.h"
-#include "gui/afont.h"
-#include "gui/aport.h"
+#include "gui/MCGuiFont.h"
+#include "gui/MCGuiPort.h"
 #include "lib/MCFatal.h"
 #include "lib/MCFile.h"
 #include "logistics/loggen.h"
@@ -45,7 +45,7 @@ auto MCSmuti::Process(uint8_t* text, MCGuiPort* port, int32_t width, int32_t sta
     {
         if (this->Port != nullptr && LineBuffer[0] != 0)
         {
-            Font->WriteString(this->Port->Frame(), LineStartX, CurY, reinterpret_cast<uint8_t*>(LineBuffer), -1);
+            Font->WriteString(this->Port->Frame(), LineStartX, CurY, LineBuffer, -1);
         }
     };
 
@@ -150,7 +150,7 @@ auto MCSmuti::Process(uint8_t* text, MCGuiPort* port, int32_t width, int32_t sta
 
                         if (this->Port != nullptr)
                         {
-                            Font->WriteString(this->Port->Frame(), 0, CurY, reinterpret_cast<uint8_t*>(centerText), -1);
+                            Font->WriteString(this->Port->Frame(), 0, CurY, centerText, -1);
                         }
 
                         CurX = 0;
@@ -180,10 +180,10 @@ auto MCSmuti::Process(uint8_t* text, MCGuiPort* port, int32_t width, int32_t sta
 
                         if (this->Port != nullptr)
                         {
-                            Font->WriteString(this->Port->Frame(), x, CurY, reinterpret_cast<uint8_t*>(centerText), -1);
+                            Font->WriteString(this->Port->Frame(), x, CurY, centerText, -1);
                         }
 
-                        CurX = Font->Width(reinterpret_cast<uint8_t*>(centerText)) + x;
+                        CurX = Font->Width(centerText) + x;
                     }
 
                     if (*p == '%')
@@ -232,8 +232,7 @@ auto MCSmuti::Process(uint8_t* text, MCGuiPort* port, int32_t width, int32_t sta
                             if (this->Port != nullptr && LineBuffer[0] != 0)
                             {
                                 LineBuffer[LineLength] = 0;
-                                Font->WriteString(this->Port->Frame(), LineStartX, CurY,
-                                                  reinterpret_cast<uint8_t*>(LineBuffer), -1);
+                                Font->WriteString(this->Port->Frame(), LineStartX, CurY, LineBuffer, -1);
                                 LineStartX += CurX;
                                 CurX = 0;
                                 LineLength = 0;
@@ -324,7 +323,7 @@ auto MCSmuti::Process(uint8_t* text, MCGuiPort* port, int32_t width, int32_t sta
 
     if (this->Port != nullptr && LineBuffer[0] != 0 && Centered != 1)
     {
-        Font->WriteString(this->Port->Frame(), LineStartX, CurY, reinterpret_cast<uint8_t*>(LineBuffer), -1);
+        Font->WriteString(this->Port->Frame(), LineStartX, CurY, LineBuffer, -1);
     }
 
     this->Port = nullptr;
@@ -367,7 +366,7 @@ auto MCSmuti::CheckWrap(uint8_t nextChar) -> void
 
     if (Port != nullptr)
     {
-        Font->WriteString(Port->Frame(), LineStartX, CurY, reinterpret_cast<uint8_t*>(LineBuffer), -1);
+        Font->WriteString(Port->Frame(), LineStartX, CurY, LineBuffer, -1);
     }
 
     int32_t count = 0;
@@ -379,7 +378,7 @@ auto MCSmuti::CheckWrap(uint8_t nextChar) -> void
 
     LineBuffer[count] = 0;
     LineStartX = 0;
-    CurX = Font->Width(reinterpret_cast<uint8_t*>(LineBuffer));
+    CurX = Font->Width(LineBuffer);
     LineLength = count;
     CurY += Font->Height() + 1;
 }

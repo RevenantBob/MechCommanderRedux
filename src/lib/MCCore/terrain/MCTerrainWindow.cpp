@@ -5,7 +5,7 @@
 #include "engine/MCByteFlag.h"
 #include "engine/MCElementBuffer.h"
 #include "engine/MCLineElement.h"
-#include "gui/asystem.h"
+#include "gui/MCGuiSystem.h"
 #include "lib/MCFatal.h"
 #include "mission/MCScenario.h"
 #include "object/MCElemental.h"
@@ -317,7 +317,7 @@ auto MCTerrainWindow::Render(int32_t hazeFactor) -> void
 
         // A scroll of a screen or more (or ForceAlways) redraws everything; so does a forced redraw, which this
         // render has just asked for.
-        if (std::abs(scrollX) >= Application->Width() || std::abs(scrollY) >= Application->Height() || ForceAlways != 0)
+        if (std::abs(scrollX) >= GuiSystem()->Width() || std::abs(scrollY) >= GuiSystem()->Height() || ForceAlways != 0)
         {
             MCTerrain::ForceRedraw = true;
         }

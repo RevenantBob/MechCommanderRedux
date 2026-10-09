@@ -1,7 +1,7 @@
 #include "stdafx.h"
 #include "MCTest.h"
 #include "TestGame.h"
-#include "gui/mchwcursor.h"
+#include "gui/MCHardwareCursor.h"
 #include "gui/updisp.h"
 #include "lib/MCPacketFile.h"
 #include "vfx/MCAgShape.h"

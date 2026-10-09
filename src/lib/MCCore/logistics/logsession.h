@@ -22,7 +22,7 @@ public:
     ~MCLogToolButton() override = default;
 
     /// <summary>Initialises the button and installs <see cref="LToolButtonEventHandler"/>.</summary>
-    int32_t Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, char* name) override;
+    int32_t Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, const char* name) override;
 
     /// <summary>Plays the click sound (or the disabled one) and passes the event on.</summary>
     void HandleEvent(MCGuiEvent* event) override;
@@ -69,7 +69,7 @@ public:
     ~MCLogChatInput() override { Destroy(); }
 
     /// <summary>Places the line, makes the team button and takes <paramref name="text"/> as the starting text.</summary>
-    int32_t Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, char* text) override;
+    int32_t Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, const char* text) override;
 
     void Destroy() override;
 
@@ -121,7 +121,7 @@ class MCPlayerNameObject : public MCLogObject
 public:
     ~MCPlayerNameObject() override { Destroy(); }
 
-    int32_t Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, char* name) override;
+    int32_t Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, const char* name) override;
 
     void Destroy() override;
 
@@ -177,7 +177,7 @@ public:
     ~MCSessionScreen() override { Destroy(); }
 
     /// <summary>Makes the buttons, the RP spinners and texts, the tech base toggles and the six name slots.</summary>
-    int32_t Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, char* name) override;
+    int32_t Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, const char* name) override;
 
     void Destroy() override;
 

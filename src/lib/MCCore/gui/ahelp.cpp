@@ -3,14 +3,14 @@
 #include "appear/MCAppearance.h"
 #include "camera/MCCamera.h"
 #include "engine/MCFont.h"
-#include "gui/aport.h"
+#include "gui/MCGuiPort.h"
 #include "main/main.h"
 #include "object/MCMiscTerrainObject.h"
 #include "object/MCMiscTerrainObjectType.h"
 #include "platform/MCFrameLog.h"
 #include "vfx/MCVfxFunctions.h"
 
-auto MCFloatHelp::Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, char* name) -> int32_t
+auto MCFloatHelp::Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, const char* name) -> int32_t
 {
     SetBackColor(0);
     TextColor = 0x1f;
@@ -41,25 +41,25 @@ auto MCFloatHelp::Draw() -> void
         DrawBox(0, -1, -1, -1, -1);
     }
 
-    if (HelpText[0] != 0 && LineFont != nullptr)
+    if (HelpText[0] != 0 && LineFont() != nullptr)
     {
         char* newline = strchr(HelpText, '\n');
         int16_t lineY = 2;
-        LineFont->Scale = 1.0f;
-        LineFont->Scaled = 0;
-        LineFont->PrintToNewline(2, 2, HelpText, TextColor, DisplayPort->Frame());
+        LineFont()->Scale = 1.0f;
+        LineFont()->Scaled = 0;
+        LineFont()->PrintToNewline(2, 2, HelpText, TextColor, DisplayPort->Frame());
 
         while (newline != nullptr)
         {
-            uint8_t lineHeight = LineFont->FontHeight;
+            uint8_t lineHeight = LineFont()->FontHeight;
 
-            if (LineFont->Scaled != 0)
+            if (LineFont()->Scaled != 0)
             {
-                lineHeight = static_cast<uint8_t>(static_cast<int32_t>(floor(lineHeight * LineFont->Scale)));
+                lineHeight = static_cast<uint8_t>(static_cast<int32_t>(floor(lineHeight * LineFont()->Scale)));
             }
 
             lineY = static_cast<int16_t>(lineY + 2 + lineHeight);
-            LineFont->PrintToNewline(2, lineY, newline + 1, TextColor, DisplayPort->Frame());
+            LineFont()->PrintToNewline(2, lineY, newline + 1, TextColor, DisplayPort->Frame());
             newline = strchr(newline + 1, '\n');
         }
     }
@@ -145,7 +145,7 @@ auto MCFloatHelp::SetHelpText(char* text) -> void
         HelpText[0x3f] = 0;
     }
 
-    if (LineFont != nullptr)
+    if (LineFont() != nullptr)
     {
         int16_t numLines = 1;
 
@@ -154,18 +154,18 @@ auto MCFloatHelp::SetHelpText(char* text) -> void
             numLines++;
         }
 
-        LineFont->Scale = 1.0f;
-        LineFont->Scaled = 0;
+        LineFont()->Scale = 1.0f;
+        LineFont()->Scaled = 0;
 
-        int32_t textWidth = LineFont->PrintWidth(HelpText, true) + 4;
+        int32_t textWidth = LineFont()->PrintWidth(HelpText, true) + 4;
 
         if (Width() == textWidth)
         {
             int32_t lineHeight = 6;
 
-            if (LineFont->Scaled != 0)
+            if (LineFont()->Scaled != 0)
             {
-                lineHeight = static_cast<int16_t>(static_cast<int32_t>(floor(LineFont->Scale * 6.0f)));
+                lineHeight = static_cast<int16_t>(static_cast<int32_t>(floor(LineFont()->Scale * 6.0f)));
             }
 
             if (Height() == numLines * lineHeight)
@@ -174,14 +174,14 @@ auto MCFloatHelp::SetHelpText(char* text) -> void
             }
         }
 
-        int32_t fontHeight = LineFont->FontHeight;
+        int32_t fontHeight = LineFont()->FontHeight;
 
-        if (LineFont->Scaled != 0)
+        if (LineFont()->Scaled != 0)
         {
-            fontHeight = static_cast<int16_t>(static_cast<int32_t>(floor(fontHeight * LineFont->Scale)));
+            fontHeight = static_cast<int16_t>(static_cast<int32_t>(floor(fontHeight * LineFont()->Scale)));
         }
 
         fontHeight &= 0xff;
-        Resize(LineFont->PrintWidth(HelpText, true) + 4, (fontHeight + 2) * numLines);
+        Resize(LineFont()->PrintWidth(HelpText, true) + 4, (fontHeight + 2) * numLines);
     }
 }

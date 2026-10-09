@@ -4,7 +4,7 @@
 #include "TestGame.h"
 #include "fakes/MCManualClock.h"
 #include "camera/MCCamera.h"
-#include "gui/asystem.h"
+#include "gui/MCGuiSystem.h"
 #include "gui/updisp.h"
 #include "lib/MCFastFileSet.h"
 #include "logistics/loggen.h"
@@ -299,8 +299,7 @@ namespace MCTestGame
             RunFrame(1.0f / 15.0f);
 
             if (Mission()->State == MCMissionState::Logistics && GlobalLogPtr != nullptr &&
-                GlobalLogPtr->CurrentScreen == GlobalLogPtr->MainScreen && Application->SmackerWindow == nullptr &&
-                Application->SmackerWindow2 == nullptr)
+                GlobalLogPtr->CurrentScreen == GlobalLogPtr->MainScreen && GuiSystem()->SmackerWindow == nullptr)
             {
                 return true;
             }
@@ -347,10 +346,10 @@ namespace MCTestGame
             // The world view shows 480 lines (one world pixel per screen pixel in the 640x480 window) at any zoom
             // request, so what is on screen, and so updated, is the same every run.
             MCFixedZoomHeight = 480.0f;
-            std::strcpy(PaletteName, "palette.gif");
-            Application = new MCGuiSystem;
+            PaletteName = "palette.gif";
+            MCGameContext::Current().SetGuiSystem(std::make_unique<MCGuiSystem>());
 
-            if (Application->Start(nullptr, nullptr, commandLine.data(), 1, 640, 480) != 0)
+            if (GuiSystem()->Start(commandLine, 640, 480) != 0)
             {
                 std::cout << "  aSystem::start failed\n";
                 return false;
@@ -361,9 +360,9 @@ namespace MCTestGame
                 display->OnPresent = Presented;
             }
 
-            for (int32_t i = 0; i < ScreenWindow->NumberOfChildren(); i++)
+            for (int32_t i = 0; i < ScreenWindow()->NumberOfChildren(); i++)
             {
-                ScreenWindow->Child(i)->Draw();
+                ScreenWindow()->Child(i)->Draw();
             }
 
             return true;
@@ -377,15 +376,9 @@ namespace MCTestGame
         FrameRate = 1.0f / seconds;
         MCInput::PumpMessages();
 
-        if (Application->SmackerWindow2 == nullptr && Application->SmackerWindow == nullptr)
+        if (GuiSystem()->SmackerWindow == nullptr)
         {
-            for (int32_t i = 0; i < Application->NumCallbacks; i++)
-            {
-                if (Application->Callbacks[i] != nullptr)
-                {
-                    Application->Callbacks[i]->Execute();
-                }
-            }
+            GuiSystem()->RunFrameCallbacks(true);
         }
 
         int32_t staticNoise = 0;

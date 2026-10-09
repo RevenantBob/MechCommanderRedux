@@ -3,7 +3,7 @@
 #include "TestGame.h"
 #include "ai/MCTacticalOrder.h"
 #include "camera/MCMainWindow.h"
-#include "gui/asystem.h"
+#include "gui/MCGuiSystem.h"
 #include "iface/MCCommandParser.h"
 #include "iface/MCMechBar.h"
 #include "iface/MCOrderSink.h"
@@ -500,7 +500,7 @@ TEST_CASE_ISOLATED("game: the mouse state picks the cursor for what is under the
         event.Y = y;
         event.Target = pane;
         iface->UpdateMouseState(&event);
-        return static_cast<MCInterfaceCursor>(Application->CurrentCursor);
+        return static_cast<MCInterfaceCursor>(GuiSystem()->CurrentCursor);
     };
 
     // A spot of open ground: the first point of a coarse grid with nothing under it.

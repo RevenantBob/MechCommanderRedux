@@ -1,6 +1,6 @@
 #pragma once
 
-#include "gui/asystem.h"
+#include "gui/MCGuiSystem.h"
 
 /// <summary>
 /// Lines of text scrolling up in a VFX pane: the ABL debugger's output and the game system window (honorb.cpp).
@@ -15,7 +15,7 @@ public:
     ~MCScrollingTextWindow() override;
 
     /// <summary>Creates the pane and sizes the text grid (10-pixel cells).</summary>
-    int32_t Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, char* name) override;
+    int32_t Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, const char* name) override;
 
     void Resize(int32_t width, int32_t height) override;
 

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "gui/abutton.h"
+#include "gui/MCGuiButton.h"
 
 class MCGuiEvent;
 
@@ -14,7 +14,7 @@ public:
     ~MCArtilleryButton() override = default;
 
     /// <summary>aButton::init, then clears the armed flags.</summary>
-    int32_t Init(int32_t xPos, int32_t yPos, int32_t w, int32_t h, char* fileName) override;
+    int32_t Init(int32_t xPos, int32_t yPos, int32_t w, int32_t h, const char* fileName) override;
 
     /// <summary>Grays out when none are left, then draws the count.</summary>
     void Draw() override;

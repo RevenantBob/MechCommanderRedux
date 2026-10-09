@@ -1,6 +1,6 @@
 #include "stdafx.h"
 #include "logistics/logscrn.h"
-#include "gui/afont.h"
+#include "gui/MCGuiFont.h"
 #include "gui/scrlpane.h"
 #include "lib/MCFatal.h"
 #include "linkup/dpplayer.h"
@@ -239,8 +239,7 @@ namespace
             }
         }
 
-        auto write = [&](int32_t y, char* text)
-        { YellowDropFont->WriteString(port->Frame(), 0x53, y, reinterpret_cast<uint8_t*>(text), -1); };
+        auto write = [&](int32_t y, char* text) { YellowDropFont->WriteString(port->Frame(), 0x53, y, text, -1); };
         write(0x1a5, info.RangeText);
         write(0x19c, info.DamageText);
         write(0x193, info.RecycleText);
@@ -339,7 +338,7 @@ auto MCLogInvScreen::CreateVehiclePane() -> void
         UnitPane->AddChild(block);
         block->SlotIndex = row;
         block->MoveTo(0, yPos, 0);
-        block->ShowGuiWindow(-1);
+        block->ShowGuiWindow(true);
         block->SetDepth(100);
         block->DrawBackground(row, nullptr);
         ++row;
@@ -354,7 +353,7 @@ auto MCLogInvScreen::CreateVehiclePane() -> void
         UnitPane->AddChild(block);
         block->SlotIndex = row;
         block->MoveTo(0, yPos, 0);
-        block->ShowGuiWindow(-1);
+        block->ShowGuiWindow(true);
         block->SetDepth(100);
         block->DrawBackground(row, nullptr);
         ++row;
@@ -387,7 +386,7 @@ auto MCLogInvScreen::CreatePurVehiclePane(int redraw) -> void
                 MCMechPurchaseBlock* block = purMech->Block;
                 block->Row = row;
                 block->MoveTo(0, yPos, 0);
-                block->ShowGuiWindow(-1);
+                block->ShowGuiWindow(true);
                 block->SetDepth(100);
                 block->DrawBackground(row);
                 purMech = purMech->Next;
@@ -408,7 +407,7 @@ auto MCLogInvScreen::CreatePurVehiclePane(int redraw) -> void
             MCVehiclePurchaseBlock* block = purVehicle->Block;
             block->Row = row;
             block->MoveTo(0, yPos, 0);
-            block->ShowGuiWindow(-1);
+            block->ShowGuiWindow(true);
             block->SetDepth(100);
             block->DrawBackground(row);
             ++row;
@@ -424,7 +423,7 @@ auto MCLogInvScreen::CreatePurVehiclePane(int redraw) -> void
         {
             MCCompPurchaseBlock* block = item->PurchaseBlock;
             block->MoveTo(0, block->Row * UnitBlockHeight, 0);
-            block->ShowGuiWindow(-1);
+            block->ShowGuiWindow(true);
             block->SetDepth(100);
             block->DrawBackground(block->Row, item->PurchaseBlock->Item->MasterID);
         }
@@ -457,7 +456,7 @@ auto MCLogInvScreen::CreatePurVehiclePane(int redraw) -> void
         MCPilotPurchaseBlock* block = pilot->Block;
         block->Row = row;
         block->MoveTo(0, yPos, 0);
-        block->ShowGuiWindow(-1);
+        block->ShowGuiWindow(true);
         block->SetDepth(100);
         block->DrawBackground(row);
         ++row;
@@ -564,7 +563,7 @@ auto MCLogInvScreen::SetUpMechInv(int scrollPos, int redrawTabs) -> void
     {
         MCMechInventoryBlock* block = mech->InventoryBlock;
         InventoryPane->AddChild(block);
-        block->ShowGuiWindow(-1);
+        block->ShowGuiWindow(true);
         block->BringToFront(0);
         block->MoveTo(0, block->ListIndex * InvBlockHeight, 0);
     }
@@ -590,7 +589,7 @@ auto MCLogInvScreen::SetUpMechPurchase() -> void
     {
         MCMechPurchaseBlock* block = purMech->Block;
         UnitPane->AddChild(block);
-        block->ShowGuiWindow(-1);
+        block->ShowGuiWindow(true);
         block->MoveTo(0, block->Height() * row, 0);
         block->BringToFront(0);
         // Show the first variant still on sale.
@@ -637,7 +636,7 @@ auto MCLogInvScreen::SetUpPilotInv(int scrollPos, int redrawTabs) -> void
 
         MCPilotInventoryBlock* block = warrior->InventoryBlock;
         InventoryPane->AddChild(block);
-        block->ShowGuiWindow(-1);
+        block->ShowGuiWindow(true);
         block->BringToFront(0);
         block->DrawBackground();
 
@@ -670,7 +669,7 @@ auto MCLogInvScreen::SetUpCompInv(int scrollPos, int redrawTabs) -> void
         }
 
         InventoryPane->AddChild(block);
-        block->ShowGuiWindow(-1);
+        block->ShowGuiWindow(true);
         block->BringToFront(0);
         block->MoveTo(0, block->ListIndex * InvBlockHeight, 0);
         block->DrawBackground();
@@ -692,7 +691,7 @@ auto MCLogInvScreen::SetUpVhclInv(int scrollPos, int redrawTabs) -> void
     {
         MCVehicleInventoryBlock* block = vehicle->InventoryBlock;
         InventoryPane->AddChild(block);
-        block->ShowGuiWindow(-1);
+        block->ShowGuiWindow(true);
         block->BringToFront(0);
         block->MoveTo(0, yPos, 0);
         yPos += InvBlockHeight;
@@ -719,7 +718,7 @@ auto MCLogInvScreen::SetUpVehiclePurchase() -> void
     {
         MCVehiclePurchaseBlock* block = purVehicle->Block;
         UnitPane->AddChild(block);
-        block->ShowGuiWindow(-1);
+        block->ShowGuiWindow(true);
         block->MoveTo(0, block->Height() * row, 0);
         block->BringToFront(0);
         ++row;
@@ -749,7 +748,7 @@ auto MCLogInvScreen::SetUpPilotPurchase() -> void
 
         MCPilotPurchaseBlock* block = pilot->Block;
         UnitPane->AddChild(block);
-        block->ShowGuiWindow(-1);
+        block->ShowGuiWindow(true);
         block->MoveTo(0, block->Height() * row, 0);
         block->BringToFront(0);
         ++row;
@@ -781,7 +780,7 @@ auto MCLogInvScreen::SetUpCompPurchase() -> void
     {
         MCCompPurchaseBlock* block = item->PurchaseBlock;
         UnitPane->AddChild(block);
-        block->ShowGuiWindow(-1);
+        block->ShowGuiWindow(true);
         block->MoveTo(0, block->Height() * block->Row, 0);
         block->BringToFront(0);
     }
@@ -950,7 +949,7 @@ auto MCLogChatWindow::Init(int32_t xPos, int32_t yPos, int32_t width, int32_t he
 {
     // The original wiped its picture to the key and pasted the frame (lsbdw04) along the bottom; draw shows the frame.
     MCLogObject::Init(xPos, yPos, width, height, nullptr, nullptr);
-    SetTransparent(-1);
+    SetTransparent(true);
     this->HistorySize = historySize;
 
     char fileName[256];
@@ -969,7 +968,7 @@ auto MCLogChatWindow::Init(int32_t xPos, int32_t yPos, int32_t width, int32_t he
     Assert(pane != nullptr, 0, "Not enough memory for chat scroll");
     pane->Init(0xb8, height - FramePort->Height() - 7, 6, 6, static_cast<char*>(nullptr));
     AddChild(pane);
-    pane->ShowGuiWindow(-1);
+    pane->ShowGuiWindow(true);
 
     // The history (wiped to 0x10, then written along the bottom as lines come) is drawn from lines.
     Lines.clear();
@@ -979,7 +978,7 @@ auto MCLogChatWindow::Init(int32_t xPos, int32_t yPos, int32_t width, int32_t he
     ChatInput = new MCLogChatInput;
     ChatInput->Init(6, height - 0x21, 0xb8, 0x1a, nullptr);
     AddChild(ChatInput);
-    ChatInput->ShowGuiWindow(-1);
+    ChatInput->ShowGuiWindow(true);
 }
 
 MCLogChatWindow::~MCLogChatWindow()
@@ -987,7 +986,7 @@ MCLogChatWindow::~MCLogChatWindow()
     Destroy();
 }
 
-auto MCLogChatWindow::ShowGuiWindow(int show) -> void
+auto MCLogChatWindow::ShowGuiWindow(bool show) -> void
 {
     ShowWindow = show;
 }
@@ -1039,7 +1038,7 @@ auto MCLogChatWindow::AddLine(const char* line) -> void
     MCScrollPane* pane = HistoryPane;
     std::string text = line;
     const int32_t used =
-        Application->TextFormatter.Process(reinterpret_cast<uint8_t*>(text.data()), nullptr, pane->Lport()->Width(), 0);
+        GuiSystem()->TextFormatter.Process(reinterpret_cast<uint8_t*>(text.data()), nullptr, pane->Lport()->Width(), 0);
     Lines.push_back(HistoryLine{std::move(text), used});
 
     // A line whose strip moved off the top shows nothing any more.
@@ -1090,7 +1089,7 @@ auto MCLogChatWindow::DrawHistory(MCGuiPort* port, const std::vector<HistoryLine
             strip.Y1 = bottom;
             VfxPaneWipe(&strip, 0x10);
             std::string text = line.Text;
-            Application->TextFormatter.Process(reinterpret_cast<uint8_t*>(text.data()), port, 0, top);
+            GuiSystem()->TextFormatter.Process(reinterpret_cast<uint8_t*>(text.data()), port, 0, top);
         }
 
         port->View.Scissor = scissor;
@@ -1109,7 +1108,7 @@ auto MCLogChatWindow::Draw() -> void
 {
     if (Lport()->ViewOpen())
     {
-        FramePort->CopyTo(Lport()->Frame(), 0, Height() - FramePort->Height(), -1);
+        FramePort->CopyTo(Lport()->Frame(), 0, Height() - FramePort->Height(), true);
     }
 
     MCLogObject::Draw();
@@ -1151,7 +1150,7 @@ auto MCLogChatWindow::Resize(int32_t height) -> void
     pane->SetDisplayPort(history, -1, -1);
     AddChild(pane);
     HistoryPane->SetScrollPos(100.0f);
-    HistoryPane->ShowGuiWindow(-1);
+    HistoryPane->ShowGuiWindow(true);
 }
 
 auto MCLogChatWindow::Reset() -> void

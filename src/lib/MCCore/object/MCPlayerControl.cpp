@@ -1,6 +1,6 @@
 #include "stdafx.h"
 #include "object/MCPlayerControl.h"
-#include "gui/asystem.h"
+#include "gui/MCGuiSystem.h"
 #include "main/main.h"
 #include "object/MCElementalControlData.h"
 #include "object/MCGroundVehicleControlData.h"

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "gui/asystem.h"
+#include "gui/MCGuiSystem.h"
 
 /// <summary>An arrow of an <see cref="MCGuiScrollBar"/>: a plain object with the id its event routine reports.</summary>
 /// <remarks>
@@ -26,7 +26,7 @@ class MCGuiScrollArea : public MCGuiObject
 {
 public:
     /// <summary>Places the area and makes its pane, without a port (aObject::init's fields, inlined).</summary>
-    int32_t Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, char* name) override;
+    int32_t Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, const char* name) override;
     void Destroy() override;
     /// <summary>Resizes the pane only.</summary>
     void Resize(int32_t newWidth, int32_t newHeight) override;
@@ -53,7 +53,7 @@ public:
 
     /// <summary>Makes the arrows (art packets 0x27/0x28), the areas and the thumb; 18 pixels wide whatever <paramref name="width"/>.</summary>
     /// <returns>0, or 0xeeee0002 (as a negative) when out of memory.</returns>
-    int32_t Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, char* name) override;
+    int32_t Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, const char* name) override;
     void Destroy() override;
     void Draw() override;
     void HandleEvent(MCGuiEvent* event) override;

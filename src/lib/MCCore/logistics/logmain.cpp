@@ -1,7 +1,7 @@
 #include "stdafx.h"
 #include "logistics/logmain.h"
-#include "gui/afont.h"
-#include "gui/asystem.h"
+#include "gui/MCGuiFont.h"
+#include "gui/MCGuiSystem.h"
 #include "lib/MCFatal.h"
 #include "lib/MCIDString.h"
 #include "lib/MCFile.h"
@@ -554,8 +554,8 @@ namespace
     {
         auto* box = new MCPrefsBox(title);
         box->Init(place.Left, place.Top, place.Width, place.Height, nullptr, nullptr);
-        box->SetTransparent(-1);
-        box->ShowGuiWindow(-1);
+        box->SetTransparent(true);
+        box->ShowGuiWindow(true);
         screen->AddChild(box);
     }
 
@@ -566,7 +566,7 @@ namespace
         auto* dropDown = new MCLogComboBox;
         dropDown->Init(place.Left + DropDownLeft, place.Top + DropDownTop, DropDownWidth, setting, std::move(items),
                        changed);
-        dropDown->ShowGuiWindow(-1);
+        dropDown->ShowGuiWindow(true);
         screen->AddChild(dropDown);
         return dropDown;
     }
@@ -598,8 +598,8 @@ void ShowPreferences()
 
     // The settings as they are, for CancelPrefs.
     MCLogistics* logistics = GlobalLogPtr;
-    const int32_t brightness = Application->GammaLevel;
-    logistics->SavedPrefs0 = Application->PaletteCycle;
+    const int32_t brightness = GuiSystem()->GammaLevel;
+    logistics->SavedPrefs0 = GuiSystem()->PaletteCycle;
     logistics->SavedPrefs1 = Only45Pixel;
     logistics->SavedPrefs2 = brightness;
     logistics->SavedPrefs3 = SoundSystem()->MusicLevel;
@@ -624,9 +624,9 @@ void ShowPreferences()
 void CancelPrefs()
 {
     MCLogistics* logistics = GlobalLogPtr;
-    Application->PaletteCycle = logistics->SavedPrefs0;
+    GuiSystem()->PaletteCycle = logistics->SavedPrefs0;
     Only45Pixel = logistics->SavedPrefs1;
-    Application->GammaCorrectCurrentPalette(logistics->SavedPrefs2);
+    GuiSystem()->GammaCorrectCurrentPalette(logistics->SavedPrefs2);
 
     // Only the saved byte is compared (a volume is 0..127).
     if (static_cast<uint8_t>(logistics->SavedPrefs3) < 0x80)
@@ -654,14 +654,14 @@ void WritePrefs()
     MCFitIniFile prefs;
     prefs.Create("prefs.cfg");
     prefs.WriteBlock("MechCommander");
-    prefs.WriteIdBoolean("PaletteCycle", Application->PaletteCycle);
+    prefs.WriteIdBoolean("PaletteCycle", GuiSystem()->PaletteCycle);
     prefs.WriteIdBoolean("DirectDraw", GFullScreen != 0);
     prefs.WriteIdBoolean("Use90Pixel", Use90PixelSprite);
     prefs.WriteIdBoolean("Force45Pixel", Only45Pixel);
     prefs.WriteIdBoolean("Force16Mb", Force16MB);
     prefs.WriteIdBoolean("Force32Mb", Force32MB);
     prefs.WriteIdLong("Difficulty", GameDifficulty);
-    prefs.WriteIdLong("Brightness", Application->GammaLevel);
+    prefs.WriteIdLong("Brightness", GuiSystem()->GammaLevel);
     prefs.WriteIdLong("MusicVolume", SoundSystem()->MusicLevel);
     prefs.WriteIdLong("RadioVolume", SoundSystem()->RadioLevel);
     prefs.WriteIdLong("SFXVolume", SoundSystem()->DigitalMasterVolume);
@@ -1026,8 +1026,8 @@ void CancelToConnect()
     games->Clear();
     Element<MCLogScrollTextObject>(GlobalLogPtr->LanScreen, 3)->Clear();
     SetDisabled(Element<MCLogButton>(GlobalLogPtr->LanScreen, 6), 1);
-    Application->RemoveTimer(GlobalLogPtr->SessionScreen->Team1RPText, 0);
-    Application->RemoveTimer(GlobalLogPtr->SessionScreen->Team1RPText, 0);
+    GuiSystem()->RemoveTimer(GlobalLogPtr->SessionScreen->Team1RPText, 0);
+    GuiSystem()->RemoveTimer(GlobalLogPtr->SessionScreen->Team1RPText, 0);
     MPlayer->LeaveSession();
     delete GlobalLogPtr->PlayerLights;
     GlobalLogPtr->PlayerLights = nullptr;
@@ -1112,7 +1112,7 @@ void ShowSerialScreen()
     GlobalLogPtr->CurrentScreen = GlobalLogPtr->SerialScreen;
     GlobalLogPtr->SerialScreen->ShowGuiWindow(1);
     GlobalLogPtr->LogisticsState = 0xd;
-    Application->SetText(GlobalLogPtr->SerialScreen->Elements[4]);
+    GuiSystem()->SetText(GlobalLogPtr->SerialScreen->Elements[4]);
 }
 
 void DoTheIpxThang()
@@ -1127,7 +1127,7 @@ void DoTheIpxThang()
     GlobalLogPtr->LanScreen->ShowBlock(0);
     GlobalLogPtr->CurrentScreen = GlobalLogPtr->LanScreen;
     GlobalLogPtr->LogisticsState = 0xb;
-    Application->SetText(GlobalLogPtr->LanScreen->Elements[4]);
+    GuiSystem()->SetText(GlobalLogPtr->LanScreen->Elements[4]);
 }
 
 void DoTheTcpThang()
@@ -1142,7 +1142,7 @@ void DoTheTcpThang()
     GlobalLogPtr->LanScreen->ShowBlock(0);
     GlobalLogPtr->CurrentScreen = GlobalLogPtr->LanScreen;
     GlobalLogPtr->LogisticsState = 0xb;
-    Application->SetText(GlobalLogPtr->LanScreen->Elements[4]);
+    GuiSystem()->SetText(GlobalLogPtr->LanScreen->Elements[4]);
 }
 
 void TcpipxDialogCallback(int32_t result)
@@ -1258,7 +1258,7 @@ void HostGame()
     char* playerName = ElementText(screen, 4);
     SaveUserName(playerName);
     GlobalLogPtr->LanScreen->ShowBlock(1);
-    Application->SetText(GlobalLogPtr->LanScreen->Elements[11]);
+    GuiSystem()->SetText(GlobalLogPtr->LanScreen->Elements[11]);
     char format[256];
     CLoadString(ThisInstance, 0x377, format, 0xfe);
     char game[0x200];
@@ -1411,7 +1411,7 @@ void JoinSerialSession()
     if (MPlayer->JoinSession(const_cast<char*>("SerialGame"), ElementText(GlobalLogPtr->SerialScreen, 4)) != 0)
     {
         // No game yet: try again in a second, with a way out.
-        Application->AddTimer(GlobalLogPtr->SerialScreen, 0, 1000, 0, 0, 0);
+        GuiSystem()->AddTimer(GlobalLogPtr->SerialScreen, 0, 1000, 0, 0, 0);
         WhackTimer = 0;
         char text[256];
         CLoadString(ThisInstance, 0xb1, text, 0xfe);
@@ -1435,7 +1435,7 @@ void JoinModemSession()
 {
     if (MPlayer->JoinSession(const_cast<char*>("MC Modem Game"), ElementText(GlobalLogPtr->ModemScreen, 4)) != 0)
     {
-        Application->AddTimer(GlobalLogPtr->ModemScreen, 1, 1000, 0, 0, 0);
+        GuiSystem()->AddTimer(GlobalLogPtr->ModemScreen, 1, 1000, 0, 0, 0);
         WhackTimer = 0;
         return;
     }
@@ -1462,7 +1462,7 @@ int32_t DialModemSession()
         return 0;
     }
 
-    Application->AddTimer(GlobalLogPtr->ModemScreen, 0, 1000, 0, 0, 0);
+    GuiSystem()->AddTimer(GlobalLogPtr->ModemScreen, 0, 1000, 0, 0, 0);
     WhackTimer = 0;
     // 2 while the line is still dialling (DirectPlay's DPERR_CONNECTING, 0x8877015e), else 1.
     return (result == static_cast<int32_t>(0x8877015e)) ? 2 : 1;
@@ -1571,13 +1571,13 @@ void WaitForCall()
     GlobalLogPtr->ConnectScreen->ShowGuiWindow(1);
     GlobalLogPtr->CurrentScreen = GlobalLogPtr->ConnectScreen;
     GlobalLogPtr->LogisticsState = 0xe;
-    Application->SetText(GlobalLogPtr->ModemScreen->Elements[4]);
-    Application->AddTimer(GlobalLogPtr->ModemScreen->Elements[4], 0, MCPort::CaretBlinkTime(), 0, 0, 0);
+    GuiSystem()->SetText(GlobalLogPtr->ModemScreen->Elements[4]);
+    GuiSystem()->AddTimer(GlobalLogPtr->ModemScreen->Elements[4], 0, MCPort::CaretBlinkTime(), 0, 0, 0);
 }
 
 void GetNumber()
 {
-    Application->SetText(GlobalLogPtr->ModemScreen->Elements[5]);
+    GuiSystem()->SetText(GlobalLogPtr->ModemScreen->Elements[5]);
     GlobalLogPtr->ModemScreen->ShowBlock(1);
 }
 
@@ -1628,7 +1628,7 @@ void Dial()
         case 2:
         {
             // Still dialling: check again in a second; the button cancels.
-            Application->AddTimer(GlobalLogPtr->ModemScreen, 0, 1000, 0, 0, 0);
+            GuiSystem()->AddTimer(GlobalLogPtr->ModemScreen, 0, 1000, 0, 0, 0);
             WhackTimer = 0;
             char text[256];
             CLoadString(ThisInstance, 0xb2, text, 0xfe);
@@ -1890,7 +1890,7 @@ void SerialScreenHandleEvent(MCGuiObject* object, MCGuiEvent* event)
 {
     if (event->Type == 0x13)
     {
-        Application->RemoveTimer(object, 0);
+        GuiSystem()->RemoveTimer(object, 0);
 
         if (WhackTimer == 0)
         {
@@ -1919,7 +1919,7 @@ void ModemScreenHandleEvent(MCGuiObject* object, MCGuiEvent* event)
 
     if (event->Data == 0)
     {
-        Application->RemoveTimer(object, 0);
+        GuiSystem()->RemoveTimer(object, 0);
 
         if (WhackTimer == 0)
         {
@@ -1928,7 +1928,7 @@ void ModemScreenHandleEvent(MCGuiObject* object, MCGuiEvent* event)
     }
     else if (event->Data == 1)
     {
-        Application->RemoveTimer(object, 1);
+        GuiSystem()->RemoveTimer(object, 1);
 
         if (WhackTimer == 0)
         {
@@ -1943,7 +1943,7 @@ void PrefScreenHandleEvent(MCGuiObject*, MCGuiEvent*)
 
 void SlideScreenBrightness(MCGuiObject* object, MCGuiEvent*)
 {
-    Application->GammaCorrectCurrentPalette(static_cast<MCLogSlider*>(object)->CurrentValue);
+    GuiSystem()->GammaCorrectCurrentPalette(static_cast<MCLogSlider*>(object)->CurrentValue);
 }
 
 void SlideMusicVolume(MCGuiObject* object, MCGuiEvent* event)

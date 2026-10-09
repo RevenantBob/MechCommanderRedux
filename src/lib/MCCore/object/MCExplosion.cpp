@@ -3,7 +3,7 @@
 #include "appear/MCAppearanceType.h"
 #include "appear/MCAppearanceTypeList.h"
 #include "camera/MCCamera.h"
-#include "gui/asystem.h"
+#include "gui/MCGuiSystem.h"
 #include "main/main.h"
 #include "object/MCCollisionSystem.h"
 #include "object/MCExplosionType.h"

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "gui/asystem.h"
+#include "gui/MCGuiSystem.h"
 
 class MCMechWarrior;
 
@@ -13,7 +13,7 @@ class MCVideoWindow : public MCGuiObject
 public:
     ~MCVideoWindow() override = default;
 
-    int32_t Init(int32_t xPos, int32_t yPos, int32_t w, int32_t h, char* fileName) override;
+    int32_t Init(int32_t xPos, int32_t yPos, int32_t w, int32_t h, const char* fileName) override;
 
     /// <summary>
     /// Draws the picture and the speaking pilot's name. Port: each frame; <see cref="Update"/> does the rest of the

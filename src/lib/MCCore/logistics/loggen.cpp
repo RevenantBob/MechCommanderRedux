@@ -1,7 +1,7 @@
 #include "stdafx.h"
 #include "logistics/loggen.h"
 #include "color/MCPalette.h"
-#include "gui/afont.h"
+#include "gui/MCGuiFont.h"
 #include "gui/updisp.h"
 #include "lib/MCFatal.h"
 #include "lib/MCIDString.h"
@@ -300,7 +300,7 @@ MCLogButton::~MCLogButton()
     MCLogButton::Destroy();
 }
 
-auto MCLogButton::Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, char* name) -> int32_t
+auto MCLogButton::Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, const char* name) -> int32_t
 {
     const int32_t result = MCLogObject::Init(xPos, yPos, width, height, name, nullptr);
 
@@ -332,7 +332,7 @@ auto MCLogButton::Destroy() -> void
 
     if (ButtonCallback != nullptr)
     {
-        ButtonCallback->Destroy();
+        ButtonCallback->Clear();
         delete ButtonCallback;
         ButtonCallback = nullptr;
     }
@@ -427,7 +427,7 @@ auto MCLogButton::Draw() -> void
     {
         picture = GrayPicture;
     }
-    else if (Pressed == 0 && (Application->GrabbedObject() != this || Application->CurrentObject() != this))
+    else if (Pressed == 0 && (GuiSystem()->GrabbedObject() != this || GuiSystem()->CurrentObject() != this))
     {
         picture = OverState == 0 ? UpPicture : OverPicture;
     }
@@ -488,7 +488,7 @@ auto MCLogTextObject::Destroy() -> void
 auto MCLogTextObject::Draw() -> void
 {
     VfxPaneWipe(_OwnPort->Frame(), static_cast<uint32_t>(BackgroundColor));
-    Font->WriteString(_OwnPort->Frame(), 1, 1, reinterpret_cast<uint8_t*>(Buffer), -1);
+    Font->WriteString(_OwnPort->Frame(), 1, 1, Buffer, -1);
 
     if (CursorPos > -1 && CursorPos < BufferSize)
     {
@@ -513,7 +513,7 @@ auto MCLogTextObject::SetCursorPos(int32_t pos) -> void
     // The cursor sits one pixel after the text up to it.
     const char saved = Buffer[pos];
     Buffer[pos] = 0;
-    const int32_t textWidth = Font->Width(reinterpret_cast<uint8_t*>(Buffer));
+    const int32_t textWidth = Font->Width(Buffer);
     Buffer[pos] = saved;
     CursorPixel = textWidth + 1;
 }
@@ -578,7 +578,7 @@ auto MCLogTextObject::HandleEvent(MCGuiEvent* event) -> void
     switch (event->Type)
     {
         case 1:
-            Application->SetText(this);
+            GuiSystem()->SetText(this);
             break;
         case 10:
         {
@@ -645,7 +645,7 @@ auto MCLogTextObject::HandleEvent(MCGuiEvent* event) -> void
             if (event->Data == 7)
             {
                 // Focus: start the blink, and clear an empty-slot name so the player can type one.
-                Application->AddTimer(this, 0, static_cast<int32_t>(MCPort::CaretBlinkTime()), 0, 0, 0);
+                GuiSystem()->AddTimer(this, 0, static_cast<int32_t>(MCPort::CaretBlinkTime()), 0, 0, 0);
 
                 if (ClearEmptyOnFocus != 0 && std::strcmp(Buffer, EmptyFile) == 0)
                 {
@@ -656,7 +656,7 @@ auto MCLogTextObject::HandleEvent(MCGuiEvent* event) -> void
             }
             else if (event->Data == 8)
             {
-                Application->RemoveTimer(this, 0);
+                GuiSystem()->RemoveTimer(this, 0);
                 CursorOn = -1;
             }
             break;
@@ -744,7 +744,7 @@ auto MCFileScrollPane::Init(int32_t xPos, int32_t yPos, int32_t width, int32_t h
 
     for (int32_t i = 0; i < numTiles; i++)
     {
-        art->CopyTo(SliderPort->Frame(), 0, art->Height() * i + 1, -1);
+        art->CopyTo(SliderPort->Frame(), 0, art->Height() * i + 1, true);
     }
 
     art->Destroy();
@@ -754,10 +754,10 @@ auto MCFileScrollPane::Init(int32_t xPos, int32_t yPos, int32_t width, int32_t h
     DownArrowPort = new MCLogPort;
     std::snprintf(fileName, sizeof(fileName), "%slogart\\splashsupbup.tga", ArtPath);
     UpArrowPort->Init(fileName);
-    UpArrowPort->CopyTo(SliderPort->Frame(), 0, 0, -1);
+    UpArrowPort->CopyTo(SliderPort->Frame(), 0, 0, true);
     std::snprintf(fileName, sizeof(fileName), "%slogart\\splashsdnbup.tga", ArtPath);
     DownArrowPort->Init(fileName);
-    DownArrowPort->CopyTo(SliderPort->Frame(), 0, height - 0xf, -1);
+    DownArrowPort->CopyTo(SliderPort->Frame(), 0, height - 0xf, true);
 
     // The column headers (operation, mission, resource points). Each is added and removed again straight away:
     // they are drawn by the pane itself, not as children.
@@ -859,7 +859,7 @@ auto MCFileColumnHeader::Draw() -> void
 
     char text[16];
     std::snprintf(text, sizeof(text), "%i", value);
-    LgWhiteFont->WriteString(Lport()->Frame(), 2, 2, reinterpret_cast<uint8_t*>(text), -1);
+    LgWhiteFont->WriteString(Lport()->Frame(), 2, 2, text, -1);
 }
 
 auto MCFileScrollPane::Draw() -> void
@@ -890,7 +890,7 @@ auto MCFileScrollPane::Display() -> void
         header->Display();
     }
 
-    for (int32_t i = 0; i < NumChildren; i++)
+    for (size_t i = 0; i < ChildList.size(); i++)
     {
         ChildList[i]->Display();
     }
@@ -959,7 +959,7 @@ auto MCFileScrollPane::HandleEvent(MCGuiEvent* event) -> void
             entry->ClearEmptyOnFocus = -1;
             entry->InitBuffer(0x20, MCLogTextObject::INPUT_ANY);
             entry->SetStringBuffer(FileNames[SelectedFile]);
-            Application->SetText(entry);
+            GuiSystem()->SetText(entry);
             AddChild(entry);
             break;
         }
@@ -1092,11 +1092,11 @@ auto MCFileScrollPane::DrawFiles() -> void
             box.Y1 = (i + 1) * LineHeight - 2;
             VfxPaneWipe(&box, 0x14);
             port = ContentPort;
-            LgWhiteFont->WriteString(port->Frame(), 1, rowY, reinterpret_cast<uint8_t*>(FileNames[i]), -1);
+            LgWhiteFont->WriteString(port->Frame(), 1, rowY, FileNames[i], -1);
         }
         else
         {
-            LgGreyFont->WriteString(port->Frame(), 1, i * LineHeight, reinterpret_cast<uint8_t*>(FileNames[i]), -1);
+            LgGreyFont->WriteString(port->Frame(), 1, i * LineHeight, FileNames[i], -1);
         }
     }
 }
@@ -1484,7 +1484,7 @@ auto MCGenericScreen::Init(MCFitIniFile* screenFile) -> int32_t
             case 5:
             {
                 MCFileScrollPane* pane = MakeFilePane(screenFile, left, top, width, height);
-                pane->ShowGuiWindow(-1);
+                pane->ShowGuiWindow(true);
                 Elements[i] = pane;
                 AddChild(pane);
                 FilePane = pane;
@@ -1496,14 +1496,14 @@ auto MCGenericScreen::Init(MCFitIniFile* screenFile) -> int32_t
         }
     }
 
-    ScreenWindow->AddChild(this);
+    ScreenWindow()->AddChild(this);
     ShowGuiWindow(0);
     return 0;
 }
 
 auto MCGenericScreen::Destroy() -> void
 {
-    ScreenWindow->RemoveChild(this);
+    ScreenWindow()->RemoveChild(this);
 
     // Element 0 is the background (the screen itself).
     for (int32_t i = 1; i < NumElements; i++)
@@ -1526,7 +1526,7 @@ auto MCGenericScreen::Destroy() -> void
     LogFree(Palette);
     Palette = nullptr;
     NumElements = 0;
-    NumChildren = 0;
+    ChildList.clear();
     FreePort(ArtPort);
     MCLogObject::Destroy();
 }
@@ -1570,7 +1570,7 @@ auto MCGenericScreen::HandleEvent(MCGuiEvent* event) -> void
     }
 }
 
-auto MCGenericScreen::ShowGuiWindow(int show) -> void
+auto MCGenericScreen::ShowGuiWindow(bool show) -> void
 {
     // A screen shows its buttons up (the original painted it afresh), the one clicked to leave it included.
     MCLogButton::LetGoPress();
@@ -1644,7 +1644,7 @@ auto MCGenericScreen::ShowGuiWindow(int show) -> void
     {
         if (Palette != nullptr)
         {
-            Application->ActivatePalette(Palette, 0, 0x100);
+            GuiSystem()->ActivatePalette(Palette, 0, 0x100);
             ShowWindow = show;
             return;
         }
@@ -1770,7 +1770,7 @@ auto MCSplashScreen::Init(MCFitIniFile* screenFile) -> int32_t
             {
                 auto* button = new MCLogButton;
                 const int32_t result = button->Init(left, top, width, height, nullptr);
-                button->SetTransparent(-1);
+                button->SetTransparent(true);
                 Assert(result == 0, result, " Couldn't init new button ");
                 int32_t callback = 0;
 
@@ -1863,7 +1863,7 @@ auto MCSplashScreen::Init(MCFitIniFile* screenFile) -> int32_t
             {
                 MCLogTextObject* entry = MakeTextEntry(left, top, width, height);
                 Elements[i] = entry;
-                entry->ShowGuiWindow(-1);
+                entry->ShowGuiWindow(true);
                 AddChild(entry);
                 continue;
             }
@@ -1872,7 +1872,7 @@ auto MCSplashScreen::Init(MCFitIniFile* screenFile) -> int32_t
             {
                 MCFileScrollPane* pane = MakeFilePane(screenFile, left, top, width, height);
                 FilePane = pane;
-                pane->ShowGuiWindow(-1);
+                pane->ShowGuiWindow(true);
                 AddChild(pane);
                 Elements[i] = pane;
                 continue;
@@ -1901,7 +1901,7 @@ auto MCSplashScreen::Init(MCFitIniFile* screenFile) -> int32_t
                 Assert(result == 0, result, " Couldn't locate Scrolling in textscrollpane ");
                 text->ScrollTab->ShowGuiWindow(scrolling);
                 text->Scrolling = scrolling;
-                text->ShowGuiWindow(-1);
+                text->ShowGuiWindow(true);
                 AddChild(text);
                 Elements[i] = text;
                 continue;
@@ -1960,7 +1960,7 @@ auto MCSplashScreen::Init(MCFitIniFile* screenFile) -> int32_t
                 auto* toggle = new MCLogToolButton;
                 Elements[i] = toggle;
                 toggle->Init(left, top, width, height, nullptr);
-                toggle->SetTransparent(-1);
+                toggle->SetTransparent(true);
 
                 if (MCPort::StrICmp(art, "NONE") == 0)
                 {
@@ -2036,11 +2036,11 @@ auto MCSplashScreen::Init(MCFitIniFile* screenFile) -> int32_t
                 continue;
         }
 
-        element->ShowGuiWindow(-1);
+        element->ShowGuiWindow(true);
         AddChild(element);
     }
 
-    ScreenWindow->AddChild(this);
+    ScreenWindow()->AddChild(this);
     ShowGuiWindow(0);
     return 0;
 }
@@ -2067,30 +2067,30 @@ auto MCSplashScreen::Destroy() -> void
     MCGenericScreen::Destroy();
 }
 
-auto MCSplashScreen::ShowGuiWindow(int show) -> void
+auto MCSplashScreen::ShowGuiWindow(bool show) -> void
 {
     // The connection screens poll (timer 0, every 2 s) while shown: the connect screen through its element 3.
     if (this == GlobalLogPtr->ConnectScreen)
     {
         if (show != 0)
         {
-            Application->AddTimer(Elements[3], 0, 2000, 0, 0, 0);
+            GuiSystem()->AddTimer(Elements[3], 0, 2000, 0, 0, 0);
             MCGenericScreen::ShowGuiWindow(show);
             return;
         }
 
-        Application->RemoveTimer(Elements[3], 0);
+        GuiSystem()->RemoveTimer(Elements[3], 0);
     }
     else if (this == GlobalLogPtr->LanScreen)
     {
         if (show != 0)
         {
-            Application->AddTimer(this, 0, 2000, 0, 0, 0);
+            GuiSystem()->AddTimer(this, 0, 2000, 0, 0, 0);
             MCGenericScreen::ShowGuiWindow(show);
             return;
         }
 
-        Application->RemoveTimer(this, 0);
+        GuiSystem()->RemoveTimer(this, 0);
     }
 
     MCGenericScreen::ShowGuiWindow(show);
@@ -2114,7 +2114,7 @@ auto MCSplashScreen::ShowBlock(int32_t block) -> void
     {
         if (shown[i] != 0)
         {
-            Elements[shown[i]]->ShowGuiWindow(-1);
+            Elements[shown[i]]->ShowGuiWindow(true);
         }
     }
 }
@@ -2139,19 +2139,19 @@ auto LogScrollTabHandleEvent(MCGuiObject* tab, MCGuiEvent* event) -> void
     {
         case 1:
         {
-            Application->Grab(tab);
+            GuiSystem()->Grab(tab);
             tab->StartDrag(0, event->Y - tab->GlobalY());
             break;
         }
         case 4:
         {
-            Application->Release();
+            GuiSystem()->Release();
             tab->StopDrag();
             break;
         }
         case 7:
         {
-            if (Application->GrabbedObject() == nullptr)
+            if (GuiSystem()->GrabbedObject() == nullptr)
             {
                 break;
             }
@@ -2189,7 +2189,8 @@ MCLogScrollTextObject::~MCLogScrollTextObject()
     MCLogScrollTextObject::Destroy();
 }
 
-auto MCLogScrollTextObject::Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, char* newText) -> int32_t
+auto MCLogScrollTextObject::Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, const char* newText)
+    -> int32_t
 {
     int32_t result = MCLogObject::Init(xPos, yPos, width, height, newText, nullptr);
 
@@ -2216,7 +2217,7 @@ auto MCLogScrollTextObject::Init(int32_t xPos, int32_t yPos, int32_t width, int3
     tab->MoveTo(this->Width() + 2, 0xf, 0);
     tab->SetDepth(100);
     AddChild(tab);
-    tab->ShowGuiWindow(-1);
+    tab->ShowGuiWindow(true);
     tab->SetEventRoutine(LogScrollTabHandleEvent);
     tab->SetPaintRoutine(LogPaintScrollTab);
     tab->SetDrawsLive();
@@ -2234,7 +2235,7 @@ auto MCLogScrollTextObject::Init(int32_t xPos, int32_t yPos, int32_t width, int3
     NumLines = 0;
     TextLength = 0;
     FirstPixel = 0;
-    ScrollTab->ShowGuiWindow(-1);
+    ScrollTab->ShowGuiWindow(true);
     Scrolling = -1;
 
     for (int32_t i = 0; i < 4; i++)
@@ -2324,8 +2325,7 @@ auto MCLogScrollTextObject::Draw() -> void
 
         do
         {
-            Fonts[fontRow][FontIndex]->WriteStringToNewline(Lport()->Frame(), lineX, lineY,
-                                                            reinterpret_cast<uint8_t*>(line));
+            Fonts[fontRow][FontIndex]->WriteStringToNewline(Lport()->Frame(), lineX, lineY, line);
             line = std::strchr(line, '\n');
 
             if (pieces > 0)
@@ -2349,7 +2349,7 @@ auto MCLogScrollTextObject::Draw() -> void
         lineY += lineHeight;
     }
 
-    for (int32_t i = 0; i < NumChildren; i++)
+    for (size_t i = 0; i < ChildList.size(); i++)
     {
         DrawChild(ChildList[i]);
     }
@@ -2420,7 +2420,7 @@ auto MCLogScrollTextObject::ResetPortSize() -> void
     Lport()->Resize(Lport()->Width(), portHeight);
 }
 
-auto MCLogScrollTextObject::Print(char* line, uint8_t color) -> void
+auto MCLogScrollTextObject::Print(const char* line, uint8_t color) -> void
 {
     const int32_t used = TextLength;
     const int32_t fontHeight = Fonts[0][FontIndex]->Height();
@@ -2484,7 +2484,7 @@ auto MCLogScrollTextObject::PrintWrapped(char* line, uint8_t color, int32_t wrap
         MCGuiFont* font = Fonts[0][FontIndex];
         char* split = nullptr;
 
-        if (font->Width(reinterpret_cast<uint8_t*>(line)) > wrapWidth - 6)
+        if (font->Width(line) > wrapWidth - 6)
         {
             split = std::strrchr(line, ' ');
 
@@ -2494,7 +2494,7 @@ auto MCLogScrollTextObject::PrintWrapped(char* line, uint8_t color, int32_t wrap
                 *split = '\0';
                 char* cut = split;
 
-                while (font->Width(reinterpret_cast<uint8_t*>(line)) > wrapWidth - 6)
+                while (font->Width(line) > wrapWidth - 6)
                 {
                     split = std::strrchr(line, ' ');
 
@@ -2551,7 +2551,7 @@ auto MCLogScrollTextObject::CalcFirstPixel(int32_t tabPos) -> void
 
 auto MCLogScrollTextObject::PositionScrollTab() -> void
 {
-    if (Application->GrabbedObject() == ScrollTab)
+    if (GuiSystem()->GrabbedObject() == ScrollTab)
     {
         return;
     }
@@ -2574,7 +2574,7 @@ auto MCLogScrollTextObject::PositionScrollTab() -> void
         tabLength = 3;
     }
 
-    ScrollTab->ShowGuiWindow(-1);
+    ScrollTab->ShowGuiWindow(true);
     ScrollTab->Resize(ScrollTab->Width(), tabLength);
     ScrollTab->MoveTo(ScrollTab->X(), ((track - tabLength) * FirstPixel) / range + 0xf, 0);
 }
@@ -2698,7 +2698,7 @@ MCGameList::~MCGameList()
     MCLogScrollTextObject::Destroy();
 }
 
-auto MCGameList::Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, char* newText) -> int32_t
+auto MCGameList::Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, const char* newText) -> int32_t
 {
     NumSessions = -1;
     SelectedSession = -1;
@@ -2930,10 +2930,10 @@ MCLogSlider::~MCLogSlider()
     MCLogSlider::Destroy();
 }
 
-auto MCLogSlider::Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, char* name) -> int32_t
+auto MCLogSlider::Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, const char* name) -> int32_t
 {
     const int32_t result = MCLogObject::Init(xPos, yPos, width, height, name, nullptr);
-    SetTransparent(-1);
+    SetTransparent(true);
     return result;
 }
 
@@ -2983,9 +2983,9 @@ auto MCLogSlider::HandleEvent(MCGuiEvent* event) -> void
     {
         case 1:
         {
-            Application->Grab(this);
+            GuiSystem()->Grab(this);
 
-            if (Application->GrabbedObject() != nullptr)
+            if (GuiSystem()->GrabbedObject() != nullptr)
             {
                 SetCurrentValue(valueAt(event->X));
             }
@@ -2993,13 +2993,13 @@ auto MCLogSlider::HandleEvent(MCGuiEvent* event) -> void
         }
         case 4:
         {
-            Application->Release();
+            GuiSystem()->Release();
             SetCurrentValue(valueAt(event->X));
             break;
         }
         case 7:
         {
-            if (Application->GrabbedObject() != nullptr)
+            if (GuiSystem()->GrabbedObject() != nullptr)
             {
                 SetCurrentValue(valueAt(event->X));
             }
@@ -3172,7 +3172,7 @@ auto MCLogComboBox::Open() -> void
     Hover(std::max(Selected(), 0));
     Resize(Width(), FieldHeight + VisibleRows() * RowHeight + 1);
     RaiseAmongSiblings();
-    Application->Grab(this);
+    GuiSystem()->Grab(this);
     SoundSystem()->PlayDigitalSample(ComboClickSound, 1, nullptr, 0, 0);
 }
 
@@ -3186,9 +3186,9 @@ auto MCLogComboBox::Close() -> void
     CloseList();
     _HoldUntilRelease = false;
 
-    if (Application->GrabbedObject() == this)
+    if (GuiSystem()->GrabbedObject() == this)
     {
-        Application->Release();
+        GuiSystem()->Release();
     }
 }
 
@@ -3271,9 +3271,9 @@ auto MCLogComboBox::RaiseAmongSiblings() -> void
         return;
     }
 
-    MCGuiObject** first = Parent->ChildList;
-    MCGuiObject** last = first + Parent->NumChildren;
-    MCGuiObject** at = std::find(first, last, this);
+    std::vector<MCGuiObject*>& siblings = Parent->ChildList;
+    const auto last = siblings.end();
+    const auto at = std::ranges::find(siblings, this);
 
     if (at == last)
     {
@@ -3281,7 +3281,7 @@ auto MCLogComboBox::RaiseAmongSiblings() -> void
     }
 
     // The children are sorted by depth, front-most last: this one goes after the others of its depth.
-    MCGuiObject** end = at + 1;
+    auto end = at + 1;
 
     while (end != last && (*end)->Depth() <= WinDepth)
     {

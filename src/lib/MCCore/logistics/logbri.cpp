@@ -1,6 +1,6 @@
 #include "stdafx.h"
 #include "logistics/logbri.h"
-#include "gui/afont.h"
+#include "gui/MCGuiFont.h"
 #include "gui/awindow.h"
 #include "gui/scrlpane.h"
 #include "gui/updisp.h"
@@ -226,7 +226,7 @@ auto MCBriefingScreen::Init() -> void
     AddChild(pane);
     AddChild(DeployPane);
     ShowGuiWindow(0);
-    ScreenWindow->AddChild(this);
+    ScreenWindow()->AddChild(this);
 
     // Two columns of six slots; each lance is two rows.
     static constexpr int32_t slotTops[6] = {0x28, 0x58, 0x98, 0xc8, 0x108, 0x138};
@@ -457,14 +457,17 @@ auto MCBriefingScreen::PaintLook(MCPane* target) -> void
 
         if (MCLogPort* art = LogArtf("%slogart\\lsbdf0%d.tga", ArtPath, lance + 2))
         {
-            art->CopyTo(target, 0xd6, labelTops[lance], -1);
+            art->CopyTo(target, 0xd6, labelTops[lance], true);
         }
 
         char text[32];
         std::snprintf(text, sizeof(text), "%d", LanceTons(lance));
         auto* bytes = reinterpret_cast<uint8_t*>(text);
-        const int32_t textWidth = lance == 0 && MPlayer == nullptr ? BlackFont->Width(bytes) : BlueFont->Width(bytes);
-        BlackFont->WriteString(target, 0x13f - textWidth, labelTops[lance] + 4, bytes, -1);
+        const int32_t textWidth = lance == 0 && MPlayer == nullptr
+                                      ? BlackFont->Width(reinterpret_cast<const char*>(bytes))
+                                      : BlueFont->Width(reinterpret_cast<const char*>(bytes));
+        BlackFont->WriteString(target, 0x13f - textWidth, labelTops[lance] + 4, reinterpret_cast<const char*>(bytes),
+                               -1);
     }
 
     if (MarkedZone >= 0)
@@ -497,7 +500,7 @@ auto MCBriefingScreen::PaintLook(MCPane* target) -> void
 
     if (MCLogPort* art = LogArtf("%slogart\\%s", ArtPath, launchName))
     {
-        art->CopyTo(target, 0x20d, 0x148, -1);
+        art->CopyTo(target, 0x20d, 0x148, true);
     }
 
     // The tab, and over it the chat button while it blinks (multiplayer).
@@ -516,11 +519,11 @@ auto MCBriefingScreen::PaintLook(MCPane* target) -> void
     {
         if (ChatBlinkOn != 0)
         {
-            ChatBlinkPort->CopyTo(target, 0xc5, 0x65, -1);
+            ChatBlinkPort->CopyTo(target, 0xc5, 0x65, true);
         }
         else
         {
-            ChatRegularPort->CopyTo(target, 0xc4, 0x65, -1);
+            ChatRegularPort->CopyTo(target, 0xc4, 0x65, true);
         }
     }
 
@@ -529,20 +532,20 @@ auto MCBriefingScreen::PaintLook(MCPane* target) -> void
     {
         if (MCLogPort* art = LogArtf("%slogart\\lsb_op0.tga", ArtPath))
         {
-            art->CopyTo(target, 0xc, 0x6f, -1);
+            art->CopyTo(target, 0xc, 0x6f, true);
         }
     }
 
     if (OperationPictureShown && OperationPicture != nullptr)
     {
-        OperationPicture->CopyTo(target, 0xc, 0x6f, -1);
+        OperationPicture->CopyTo(target, 0xc, 0x6f, true);
     }
 
     if (MovieOver != 0 && InDemo == 0)
     {
         if (MCLogPort* art = LogArtf("%slogart\\lsb_op6.tga", ArtPath))
         {
-            art->CopyTo(target, 0xc, 0x6f, -1);
+            art->CopyTo(target, 0xc, 0x6f, true);
         }
     }
 
@@ -556,7 +559,7 @@ auto MCBriefingScreen::PaintLook(MCPane* target) -> void
         {
             if (MCLogPort* art = LogArtf("%slogart\\lsbdf06.tga", ArtPath))
             {
-                art->CopyTo(target, area.left + 1, area.top + 1, -1);
+                art->CopyTo(target, area.left + 1, area.top + 1, true);
             }
         }
         else
@@ -633,7 +636,7 @@ auto MCBriefingScreen::Draw() -> void
 auto MCBriefingScreen::Destroy() -> void
 {
     StopSmackerMovies();
-    ScreenWindow->RemoveChild(this);
+    ScreenWindow()->RemoveChild(this);
     ClearLook();
     delete MapPicture;
     MapPicture = nullptr;
@@ -728,23 +731,23 @@ auto MCBriefingScreen::PaintTonnageBar(MCPane* target, int32_t maxTons, int32_t 
 
     char text[256];
     std::snprintf(text, sizeof(text), "%d", maxTons);
-    int32_t width = BlueFont->Width(reinterpret_cast<uint8_t*>(text));
+    int32_t width = BlueFont->Width(text);
     MCGuiFont* font = !hammerDown ? YellowDropFont : RedFont;
-    font->WriteString(target, 0x1d9 - width, 0x13f, reinterpret_cast<uint8_t*>(text), -1);
+    font->WriteString(target, 0x1d9 - width, 0x13f, text, -1);
     std::snprintf(text, sizeof(text), "%d", tons);
 
     if (maxTons < tons)
     {
-        width = RedFont->Width(reinterpret_cast<uint8_t*>(text));
+        width = RedFont->Width(text);
         font = RedFont;
     }
     else
     {
-        width = BlueFont->Width(reinterpret_cast<uint8_t*>(text));
+        width = BlueFont->Width(text);
         font = YellowDropFont;
     }
 
-    font->WriteString(target, 0x1d9 - width, 0x149, reinterpret_cast<uint8_t*>(text), -1);
+    font->WriteString(target, 0x1d9 - width, 0x149, text, -1);
 
     // Port fix: with no limit the original's bar width was the x87 integer indefinite (a negative port width).
     int32_t barWidth = 0;
@@ -783,7 +786,7 @@ auto MCBriefingScreen::HandleEvent(MCGuiEvent* event) -> void
     if (event->Key == 0 && event->Type != 0x13)
     {
         // The help line for whatever the mouse is over, and the highlighted screen button.
-        Application->SetCurrentCursor(static_cast<MCCursorType>(0));
+        GuiSystem()->SetCurrentCursor(static_cast<MCCursorType>(0));
         GlobalLogPtr->DrawScreenButtons();
         POINT point{xPos, yPos};
         auto inside = [&point](int32_t left, int32_t top, int32_t right, int32_t bottom)
@@ -1037,7 +1040,7 @@ auto MCBriefingScreen::HandleEvent(MCGuiEvent* event) -> void
             {
                 // The operation movie's start delay.
                 PlayMovie = -1;
-                Application->RemoveTimer(this, 6);
+                GuiSystem()->RemoveTimer(this, 6);
                 SetUpOperation();
                 return;
             }
@@ -1054,7 +1057,7 @@ auto MCBriefingScreen::HandleEvent(MCGuiEvent* event) -> void
     }
 }
 
-auto MCBriefingScreen::ShowGuiWindow(int show) -> void
+auto MCBriefingScreen::ShowGuiWindow(bool show) -> void
 {
     const bool paneShown = MovieOver != 0;
     ShowWindow = show;
@@ -1078,7 +1081,7 @@ auto MCBriefingScreen::SetUpOperation() -> void
 
         if (PlayMovie == 0)
         {
-            Application->AddTimer(this, 6, 500, 0, 0, 0);
+            GuiSystem()->AddTimer(this, 6, 500, 0, 0, 0);
         }
     }
     else
@@ -1088,25 +1091,25 @@ auto MCBriefingScreen::SetUpOperation() -> void
 
         if (ChatBlinking != 0)
         {
-            Application->RemoveTimer(this, 5);
+            GuiSystem()->RemoveTimer(this, 5);
             ChatTimerOn = 0;
             ChatBlinking = 0;
         }
 
         if (GlobalLogPtr->PurchaseScreen->ChatBlinking != 0)
         {
-            Application->RemoveTimer(GlobalLogPtr->PurchaseScreen, 7);
+            GuiSystem()->RemoveTimer(GlobalLogPtr->PurchaseScreen, 7);
             GlobalLogPtr->PurchaseScreen->ChatBlinking = 0;
         }
 
         if (GlobalLogPtr->RepairScreen->ChatBlinking != 0)
         {
-            Application->RemoveTimer(GlobalLogPtr->RepairScreen, 8);
+            GuiSystem()->RemoveTimer(GlobalLogPtr->RepairScreen, 8);
             GlobalLogPtr->RepairScreen->ChatBlinking = 0;
         }
 
         ChatBlinkOn = 0;
-        GlobalLogPtr->ChatWindow->ShowGuiWindow(-1);
+        GlobalLogPtr->ChatWindow->ShowGuiWindow(true);
     }
 
     MissionPane->ShowGuiWindow(0);
@@ -1171,7 +1174,7 @@ auto MCBriefingScreen::SetUpMission() -> void
     }
 
     MissionPane->SetDisplayPort(MissionPort, 0, 0);
-    MissionPane->ShowGuiWindow(-1);
+    MissionPane->ShowGuiWindow(true);
 }
 
 auto MCBriefingScreen::StopSmackerMovies() -> void
@@ -1404,7 +1407,7 @@ auto MCMechBriefBlock::HandleEvent(MCGuiEvent* event) -> void
                 return;
             }
 
-            if (Application->GrabbedObject() == nullptr && event->Key == 0)
+            if (GuiSystem()->GrabbedObject() == nullptr && event->Key == 0)
             {
                 ShowHelp(GlobalX() < 0xd1 ? 0x22 : 0x21);
             }
@@ -1424,13 +1427,13 @@ auto MCMechBriefBlock::HandleEvent(MCGuiEvent* event) -> void
                 return;
             }
 
-            if (Application->GrabbedObject() == nullptr)
+            if (GuiSystem()->GrabbedObject() == nullptr)
             {
                 RightDragging = 0;
                 return;
             }
 
-            Application->Release();
+            GuiSystem()->Release();
             RightDragging = 0;
             LeftDragging = 0;
             delete GlobalLogPtr->DragIcon;
@@ -1749,7 +1752,7 @@ auto MCMechBriefBlock::HandleEvent(MCGuiEvent* event) -> void
 
     DraggedFromSlot = owner == screen ? 1 : 0;
     SoundSystem()->PlayDigitalSample(0x35, 1, nullptr, 0, 0);
-    Application->Grab(this);
+    GuiSystem()->Grab(this);
 
     if (event->Type == 1)
     {
@@ -1847,7 +1850,7 @@ auto MCMechBriefBlock::HandleEvent(MCGuiEvent* event) -> void
             {
                 char text[256];
                 CLoadString(ThisInstance, refusal, text, 0xfe);
-                Application->Release();
+                GuiSystem()->Release();
                 LeftDragging = 0;
                 RightDragging = 0;
                 screen->SetUpDeploy();
@@ -1863,7 +1866,7 @@ auto MCMechBriefBlock::HandleEvent(MCGuiEvent* event) -> void
     }
 
     screen->AddChild(GlobalLogPtr->DragIcon);
-    GlobalLogPtr->DragIcon->ShowGuiWindow(-1);
+    GlobalLogPtr->DragIcon->ShowGuiWindow(true);
     GlobalLogPtr->DragIcon->SetDepth(100);
 }
 
@@ -1888,7 +1891,7 @@ auto MCMechBriefBlock::OnBeginDrag(MCLogPort* surface) -> void
 
         if (screen->EmptySlot != nullptr)
         {
-            screen->EmptySlot->CopyTo(target, 0, 0, -1);
+            screen->EmptySlot->CopyTo(target, 0, 0, true);
         }
 
         PaintBlock(target, 0, 0, true);
@@ -1917,8 +1920,8 @@ auto MCMechBriefBlock::PaintBlock(MCPane* target, int32_t xPos, int32_t yPos, bo
     if (Mech == nullptr)
     {
         std::snprintf(text, sizeof(text), "%s", Vehicle->FileName);
-        const int32_t textWidth = GreenFont->Width(reinterpret_cast<uint8_t*>(text));
-        GreenFont->WriteString(port.Frame(), (Width() - textWidth) / 2, 3, reinterpret_cast<uint8_t*>(text), -1);
+        const int32_t textWidth = GreenFont->Width(text);
+        GreenFont->WriteString(port.Frame(), (Width() - textWidth) / 2, 3, text, -1);
         MCLogBlockPort body(port.Frame(), 0, 0, port.Width(), port.Height(), true);
 
         for (int32_t location = 0; location < 5; location++)
@@ -1941,8 +1944,8 @@ auto MCMechBriefBlock::PaintBlock(MCPane* target, int32_t xPos, int32_t yPos, bo
 
         // Port fix: a mech without a pilot shows no callsign (the original read through null).
         std::snprintf(text, sizeof(text), "%s", warrior != nullptr ? warrior->Callsign : "");
-        const int32_t textWidth = GreenFont->Width(reinterpret_cast<uint8_t*>(text));
-        GreenFont->WriteString(port.Frame(), (Width() - textWidth) / 2, 3, reinterpret_cast<uint8_t*>(text), -1);
+        const int32_t textWidth = GreenFont->Width(text);
+        GreenFont->WriteString(port.Frame(), (Width() - textWidth) / 2, 3, text, -1);
 
         {
             MCLogBlockPort body(port.Frame(), 2, 0xe, 0x19, 0x1e, true);
@@ -1966,7 +1969,7 @@ auto MCMechBriefBlock::PaintBlock(MCPane* target, int32_t xPos, int32_t yPos, bo
 
         if (MCLogPort* picture = LogArt(text))
         {
-            picture->CopyTo(port.Frame(), 0x1c, 0xe, -1);
+            picture->CopyTo(port.Frame(), 0x1c, 0xe, true);
         }
 
         // The mech's status bar (green, yellow, red) and the pilot's health bar.

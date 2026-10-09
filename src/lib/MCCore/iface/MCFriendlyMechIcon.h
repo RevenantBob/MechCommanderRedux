@@ -13,7 +13,7 @@ class MCFriendlyMechIcon : public MCMechIcon
 public:
     ~MCFriendlyMechIcon() override = default;
 
-    int32_t Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, char* bitmapName) override;
+    int32_t Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, const char* bitmapName) override;
     void Destroy() override;
     /// <summary>Shows the pilot/mech tag, highlights the mover and sets the cursor for the current mode.</summary>
     void Enter() override;

@@ -1,7 +1,7 @@
 #include "stdafx.h"
 #include "logistics/invblock.h"
-#include "gui/afont.h"
-#include "gui/mchwcursor.h"
+#include "gui/MCGuiFont.h"
+#include "gui/MCHardwareCursor.h"
 #include "gui/scrlpane.h"
 #include "logistics/logbri.h"
 #include "logistics/logdlg.h"
@@ -305,7 +305,7 @@ namespace
 
     void WriteText(MCGuiFont* font, MCLogPort* port, int32_t x, int32_t y, const char* text)
     {
-        font->WriteString(port->Frame(), x, y, reinterpret_cast<uint8_t*>(const_cast<char*>(text)), -1);
+        font->WriteString(port->Frame(), x, y, text, -1);
     }
 
     /// <summary>
@@ -603,7 +603,7 @@ auto MCDragIcon::Display() -> void
         return;
     }
 
-    VfxPaneCopy(Lport()->Frame(), 0, 0, FramePane, 0, 0, -1);
+    VfxPaneCopy(Lport()->Frame(), 0, 0, FramePane.get(), 0, 0, -1);
 }
 
 auto MCDragIcon::Begin(int32_t xPos, int32_t yPos, int32_t width, int32_t height,
@@ -689,7 +689,7 @@ auto DrawInfoDescription(MCLogPort* port, int32_t width, int32_t height, char* d
 
     // Drawn in place: the original wrote it into a picture wiped to 0xff and copied that keyed on 0xff.
     MCLogBlockPort picture(port->Frame(), xPos, yPos, width, height, true);
-    Application->TextFormatter.Process(reinterpret_cast<uint8_t*>(description), &picture, 0, 0);
+    GuiSystem()->TextFormatter.Process(reinterpret_cast<uint8_t*>(description), &picture, 0, 0);
 }
 
 auto PrepareInfoDescription(char* description) -> void
@@ -824,8 +824,8 @@ auto MCMechInventoryBlock::HandleEvent(MCGuiEvent* event) -> void
         {
             // Left button down: drag the mech (it joins the force while dragged).
             PlaySample(0x35);
-            Application->SetCursorVisible(0);
-            Application->Grab(this);
+            GuiSystem()->SetCursorVisible(0);
+            GuiSystem()->Grab(this);
             MechDrag.Dragging = 1;
             MakeDragIcon(MechDrag, this, event);
             Mech->Assigned = 1;
@@ -851,8 +851,8 @@ auto MCMechInventoryBlock::HandleEvent(MCGuiEvent* event) -> void
 
             MechDrag.Carrying = 1;
             PlaySample(0x35);
-            Application->SetCursorVisible(0);
-            Application->Grab(this);
+            GuiSystem()->SetCursorVisible(0);
+            GuiSystem()->Grab(this);
             MakeDragIcon(MechDrag, this, event);
             RaiseDragIcon();
             break;
@@ -866,8 +866,8 @@ auto MCMechInventoryBlock::HandleEvent(MCGuiEvent* event) -> void
                 break;
             }
 
-            Application->SetCursorVisible(1);
-            Application->Release();
+            GuiSystem()->SetCursorVisible(1);
+            GuiSystem()->Release();
             MechDrag.Dragging = 0;
             DeleteDragIcon();
             uint32_t sample = 0x33;
@@ -952,15 +952,15 @@ auto MCMechInventoryBlock::HandleEvent(MCGuiEvent* event) -> void
         case 6:
         {
             // Right button up: put down the carried mech.
-            if (Application->GrabbedObject() == nullptr || MechDrag.Dragging != 0)
+            if (GuiSystem()->GrabbedObject() == nullptr || MechDrag.Dragging != 0)
             {
                 break;
             }
 
             PlaySample(0x34);
             MechDrag.Carrying = 0;
-            Application->SetCursorVisible(1);
-            Application->Release();
+            GuiSystem()->SetCursorVisible(1);
+            GuiSystem()->Release();
             DeleteDragIcon();
             MCLogMech* logMech = Mech;
             logMech->Assigned = 1;
@@ -1212,8 +1212,8 @@ auto MCPilotInventoryBlock::HandleEvent(MCGuiEvent* event) -> void
             }
 
             SoundSystem()->PlayPilotSpeech(Warrior->PilotAudio, 10);
-            Application->SetCursorVisible(0);
-            Application->Grab(this);
+            GuiSystem()->SetCursorVisible(0);
+            GuiSystem()->Grab(this);
             PilotDrag.Dragging = 1;
             MakeDragIcon(PilotDrag, this, event);
             MCLogWarrior* logWarrior = Warrior;
@@ -1236,8 +1236,8 @@ auto MCPilotInventoryBlock::HandleEvent(MCGuiEvent* event) -> void
 
             PilotDrag.Carrying = 1;
             SoundSystem()->PlayPilotSpeech(Warrior->PilotAudio, 10);
-            Application->SetCursorVisible(0);
-            Application->Grab(this);
+            GuiSystem()->SetCursorVisible(0);
+            GuiSystem()->Grab(this);
             MakeDragIcon(PilotDrag, this, event);
             RaiseDragIcon();
             break;
@@ -1246,13 +1246,13 @@ auto MCPilotInventoryBlock::HandleEvent(MCGuiEvent* event) -> void
         case 4:
         {
             // Left button up: drop the dragged pilot.
-            if (PilotDrag.Carrying != 0 || Application->GrabbedObject() == nullptr)
+            if (PilotDrag.Carrying != 0 || GuiSystem()->GrabbedObject() == nullptr)
             {
                 break;
             }
 
-            Application->SetCursorVisible(1);
-            Application->Release();
+            GuiSystem()->SetCursorVisible(1);
+            GuiSystem()->Release();
             PilotDrag.Dragging = 0;
             DeleteDragIcon();
             DrawDropArt(screen, 1);
@@ -1324,13 +1324,13 @@ auto MCPilotInventoryBlock::HandleEvent(MCGuiEvent* event) -> void
 
             PilotDrag.Carrying = 0;
 
-            if (Application->GrabbedObject() == nullptr)
+            if (GuiSystem()->GrabbedObject() == nullptr)
             {
                 break;
             }
 
-            Application->SetCursorVisible(1);
-            Application->Release();
+            GuiSystem()->SetCursorVisible(1);
+            GuiSystem()->Release();
             DeleteDragIcon();
             MCLogWarrior* logWarrior = Warrior;
             logWarrior->Assigned = 1;
@@ -1504,8 +1504,8 @@ auto MCVehicleInventoryBlock::HandleEvent(MCGuiEvent* event) -> void
             }
 
             PlaySample(0x35);
-            Application->SetCursorVisible(0);
-            Application->Grab(this);
+            GuiSystem()->SetCursorVisible(0);
+            GuiSystem()->Grab(this);
             MakeDragIcon(VehicleDrag, this, event);
 
             if (event->Type == 1)
@@ -1552,8 +1552,8 @@ auto MCVehicleInventoryBlock::HandleEvent(MCGuiEvent* event) -> void
                 break;
             }
 
-            Application->SetCursorVisible(1);
-            Application->Release();
+            GuiSystem()->SetCursorVisible(1);
+            GuiSystem()->Release();
             VehicleDrag.Dragging = 0;
             DeleteDragIcon();
             MCLogVehicle* logVehicle = Vehicle;
@@ -1634,13 +1634,13 @@ auto MCVehicleInventoryBlock::HandleEvent(MCGuiEvent* event) -> void
 
             VehicleDrag.Carrying = 0;
 
-            if (Application->GrabbedObject() == nullptr)
+            if (GuiSystem()->GrabbedObject() == nullptr)
             {
                 break;
             }
 
-            Application->SetCursorVisible(1);
-            Application->Release();
+            GuiSystem()->SetCursorVisible(1);
+            GuiSystem()->Release();
             DeleteDragIcon();
             MCLogVehicle* logVehicle = Vehicle;
             logVehicle->Assigned = 1;
@@ -1942,8 +1942,8 @@ auto MCCompInventoryBlock::HandleEvent(MCGuiEvent* event) -> void
             }
 
             PlaySample(0x35);
-            Application->SetCursorVisible(0);
-            Application->Grab(this);
+            GuiSystem()->SetCursorVisible(0);
+            GuiSystem()->Grab(this);
             CompDrag.Dragging = 1;
             MakeDragIcon(CompDrag, this, event);
 
@@ -1974,8 +1974,8 @@ auto MCCompInventoryBlock::HandleEvent(MCGuiEvent* event) -> void
 
             CompDrag.Carrying = 1;
             PlaySample(0x35);
-            Application->SetCursorVisible(0);
-            Application->Grab(this);
+            GuiSystem()->SetCursorVisible(0);
+            GuiSystem()->Grab(this);
             MakeDragIcon(CompDrag, this, event);
 
             if (screen != GlobalLogPtr->PurchaseScreen && --Item->Count != 0)
@@ -1995,8 +1995,8 @@ auto MCCompInventoryBlock::HandleEvent(MCGuiEvent* event) -> void
                 break;
             }
 
-            Application->SetCursorVisible(1);
-            Application->Release();
+            GuiSystem()->SetCursorVisible(1);
+            GuiSystem()->Release();
             CompDrag.Dragging = 0;
             DeleteDragIcon();
 
@@ -2049,8 +2049,8 @@ auto MCCompInventoryBlock::HandleEvent(MCGuiEvent* event) -> void
                 break;
             }
 
-            Application->SetCursorVisible(1);
-            Application->Release();
+            GuiSystem()->SetCursorVisible(1);
+            GuiSystem()->Release();
             DeleteDragIcon();
             screen->CreateCompInvBlock();
             screen->SetUpCompInv(0, 1);

@@ -5,8 +5,8 @@
 #include "color/MCPalette.h"
 #include "engine/MCCraterManager.h"
 #include "engine/MCElementBuffer.h"
-#include "gui/aport.h"
-#include "gui/asystem.h"
+#include "gui/MCGuiPort.h"
+#include "gui/MCGuiSystem.h"
 #include "gui/awindow.h"
 #include "lib/MCFatal.h"
 #include "lib/MCFile.h"
@@ -89,11 +89,11 @@ namespace
     {
         uint8_t* hazePalette = GamePalette()->GetHazePalette(-7);
         std::array<MCScreenVertex, 4> vertices{};
-        vertices[1].X = Application->Width() - 1;
-        vertices[2].X = Application->Width() - 1;
-        vertices[2].Y = Application->Height() - 1;
-        vertices[3].Y = Application->Height() - 1;
-        VfxTranslatePolygon(ScreenPort->Frame(), vertices, hazePalette);
+        vertices[1].X = GuiSystem()->Width() - 1;
+        vertices[2].X = GuiSystem()->Width() - 1;
+        vertices[2].Y = GuiSystem()->Height() - 1;
+        vertices[3].Y = GuiSystem()->Height() - 1;
+        VfxTranslatePolygon(ScreenPort()->Frame(), vertices, hazePalette);
     }
 
     /// <summary>The length of <paramref name="v"/> in single precision, adding x, z, then y as the original did.</summary>
@@ -756,7 +756,7 @@ auto MCCamera::Activate() -> int32_t
 
     if (_View != nullptr && _View->Parent != nullptr)
     {
-        ScreenWindow->AddChild(_View->Parent);
+        ScreenWindow()->AddChild(_View->Parent);
     }
 
     // Port fix: MCX.EXE draws the window unguarded; a camera without one ("WindowLeft" missing) would crash.

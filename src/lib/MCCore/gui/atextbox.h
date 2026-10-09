@@ -1,6 +1,6 @@
 #pragma once
 
-#include "gui/asystem.h"
+#include "gui/MCGuiSystem.h"
 
 class MCGuiToolButton;
 class MCFidpMessage;
@@ -11,14 +11,14 @@ class MCGuiTextObject : public MCGuiObject
 {
 public:
     /// <summary>Like aObject::init; the text is <paramref name="text"/> (at most 254 characters); wipes to colour 0.</summary>
-    int32_t Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, char* text) override;
+    int32_t Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, const char* text) override;
     void Draw() override;
     /// <summary>Port: draws itself each frame from its text (and the caret while it has the focus).</summary>
     bool DrawsLive() override { return true; }
     /// <summary>A click takes the keyboard; characters edit the text.</summary>
     void HandleEvent(MCGuiEvent* event) override;
 
-    void SetText(char* text);
+    void SetText(const char* text);
 
     MCGuiFont* TextFont = nullptr;
     char Text[254] = {};
@@ -38,13 +38,13 @@ class MCGuiTransparentTextObject : public MCGuiObject
 {
 public:
     /// <summary>Like aObject::init; wipes to 0xff and sets the text; the colour is 0xfd.</summary>
-    int32_t Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, char* text) override;
+    int32_t Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, const char* text) override;
     void Draw() override;
     /// <summary>Copies the port onto <c>globalPane</c> as a sprite, then displays the children.</summary>
     void Display() override;
 
     /// <summary>Sets the text and sizes the object to it.</summary>
-    void SetText(char* newText);
+    void SetText(const char* newText);
 
     char Text[256] = {};
     int16_t TextLength = 0;
@@ -66,7 +66,7 @@ public:
     /// aObject::init inlined with an aScrollPort; makes the thumb and the text buffer, and prints
     /// <paramref name="text"/> in colour 0x1f when given.
     /// </summary>
-    int32_t Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, char* text) override;
+    int32_t Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, const char* text) override;
     void Destroy() override;
     void Resize(int32_t newWidth, int32_t newHeight) override;
     /// <summary>Draws the lines into the port.</summary>
@@ -77,7 +77,7 @@ public:
     void Display() override;
 
     /// <summary>Appends a line in <paramref name="color"/> (a blank line for null).</summary>
-    virtual void Print(char* line, uint8_t color); // slot 77
+    virtual void Print(const char* line, uint8_t color); // slot 77
     /// <summary>Appends <paramref name="line"/>, wrapped to <paramref name="wrapWidth"/> pixels.</summary>
     virtual void PrintWrapped(char* line, uint8_t color, int32_t wrapWidth); // slot 78
     /// <summary>Empties the buffer.</summary>
@@ -129,7 +129,7 @@ class MCGuiChatInput : public MCGuiObject
 {
 public:
     /// <summary>Like aObject::init; makes the team button; the white font; back colour 0x10.</summary>
-    int32_t Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, char* text) override;
+    int32_t Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, const char* text) override;
     void Destroy() override;
     void Draw() override;
     /// <summary>Port: draws itself each frame from its text, caret and blink state.</summary>
@@ -163,7 +163,7 @@ public:
 class MCGuiChatWindow : public MCGuiObject
 {
 public:
-    int32_t Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, char* name) override;
+    int32_t Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, const char* name) override;
     void Destroy() override;
 
     /// <summary>

@@ -4,8 +4,8 @@
 #include "camera/MCMainWindow.h"
 #include "engine/MCByteFlag.h"
 #include "engine/MCFont.h"
-#include "gui/afont.h"
-#include "gui/aport.h"
+#include "gui/MCGuiFont.h"
+#include "gui/MCGuiPort.h"
 #include "gui/atextbox.h"
 #include "gui/awindow.h"
 #include "iface/MCTacticalInterface.h"
@@ -230,7 +230,7 @@ namespace
 
         if (map.Zoom == 8)
         {
-            map.ScrollButtons[4]->Disabled = -1;
+            map.ScrollButtons[4]->Disabled = true;
         }
 
         map.ScrollButtons[5]->Disabled = 0;
@@ -263,11 +263,11 @@ namespace
         if (map.Zoom == 1)
         {
             // At 1x the whole map shows: no zooming out or scrolling.
-            map.ScrollButtons[5]->Disabled = -1;
+            map.ScrollButtons[5]->Disabled = true;
 
             for (size_t i = 0; i < 4; i++)
             {
-                map.ScrollButtons[i]->Disabled = -1;
+                map.ScrollButtons[i]->Disabled = true;
             }
         }
 
@@ -284,13 +284,13 @@ namespace
     {
         if (event->Type == EventLeftDown)
         {
-            Application->AddTimer(obj, ScrollStartTimer, TacticalInterface()->ScrollStart, 0, 0, 0);
+            GuiSystem()->AddTimer(obj, ScrollStartTimer, TacticalInterface()->ScrollStart, 0, 0, 0);
             TacticalMap()->ScrollMap(dx, dy);
         }
         else if (event->Type == EventLeftUp)
         {
-            Application->RemoveTimer(obj, ScrollStartTimer);
-            Application->RemoveTimer(obj, ScrollRepeatTimer);
+            GuiSystem()->RemoveTimer(obj, ScrollStartTimer);
+            GuiSystem()->RemoveTimer(obj, ScrollRepeatTimer);
         }
         else if (event->Type == EventTimer)
         {
@@ -298,8 +298,8 @@ namespace
 
             if (event->Data == ScrollStartTimer)
             {
-                Application->RemoveTimer(obj, ScrollStartTimer);
-                Application->AddTimer(obj, ScrollRepeatTimer, TacticalInterface()->ScrollStart / 5, 0, 0, 0);
+                GuiSystem()->RemoveTimer(obj, ScrollStartTimer);
+                GuiSystem()->AddTimer(obj, ScrollRepeatTimer, TacticalInterface()->ScrollStart / 5, 0, 0, 0);
             }
         }
     }
@@ -370,8 +370,8 @@ namespace
 
         // Hides itself to find what lies under it, and passes the event there.
         obj->ShowGuiWindow(0);
-        MCGuiObject* under = ScreenWindow->FindObject(event->X, event->Y);
-        obj->ShowGuiWindow(-1);
+        MCGuiObject* under = ScreenWindow()->FindObject(event->X, event->Y);
+        obj->ShowGuiWindow(true);
         under->HandleEvent(event);
     }
 
@@ -458,16 +458,16 @@ namespace
                 return;
             }
 
-            Application->Grab(obj);
+            GuiSystem()->Grab(obj);
             map->HideMe(map->IsHidden() == 0);
         }
         else if (event->Type == EventLeftUp)
         {
-            Application->Release();
+            GuiSystem()->Release();
         }
         else if (event->Type == EventMouseMove)
         {
-            Application->SetCurrentCursor(static_cast<MCCursorType>(0));
+            GuiSystem()->SetCurrentCursor(static_cast<MCCursorType>(0));
         }
     }
 
@@ -480,7 +480,7 @@ namespace
         }
         else if (event->Type == EventMouseMove)
         {
-            Application->SetCurrentCursor(static_cast<MCCursorType>(0));
+            GuiSystem()->SetCurrentCursor(static_cast<MCCursorType>(0));
         }
     }
 
@@ -497,7 +497,7 @@ namespace
         }
         else if (event->Type == EventMouseMove)
         {
-            Application->SetCurrentCursor(static_cast<MCCursorType>(0));
+            GuiSystem()->SetCurrentCursor(static_cast<MCCursorType>(0));
         }
     }
 }
@@ -586,8 +586,8 @@ auto MCTacticalMap::ReleaseStatusLine() -> void
 {
     StatusLocked = false;
     StatusText = nullptr;
-    Application->CursorHidden = 0;
-    Application->SetCurrentCursor(static_cast<MCCursorType>(0));
+    GuiSystem()->CursorHidden = 0;
+    GuiSystem()->SetCurrentCursor(static_cast<MCCursorType>(0));
 }
 
 auto MCTacticalMap::SetRevealedBitmap(std::string_view fileName) -> void
@@ -692,7 +692,7 @@ auto MCTacticalMap::Init(int32_t xPos, int32_t yPos) -> int32_t
     // The tabs along the MFD's right edge.
     TabTop = MakePicture(Width(), 0, 0xc, 4, "mfdmts00.tga");
     TabTop->SetEventRoutine(TabTopEvent);
-    TabTop->SetTransparent(-1);
+    TabTop->SetTransparent(true);
     AddChild(TabTop.get());
 
     TabStrip = MCMakeGui<MCGuiObject>();
@@ -734,7 +734,7 @@ auto MCTacticalMap::Init(int32_t xPos, int32_t yPos) -> int32_t
 
     TabBottom = MakePicture(Width(), 0xeb, 0xc, 4, "mfdmts02.tga");
     TabBottom->SetEventRoutine(TabBottomEvent);
-    TabBottom->SetTransparent(-1);
+    TabBottom->SetTransparent(true);
     AddChild(TabBottom.get());
 
     ObjectType = 6;
@@ -820,7 +820,7 @@ auto MCTacticalMap::Init(int32_t xPos, int32_t yPos) -> int32_t
 
     ScrollButtons[5] = MakeButton<MCGuiButton>(0x74, 0xca, 0xd, 0xd, "mfdmbh04.tga", "mfdmbg04.tga", "mfdmbn04.tga");
     ScrollButtons[5]->Callback()->SetExec(ZoomOut);
-    ScrollButtons[5]->Disabled = -1;
+    ScrollButtons[5]->Disabled = true;
     AddChild(ScrollButtons[5].get());
     ScrollButtons[4] = MakeButton<MCGuiButton>(0x74, 0xb6, 0xd, 0xd, "mfdmbh05.tga", "mfdmbg05.tga", "mfdmbn05.tga");
     ScrollButtons[4]->Callback()->SetExec(ZoomIn);
@@ -828,7 +828,7 @@ auto MCTacticalMap::Init(int32_t xPos, int32_t yPos) -> int32_t
 
     for (size_t i = 0; i < 4; i++)
     {
-        ScrollButtons[i]->Disabled = -1;
+        ScrollButtons[i]->Disabled = true;
     }
 
     // The command palette, hidden until the palette button opens it.
@@ -843,7 +843,7 @@ auto MCTacticalMap::Init(int32_t xPos, int32_t yPos) -> int32_t
     PaletteBottom->SetDrawsLive();
     PaletteBottom->Init(PaletteFrame->Width(), 0, 2, 0x35, nullptr);
     PaletteBottom->SetBackground(const_cast<char*>("mfdcwn01.tga"));
-    PaletteBottom->SetTransparent(-1);
+    PaletteBottom->SetTransparent(true);
     PaletteFrame->AddChild(PaletteBottom.get());
 
     PaletteButton = MakeButton<MCGuiToolButton>(6, 0xe0, 9, 9, "mfdcwn02.tga", "mfdcwn03.tga", nullptr);
@@ -892,7 +892,7 @@ auto MCTacticalMap::Init(int32_t xPos, int32_t yPos) -> int32_t
             {
                 // No zoom: only the 45-pixel art is loaded.
                 button.SetGrayPicture(const_cast<char*>("mfdcbn07a.tga"));
-                button.Disabled = -1;
+                button.Disabled = true;
                 button.HelpText = LoadHelpText(0x92);
             }
         }
@@ -1073,7 +1073,7 @@ auto MCTacticalMap::RefreshPage() -> void
         if (DataDisplayMode == 2)
         {
             // Payload: the weapon list.
-            InfoText->ShowGuiWindow(-1);
+            InfoText->ShowGuiWindow(true);
             DrawWeapons();
         }
         else
@@ -1210,16 +1210,16 @@ auto MCTacticalMap::HandleEvent(MCGuiEvent* event) -> void
                 // Press and hold repeats.
                 if (PtInRect(&PageRects[0], local) != 0)
                 {
-                    Application->Grab(this);
-                    ScrollUpMarker->ShowGuiWindow(-1);
-                    Application->AddTimer(this, ScrollStartTimer, TacticalInterface()->ScrollStart, 0, 0, 0);
+                    GuiSystem()->Grab(this);
+                    ScrollUpMarker->ShowGuiWindow(true);
+                    GuiSystem()->AddTimer(this, ScrollStartTimer, TacticalInterface()->ScrollStart, 0, 0, 0);
                     text->ReceiveClick(-1, 0);
                 }
                 else if (PtInRect(&PageRects[1], local) != 0)
                 {
-                    Application->Grab(this);
-                    ScrollDownMarker->ShowGuiWindow(-1);
-                    Application->AddTimer(this, ScrollStartTimer, TacticalInterface()->ScrollStart, 0, 0, 0);
+                    GuiSystem()->Grab(this);
+                    ScrollDownMarker->ShowGuiWindow(true);
+                    GuiSystem()->AddTimer(this, ScrollStartTimer, TacticalInterface()->ScrollStart, 0, 0, 0);
                     text->ReceiveClick(1, 0);
                 }
                 else if (PtInRect(&PageRects[2], local) != 0)
@@ -1250,10 +1250,10 @@ auto MCTacticalMap::HandleEvent(MCGuiEvent* event) -> void
                 }
             }
 
-            Application->RemoveTimer(this, ScrollStartTimer);
-            Application->RemoveTimer(this, ScrollRepeatTimer);
+            GuiSystem()->RemoveTimer(this, ScrollStartTimer);
+            GuiSystem()->RemoveTimer(this, ScrollRepeatTimer);
 
-            if (Application->GrabbedObject() == this)
+            if (GuiSystem()->GrabbedObject() == this)
             {
                 // Released on the top-right corner: toggles the MFD.
                 if (local.x > 0x8c && local.y < 0x1c)
@@ -1262,7 +1262,7 @@ auto MCTacticalMap::HandleEvent(MCGuiEvent* event) -> void
                 }
             }
 
-            Application->Release();
+            GuiSystem()->Release();
             ScrollUpMarker->ShowGuiWindow(0);
             ScrollDownMarker->ShowGuiWindow(0);
             break;
@@ -1280,7 +1280,7 @@ auto MCTacticalMap::HandleEvent(MCGuiEvent* event) -> void
 
                     if (blinker != nullptr)
                     {
-                        blinker->ShowGuiWindow(-1);
+                        blinker->ShowGuiWindow(true);
                     }
 
                     ChatPending = true;
@@ -1302,8 +1302,8 @@ auto MCTacticalMap::HandleEvent(MCGuiEvent* event) -> void
 
             if (event->Data == ScrollStartTimer)
             {
-                Application->RemoveTimer(this, ScrollStartTimer);
-                Application->AddTimer(this, ScrollRepeatTimer, TacticalInterface()->ScrollStart / 5, 0, 0, 0);
+                GuiSystem()->RemoveTimer(this, ScrollStartTimer);
+                GuiSystem()->AddTimer(this, ScrollRepeatTimer, TacticalInterface()->ScrollStart / 5, 0, 0, 0);
             }
             else if (event->Data != ScrollRepeatTimer)
             {
@@ -1383,11 +1383,11 @@ auto MCTacticalMap::Display() -> void
     if (!atRest && HideOffset != 0)
     {
         // Sliding: step, then stop once off screen (hiding) or back home (showing).
-        MoveTo(X() + HideOffset, Y(), -1);
+        MoveTo(X() + HideOffset, Y(), true);
 
         if (Hidden != 0)
         {
-            const tagRECT screen = {2, 0, Application->Width(), Application->Height()};
+            const tagRECT screen = {2, 0, GuiSystem()->Width(), GuiSystem()->Height()};
 
             if (RectIntersect(screen) == 0)
             {
@@ -1401,7 +1401,7 @@ auto MCTacticalMap::Display() -> void
 
             if (home)
             {
-                MoveTo(HomeX - Parent->GlobalX(), HomeY - Parent->GlobalY(), -1);
+                MoveTo(HomeX - Parent->GlobalX(), HomeY - Parent->GlobalY(), true);
                 HideOffset = 0;
             }
         }
@@ -1442,11 +1442,11 @@ auto MCTacticalMap::Display() -> void
 
     if (MouseInside)
     {
-        Application->SetCurrentCursor(static_cast<MCCursorType>(0));
+        GuiSystem()->SetCurrentCursor(static_cast<MCCursorType>(0));
     }
 
     // Port: the MFD draws itself, then its children (the original copied its picture, then displayed them).
-    DrawInFramePass(DisplayPort);
+    DrawInFramePass(DisplayPort.get());
 
     // The original revealed the objectives' areas as it drew the map's units, after the fog of war.
     if (updating && DisplayType == MCTacmapPage::Map)
@@ -1533,7 +1533,7 @@ auto MCTacticalMap::RevealObjectives() -> void
     }
 }
 
-auto MCTacticalMap::HideMe(int hide) -> void
+auto MCTacticalMap::HideMe(bool hide) -> void
 {
     if (HideOffset != 0)
     {
@@ -1543,7 +1543,7 @@ auto MCTacticalMap::HideMe(int hide) -> void
     if (hide == 0)
     {
         // Shown: the chat tab stops blinking.
-        Application->RemoveTimer(this, ChatBlinkTimer);
+        GuiSystem()->RemoveTimer(this, ChatBlinkTimer);
 
         for (MCGuiObject* blinker : {ChatBlinkerOn.get(), ChatBlinkerOff.get()})
         {
@@ -1672,9 +1672,9 @@ auto MCTacticalMap::SetDisplayType(MCTacmapPage type) -> void
     {
         ChatWindow->ShowGuiWindow(0);
 
-        if (Application->TextObject() == ChatWindow->ChatInput)
+        if (GuiSystem()->TextObject() == ChatWindow->ChatInput)
         {
-            Application->ReleaseText();
+            GuiSystem()->ReleaseText();
         }
     }
 
@@ -1709,10 +1709,10 @@ auto MCTacticalMap::SetDisplayType(MCTacmapPage type) -> void
 
             for (const MCGuiOwned<MCGuiButton>& button : ScrollButtons)
             {
-                button->ShowGuiWindow(-1);
+                button->ShowGuiWindow(true);
             }
 
-            VideoWindow->ShowGuiWindow(-1);
+            VideoWindow->ShowGuiWindow(true);
             break;
         }
 
@@ -1720,7 +1720,7 @@ auto MCTacticalMap::SetDisplayType(MCTacmapPage type) -> void
         {
             for (const MCGuiOwned<MCGuiToolButton>& button : DataButtons)
             {
-                button->ShowGuiWindow(-1);
+                button->ShowGuiWindow(true);
             }
 
             if (TabHighlighted)
@@ -1739,7 +1739,7 @@ auto MCTacticalMap::SetDisplayType(MCTacmapPage type) -> void
 
             InfoText->MoveTo(7, 0x5e, 0);
             InfoText->Resize(0x74, 0x69);
-            InfoText->ShowGuiWindow(-1);
+            InfoText->ShowGuiWindow(true);
             SetPageRects(*this, 0x5d, 0x68, 0xbe, 0xc9);
             InfoText->FirstPixel = 0;
             RefreshPage();
@@ -1757,7 +1757,7 @@ auto MCTacticalMap::SetDisplayType(MCTacmapPage type) -> void
             TabHighlighted = false;
             InfoText->MoveTo(5, 0x22, 0);
             InfoText->Resize(0x76, 0xb8);
-            InfoText->ShowGuiWindow(-1);
+            InfoText->ShowGuiWindow(true);
             SetPageRects(*this, 0x22, 0x2d, 0xcf, 0xda);
             PageRects[2].bottom = 0xce;
             RefreshPage();
@@ -1772,7 +1772,7 @@ auto MCTacticalMap::SetDisplayType(MCTacmapPage type) -> void
 
             if (MPlayer == nullptr)
             {
-                SalvageText->ShowGuiWindow(-1);
+                SalvageText->ShowGuiWindow(true);
                 RefreshSalvageList();
                 SetPageRects(*this, 0x22, 0x2d, 0xcf, 0xda);
                 PageRects[2].bottom = 0xce;
@@ -1781,7 +1781,7 @@ auto MCTacticalMap::SetDisplayType(MCTacmapPage type) -> void
             }
 
             // Multiplayer: the chat window, and the tab stops blinking.
-            Application->RemoveTimer(this, ChatBlinkTimer);
+            GuiSystem()->RemoveTimer(this, ChatBlinkTimer);
 
             for (MCGuiObject* blinker : {ChatBlinkerOn.get(), ChatBlinkerOff.get()})
             {
@@ -1791,7 +1791,7 @@ auto MCTacticalMap::SetDisplayType(MCTacmapPage type) -> void
                 }
             }
 
-            ChatWindow->ShowGuiWindow(-1);
+            ChatWindow->ShowGuiWindow(true);
             break;
         }
     }
@@ -1856,11 +1856,11 @@ auto MCTacticalMap::SetScrollMapPosition(int32_t x, int32_t y) -> void
 auto MCTacticalMap::GetVideoRect() -> tagRECT
 {
     // The name line's height (unscaled), then lineFont back to its double scale.
-    LineFont->Scaled = 0;
-    LineFont->Scale = 1.0f;
-    const uint8_t lineHeight = LineFont->FontHeight;
-    LineFont->Scale = 2.0f;
-    LineFont->Scaled = 1;
+    LineFont()->Scaled = 0;
+    LineFont()->Scale = 1.0f;
+    const uint8_t lineHeight = LineFont()->FontHeight;
+    LineFont()->Scale = 2.0f;
+    LineFont()->Scaled = 1;
     tagRECT rect;
     rect.left = VideoWindow->GlobalX();
     rect.top = VideoWindow->GlobalY() + lineHeight + 4;
@@ -1971,7 +1971,7 @@ auto MCTacticalMap::SetID(int32_t partId) -> void
         front.SetGrayPicture(const_cast<char*>("mfddbn01.tga"));
         front.MoveTo(0xf, 0xcc, 0);
         DataButtons[2]->MoveTo(0x56, 0xcc, 0);
-        DataButtons[1]->ShowGuiWindow(-1);
+        DataButtons[1]->ShowGuiWindow(true);
         shapeName = std::format("mechrep{:02}", static_cast<int32_t>(obj->GetObjectType()->IconNumber));
         InfoPorts[0]->Init(obj->GetPilot()->Picture.data());
     }
@@ -2034,7 +2034,7 @@ auto MCTacticalMap::UpdateOrderPalette() -> void
             {
                 if (button->Pushed == 0)
                 {
-                    button->Pushed = -1;
+                    button->Pushed = true;
                 }
             }
             else if (button->Pushed != 0)
@@ -2061,7 +2061,7 @@ auto MCTacticalMap::UpdateOrderPalette() -> void
 
             if (button.Disabled == 0)
             {
-                button.Disabled = -1;
+                button.Disabled = true;
             }
         }
 
@@ -2154,12 +2154,12 @@ auto MCTacticalMap::HandleChatMessage(uint32_t fromID, const void* message) -> v
     {
         // Not on show: blink the chat tab.
         ChatPending = true;
-        Application->AddTimer(this, ChatBlinkTimer, 500, 0, 0, 0);
+        GuiSystem()->AddTimer(this, ChatBlinkTimer, 500, 0, 0, 0);
         MCGuiObject* blinker = DisplayType == MCTacmapPage::Salvage ? ChatBlinkerOn.get() : ChatBlinkerOff.get();
 
         if (blinker != nullptr)
         {
-            blinker->ShowGuiWindow(-1);
+            blinker->ShowGuiWindow(true);
         }
     }
 

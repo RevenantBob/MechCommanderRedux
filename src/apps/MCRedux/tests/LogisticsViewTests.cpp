@@ -2,7 +2,7 @@
 #include "MCTest.h"
 #include "ScreenInput.h"
 #include "TestGame.h"
-#include "gui/asystem.h"
+#include "gui/MCGuiSystem.h"
 #include "lib/MCFitIniFile.h"
 #include "gui/scrlpane.h"
 #include "logistics/logdlg.h"
@@ -28,7 +28,7 @@ namespace
         auto* bytes = reinterpret_cast<uint8_t*>(text.data());
         const int32_t width = picture->Width();
         const int32_t height = picture->Height();
-        const int32_t used = Application->TextFormatter.Process(bytes, nullptr, width, 0);
+        const int32_t used = GuiSystem()->TextFormatter.Process(bytes, nullptr, width, 0);
         uint8_t* pixels = picture->Bitmap()->Buffer;
         std::memmove(pixels, pixels + width * used, static_cast<size_t>((height - used) * width));
         MCPane bottom = *picture->Frame();
@@ -37,7 +37,7 @@ namespace
         bottom.X1 = width - 1;
         bottom.Y1 = height - 1;
         VfxPaneWipe(&bottom, 0x10);
-        Application->TextFormatter.Process(bytes, picture, 0, height - used - 1);
+        GuiSystem()->TextFormatter.Process(bytes, picture, 0, height - used - 1);
     }
 
     /// <summary>Draws the chat window's history view into a picture of its size (scrolled to its top).</summary>
@@ -310,15 +310,15 @@ TEST_CASE_ISOLATED("game: the preferences drop-downs work with a player's mouse 
     {
         MCScreenInput::RealClick(RendererDropDown.FieldX(), RendererDropDown.FieldY());
         CHECK(renderer->IsOpen());
-        CHECK(Application->GrabbedObject() == renderer);
+        CHECK(GuiSystem()->GrabbedObject() == renderer);
         MCScreenInput::RealClick(RendererDropDown.FieldX(), RendererDropDown.RowY(row));
         CHECK(!renderer->IsOpen());
         // (The message, when it shows, takes the mouse itself.)
-        CHECK(Application->GrabbedObject() != renderer);
+        CHECK(GuiSystem()->GrabbedObject() != renderer);
         CHECK_EQ(GRendererPreference, static_cast<int32_t>(expected));
         CHECK_EQ(dialog->ShowWindow != 0, notice);
         closeNotice();
-        CHECK(Application->GrabbedObject() == nullptr);
+        CHECK(GuiSystem()->GrabbedObject() == nullptr);
     };
 
     // Open: in front of every other child of the screen, with its list; the look differs from the closed one.
@@ -339,7 +339,7 @@ TEST_CASE_ISOLATED("game: the preferences drop-downs work with a player's mouse 
     CHECK(dynamic_cast<MCLogButton*>(screen->FindObject(AcceptX, AcceptY)) != nullptr);
     MCScreenInput::RealClick(AcceptX, AcceptY);
     CHECK(!renderer->IsOpen());
-    CHECK(Application->GrabbedObject() == nullptr);
+    CHECK(GuiSystem()->GrabbedObject() == nullptr);
     CHECK(screen->IsShowing() != 0);
     CHECK_EQ(GRendererPreference, static_cast<int32_t>(MCRendererKind::Vulkan));
     MCScreenInput::RealMove(320, 400);
@@ -350,7 +350,7 @@ TEST_CASE_ISOLATED("game: the preferences drop-downs work with a player's mouse 
     CHECK(renderer->IsOpen());
     MCScreenInput::RealClick(RendererDropDown.FieldX() + 30, RendererDropDown.FieldY());
     CHECK(!renderer->IsOpen());
-    CHECK(Application->GrabbedObject() == nullptr);
+    CHECK(GuiSystem()->GrabbedObject() == nullptr);
 
     for (int32_t round = 0; round < 3; round++)
     {
@@ -363,7 +363,7 @@ TEST_CASE_ISOLATED("game: the preferences drop-downs work with a player's mouse 
         MCScreenInput::RealClick(540, 165);
         CHECK_EQ(GRendererPreference, static_cast<int32_t>(MCRendererKind::Vulkan));
         CHECK(dialog->ShowWindow == 0);
-        CHECK(Application->GrabbedObject() == nullptr);
+        CHECK(GuiSystem()->GrabbedObject() == nullptr);
     }
 
     // The chosen item again: no change, no message.
@@ -398,7 +398,7 @@ TEST_CASE_ISOLATED("game: the preferences drop-downs work with a player's mouse 
     MCScreenInput::RealKey(SDL_SCANCODE_UP);
     MCScreenInput::RealKey(SDL_SCANCODE_RETURN);
     CHECK(!renderer->IsOpen());
-    CHECK(Application->GrabbedObject() == nullptr);
+    CHECK(GuiSystem()->GrabbedObject() == nullptr);
     CHECK_EQ(GRendererPreference, static_cast<int32_t>(MCRendererKind::Vulkan));
     CHECK(dialog->ShowWindow == 0);
 

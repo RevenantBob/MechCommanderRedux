@@ -1,6 +1,6 @@
 #include "stdafx.h"
-#include "gui/mchwcursor.h"
-#include "gui/asystem.h"
+#include "gui/MCHardwareCursor.h"
+#include "gui/MCGuiSystem.h"
 #include "gui/updisp.h"
 #include "platform/MCInput.h"
 #include "vfx/MCVfxFunctions.h"
@@ -142,7 +142,7 @@ bool MCHardwareCursorCarry(MCGuiObject* object, MCPane* pixels)
 
 void MCHardwareCursorUpdate()
 {
-    const int32_t shape = Application->CursorShape;
+    const int32_t shape = GuiSystem()->CursorShape;
     const bool hasShape = shape >= 0 && static_cast<size_t>(shape) < ShapeImages.size() &&
                           ShapeImages[static_cast<size_t>(shape)].Width > 0;
 

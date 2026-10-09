@@ -1,6 +1,6 @@
 #include "stdafx.h"
 #include "logistics/ticker.h"
-#include "gui/afont.h"
+#include "gui/MCGuiFont.h"
 #include "logistics/logmain.h"
 #include "main/logistics.h"
 #include "vfx/MCVfxFunctions.h"
@@ -37,7 +37,7 @@ auto MCTicker::Init() -> void
     YPos = 0;
     TextWidth = 0;
     // Original behaviour (OB-072): timer id 4, but handleEvent only scrolls on timer 7.
-    Application->AddTimer(this, 4, 0x4b, 0, 0, 0);
+    GuiSystem()->AddTimer(this, 4, 0x4b, 0, 0, 0);
 }
 
 auto MCTicker::Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, MCLogPort* port) -> void
@@ -97,7 +97,7 @@ auto MCTicker::DrawLine(MCPane* target) -> void
 
     if (BackPane != nullptr)
     {
-        BackPane->CopyTo(target, x, y, -1);
+        BackPane->CopyTo(target, x, y, true);
     }
 
     const bool wide = MaxWidth < TextWidth;
@@ -122,7 +122,7 @@ auto MCTicker::DrawLine(MCPane* target) -> void
 
         if (clip.X0 <= clip.X1)
         {
-            MedWhiteFont->WriteString(&clip, at - left, 0, bytes, -1);
+            MedWhiteFont->WriteString(&clip, at - left, 0, reinterpret_cast<const char*>(bytes), -1);
         }
     };
 
@@ -164,7 +164,7 @@ auto MCTicker::SetString(char* string) -> void
     }
 
     std::strncpy(Text, string, 0xfe);
-    const int32_t stringWidth = Font->Width(reinterpret_cast<uint8_t*>(Text));
+    const int32_t stringWidth = Font->Width(Text);
     TextWidth = stringWidth;
 
     // A scrolling text gets half a window of gap before it repeats. (The original rendered the text into textPort
@@ -202,5 +202,5 @@ auto MCTicker::SetBackPane(MCLogPort* port) -> void
     FreePort(BackPane);
     BackPane = new MCLogPort;
     BackPane->Init(port->Width(), port->Height(), -1);
-    port->CopyTo(BackPane->Frame(), 0, 0, -1);
+    port->CopyTo(BackPane->Frame(), 0, 0, true);
 }

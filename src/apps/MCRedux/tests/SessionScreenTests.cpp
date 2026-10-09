@@ -2,7 +2,7 @@
 #include "MCTest.h"
 #include "ScreenInput.h"
 #include "TestGame.h"
-#include "gui/asystem.h"
+#include "gui/MCGuiSystem.h"
 #include "linkup/sessionmanager.h"
 #include "logistics/loggen.h"
 #include "logistics/logmain.h"

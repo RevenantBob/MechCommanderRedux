@@ -1,8 +1,8 @@
 #pragma once
 
 #include "gui/MCGuiOwned.h"
-#include "gui/asystem.h"
-#include "gui/aport.h"
+#include "gui/MCGuiSystem.h"
+#include "gui/MCGuiPort.h"
 #include "platform/MCRegisteredBlock.h"
 
 class MCBaseObject;
@@ -21,7 +21,7 @@ public:
     ~MCMechIcon() override = default;
 
     /// <summary>Makes the window and its "destroyed" image; every part starts uncoloured.</summary>
-    int32_t Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, char* bitmapName) override;
+    int32_t Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, const char* bitmapName) override;
     /// <summary>Frees the "destroyed" image and the damage shapes.</summary>
     void Destroy() override;
     /// <summary>Draws the icon into its own port (<see cref="DrawIcon"/>).</summary>

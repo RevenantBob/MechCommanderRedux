@@ -1,6 +1,6 @@
 #include "stdafx.h"
 #include "logistics/mrblock.h"
-#include "gui/afont.h"
+#include "gui/MCGuiFont.h"
 #include "gui/scrlpane.h"
 #include "gui/updisp.h"
 #include "lib/MCFatal.h"
@@ -90,7 +90,7 @@ namespace
 
     void WriteText(MCGuiFont* font, MCPane* pane, int32_t x, int32_t y, const char* text)
     {
-        font->WriteString(pane, x, y, reinterpret_cast<uint8_t*>(const_cast<char*>(text)), -1);
+        font->WriteString(pane, x, y, text, -1);
     }
 
     void DrawLine(MCPane* pane, int32_t x0, int32_t y0, int32_t x1, int32_t y1, uint8_t color)
@@ -678,13 +678,13 @@ auto MCMechRepairBlock::HandleEvent(MCGuiEvent* event) -> void
                 RepairButtonDown = 0;
             }
 
-            if (Application->GrabbedObject() == nullptr)
+            if (GuiSystem()->GrabbedObject() == nullptr)
             {
                 return;
             }
 
-            Application->SetCursorVisible(-1);
-            Application->Release();
+            GuiSystem()->SetCursorVisible(true);
+            GuiSystem()->Release();
             LeftDrag = 0;
             DrawButtons(nullptr);
             DeleteDragIcon();
@@ -696,7 +696,7 @@ auto MCMechRepairBlock::HandleEvent(MCGuiEvent* event) -> void
                 if (DraggingSlider != 0)
                 {
                     DraggingSlider = 0;
-                    Application->Release();
+                    GuiSystem()->Release();
                     DrawArmorSlider(nullptr);
                     DrawInternalSlider(nullptr);
                     DrawEngineSlider(nullptr);
@@ -708,7 +708,7 @@ auto MCMechRepairBlock::HandleEvent(MCGuiEvent* event) -> void
                 if (DraggingMech == 0)
                 {
                     // The pilot: dropped on the inventory, it leaves the mech.
-                    Application->Release();
+                    GuiSystem()->Release();
                     LeftDrag = 0;
                     DeleteDragIcon();
                     MCLogMech* pilotsMech = Mech;
@@ -1233,11 +1233,11 @@ auto MCMechRepairBlock::HandleEvent(MCGuiEvent* event) -> void
             return;
         }
 
-        Application->SetCursorVisible(0);
+        GuiSystem()->SetCursorVisible(0);
         DragMasterID = item->MasterID;
         DraggingItem = -1;
         PlaySample(0x35);
-        Application->Grab(this);
+        GuiSystem()->Grab(this);
 
         if (eventType == 1)
         {
@@ -1252,8 +1252,8 @@ auto MCMechRepairBlock::HandleEvent(MCGuiEvent* event) -> void
     {
         // Pick up the pilot: the portrait becomes the drag icon and its place is blanked.
         SoundSystem()->PlayPilotSpeech(warrior->PilotAudio, 10);
-        Application->SetCursorVisible(0);
-        Application->Grab(this);
+        GuiSystem()->SetCursorVisible(0);
+        GuiSystem()->Grab(this);
 
         if (eventType == 1)
         {
@@ -1267,7 +1267,7 @@ auto MCMechRepairBlock::HandleEvent(MCGuiEvent* event) -> void
         icon->Begin(eventX - 0xf, eventY - 0xf, 0x20, 0x20, [this](MCLogPort* surface) { OnBeginDragPilot(surface); });
         ClearPilot();
         RepairScreen()->AddChild(GlobalLogPtr->DragIcon);
-        GlobalLogPtr->DragIcon->ShowGuiWindow(-1);
+        GlobalLogPtr->DragIcon->ShowGuiWindow(true);
         GlobalLogPtr->DragIcon->SetDepth(100);
         DragX = DragX + GlobalX();
         DragY = GlobalY() + 0x26;
@@ -1282,8 +1282,8 @@ auto MCMechRepairBlock::HandleEvent(MCGuiEvent* event) -> void
             eventY <= GlobalY() + Height())
         {
             PlaySample(0x35);
-            Application->SetCursorVisible(0);
-            Application->Grab(this);
+            GuiSystem()->SetCursorVisible(0);
+            GuiSystem()->Grab(this);
             DraggingMech = -1;
 
             if (eventType == 1)
@@ -1297,7 +1297,7 @@ auto MCMechRepairBlock::HandleEvent(MCGuiEvent* event) -> void
             GlobalLogPtr->DragIcon = icon;
             icon->Begin(DragX, DragY, 0x20, 0x20, [this](MCLogPort* surface) { OnBeginDragMech(surface); });
             RepairScreen()->AddChild(GlobalLogPtr->DragIcon);
-            GlobalLogPtr->DragIcon->ShowGuiWindow(-1);
+            GlobalLogPtr->DragIcon->ShowGuiWindow(true);
             GlobalLogPtr->DragIcon->SetDepth(100);
             GlobalLogPtr->DragIcon->MoveTo(DragX, DragY, 0);
         }
@@ -1428,7 +1428,7 @@ auto MCMechRepairBlock::HandleEvent(MCGuiEvent* event) -> void
             if (anyMissing)
             {
                 // Ask whether to strip the damaged items that have no replacement (RefitItemCallback).
-                Application->Release();
+                GuiSystem()->Release();
                 LeftDrag = 0;
                 RefitBlock = this;
                 MCRefitDialog* dialog = GlobalLogPtr->RefitDialog;
@@ -1536,7 +1536,7 @@ auto MCMechRepairBlock::HandleEvent(MCGuiEvent* event) -> void
 
         if (shortOfPoints)
         {
-            Application->Release();
+            GuiSystem()->Release();
             LeftDrag = 0;
             ShowMessage(0x57);
             PlaySample(0x33);
@@ -1550,7 +1550,7 @@ auto MCMechRepairBlock::HandleEvent(MCGuiEvent* event) -> void
     LastY = slider;
     DraggingSlider = -1;
     LastX = sliderPos;
-    Application->Grab(this);
+    GuiSystem()->Grab(this);
 }
 
 auto MCMechRepairBlock::DrawBackground(int32_t row, MCLogPort* port) -> void
@@ -1620,7 +1620,7 @@ auto MCMechRepairBlock::PaintBase(MCLogPort* port, int32_t top, bool briefing, b
     else
     {
         VfxPaneWipe(back.Frame(), 0);
-        rowArt->CopyTo(back.Frame(), 0, 0, -1);
+        rowArt->CopyTo(back.Frame(), 0, 0, true);
     }
 
     MCLogMech* logMech = Mech;
@@ -1641,12 +1641,12 @@ auto MCMechRepairBlock::PaintBase(MCLogPort* port, int32_t top, bool briefing, b
 
     if (MCLogPort* art = chassisArt != nullptr ? LogArtf(chassisArt, ArtPath, logMech->NameIndex) : nullptr)
     {
-        art->CopyTo(back.Frame(), 5, 4, -1);
+        art->CopyTo(back.Frame(), 5, 4, true);
     }
 
     if (MCLogPort* art = LogArtf("%slogart\\lscdsm%02d.tga", ArtPath, logMech->NameIndex))
     {
-        art->CopyTo(back.Frame(), briefing ? 0xdc : 0xd6, 8, -1);
+        art->CopyTo(back.Frame(), briefing ? 0xdc : 0xd6, 8, true);
     }
 
     char format[256];
@@ -1729,20 +1729,20 @@ auto MCMechRepairBlock::PaintButtons(MCLogPort* port, int32_t top, bool onRows, 
 
     if (items == 0)
     {
-        GlobalLogPtr->RepairPorts[4]->CopyTo(work.Frame(), onRows ? 0xea : 0xf8, 3, -1);
+        GlobalLogPtr->RepairPorts[4]->CopyTo(work.Frame(), onRows ? 0xea : 0xf8, 3, true);
     }
     else
     {
-        GlobalLogPtr->RepairPorts[1]->CopyTo(work.Frame(), 0xea, 3, -1);
+        GlobalLogPtr->RepairPorts[1]->CopyTo(work.Frame(), 0xea, 3, true);
     }
 
     if (structure == 0)
     {
-        GlobalLogPtr->RepairPorts[5]->CopyTo(work.Frame(), onRows ? 0xea : 0xf8, 0x17, -1);
+        GlobalLogPtr->RepairPorts[5]->CopyTo(work.Frame(), onRows ? 0xea : 0xf8, 0x17, true);
     }
     else
     {
-        GlobalLogPtr->RepairPorts[3]->CopyTo(work.Frame(), 0xea, 0x17, -1);
+        GlobalLogPtr->RepairPorts[3]->CopyTo(work.Frame(), 0xea, 0x17, true);
     }
 }
 
@@ -1940,7 +1940,7 @@ auto MCMechRepairBlock::PaintSlider(MCLogPort* port, int32_t top, int32_t slider
 
     if (MCLogPort* art = LogArtf("%slogart\\lsrupm%d.tga", ArtPath, slider + 0xb))
     {
-        art->CopyTo(work.Frame(), briefing ? 0xf8 : 0xea, yPos, -1);
+        art->CopyTo(work.Frame(), briefing ? 0xf8 : 0xea, yPos, true);
     }
 
     // The track left of the knob: the part repaired before (grey), then the part repaired by this drag (red).
@@ -2066,7 +2066,7 @@ auto MCMechRepairBlock::DrawRow(MCLogPort* port, int32_t top) -> void
     {
         if (MCLogPort* blank = LogArtf("%slogart\\lsrupm10.tga", ArtPath))
         {
-            blank->CopyTo(port->Frame(), 6, top + 0x21, -1);
+            blank->CopyTo(port->Frame(), 6, top + 0x21, true);
         }
     }
 
@@ -2074,7 +2074,7 @@ auto MCMechRepairBlock::DrawRow(MCLogPort* port, int32_t top) -> void
     if (_PressedButton != 0)
     {
         const bool items = _PressedButton == 1;
-        GlobalLogPtr->RepairPorts[items ? 0 : 2]->CopyTo(port->Frame(), 0xea, top + (items ? 3 : 0x17), -1);
+        GlobalLogPtr->RepairPorts[items ? 0 : 2]->CopyTo(port->Frame(), 0xea, top + (items ? 3 : 0x17), true);
     }
 }
 
@@ -2098,7 +2098,7 @@ auto MCMechRepairBlock::OnBeginDragItem(MCLogPort* surface, MCLogInventoryItem* 
 {
     if (MCLogPort* art = LogArtf("%slogart\\lscicc%02d.tga", ArtPath, item->RangeIndex))
     {
-        art->CopyTo(surface->Frame(), 1, 1, -1);
+        art->CopyTo(surface->Frame(), 1, 1, true);
     }
 }
 
@@ -2375,7 +2375,7 @@ auto MCMechRepairBlock::PaintPilot(MCLogPort* port, int32_t top, float status, b
 
     if (portrait != nullptr)
     {
-        portrait->CopyTo(port->Frame(), 6, top + 0x26, -1);
+        portrait->CopyTo(port->Frame(), 6, top + 0x26, true);
     }
 
     // Port fix: without a pilot record the texts are skipped (the original read them through the null pointer).
@@ -3109,7 +3109,7 @@ auto MCMechRepairBlock::SetUpItemDragIcon(MCLogInventoryItem* item, uint8_t item
         DrawStatusBar();
         DrawButtons(nullptr);
         RepairScreen()->AddChild(GlobalLogPtr->DragIcon);
-        GlobalLogPtr->DragIcon->ShowGuiWindow(-1);
+        GlobalLogPtr->DragIcon->ShowGuiWindow(true);
         GlobalLogPtr->DragIcon->SetDepth(100);
         return;
     }
@@ -3119,7 +3119,7 @@ auto MCMechRepairBlock::DrawInfo(MCLogPort* port) -> void
 {
     if (DragPort != nullptr)
     {
-        DragPort->CopyTo(port->Frame(), 0xb, 0x191, -1);
+        DragPort->CopyTo(port->Frame(), 0xb, 0x191, true);
     }
 
     char tons[32];
@@ -3210,8 +3210,8 @@ auto MCVehicleRepairBlock::HandleEvent(MCGuiEvent* event) -> void
             {
                 // Pick up the vehicle.
                 PlaySample(0x35);
-                Application->SetCursorVisible(0);
-                Application->Grab(this);
+                GuiSystem()->SetCursorVisible(0);
+                GuiSystem()->Grab(this);
                 DraggingVehicle = -1;
 
                 if (eventType == 1)
@@ -3230,7 +3230,7 @@ auto MCVehicleRepairBlock::HandleEvent(MCGuiEvent* event) -> void
                 icon->Begin(VehicleDragX, VehicleDragY, 0x1e, 0x1e,
                             [this](MCLogPort* surface) { OnBeginDrag(surface); });
                 RepairScreen()->AddChild(GlobalLogPtr->DragIcon);
-                GlobalLogPtr->DragIcon->ShowGuiWindow(-1);
+                GlobalLogPtr->DragIcon->ShowGuiWindow(true);
                 GlobalLogPtr->DragIcon->SetDepth(100);
                 GlobalLogPtr->DragIcon->MoveTo(VehicleDragX, VehicleDragY, 0);
                 return;
@@ -3258,12 +3258,12 @@ auto MCVehicleRepairBlock::HandleEvent(MCGuiEvent* event) -> void
 
             VehicleRightHeld = 0;
 
-            if (Application->GrabbedObject() == nullptr)
+            if (GuiSystem()->GrabbedObject() == nullptr)
             {
                 return;
             }
 
-            Application->SetCursorVisible(-1);
+            GuiSystem()->SetCursorVisible(true);
             PlaySample(0x34);
             MCGuiObject* inventory = RepairScreen()->InventoryPane;
 
@@ -3271,7 +3271,7 @@ auto MCVehicleRepairBlock::HandleEvent(MCGuiEvent* event) -> void
             {
                 // Dropped on the inventory, the vehicle leaves the force.
                 DraggingVehicle = 0;
-                Application->Release();
+                GuiSystem()->Release();
                 VehicleLeftDrag = 0;
                 DeleteDragIcon();
 
@@ -3334,7 +3334,7 @@ auto MCVehicleRepairBlock::HandleEvent(MCGuiEvent* event) -> void
                 return;
             }
 
-            Application->Release();
+            GuiSystem()->Release();
             VehicleLeftDrag = 0;
             DeleteDragIcon();
 
@@ -3456,7 +3456,7 @@ auto MCVehicleRepairBlock::PaintRow(MCLogPort* port, int32_t top, bool briefing,
 
     if (MCLogPort* art = LogArtf("%slogart\\lscflv%02d.tga", ArtPath, Vehicle->NameIndex))
     {
-        art->CopyTo(back.Frame(), 5, 4, -1);
+        art->CopyTo(back.Frame(), 5, 4, true);
     }
 
     // The damage diagram, drawn over a copy of the vehicle's mask.

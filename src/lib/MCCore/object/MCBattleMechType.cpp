@@ -5,7 +5,7 @@
 #include "ai/MCTacticalOrder.h"
 #include "appear/MCAppearanceTypeList.h"
 #include "camera/MCCamera.h"
-#include "gui/asystem.h"
+#include "gui/MCGuiSystem.h"
 #include "iface/MCTacticalInterface.h"
 #include "lib/MCFatal.h"
 #include "lib/MCFile.h"

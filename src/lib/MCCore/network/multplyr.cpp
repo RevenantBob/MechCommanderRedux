@@ -6,7 +6,7 @@
 #include "ai/MCMoveSystem.h"
 #include "ai/MCRefit.h"
 #include "ai/MCTacticalOrder.h"
-#include "gui/asystem.h"
+#include "gui/MCGuiSystem.h"
 #include "gui/updisp.h"
 #include "iface/MCCommandParser.h"
 #include "lib/MCFatal.h"
@@ -442,7 +442,7 @@ auto MCMultiPlayer::Init(MCFitIniFile* file) -> int32_t
         Assert(result == 0, 0, " could not find Multiplayer:NumPlayers ");
     }
 
-    if (StartupPakFile == nullptr)
+    if (StartupPakFile.empty())
     {
         result = file->ReadIdLong("CheckInId", CheckInId);
 
@@ -2971,7 +2971,7 @@ auto HandleAppLoadMission(uint32_t fromID, const void* msg) -> void
 
 auto HandleAppStart(uint32_t fromID, const void* msg) -> void
 {
-    Application->RemoveTimer(GlobalLogPtr->SessionScreen, 0);
+    GuiSystem()->RemoveTimer(GlobalLogPtr->SessionScreen, 0);
     MPlayer->SessionManager->SendLatencyInfo();
     SoundSystem()->PlayBettySample(0x19);
     GlobalLogPtr->InitializeMultiplayer();

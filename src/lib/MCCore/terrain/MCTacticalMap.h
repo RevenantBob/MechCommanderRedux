@@ -1,7 +1,7 @@
 #pragma once
 
-#include "gui/abutton.h"
-#include "gui/asystem.h"
+#include "gui/MCGuiButton.h"
+#include "gui/MCGuiSystem.h"
 #include "gui/MCGuiOwned.h"
 #include "object/MCObjectWatcher.h"
 #include "platform/MCRegisteredBlock.h"
@@ -135,7 +135,7 @@ public:
 
     void Display() override;
 
-    void HideMe(int hide) override;
+    void HideMe(bool hide) override;
 
     /// <summary>Draws <c>&lt;terrainPath&gt;&lt;name&gt;.gif</c> (the pre-revealed parts) into the fog of war.</summary>
     void SetRevealedBitmap(std::string_view fileName);

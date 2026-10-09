@@ -1,6 +1,6 @@
 #include "stdafx.h"
 #include "logistics/logrep.h"
-#include "gui/afont.h"
+#include "gui/MCGuiFont.h"
 #include "gui/scrlpane.h"
 #include "lib/MCFatal.h"
 #include "logistics/logbri.h"
@@ -152,7 +152,7 @@ auto MCRepairScreen::Init() -> void
     ShowGuiWindow(0);
     AddChild(InventoryPane);
     AddChild(UnitPane);
-    ScreenWindow->AddChild(this);
+    ScreenWindow()->AddChild(this);
 }
 
 auto MCRepairScreen::Destroy() -> void
@@ -519,7 +519,7 @@ auto MCRepairScreen::HandleEvent(MCGuiEvent* event) -> void
     }
 }
 
-auto MCRepairScreen::ShowGuiWindow(int show) -> void
+auto MCRepairScreen::ShowGuiWindow(bool show) -> void
 {
     ShowWindow = show;
     InventoryPane->ShowGuiWindow(show);

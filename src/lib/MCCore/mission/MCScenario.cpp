@@ -10,7 +10,7 @@
 #include "abl/MCAblRuntime.h"
 #include "ai/MCMoveSystem.h"
 #include "camera/MCCameraList.h"
-#include "gui/asystem.h"
+#include "gui/MCGuiSystem.h"
 #include "main/main.h"
 #include "mission/MCMission.h"
 #include "network/multplyr.h"
@@ -133,7 +133,7 @@ auto MCScenario::Update() -> int32_t
             SoundSystem()->PlayDigitalMusic(ScenarioTuneNum, false);
         }
 
-        Application->SetCursorVisible(1);
+        GuiSystem()->SetCursorVisible(1);
         MusicPending = false;
         MissionStartTime = MCPort::Milliseconds();
     }
@@ -239,7 +239,7 @@ auto MCScenario::Unload() -> void
     // Faithful: the id wraps to a short when the timer is removed (0x249f1 -> 0x49f1).
     for (uint32_t id = 0x249f1; id < static_cast<uint32_t>(Objectives.Count()) + 0x249f1u; id++)
     {
-        Application->RemoveTimer(Application, static_cast<int16_t>(id));
+        GuiSystem()->RemoveTimer(GuiSystem(), static_cast<int16_t>(id));
     }
 
     Assert(CollisionSystem() != nullptr, 0, " collisionSystem already NULL ");
@@ -384,8 +384,8 @@ auto MCScenario::SetObjectiveTimer(int32_t objectiveNumber, float time) -> int32
     }
 
     const auto id = static_cast<int16_t>(objectiveNumber + ObjectiveTimerId);
-    Application->RemoveTimer(Application, id);
-    Application->AddTimer(Application, id, static_cast<int32_t>(time), ObjectiveTimerEvent, 0, 1);
+    GuiSystem()->RemoveTimer(GuiSystem(), id);
+    GuiSystem()->AddTimer(GuiSystem(), id, static_cast<int32_t>(time), ObjectiveTimerEvent, 0, 1);
     return 0;
 }
 
@@ -399,7 +399,7 @@ auto MCScenario::CheckObjectiveTimer(int32_t objectiveNumber) -> float
     uint32_t remaining = 0;
 
     if (MCGuiTimer* timer =
-            Application->TimerManager->GetTimer(Application, static_cast<int16_t>(objectiveNumber + ObjectiveTimerId)))
+            GuiSystem()->TimerManager->GetTimer(GuiSystem(), static_cast<int16_t>(objectiveNumber + ObjectiveTimerId)))
     {
         // The timer counts in scenario milliseconds.
         const uint32_t fireTime = timer->Interval + timer->LastTime;

@@ -2,7 +2,7 @@
 #include "abl/MCAblRoutineList.h"
 #include "abl/MCAblDebugger.h"
 #include "ai/MCMoveSystem.h"
-#include "gui/asystem.h"
+#include "gui/MCGuiSystem.h"
 #include "gui/atextbox.h"
 #include "iface/MCTacticalInterface.h"
 #include "lib/MCDice.h"
@@ -90,7 +90,7 @@ auto ExecHbSetTimer(MCAblRuntime& abl) -> MCAblType*
     else
     {
         // Original behaviour: the time is read as a real even when the script passed an integer.
-        Application->AddTimer(Application, timerId, static_cast<int32_t>(static_cast<double>(abl.Top().Real) * 1000.0),
+        GuiSystem()->AddTimer(GuiSystem(), timerId, static_cast<int32_t>(static_cast<double>(abl.Top().Real) * 1000.0),
                               0x1406, 0, 0);
     }
 
@@ -104,7 +104,7 @@ auto ExecHbChkTimer(MCAblRuntime& abl) -> MCAblType*
     abl.GetCodeToken();
     abl.GetCodeToken();
     abl.ExecExpression();
-    MCGuiTimer* timer = Application->TimerManager->GetTimer(Application, static_cast<int16_t>(abl.Top().Integer));
+    MCGuiTimer* timer = GuiSystem()->TimerManager->GetTimer(GuiSystem(), static_cast<int16_t>(abl.Top().Integer));
     uint32_t remaining = 0;
 
     if (timer)
@@ -127,7 +127,7 @@ auto ExecHbEndTimer(MCAblRuntime& abl) -> void
 
     if (timerId > 6 && timerId < 15)
     {
-        Application->RemoveTimer(Application, timerId);
+        GuiSystem()->RemoveTimer(GuiSystem(), timerId);
     }
 
     abl.GetCodeToken();

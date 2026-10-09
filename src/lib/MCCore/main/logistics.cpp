@@ -2,8 +2,8 @@
 #include "main/logistics.h"
 #include "platform/MCInput.h"
 #include "platform/MCDisplay.h"
-#include "gui/afont.h"
-#include "gui/asystem.h"
+#include "gui/MCGuiFont.h"
+#include "gui/MCGuiSystem.h"
 #include "gui/scrlpane.h"
 #include "gui/updisp.h"
 #include "lib/MCFatal.h"
@@ -3999,7 +3999,7 @@ auto MCMPPlayerLights::Destroy() -> void
 {
     if (TimerRunning != 0)
     {
-        Application->RemoveTimer(this, 3);
+        GuiSystem()->RemoveTimer(this, 3);
     }
 
     delete LightsPort;
@@ -4046,7 +4046,7 @@ auto MCMPPlayerLights::SetPlayerStatus(uint32_t playerID, int32_t status) -> voi
 
     if (TimerRunning == 0 && status == 2)
     {
-        Application->AddTimer(this, 3, 500, 0, 0, 0);
+        GuiSystem()->AddTimer(this, 3, 500, 0, 0, 0);
         TimerRunning = 1;
     }
 }
@@ -4258,16 +4258,13 @@ auto MCLogistics::Init() -> void
     PlayerLights = nullptr;
     HammerDown = 0;
 
-    static char logisticsTitle[0x400];
-    std::snprintf(logisticsTitle, sizeof(logisticsTitle), "%s -- %s", AppName, "Logistics");
+    WindowTitle = AppName + " -- Logistics";
 
     // Port: SetWindowTextA -> the SDL window's title.
     if (MCDisplay* display = MCInput::Display())
     {
-        display->SetTitle(logisticsTitle);
+        display->SetTitle(WindowTitle.c_str());
     }
-
-    std::strcpy(WindowTitle, logisticsTitle);
 
     LogisticsBlocks = std::make_unique<MCBlockStore>();
     LogisticsState = 0;
@@ -4582,16 +4579,16 @@ auto MCLogistics::Init() -> void
 
     PurchaseDialog = new MCPurchaseDlg;
     PurchaseDialog->MCLogDialogBox::Init(0xe5, 0xa2, 0xb5, 0x9c);
-    ScreenWindow->AddChild(PurchaseDialog);
+    ScreenWindow()->AddChild(PurchaseDialog);
     MessageDialog = new MCReusableDialog;
     MessageDialog->Init(0, 0, 4, 4, nullptr);
-    ScreenWindow->AddChild(MessageDialog);
+    ScreenWindow()->AddChild(MessageDialog);
     QuestionDialog = new MCReusableDialog;
     QuestionDialog->Init(0, 0, 4, 4, nullptr);
-    ScreenWindow->AddChild(QuestionDialog);
+    ScreenWindow()->AddChild(QuestionDialog);
     RefitDialog = new MCRefitDialog;
     RefitDialog->Init(0, 0, 4, 4, nullptr);
-    ScreenWindow->AddChild(RefitDialog);
+    ScreenWindow()->AddChild(RefitDialog);
 
     ResourceBackPort = NewPort(0x3d, 0xc);
     VfxPaneWipe(ResourceBackPort->Frame(), 0x10);
@@ -4980,7 +4977,7 @@ auto MCLogistics::Destroy() -> void
 
     if (PurchaseDialog != nullptr)
     {
-        ScreenWindow->RemoveChild(PurchaseDialog);
+        ScreenWindow()->RemoveChild(PurchaseDialog);
         delete PurchaseDialog;
         PurchaseDialog = nullptr;
     }
@@ -5130,7 +5127,7 @@ auto MCLogistics::Destroy() -> void
 
     deleteScreen(LoadScreen);
     deleteScreen(SaveScreen);
-    Application->SetCurrentObject(nullptr);
+    GuiSystem()->SetCurrentObject(nullptr);
     ClearLogArt();
     LogisticsBlocks->Clear();
     LogisticsBlocks.reset();
@@ -5148,7 +5145,7 @@ auto MCLogistics::ShowLogScreen(int show, int redraw) -> void
     {
         char fileName[256];
         std::snprintf(fileName, sizeof(fileName), "%slogart\\lsrupm05.tga", ArtPath);
-        Application->ActivatePaletteFromTga(fileName);
+        GuiSystem()->ActivatePaletteFromTga(fileName);
     }
 
     CurrentScreen->ShowGuiWindow(show);
@@ -5185,17 +5182,17 @@ auto MCLogistics::SetUpMainScreen(int fromMenu) -> int32_t
 
         if (briefing->ChatTimerOn != 0)
         {
-            Application->RemoveTimer(briefing, 5);
+            GuiSystem()->RemoveTimer(briefing, 5);
         }
 
         if (PurchaseScreen->ChatBlinking != 0)
         {
-            Application->RemoveTimer(PurchaseScreen, 7);
+            GuiSystem()->RemoveTimer(PurchaseScreen, 7);
         }
 
         if (RepairScreen->ChatBlinking != 0)
         {
-            Application->RemoveTimer(RepairScreen, 8);
+            GuiSystem()->RemoveTimer(RepairScreen, 8);
         }
 
         briefing->BriefingBox = nullptr;
@@ -5848,7 +5845,7 @@ auto MCLogistics::SetUpPurchaseScreen(int animate) -> int32_t
 {
     MCBriefingScreen* briefing = BriefingScreen;
     briefing->StopSmackerMovies();
-    Application->SetCurrentCursor(static_cast<MCCursorType>(0));
+    GuiSystem()->SetCurrentCursor(static_cast<MCCursorType>(0));
 
     if (MPlayer != nullptr)
     {
@@ -5856,7 +5853,7 @@ auto MCLogistics::SetUpPurchaseScreen(int animate) -> int32_t
         {
             if (PurchaseScreen->ChatBlinking != 0)
             {
-                Application->RemoveTimer(PurchaseScreen, 7);
+                GuiSystem()->RemoveTimer(PurchaseScreen, 7);
                 // Original behaviour (OB-096): clears the repair screen's flag instead of the purchase screen's, so
                 // the purchase screen's chat button does not blink again until the flag is cleared elsewhere.
                 RepairScreen->ChatBlinking = 0;
@@ -5864,7 +5861,7 @@ auto MCLogistics::SetUpPurchaseScreen(int animate) -> int32_t
         }
         else if (PurchaseScreen->ChatBlinking == 0)
         {
-            Application->AddTimer(PurchaseScreen, 7, 0xfa, 0, 0, 0);
+            GuiSystem()->AddTimer(PurchaseScreen, 7, 0xfa, 0, 0, 0);
             PurchaseScreen->ChatBlinking = 1;
         }
     }
@@ -6006,7 +6003,7 @@ auto MCLogistics::DrawScreenChrome(MCLogObject* screen, MCPane* target) -> void
             {
                 if (MCLogPort* lit = ports[button][1]; lit != nullptr)
                 {
-                    lit->CopyTo(target, 2, top, -1);
+                    lit->CopyTo(target, 2, top, true);
                 }
             }
         }
@@ -6024,19 +6021,19 @@ auto MCLogistics::DrawScreenChrome(MCLogObject* screen, MCPane* target) -> void
         ResourceFigureText(text, sizeof(text));
         VfxPaneCopy(ResourceBackPort->Frame(), 0, 0, target, 0x209, 2, -1);
         auto* bytes = reinterpret_cast<uint8_t*>(text);
-        const int32_t textWidth = MedWhiteFont->Width(bytes);
-        MedWhiteFont->WriteString(target, 0x244 - textWidth, 4, bytes, -1);
+        const int32_t textWidth = MedWhiteFont->Width(reinterpret_cast<const char*>(bytes));
+        MedWhiteFont->WriteString(target, 0x244 - textWidth, 4, reinterpret_cast<const char*>(bytes), -1);
     }
 
     char time[sizeof(TimeString)];
     MCPort::StrTime(time);
     VfxPaneCopy(ClockBackPort->Frame(), 0, 0, target, 0x24c, 2, -1);
-    MedWhiteFont->WriteString(target, 0x254, 4, reinterpret_cast<uint8_t*>(time), -1);
+    MedWhiteFont->WriteString(target, 0x254, 4, time, -1);
 }
 
 auto MCLogistics::SetUpBriefingScreen(int animate) -> int32_t
 {
-    Application->SetCurrentCursor(static_cast<MCCursorType>(0));
+    GuiSystem()->SetCurrentCursor(static_cast<MCCursorType>(0));
     MCLogObject* previous = CurrentScreen;
 
     if (previous != nullptr)
@@ -6089,7 +6086,7 @@ auto MCLogistics::SetUpBriefingScreen(int animate) -> int32_t
 
         if (briefing->ChatBlinking != 0 && briefing->ChatTimerOn == 0)
         {
-            Application->AddTimer(briefing, 5, 500, 0, 0, 0);
+            GuiSystem()->AddTimer(briefing, 5, 500, 0, 0, 0);
             briefing->ChatTimerOn = 1;
         }
 
@@ -6153,7 +6150,7 @@ auto MCLogistics::SetUpRepairScreen(int animate) -> int32_t
 {
     MCBriefingScreen* briefing = BriefingScreen;
     briefing->StopSmackerMovies();
-    Application->SetCurrentCursor(static_cast<MCCursorType>(0));
+    GuiSystem()->SetCurrentCursor(static_cast<MCCursorType>(0));
 
     if (MPlayer != nullptr)
     {
@@ -6163,13 +6160,13 @@ auto MCLogistics::SetUpRepairScreen(int animate) -> int32_t
         {
             if (repair->ChatBlinking != 0)
             {
-                Application->RemoveTimer(repair, 8);
+                GuiSystem()->RemoveTimer(repair, 8);
                 repair->ChatBlinking = 0;
             }
         }
         else if (repair->ChatBlinking == 0)
         {
-            Application->AddTimer(repair, 8, 0xfa, 0, 0, 0);
+            GuiSystem()->AddTimer(repair, 8, 0xfa, 0, 0, 0);
             repair->ChatBlinking = 1;
         }
     }
@@ -6402,7 +6399,7 @@ auto MCLogistics::LoadCampaign(char* campaignFile, char* saveFile, int newCampai
     BriefingScreen->ButtonsLocked = 0;
     char text[0x100];
     std::snprintf(text, sizeof(text), "%slogart\\lsrupm05.tga", ArtPath);
-    Application->ActivatePaletteFromTga(text);
+    GuiSystem()->ActivatePaletteFromTga(text);
 
     // Start from empty lists and inventories.
     MechList->Destroy();
@@ -8833,7 +8830,7 @@ auto MCLogistics::GetCurrentMission() -> void
     const int32_t paneWidth = briefing->MissionPane->Width();
     char text[0x100];
     std::snprintf(text, sizeof(text), "%s%s", MissionPath, briefingFile);
-    int32_t height = Application->TextFormatter.Init(text, nullptr, paneWidth - 0x11);
+    int32_t height = GuiSystem()->TextFormatter.Init(text, nullptr, paneWidth - 0x11);
     auto* textPort = new MCLogPort;
 
     if (height < 0xbf)
@@ -8843,7 +8840,7 @@ auto MCLogistics::GetCurrentMission() -> void
 
     textPort->Init(paneWidth - 0x11, height, 1);
     VfxPaneWipe(textPort->Frame(), 0xff);
-    Application->TextFormatter.Init(text, textPort, 0);
+    GuiSystem()->TextFormatter.Init(text, textPort, 0);
     delete briefing->MissionPort;
     briefing->MissionPort = new MCLogPort;
     briefing->MissionPort->Init(0xb3, height + 10, 1);
@@ -9366,17 +9363,17 @@ auto MCLogistics::HandleChatMessage(uint32_t playerID, const void* message) -> v
     {
         if (shown == briefing && briefing->ChatTimerOn == 0)
         {
-            Application->AddTimer(briefing, 5, 0xfa, 0, 0, 0);
+            GuiSystem()->AddTimer(briefing, 5, 0xfa, 0, 0, 0);
             briefing->ChatTimerOn = 1;
         }
         else if (shown == PurchaseScreen && PurchaseScreen->ChatBlinking == 0)
         {
-            Application->AddTimer(PurchaseScreen, 7, 0xfa, 0, 0, 0);
+            GuiSystem()->AddTimer(PurchaseScreen, 7, 0xfa, 0, 0, 0);
             PurchaseScreen->ChatBlinking = 1;
         }
         else if (shown == RepairScreen && RepairScreen->ChatBlinking == 0)
         {
-            Application->AddTimer(RepairScreen, 8, 0xfa, 0, 0, 0);
+            GuiSystem()->AddTimer(RepairScreen, 8, 0xfa, 0, 0, 0);
             RepairScreen->ChatBlinking = 1;
         }
 
@@ -9493,7 +9490,7 @@ auto MCLogistics::HandleLostPlayer(uint32_t playerID, int) -> void
     MCReusableDialog* dialog = MessageDialog;
 
     // A dialog already up whose button exits keeps showing; the message follows once it is answered.
-    if (dialog->IsShowing() != 0 && dialog->OkButton->Callback()->Exec == DoExit)
+    if (dialog->IsShowing() != 0 && dialog->OkButton->Callback()->Runs(DoExit))
     {
         dialog->Callback = LostPlayerHandler;
         return;

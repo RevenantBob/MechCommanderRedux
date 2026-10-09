@@ -2,7 +2,7 @@
 #include "abl/MCAblRoutineList.h"
 #include "abl/MCAblDebugger.h"
 #include "ai/MCMoveSystem.h"
-#include "gui/asystem.h"
+#include "gui/MCGuiSystem.h"
 #include "gui/atextbox.h"
 #include "iface/MCTacticalInterface.h"
 #include "lib/MCDice.h"

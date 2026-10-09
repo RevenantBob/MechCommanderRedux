@@ -58,7 +58,7 @@ public:
     /// <summary>The tabs (operation, mission, deploy), the launch and screen buttons, drops, cheat keys and timers.</summary>
     void HandleEvent(MCGuiEvent* event) override;
 
-    void ShowGuiWindow(int show) override;
+    void ShowGuiWindow(bool show) override;
 
     /// <summary>Shows the operation tab and starts its movie (or, in multiplayer, the chat).</summary>
     void SetUpOperation();
@@ -225,7 +225,7 @@ public:
 };
 
 /// <summary>The logistics art folder (<c>data\art\</c>...), prefixed to every image name.</summary>
-extern char ArtPath[];
+extern char ArtPath[80];
 
 /// <summary>Nonzero once the briefing movie (or an intro movie window) has finished.</summary>
 extern int MovieOver;

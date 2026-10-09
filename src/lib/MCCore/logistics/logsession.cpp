@@ -1,6 +1,6 @@
 #include "stdafx.h"
 #include "logistics/logsession.h"
-#include "gui/afont.h"
+#include "gui/MCGuiFont.h"
 #include "lib/MCFatal.h"
 #include "lib/MCIDString.h"
 #include "lib/MCFile.h"
@@ -146,9 +146,9 @@ void LToolButtonEventHandler(MCGuiObject* object, MCGuiEvent* event)
     }
     else if (event->Type == 4)
     {
-        if (Application->GrabbedObject() != nullptr)
+        if (GuiSystem()->GrabbedObject() != nullptr)
         {
-            Application->Release();
+            GuiSystem()->Release();
         }
     }
 }
@@ -172,7 +172,7 @@ void LScreenSwitchEventHandler(MCGuiObject* object, MCGuiEvent* event)
 
 // lToolButton
 
-auto MCLogToolButton::Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, char* name) -> int32_t
+auto MCLogToolButton::Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, const char* name) -> int32_t
 {
     Toggled = 0;
     int32_t result = MCLogButton::Init(xPos, yPos, width, height, name);
@@ -247,8 +247,8 @@ auto MCLogSpinnerButton::HandleEvent(MCGuiEvent* event) -> void
             {
                 // Run the callback now, then repeat it after half a second held.
                 Toggled = -1;
-                Application->Grab(this);
-                Application->AddTimer(this, 1, 500, 0, 0, 0);
+                GuiSystem()->Grab(this);
+                GuiSystem()->AddTimer(this, 1, 500, 0, 0, 0);
                 ButtonCallback->Execute();
                 sample = PressSound;
             }
@@ -260,17 +260,17 @@ auto MCLogSpinnerButton::HandleEvent(MCGuiEvent* event) -> void
         case 4:
         {
             Toggled = 0;
-            Application->Release();
-            Application->RemoveTimer(this, 1);
-            Application->RemoveTimer(this, 2);
+            GuiSystem()->Release();
+            GuiSystem()->RemoveTimer(this, 1);
+            GuiSystem()->RemoveTimer(this, 2);
             break;
         }
         case 0x13:
         {
             if (event->Data == 1)
             {
-                Application->RemoveTimer(this, 1);
-                Application->AddTimer(this, 2, 100, 0, 0, 0);
+                GuiSystem()->RemoveTimer(this, 1);
+                GuiSystem()->AddTimer(this, 2, 100, 0, 0, 0);
             }
 
             if (event->Data == 2)
@@ -301,7 +301,7 @@ auto MCLogSpinnerButton::Draw() -> void
 
 // lChatInput
 
-auto MCLogChatInput::Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, char* newText) -> int32_t
+auto MCLogChatInput::Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, const char* newText) -> int32_t
 {
     int32_t result = MCLogObject::Init(xPos, yPos, width, height, nullptr, nullptr);
     Assert(result == 0, static_cast<uint32_t>(result), " Couldn't init chatsend window");
@@ -354,22 +354,22 @@ auto MCLogChatInput::Draw() -> void
     {
         // The first line leaves room for the team button.
         int32_t lineLength = static_cast<int32_t>(std::strlen(Text));
-        int32_t fits = Font->CharactersToWidth(line, Width() - 0x18, 0);
+        int32_t fits = Font->CharactersToWidth(reinterpret_cast<const char*>(line), Width() - 0x18, 0);
 
         while (fits > 0 && fits < lineLength)
         {
             uint8_t* next = line + fits;
             const uint8_t saved = *next;
             *next = 0;
-            Font->WriteString(_OwnPort->Frame(), 0x14, lineY, line, -1);
+            Font->WriteString(_OwnPort->Frame(), 0x14, lineY, reinterpret_cast<const char*>(line), -1);
             *next = saved;
             lineLength = static_cast<int32_t>(std::strlen(reinterpret_cast<char*>(next)));
-            fits = Font->CharactersToWidth(next, Width() - 0x14, -1);
+            fits = Font->CharactersToWidth(reinterpret_cast<const char*>(next), Width() - 0x14, true);
             lineY += 3 + Font->Height();
             line = next;
         }
 
-        Font->WriteString(_OwnPort->Frame(), 0x14, lineY, line, -1);
+        Font->WriteString(_OwnPort->Frame(), 0x14, lineY, reinterpret_cast<const char*>(line), -1);
     }
 
     // The caret, which the original's display drew into the picture each frame: a vertical line a text line high.
@@ -394,11 +394,11 @@ auto MCLogChatInput::HandleEvent(MCGuiEvent* event) -> void
     switch (event->Type)
     {
         case 1:
-            Application->SetText(this);
+            GuiSystem()->SetText(this);
             break;
         case 10:
         {
-            if (Application->TextObject() != this)
+            if (GuiSystem()->TextObject() != this)
             {
                 break;
             }
@@ -465,11 +465,11 @@ auto MCLogChatInput::HandleEvent(MCGuiEvent* event) -> void
         {
             if (event->Data == 7)
             {
-                Application->AddTimer(this, 0, MCPort::CaretBlinkTime(), 0, 0, 0);
+                GuiSystem()->AddTimer(this, 0, MCPort::CaretBlinkTime(), 0, 0, 0);
             }
             else if (event->Data == 8)
             {
-                Application->RemoveTimer(this, 0);
+                GuiSystem()->RemoveTimer(this, 0);
             }
             break;
         }
@@ -498,17 +498,17 @@ auto MCLogChatInput::SetCursorPos(int32_t position) -> void
     if (Text[0] != 0)
     {
         int32_t lineLength = static_cast<int32_t>(std::strlen(Text));
-        int32_t fits = Font->CharactersToWidth(line, Width() - 0x18, 0);
+        int32_t fits = Font->CharactersToWidth(reinterpret_cast<const char*>(line), Width() - 0x18, 0);
 
         while (fits > 0 && fits < lineLength)
         {
             line += fits;
             lineLength = static_cast<int32_t>(std::strlen(reinterpret_cast<char*>(line)));
-            fits = Font->CharactersToWidth(line, Width() - 0x14, 0);
+            fits = Font->CharactersToWidth(reinterpret_cast<const char*>(line), Width() - 0x14, 0);
             CursorY += Font->Height() + 3;
         }
 
-        CursorX = Font->Width(line) + 0x15;
+        CursorX = Font->Width(reinterpret_cast<const char*>(line)) + 0x15;
     }
 
     if (saved != 0)
@@ -519,7 +519,7 @@ auto MCLogChatInput::SetCursorPos(int32_t position) -> void
 
 // PlayerNameObject
 
-auto MCPlayerNameObject::Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, char* name) -> int32_t
+auto MCPlayerNameObject::Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, const char* name) -> int32_t
 {
     if (PlayerName != nullptr)
     {
@@ -562,9 +562,9 @@ auto MCPlayerNameObject::Draw() -> void
     FillBox(0x14, 1, static_cast<int16_t>(Width() - 1), bottom, color);
 
     // The name is left out while it is dragged.
-    if (Font != nullptr && Application->GrabbedObject() != this)
+    if (Font != nullptr && GuiSystem()->GrabbedObject() != this)
     {
-        Font->WriteString(_OwnPort->Frame(), 0x1b, 2, reinterpret_cast<uint8_t*>(PlayerName), -1);
+        Font->WriteString(_OwnPort->Frame(), 0x1b, 2, PlayerName, -1);
     }
 }
 
@@ -583,20 +583,20 @@ auto MCPlayerNameObject::HandleEvent(MCGuiEvent* event) -> void
                     grabX = 0x14;
                 }
 
-                Application->Grab(this);
+                GuiSystem()->Grab(this);
                 StartDrag(grabX, event->Y - Y());
             }
             break;
         }
         case 4:
         {
-            if (Application->GrabbedObject() == this)
+            if (GuiSystem()->GrabbedObject() == this)
             {
-                Application->Release();
+                GuiSystem()->Release();
                 ShowGuiWindow(0);
                 // The original looks up the object under the drop and drops the result.
-                ScreenWindow->FindObject(event->X, event->Y);
-                ShowGuiWindow(-1);
+                ScreenWindow()->FindObject(event->X, event->Y);
+                ShowGuiWindow(true);
                 // Tell the session screen where the name was dropped.
                 MCGuiEvent dropped;
                 dropped.Clear();
@@ -608,7 +608,7 @@ auto MCPlayerNameObject::HandleEvent(MCGuiEvent* event) -> void
         }
         case 7:
         {
-            if (Application->GrabbedObject() == this)
+            if (GuiSystem()->GrabbedObject() == this)
             {
                 MoveTo(event->X - DragStartX(), event->Y - DragStartY(), 0);
             }
@@ -701,7 +701,7 @@ void StartMissionCallback()
     char missionName[256];
     SplitFileName(GlobalLogPtr->SessionScreen->MissionFile, missionName, sizeof(missionName));
     SendFileName(FIMSG_GUARANTEED | MPMSG_START, missionName);
-    Application->RemoveTimer(GlobalLogPtr->SessionScreen, 0);
+    GuiSystem()->RemoveTimer(GlobalLogPtr->SessionScreen, 0);
     MPlayer->SessionManager->SendLatencyInfo();
     SoundSystem()->PlayBettySample(0x19);
     GlobalLogPtr->InitializeMultiplayer();
@@ -800,7 +800,7 @@ MCMPPlayerLights::~MCMPPlayerLights()
 
 // SessionScreen
 
-auto MCSessionScreen::Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, char* name) -> int32_t
+auto MCSessionScreen::Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, const char* name) -> int32_t
 {
     int32_t result = MCLogObject::Init(xPos, yPos, width, height, name, nullptr);
     SetPaintRoutine(SessionScreenDrawRoutine);
@@ -860,7 +860,7 @@ auto MCSessionScreen::Init(int32_t xPos, int32_t yPos, int32_t width, int32_t he
         Assert(result == 0, static_cast<uint32_t>(result), " Error initing load button art on session screen ");
         result = button->SetGrayPicture(Art("ses_bn_map.tga"));
         Assert(result == 0, static_cast<uint32_t>(result), " Error initing load button art on session screen ");
-        button->SetTransparent(-1);
+        button->SetTransparent(true);
         AddChild(button);
     }
 
@@ -882,7 +882,7 @@ auto MCSessionScreen::Init(int32_t xPos, int32_t yPos, int32_t width, int32_t he
         Assert(result == 0, static_cast<uint32_t>(result), " Error initing load button art on session screen ");
         AddChild(button);
         StartButton->Disabled = -1;
-        StartButton->SetTransparent(-1);
+        StartButton->SetTransparent(true);
     }
 
     // The mission description.
@@ -967,7 +967,7 @@ auto MCSessionScreen::Init(int32_t xPos, int32_t yPos, int32_t width, int32_t he
                 techButton->Toggled = -1;
             }
 
-            techButton->SetTransparent(-1);
+            techButton->SetTransparent(true);
             techButton->PressSound = 0xf;
             AddChild(techButton);
         }
@@ -983,18 +983,8 @@ auto MCSessionScreen::Init(int32_t xPos, int32_t yPos, int32_t width, int32_t he
     Team2ClanButton = makeTechButton(0x23b, 2, -1, -1);
 
     // Where names can be dropped: team 1's three slots, then team 2's.
-    NumDropTargets = 6;
-    DropTargets = new tagRECT[6];
-
-    if (DropTargets != nullptr)
-    {
-        DropTargets[0] = {0xf7, 0x132, 0x199, 0x144};
-        DropTargets[1] = {0xf7, 0x148, 0x199, 0x15a};
-        DropTargets[2] = {0xf7, 0x15d, 0x199, 0x16f};
-        DropTargets[3] = {0x1b9, 0x132, 0x25b, 0x144};
-        DropTargets[4] = {0x1b9, 0x148, 0x25b, 0x15a};
-        DropTargets[5] = {0x1b9, 0x15d, 0x25a, 0x16f};
-    }
+    DropTargets = {{0xf7, 0x132, 0x199, 0x144},  {0xf7, 0x148, 0x199, 0x15a},  {0xf7, 0x15d, 0x199, 0x16f},
+                   {0x1b9, 0x132, 0x25b, 0x144}, {0x1b9, 0x148, 0x25b, 0x15a}, {0x1b9, 0x15d, 0x25a, 0x16f}};
 
     // The six name slots, each with its player number picture.
     int32_t number = 0;
@@ -1008,7 +998,7 @@ auto MCSessionScreen::Init(int32_t xPos, int32_t yPos, int32_t width, int32_t he
         AddChild(nameObject);
         nameObject->MoveTo(0xb, slotY, 0);
         nameObject->ShowGuiWindow(0);
-        nameObject->SetTransparent(-1);
+        nameObject->SetTransparent(true);
         ++number;
         // The original wiped the name's picture to the screen's background colour and pasted the number there; the
         // name draws them each frame.
@@ -1017,7 +1007,7 @@ auto MCSessionScreen::Init(int32_t xPos, int32_t yPos, int32_t width, int32_t he
     }
 
     SetBackground(Art("ses_bk00.tga"));
-    ScreenWindow->AddChild(this);
+    ScreenWindow()->AddChild(this);
     ShowGuiWindow(0);
     NumUnassigned = 0;
     return 0;
@@ -1065,11 +1055,7 @@ auto MCSessionScreen::Destroy() -> void
         release(nameObject);
     }
 
-    if (DropTargets != nullptr)
-    {
-        delete[] DropTargets;
-        DropTargets = nullptr;
-    }
+    DropTargets.clear();
 
     // Original behaviour: the mission name isn't freed here (the logistics heap goes with the logistics object).
     if (MissionFile != nullptr)
@@ -1098,12 +1084,12 @@ auto MCSessionScreen::Draw() -> void
     MCLogObject::Draw();
     MCLogPort* port = _OwnPort;
     DrawMap(port->Frame());
-    MedWhiteFont->WriteString(port->Frame(), 0x180, 199, reinterpret_cast<uint8_t*>(MissionName), -1);
-    MedWhiteFont->WriteString(port->Frame(), 0x180, 0xe3, reinterpret_cast<uint8_t*>(MapName), -1);
+    MedWhiteFont->WriteString(port->Frame(), 0x180, 199, MissionName, -1);
+    MedWhiteFont->WriteString(port->Frame(), 0x180, 0xe3, MapName, -1);
     char noLabel[256];
     CLoadString(ThisInstance, 0x37f, noLabel, 0xfe);
     char* label = MissionLabel[0] != 0 ? MissionLabel : noLabel;
-    MedWhiteFont->WriteString(port->Frame(), 0x20e, 199, reinterpret_cast<uint8_t*>(label), -1);
+    MedWhiteFont->WriteString(port->Frame(), 0x20e, 199, label, -1);
 
     // Each team's resource points per player.
     if (MPlayer->ClanGroupID == 0)
@@ -1128,7 +1114,7 @@ auto MCSessionScreen::Draw() -> void
 
     char text[12];
     std::snprintf(text, sizeof(text), "%d", static_cast<int32_t>(std::atol(Team1RPText->Buffer) / divisor));
-    LgWhiteFont->WriteString(port->Frame(), 0x157, 0x185, reinterpret_cast<uint8_t*>(text), -1);
+    LgWhiteFont->WriteString(port->Frame(), 0x157, 0x185, text, -1);
     group = MPlayer->SessionManager->GetGroup(MPlayer->ClanGroupID);
 
     if (group != nullptr)
@@ -1143,7 +1129,7 @@ auto MCSessionScreen::Draw() -> void
     }
 
     std::snprintf(text, sizeof(text), "%d", static_cast<int32_t>(std::atol(Team2RPText->Buffer) / divisor));
-    LgWhiteFont->WriteString(port->Frame(), 0x219, 0x185, reinterpret_cast<uint8_t*>(text), -1);
+    LgWhiteFont->WriteString(port->Frame(), 0x219, 0x185, text, -1);
     GlobalLogPtr->DrawScreenChrome(this, port->Frame());
 }
 
@@ -1155,7 +1141,7 @@ auto MCSessionScreen::HandleEvent(MCGuiEvent* event) -> void
         {
             if (MPlayer == nullptr)
             {
-                Application->RemoveTimer(this, 0);
+                GuiSystem()->RemoveTimer(this, 0);
             }
             else
             {
@@ -1345,7 +1331,7 @@ auto MCSessionScreen::Activate(int refresh) -> void
     {
         MCPlayerNameObject* nameObject = PlayerNames[index];
         nameObject->SetPlayerId(ids[index]);
-        nameObject->ShowGuiWindow(-1);
+        nameObject->ShowGuiWindow(true);
         nameObject->Draggable = 0;
         AssignPlayer(ids[index], 0, 0, -1);
         GlobalLogPtr->PlayerLights->SetPlayerID(index, ids[index]);
@@ -1393,7 +1379,7 @@ auto MCSessionScreen::Activate(int refresh) -> void
         }
 
         AddChild(chatWindow);
-        chatWindow->ShowGuiWindow(-1);
+        chatWindow->ShowGuiWindow(true);
     }
 
     MCTicker* ticker = GlobalLogPtr->Ticker;
@@ -1412,7 +1398,7 @@ auto MCSessionScreen::Activate(int refresh) -> void
         ticker->SetPos(3, 3);
     }
 
-    Application->AddTimer(this, 0, 500, 0, 0, 0);
+    GuiSystem()->AddTimer(this, 0, 500, 0, 0, 0);
     MPlayer->ChatCallback = LogisticsChatCallback;
 }
 
@@ -1740,7 +1726,7 @@ auto MCSessionScreen::FileReport(uint32_t playerId, int haveFile) -> void
     if (allHave != 0)
     {
         // Everyone has it: the waiting dialog closes itself.
-        Application->AddTimer(dialog, 0, 1000, 0, 0, 0);
+        GuiSystem()->AddTimer(dialog, 0, 1000, 0, 0, 0);
         dialog->OkButton->Callback()->SetExec(nullptr);
         CheckGoodToGo();
         return;

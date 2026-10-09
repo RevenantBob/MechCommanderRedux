@@ -15,7 +15,7 @@ class MCLogDialogButton : public MCLogButton
 public:
     ~MCLogDialogButton() override = default;
 
-    int32_t Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, char* name) override;
+    int32_t Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, const char* name) override;
 
     /// <summary>
     /// Shows the gray, pressed or up picture, keyed (or a plain fill when it has none). Port: drawn each frame from
@@ -188,7 +188,7 @@ public:
     ~MCReusableDialog() override { Destroy(); }
 
     /// <summary>Loads the frame pieces (<c>dbox_top/middle/bottom</c>), centres the dialog and makes the two buttons.</summary>
-    int32_t Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, char* name) override;
+    int32_t Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, const char* name) override;
 
     void Destroy() override;
 
@@ -257,7 +257,7 @@ public:
     /// <returns>The y of the last line written.</returns>
     int32_t WrapText(char* string, int32_t yPos);
 
-    int32_t Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, char* name) override;
+    int32_t Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, const char* name) override;
 
     /// <summary>The number of items in the list.</summary>
     int32_t NumItems = 0;

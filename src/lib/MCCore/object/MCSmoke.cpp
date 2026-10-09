@@ -3,7 +3,7 @@
 #include "camera/MCCamera.h"
 #include "engine/MCElementBuffer.h"
 #include "engine/MCVfxElement.h"
-#include "gui/asystem.h"
+#include "gui/MCGuiSystem.h"
 #include "lib/MCFatal.h"
 #include "lib/MCFrameOfRef.h"
 #include "lib/MCDice.h"

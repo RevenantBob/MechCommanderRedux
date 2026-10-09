@@ -17,7 +17,7 @@ public:
     ~MCAblDebuggerWindow() override;
 
     /// <summary>Creates the window, its output pane ("ABL Out") and its command box.</summary>
-    int32_t Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, char* name) override;
+    int32_t Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, const char* name) override;
 
     /// <summary>Destroys the command box and the output pane, then the window.</summary>
     void Destroy() override;

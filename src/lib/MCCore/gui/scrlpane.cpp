@@ -1,6 +1,6 @@
 #include "stdafx.h"
 #include "gui/scrlpane.h"
-#include "gui/afont.h"
+#include "gui/MCGuiFont.h"
 #include "lib/MCFatal.h"
 #include "logistics/logbri.h"
 #include "logistics/logmain.h"
@@ -68,7 +68,7 @@ auto MCScrollPane::Init() -> void
     SliderMax = 0;
 }
 
-auto MCScrollPane::Init(int32_t width, int32_t height, int32_t xPos, int32_t yPos, char* name) -> int32_t
+auto MCScrollPane::Init(int32_t width, int32_t height, int32_t xPos, int32_t yPos, const char* name) -> int32_t
 {
     MCLogPort* background = nullptr;
 
@@ -110,7 +110,7 @@ auto MCScrollPane::Init(int32_t width, int32_t height, int32_t xPos, int32_t yPo
 
         BackgroundCopy = new MCLogPort;
         BackgroundCopy->Init(background->Width(), background->Height(), -1);
-        background->CopyTo(BackgroundCopy->Frame(), 0, 0, -1);
+        background->CopyTo(BackgroundCopy->Frame(), 0, 0, true);
     }
 
     int32_t result = MCLogObject::Init(xPos, yPos, width, height, nullptr, content);
@@ -139,16 +139,16 @@ auto MCScrollPane::Init(int32_t width, int32_t height, int32_t xPos, int32_t yPo
 
     for (int32_t i = 0; i < numTiles; i++)
     {
-        art->CopyTo(slider->Frame(), 0, art->Height() * i + 1, -1);
+        art->CopyTo(slider->Frame(), 0, art->Height() * i + 1, true);
     }
 
     sprintf(fileName, "%slogart\\supbup.tga", ArtPath);
     art->Init(fileName);
-    art->CopyTo(slider->Frame(), 0, 0, -1);
+    art->CopyTo(slider->Frame(), 0, 0, true);
     art->Destroy();
     sprintf(fileName, "%slogart\\sdnbup.tga", ArtPath);
     art->Init(fileName);
-    art->CopyTo(slider->Frame(), 0, height - 15, -1);
+    art->CopyTo(slider->Frame(), 0, height - 15, true);
 
     if (art != nullptr)
     {
@@ -286,7 +286,7 @@ auto MCScrollPane::Draw() -> void
 
     if (BackgroundCopy != nullptr)
     {
-        BackgroundCopy->CopyTo(view, 0, 0, -1);
+        BackgroundCopy->CopyTo(view, 0, 0, true);
     }
 
     if (ContentPort != nullptr)
@@ -302,7 +302,7 @@ auto MCScrollPane::Draw() -> void
         }
         else
         {
-            ContentPort->CopyTo(view, 0, offset, -1);
+            ContentPort->CopyTo(view, 0, offset, true);
         }
     }
 
@@ -352,7 +352,7 @@ auto MCScrollPane::HeldArrow() const -> int32_t
 {
     // An arrow shows held only while the content scrolls (the original put its art in the column when it erased
     // the slider, and there is none to erase when the content fits).
-    if (SliderHeight == 0 || Application->GrabbedObject() != this)
+    if (SliderHeight == 0 || GuiSystem()->GrabbedObject() != this)
     {
         return 0;
     }
@@ -535,7 +535,7 @@ auto MCScrollPane::HandleEvent(MCGuiEvent* event) -> void
                 return;
             }
 
-            Application->Grab(this);
+            GuiSystem()->Grab(this);
             int32_t mouseY = event->Y;
 
             if (GlobalY() + 0x10 <= mouseY)
@@ -565,7 +565,7 @@ auto MCScrollPane::HandleEvent(MCGuiEvent* event) -> void
                 }
 
                 // The down arrow.
-                Application->AddTimer(this, 6, 200, 0, 0, 0);
+                GuiSystem()->AddTimer(this, 6, 200, 0, 0, 0);
 
                 if (this->Child(0) == nullptr)
                 {
@@ -586,7 +586,7 @@ auto MCScrollPane::HandleEvent(MCGuiEvent* event) -> void
 
             // The up arrow.
             ArrowPressed = 1;
-            Application->AddTimer(this, 6, 200, 0, 0, 0);
+            GuiSystem()->AddTimer(this, 6, 200, 0, 0, 0);
 
             if (this->Child(0) == nullptr)
             {
@@ -609,11 +609,11 @@ auto MCScrollPane::HandleEvent(MCGuiEvent* event) -> void
 
         case 4:
         {
-            Application->RemoveTimer(this, 6);
+            GuiSystem()->RemoveTimer(this, 6);
 
-            if (Application->GrabbedObject() != nullptr)
+            if (GuiSystem()->GrabbedObject() != nullptr)
             {
-                Application->Release();
+                GuiSystem()->Release();
                 DraggingSlider = 0;
                 DragY = -1;
             }
@@ -639,7 +639,7 @@ auto MCScrollPane::HandleEvent(MCGuiEvent* event) -> void
 
         case 7:
         {
-            if (Application->GrabbedObject() != nullptr)
+            if (GuiSystem()->GrabbedObject() != nullptr)
             {
                 if (ArrowPressed != 0 || DraggingSlider == 0)
                 {

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "gui/abutton.h"
+#include "gui/MCGuiButton.h"
 #include "iface/MCInterfaceTypes.h"
 
 /// <summary>

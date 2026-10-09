@@ -1,7 +1,7 @@
 #include "stdafx.h"
 #include "terrain/MCVideoWindow.h"
 #include "engine/MCFont.h"
-#include "gui/aport.h"
+#include "gui/MCGuiPort.h"
 #include "iface/MCMechBar.h"
 #include "iface/MCTacticalInterface.h"
 #include "main/main.h"
@@ -12,7 +12,7 @@
 #include "terrain/MCTerrain.h"
 #include "vfx/MCVfxFunctions.h"
 
-auto MCVideoWindow::Init(int32_t xPos, int32_t yPos, int32_t w, int32_t h, char* fileName) -> int32_t
+auto MCVideoWindow::Init(int32_t xPos, int32_t yPos, int32_t w, int32_t h, const char* fileName) -> int32_t
 {
     Star = nullptr;
     return MCGuiObject::Init(xPos, yPos, w, h, fileName);
@@ -23,7 +23,7 @@ auto MCVideoWindow::Draw() -> void
     // The picture (the original painted it when no pilot spoke, and a name stayed over it until then).
     if (BackgroundPort != nullptr)
     {
-        BackgroundPort->CopyTo(DisplayPort->Frame(), 0, 0, -1);
+        BackgroundPort->CopyTo(DisplayPort->Frame(), 0, 0, true);
     }
 
     if (Star == nullptr)
@@ -32,12 +32,12 @@ auto MCVideoWindow::Draw() -> void
     }
 
     // The pilot's name.
-    LineFont->Scaled = 0;
-    LineFont->Scale = 1.0f;
+    LineFont()->Scaled = 0;
+    LineFont()->Scale = 1.0f;
     FillBox(1, 1, static_cast<int16_t>(Width() - 2), 0xb, 0x10);
-    LineFont->Print(3, 3, Star->Callsign, 0xe3, DisplayPort->Frame());
-    LineFont->Scale = 2.0f;
-    LineFont->Scaled = 1;
+    LineFont()->Print(3, 3, Star->Callsign, 0xe3, DisplayPort->Frame());
+    LineFont()->Scale = 2.0f;
+    LineFont()->Scaled = 1;
 }
 
 auto MCVideoWindow::Update() -> void

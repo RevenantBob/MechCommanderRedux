@@ -26,7 +26,7 @@ public:
     void HandleEvent(MCGuiEvent* event) override;
 
     /// <summary>Shows or hides the screen and its panes.</summary>
-    void ShowGuiWindow(int show) override;
+    void ShowGuiWindow(bool show) override;
 
     /// <summary>The store's mech blocks, shown in the unit pane (made by <c>LogInvScreen::createPurVehiclePane</c>).</summary>
     MCLogPort* PurMechPort = nullptr;

@@ -3,8 +3,8 @@
 #include "camera/MCCamera.h"
 #include "camera/MCCameraList.h"
 #include "engine/MCFont.h"
-#include "gui/aport.h"
-#include "gui/asystem.h"
+#include "gui/MCGuiPort.h"
+#include "gui/MCGuiSystem.h"
 #include "lib/MCFatal.h"
 #include "mission/MCScenario.h"
 #include "terrain/MCTerrain.h"
@@ -43,10 +43,10 @@ MCMainWindow::~MCMainWindow() = default;
 auto MCMainWindow::Init() -> int32_t
 {
     LastClockTime = -1.0f;
-    return Init(0, 0, Application->Width(), Application->Height(), nullptr);
+    return Init(0, 0, GuiSystem()->Width(), GuiSystem()->Height(), nullptr);
 }
 
-auto MCMainWindow::Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, char* name) -> int32_t
+auto MCMainWindow::Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, const char* name) -> int32_t
 {
     const int32_t result = MCGuiHolderObject::Init(xPos, yPos, width, height, name);
 
@@ -56,9 +56,9 @@ auto MCMainWindow::Init(int32_t xPos, int32_t yPos, int32_t width, int32_t heigh
     }
 
     ClockPane = MCMakeGui<MCGuiObject>();
-    LineFont->Scale = 1.5f;
-    LineFont->Scaled = 1;
-    const int32_t clockHeight = WhiteFont == nullptr ? 24 : LineHeight(*LineFont) + 4;
+    LineFont()->Scale = 1.5f;
+    LineFont()->Scaled = 1;
+    const int32_t clockHeight = WhiteFont == nullptr ? 24 : LineHeight(*LineFont()) + 4;
     ClockPane->Init(0, 0, 40, clockHeight, nullptr);
     ClockPane->SetBackColor(0x10);
     Retile();
@@ -76,7 +76,7 @@ auto MCMainWindow::HandleEvent(MCGuiEvent* event) -> void
 {
     if (event->Type == 0x12)
     {
-        Resize(Application->Width(), Application->Height());
+        Resize(GuiSystem()->Width(), GuiSystem()->Height());
     }
 
     MCGuiObject::HandleEvent(event);
@@ -101,9 +101,9 @@ auto MCMainWindow::Display() -> void
     MCGuiObject* pane = ClockPane.get();
     VfxPaneWipe(pane->Port()->Frame(), pane->BackColor());
     pane->DrawBox(0x1f, -1, -1, -1, -1);
-    LineFont->Scaled = 1;
-    LineFont->Scale = 1.5f;
-    const uint8_t fontHeight = LineHeight(*LineFont);
+    LineFont()->Scaled = 1;
+    LineFont()->Scale = 1.5f;
+    const uint8_t fontHeight = LineHeight(*LineFont());
     const int32_t paneHeight = pane->Height();
     std::string clock;
     int32_t textColor = 0x1f;
@@ -122,9 +122,9 @@ auto MCMainWindow::Display() -> void
         clock = std::format("{:02}:{:02}", minutes, seconds);
     }
 
-    const int32_t textWidth = LineFont->PrintWidth(clock, 0);
+    const int32_t textWidth = LineFont()->PrintWidth(clock, 0);
     const int32_t x = (pane->Width() - textWidth) / 2 + 1;
-    LineFont->Print(x, (paneHeight - fontHeight) / 2 + 2, clock, textColor, pane->Port()->Frame());
+    LineFont()->Print(x, (paneHeight - fontHeight) / 2 + 2, clock, textColor, pane->Port()->Frame());
 }
 
 auto MCMainWindow::Retile() -> void
@@ -140,13 +140,13 @@ auto MCMainWindow::Retile() -> void
     ClockPane->MoveTo(-2 - ClockPane->Width() + pane->Right(), 2, 0);
 }
 
-auto MCMainWindow::SetVertical(int on) -> void
+auto MCMainWindow::SetVertical(bool on) -> void
 {
     Vertical = on;
     Retile();
 }
 
-auto MCMainWindow::SetTiled(int tiled) -> void
+auto MCMainWindow::SetTiled(bool tiled) -> void
 {
     if (tiled != 0 && GetInactivePane() != nullptr)
     {

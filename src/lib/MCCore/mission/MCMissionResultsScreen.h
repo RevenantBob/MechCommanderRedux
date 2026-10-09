@@ -1,7 +1,7 @@
 #pragma once
 
 #include "gui/MCGuiOwned.h"
-#include "gui/asystem.h"
+#include "gui/MCGuiSystem.h"
 #include "mission/MCMissionResults.h"
 
 class MCGuiPort;

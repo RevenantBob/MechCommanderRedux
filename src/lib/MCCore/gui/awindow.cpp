@@ -2,8 +2,8 @@
 #include "gui/awindow.h"
 #include "camera/MCCamera.h"
 #include "engine/MCFont.h"
-#include "gui/afont.h"
-#include "gui/aport.h"
+#include "gui/MCGuiFont.h"
+#include "gui/MCGuiPort.h"
 #include "lib/MCFatal.h"
 #include "lib/MCFrameOfRef.h"
 #include "lib/MCVector2D.h"
@@ -170,8 +170,8 @@ namespace
     {
         // Port: the original cleared 640x480 bytes (0x96000 in 16-bit mode) of the surface; the port wipes the
         // screen at its real size, through the renderer.
-        MCPane screen{ScreenPort->Frame()->Window, 0, 0, ScreenPort->Frame()->Window->XMax,
-                      ScreenPort->Frame()->Window->YMax};
+        MCPane screen{ScreenPort()->Frame()->Window, 0, 0, ScreenPort()->Frame()->Window->XMax,
+                      ScreenPort()->Frame()->Window->YMax};
         VfxPaneWipe(&screen, 0);
     }
 
@@ -179,7 +179,7 @@ namespace
     void RemapToGamePalette(MCSmackTag* movie)
     {
         MCVfxRgb palette[256];
-        std::memcpy(palette, Application->CurrentPalette, sizeof(palette));
+        std::memcpy(palette, GuiSystem()->CurrentPalette.data(), sizeof(palette));
         movie->Player->ColorRemap(reinterpret_cast<const uint8_t*>(palette), 0x100);
     }
 }
@@ -254,19 +254,19 @@ auto HandleResizeButtonEvent(MCGuiObject* object, MCGuiEvent* event) -> void
         case 1: // left button down
         {
             MCInput::SetCapture();
-            Application->Grab(object);
+            GuiSystem()->Grab(object);
             break;
         }
         case 4: // left button up
         {
-            Application->Release();
+            GuiSystem()->Release();
             MCInput::ReleaseCapture();
             window->Draw();
             break;
         }
         case 7: // mouse move
         {
-            if (Application->GrabbedObject() == object)
+            if (GuiSystem()->GrabbedObject() == object)
             {
                 window->Resize(event->X - window->GlobalX(), event->Y - window->GlobalY());
                 window->Draw();
@@ -280,17 +280,17 @@ auto HandleSwoopyButtonEvent(MCGuiObject* object, MCGuiEvent* event) -> void
 {
     if (event->Type == 1)
     {
-        Application->Grab(object);
+        GuiSystem()->Grab(object);
         object->Draw();
     }
-    else if (event->Type == 4 && Application->GrabbedObject() == object && object->Parent != nullptr)
+    else if (event->Type == 4 && GuiSystem()->GrabbedObject() == object && object->Parent != nullptr)
     {
         MCGuiObject* window = object->Parent->Parent;
 
         if (window != nullptr && window->GetCamera() != nullptr)
         {
             window->GetCamera()->Swoopy = !window->GetCamera()->Swoopy;
-            Application->Release();
+            GuiSystem()->Release();
             object->Draw();
         }
     }
@@ -314,7 +314,7 @@ MCGuiTitleWindow::~MCGuiTitleWindow()
     MCGuiTitleWindow::Destroy();
 }
 
-auto MCGuiTitleWindow::Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, char* name) -> int32_t
+auto MCGuiTitleWindow::Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, const char* name) -> int32_t
 {
     int32_t result = MCGuiObject::Init(xPos, yPos, width, height, name);
 
@@ -407,7 +407,7 @@ auto MCGuiTitleWindow::Draw() -> void
 {
     VfxPaneWipe(DisplayPort->Frame(), BackColor());
 
-    if (Dragging() == 0 || WinState == 2)
+    if (Dragging() == 0 || WinState == MCGuiWindowState::Iconized)
     {
         MCGuiObject::Draw();
         return;
@@ -462,7 +462,7 @@ MCGuiTitleBar::MCGuiTitleBar()
 {
 }
 
-auto MCGuiTitleBar::Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, char* name) -> int32_t
+auto MCGuiTitleBar::Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, const char* name) -> int32_t
 {
     int32_t result = MCGuiObject::Init(xPos, yPos, width, height, name);
 
@@ -581,7 +581,7 @@ auto MCGuiTitleBar::HandleEvent(MCGuiEvent* event) -> void
                 ARedrawScreen();
             }
 
-            Application->Grab(this);
+            GuiSystem()->Grab(this);
             Parent->StartDrag(Parent->X(), Parent->Y());
             Parent->Draw();
             return;
@@ -589,13 +589,13 @@ auto MCGuiTitleBar::HandleEvent(MCGuiEvent* event) -> void
 
         case 4: // left button up: drop the window
         {
-            if (Application->GrabbedObject() != this)
+            if (GuiSystem()->GrabbedObject() != this)
             {
                 return;
             }
 
             MCGuiObject* window = Parent;
-            const tagRECT area = Application->ScrollRect;
+            const tagRECT area = GuiSystem()->ScrollRect;
             window->StopDrag();
 
             for (int16_t i = 9; i < window->NumberOfChildren(); i++)
@@ -608,8 +608,8 @@ auto MCGuiTitleBar::HandleEvent(MCGuiEvent* event) -> void
             window->MoveTo(mouseX - LastX, mouseY - LastY, 0);
             KeepTitleBarInside(this, area);
             Parent->Draw();
-            Application->Release();
-            MCGuiObject* under = ScreenWindow->FindObject(mouseX, mouseY);
+            GuiSystem()->Release();
+            MCGuiObject* under = ScreenWindow()->FindObject(mouseX, mouseY);
 
             if (under != nullptr)
             {
@@ -621,15 +621,15 @@ auto MCGuiTitleBar::HandleEvent(MCGuiEvent* event) -> void
 
         case 7: // mouse move: drag, unless over a depth-100 (modal) object
         {
-            if (Application->GrabbedObject() != this)
+            if (GuiSystem()->GrabbedObject() != this)
             {
                 return;
             }
 
             const int32_t mouseX = event->X;
             const int32_t mouseY = event->Y;
-            const tagRECT area = Application->ScrollRect;
-            MCGuiObject* under = ScreenWindow->FindObject(mouseX, mouseY);
+            const tagRECT area = GuiSystem()->ScrollRect;
+            MCGuiObject* under = ScreenWindow()->FindObject(mouseX, mouseY);
 
             if (under == nullptr || under->Depth() != 100)
             {
@@ -651,13 +651,13 @@ auto MCGuiTitleBar::HandleEvent(MCGuiEvent* event) -> void
 auto MCGuiTitleBar::Draw() -> void
 {
     VfxPaneWipe(DisplayPort->Frame(), BackColor());
-    MCGuiPort* barPort = DisplayPort;
+    MCGuiPort* barPort = DisplayPort.get();
     VfxLineDraw(barPort->Frame(), 0, 0, Width(), 0, 0xe);
     VfxLineDraw(barPort->Frame(), 0, 0, 0, 0xd, 0xe);
 
     if (Parent != nullptr)
     {
-        barPort = DisplayPort;
+        barPort = DisplayPort.get();
         VfxLineDraw(barPort->Frame(), 1, Height() - 1, Parent->Width() + 2, Height() - 1, 3);
     }
 
@@ -668,7 +668,7 @@ auto MCGuiTitleBar::Draw() -> void
         textX = ZoomButton->X() + ZoomButton->Width() + ZoomOutButton->Width() + 3;
     }
 
-    Font->WriteString(barPort->Frame(), textX, 3, reinterpret_cast<uint8_t*>(Title), -1);
+    Font->WriteString(barPort->Frame(), textX, 3, Title, -1);
     MCGuiObject::Draw();
 }
 
@@ -762,7 +762,7 @@ MCGuiMenu::MCGuiMenu()
 {
 }
 
-auto MCGuiMenu::ShowGuiWindow(int show) -> void
+auto MCGuiMenu::ShowGuiWindow(bool show) -> void
 {
     ShowWindow = show;
 
@@ -772,7 +772,7 @@ auto MCGuiMenu::ShowGuiWindow(int show) -> void
     }
 }
 
-auto MCGuiMenu::Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, char* name) -> int32_t
+auto MCGuiMenu::Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, const char* name) -> int32_t
 {
     Font = nullptr;
     NumItems = 0;
@@ -836,7 +836,7 @@ auto MCGuiMenu::HandleEvent(MCGuiEvent* event) -> void
         }
 
         ShowGuiWindow(0);
-        Application->Release();
+        GuiSystem()->Release();
     }
     else if (event->Type == 7)
     {
@@ -889,10 +889,10 @@ auto MCGuiMenu::Draw() -> void
 
             if (RightAligned != 0)
             {
-                textX = Width() + (-6 - Font->Width(reinterpret_cast<uint8_t*>(text)));
+                textX = Width() + (-6 - Font->Width(text));
             }
 
-            Font->WriteString(DisplayPort->Frame(), textX, itemY + 4, reinterpret_cast<uint8_t*>(text), -1);
+            Font->WriteString(DisplayPort->Frame(), textX, itemY + 4, text, -1);
             const char letter = ItemLetters[i];
 
             if (letter != 0)
@@ -916,9 +916,11 @@ auto MCGuiMenu::ResizeMenu() -> void
 
     for (int16_t i = 0; i < NumItems; i++)
     {
-        if (static_cast<double>(menuWidth) < static_cast<double>(Font->Width(text) + 4) * 1.25)
+        if (static_cast<double>(menuWidth) <
+            static_cast<double>(Font->Width(reinterpret_cast<const char*>(text)) + 4) * 1.25)
         {
-            menuWidth = static_cast<int32_t>(static_cast<double>(Font->Width(text) + 4) * 1.25);
+            menuWidth =
+                static_cast<int32_t>(static_cast<double>(Font->Width(reinterpret_cast<const char*>(text)) + 4) * 1.25);
         }
 
         text += MenuItemLength;
@@ -926,7 +928,7 @@ auto MCGuiMenu::ResizeMenu() -> void
 
     if (HasLetters != 0)
     {
-        menuWidth += 6 + Font->Width(reinterpret_cast<uint8_t*>(const_cast<char*>("W")));
+        menuWidth += 6 + Font->Width("W");
     }
 
     if (Width() == menuWidth && Height() == menuHeight)
@@ -1060,7 +1062,7 @@ auto MCGuiMenu::ChangeItemString(int16_t index, char* text) -> int32_t
 
 auto MCGuiMenu::KeepOnScreen() -> void
 {
-    const tagRECT area = Application->ScrollRect;
+    const tagRECT area = GuiSystem()->ScrollRect;
 
     if (X() < area.left)
     {
@@ -1127,7 +1129,7 @@ MCGuiToolBar::MCGuiToolBar()
 {
 }
 
-auto MCGuiToolBar::Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, char* name) -> int32_t
+auto MCGuiToolBar::Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, const char* name) -> int32_t
 {
     const int32_t result = MCGuiTitleWindow::Init(xPos, yPos, width, height, name);
     SetBackColor(0);
@@ -1245,7 +1247,7 @@ MCGuiWindowBar::MCGuiWindowBar()
 {
 }
 
-auto MCGuiWindowBar::Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, char* name) -> int32_t
+auto MCGuiWindowBar::Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, const char* name) -> int32_t
 {
     const int32_t result = MCGuiObject::Init(xPos, yPos, width, height, name);
     SetBackColor(0);
@@ -1433,7 +1435,7 @@ auto MCGuiSmackerWindow::Destroy() -> void
     delete MoviePane;
     MoviePane = nullptr;
     MCGuiObject::Destroy();
-    ScreenWindow->RemoveChild(this);
+    ScreenWindow()->RemoveChild(this);
 }
 
 auto MCGuiSmackerWindow::EndSmackerMovie() -> void
@@ -1458,7 +1460,7 @@ auto MCGuiSmackerWindow::CheckSmackerPalette() -> void
         return;
     }
 
-    Application->ActivateSmackerPalette(const_cast<uint8_t*>(Movie->Player->Palette().data()));
+    GuiSystem()->ActivateSmackerPalette(const_cast<uint8_t*>(Movie->Player->Palette().data()));
 }
 
 auto MCGuiSmackerWindow::Display() -> void
@@ -1489,7 +1491,7 @@ auto MCGuiSmackerWindow::Display() -> void
         // while application->smackerWindow still names it until its owner clears it, so there is no pane to draw.
         if (FramePane != nullptr)
         {
-            DrawInFramePass(DisplayPort);
+            DrawInFramePass(DisplayPort.get());
         }
 
         return;
@@ -1533,7 +1535,7 @@ auto MCGuiSmackerWindow::Display() -> void
         }
     }
 
-    DrawInFramePass(DisplayPort);
+    DrawInFramePass(DisplayPort.get());
 }
 
 auto MCGuiSmackerWindow::Draw() -> void
@@ -1598,7 +1600,7 @@ auto MCGuiStartupWindow::Destroy() -> void
     }
 
     MCGuiObject::Destroy();
-    ScreenWindow->RemoveChild(this);
+    ScreenWindow()->RemoveChild(this);
 }
 
 auto MCGuiStartupWindow::DoStatic() -> void
@@ -1648,7 +1650,7 @@ auto MCGuiStartupWindow::Display() -> void
     if (StaticPort != nullptr)
     {
         Step();
-        DrawInFramePass(DisplayPort);
+        DrawInFramePass(DisplayPort.get());
     }
 }
 
@@ -1657,7 +1659,7 @@ auto MCGuiStartupWindow::Step() -> void
     MCSoundSystem* sounds = SoundSystem();
     const int32_t step = StartupState;
     StartupState = step + 1;
-    MCFont* font = LineFont.get();
+    MCFont* font = LineFont();
 
     if (sounds == nullptr)
     {
@@ -2004,14 +2006,14 @@ auto MCGuiStartupWindow::Setup() -> int32_t
     // Reads art packet `packet` whole into a CRT block.
     auto loadPacket = [&file](int32_t packet, uint8_t*& image) -> int32_t
     {
-        int32_t result = ArtFile->SeekPacket(packet);
+        int32_t result = GuiSystem()->ArtFile->SeekPacket(packet);
 
         if (result != 0)
         {
             return result;
         }
 
-        result = file.Open(ArtFile, static_cast<uint32_t>(ArtFile->GetPacketSize()));
+        result = file.Open(GuiSystem()->ArtFile.get(), static_cast<uint32_t>(GuiSystem()->ArtFile->GetPacketSize()));
 
         if (result != 0)
         {
@@ -2064,7 +2066,7 @@ MCGuiEmptyTitleWindow::~MCGuiEmptyTitleWindow()
     MCGuiEmptyTitleWindow::Destroy();
 }
 
-auto MCGuiEmptyTitleWindow::Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, char* name) -> int32_t
+auto MCGuiEmptyTitleWindow::Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, const char* name) -> int32_t
 {
     int32_t result = MCGuiHolderObject::Init(xPos, yPos, width, height, name);
 
@@ -2191,7 +2193,7 @@ auto MCGuiEmptyTitleWindow::HandleEvent(MCGuiEvent* event) -> void
                 pane->GetCamera()->Deactivate();
             }
 
-            ScreenWindow->RemoveChild(this);
+            ScreenWindow()->RemoveChild(this);
             return;
         }
 

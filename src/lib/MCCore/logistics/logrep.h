@@ -53,7 +53,7 @@ public:
     void HandleEvent(MCGuiEvent* event) override;
 
     /// <summary>Shows or hides the screen and its panes.</summary>
-    void ShowGuiWindow(int show) override;
+    void ShowGuiWindow(bool show) override;
 
     /// <summary>
     /// Displays the screen and the resource figure chosen by <c>resourceDisplayState</c>, and the clock, on the current

@@ -2,7 +2,7 @@
 #include "terrain/MCArtilleryButton.h"
 #include "camera/MCCamera.h"
 #include "camera/MCMainWindow.h"
-#include "gui/afont.h"
+#include "gui/MCGuiFont.h"
 #include "iface/MCMechBar.h"
 #include "iface/MCTacticalInterface.h"
 #include "logistics/logmain.h"
@@ -52,7 +52,7 @@ auto MCStrikesLeft(int32_t commandId) -> std::optional<int32_t>
     }
 }
 
-auto MCArtilleryButton::Init(int32_t xPos, int32_t yPos, int32_t w, int32_t h, char* fileName) -> int32_t
+auto MCArtilleryButton::Init(int32_t xPos, int32_t yPos, int32_t w, int32_t h, const char* fileName) -> int32_t
 {
     const int32_t result = MCGuiButton::Init(xPos, yPos, w, h, fileName);
     Armed = false;
@@ -84,12 +84,12 @@ auto MCArtilleryButton::Draw() -> void
     {
         font = GreyFont;
     }
-    else if (Application->GrabbedObject() == this && Application->CurrentObject() == this)
+    else if (GuiSystem()->GrabbedObject() == this && GuiSystem()->CurrentObject() == this)
     {
         font = WhiteFont;
     }
 
-    font->WriteString(DisplayPort->Frame(), 0x13, 9, reinterpret_cast<uint8_t*>(count.data()), -1);
+    font->WriteString(DisplayPort->Frame(), 0x13, 9, count.data(), -1);
 }
 
 auto MCArtilleryButton::HandleEvent(MCGuiEvent* event) -> void
@@ -98,9 +98,9 @@ auto MCArtilleryButton::HandleEvent(MCGuiEvent* event) -> void
 
     if (Disabled != 0)
     {
-        if (Application->GrabbedObject() == this)
+        if (GuiSystem()->GrabbedObject() == this)
         {
-            Application->Release();
+            GuiSystem()->Release();
         }
 
         if (event->Type == EventLeftDown)
@@ -115,7 +115,7 @@ auto MCArtilleryButton::HandleEvent(MCGuiEvent* event) -> void
     {
         if (!Armed)
         {
-            Application->Grab(this);
+            GuiSystem()->Grab(this);
             Draw();
         }
 
@@ -132,8 +132,8 @@ auto MCArtilleryButton::HandleEvent(MCGuiEvent* event) -> void
             map->ShowStatus(&map->CallingText);
             map->StatusLocked = true;
             Armed = true;
-            Application->SetCurrentCursor(static_cast<MCCursorType>(9));
-            Application->CursorHidden = -1;
+            GuiSystem()->SetCurrentCursor(static_cast<MCCursorType>(9));
+            GuiSystem()->CursorHidden = true;
             Draw();
             return;
         }
@@ -142,18 +142,18 @@ auto MCArtilleryButton::HandleEvent(MCGuiEvent* event) -> void
         const int32_t screenY = event->Y;
         const POINT inMap{screenX - map->GlobalX(), screenY - map->GlobalY()};
         Armed = false;
-        Application->Release();
+        GuiSystem()->Release();
         Draw();
 
         if (PtInRect(&map->MapRect, inMap) == 0 || map->DisplayType != MCTacmapPage::Map)
         {
             // Outside the tactical map: the click must land in the active view.
-            MCGuiObject* target = ScreenWindow->FindObject(screenX, screenY);
+            MCGuiObject* target = ScreenWindow()->FindObject(screenX, screenY);
 
             if (target != MainHolder()->GetActivePane() && target != TacticalInterface()->MechBar.get())
             {
                 Armed = false;
-                Application->Release();
+                GuiSystem()->Release();
                 map->ReleaseStatusLine();
                 Draw();
                 return;
@@ -197,7 +197,7 @@ auto MCArtilleryButton::HandleEvent(MCGuiEvent* event) -> void
         // Backspace or Escape disarms.
         if (event->Key == 8 || event->Key == 0x1b)
         {
-            Application->Release();
+            GuiSystem()->Release();
             Armed = false;
             map->ReleaseStatusLine();
             Draw();
@@ -214,7 +214,7 @@ auto MCArtilleryButton::HandleEvent(MCGuiEvent* event) -> void
     }
 
     // Anything else goes to what lies under the mouse.
-    MCGuiObject* under = ScreenWindow->FindObject(event->X, event->Y);
+    MCGuiObject* under = ScreenWindow()->FindObject(event->X, event->Y);
 
     if (under != this && under != nullptr)
     {

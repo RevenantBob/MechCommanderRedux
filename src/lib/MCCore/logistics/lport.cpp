@@ -1,6 +1,6 @@
 #include "stdafx.h"
 #include "logistics/lport.h"
-#include "gui/aanim.h"
+#include "gui/MCGuiAnimation.h"
 #include "lib/MCFatal.h"
 #include "lib/MCFile.h"
 #include "logistics/logbri.h"
@@ -99,7 +99,7 @@ auto MCLogPort::Init(int32_t width, int32_t height, int allocBitmap) -> int32_t
     // Port fix: the original left the buffer uninitialised without a bitmap (and destroy then freed it).
     window->Buffer = nullptr;
 
-    if (allocBitmap != 0 && this != ScreenPort)
+    if (allocBitmap != 0 && this != ScreenPort())
     {
         window->Buffer = static_cast<uint8_t*>(LogAlloc(static_cast<uint32_t>(width * height)));
 
@@ -138,7 +138,7 @@ auto MCLogPort::Init(int32_t width, int32_t height, int allocBitmap) -> int32_t
     return 0;
 }
 
-auto MCLogPort::Init(char* fileName) -> int32_t
+auto MCLogPort::Init(const char* fileName) -> int32_t
 {
     char message[256];
     char path[256];
@@ -232,7 +232,7 @@ auto MCLogPort::InitView(int32_t width, int32_t height) -> int32_t
 auto MCLogPort::Resize(int32_t width, int32_t height) -> int32_t
 {
     // Port: a view has no pixels to reallocate.
-    if (this != ScreenPort && !IsView())
+    if (this != ScreenPort() && !IsView())
     {
         if (PortWindow->Buffer != nullptr)
         {
@@ -282,90 +282,32 @@ MCLogObject::~MCLogObject()
     MCLogObject::Destroy();
 }
 
-auto MCLogObject::Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, char* name, MCLogPort* port)
+auto MCLogObject::Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, const char* name, MCLogPort* port)
     -> int32_t
 {
     (void)name;
-    WinX = xPos;
-    MaxX = xPos;
-    NormalX = xPos;
-    IconX = xPos;
-    HomeX = xPos;
-    WinWidth = width;
+    // The base's init, inlined with a logistics port (or the shared one given) for the port.
+    const bool live = DrawsLive();
     _OwnPort = nullptr;
     _SharedPort = nullptr;
-    WinHeight = height;
-    WinY = yPos;
-    MaxWidth = width;
-    MaxHeight = height;
-    MaxY = yPos;
-    NormalWidth = width;
-    NormalHeight = height;
-    NormalY = yPos;
-    IconWidth = width;
-    IconHeight = height;
-    IconY = yPos;
-    HideOffset = 0;
-    HomeY = yPos;
-    WinState = aSTATE_NORMAL;
-    ShowWindow = -1;
-    DragOn = 0;
-    Transparent = 0;
-    BackgroundColor = 0xff;
+    Transparent = false;
+    Place(xPos, yPos, width, height);
+    MCGuiObject::BackgroundPort.reset();
+    _BackgroundPort = nullptr;
 
     if (port == nullptr)
     {
         _OwnPort = new MCLogPort;
-        const int32_t result = DrawsLive() ? _OwnPort->InitView(width, height) : _OwnPort->Init(width, height, -1);
-
-        if (result != 0)
-        {
-            return result;
-        }
-    }
-    else
-    {
-        _SharedPort = port;
+        return live ? _OwnPort->InitView(width, height) : _OwnPort->Init(width, height, -1);
     }
 
-    if (FramePane != nullptr)
-    {
-        // Port fix: the original freed it with the CRT's delete although it came in a logistics block.
-        LogFree(FramePane);
-        FramePane = nullptr;
-    }
-
-    FramePane = static_cast<MCPane*>(LogAlloc(sizeof(MCPane)));
-
-    if (FramePane == nullptr)
-    {
-        return 3;
-    }
-
-    FramePane->Window = ScreenPort->Bitmap();
-    FramePane->X0 = xPos;
-    FramePane->Y0 = yPos;
-    FramePane->X1 = xPos + width;
-    Hidden = 0;
-    FramePane->Y1 = yPos + height;
-    HideDirection = DIRECTION_DOWN;
-    PaintRoutine = nullptr;
-    EventRoutine = nullptr;
-    NumChildren = 0;
-    Parent = nullptr;
-    WinDepth = 0;
-    WindowAnimation = nullptr;
-    Animating = 0;
-    IconAnimation = nullptr;
-    MCGuiObject::BackgroundPort = nullptr;
-    _BackgroundPort = nullptr;
-    ObjectType = -1;
+    _SharedPort = port;
     return 0;
 }
 
 auto MCLogObject::Destroy() -> void
 {
-    Application->RemoveTimers(this);
+    GuiSystem()->RemoveTimers(this);
 
     if (_OwnPort != nullptr)
     {
@@ -374,18 +316,8 @@ auto MCLogObject::Destroy() -> void
         _OwnPort = nullptr;
     }
 
-    if (FramePane != nullptr)
-    {
-        LogFree(FramePane);
-        FramePane = nullptr;
-    }
-
-    if (MCGuiObject::BackgroundPort != nullptr)
-    {
-        MCGuiObject::BackgroundPort->Destroy();
-        delete MCGuiObject::BackgroundPort;
-        MCGuiObject::BackgroundPort = nullptr;
-    }
+    FramePane.reset();
+    MCGuiObject::BackgroundPort.reset();
 
     if (_BackgroundPort != nullptr)
     {
@@ -394,37 +326,34 @@ auto MCLogObject::Destroy() -> void
         _BackgroundPort = nullptr;
     }
 
-    if (IconAnimation != nullptr)
-    {
-        IconAnimation->Destroy();
-        delete IconAnimation;
-        IconAnimation = nullptr;
-    }
+    IconAnimation.reset();
+    WindowAnimation.reset();
 
-    if (WindowAnimation != nullptr)
+    if (!ChildList.empty())
     {
-        WindowAnimation->Destroy();
-        delete WindowAnimation;
-        WindowAnimation = nullptr;
-    }
+        // Original behaviour (OB-071): removes the first child, then deletes whichever child is first after that (its
+        // destroy removes it). With more children the first is therefore only unlinked; a lone first child is deleted
+        // too, as the original's array still held it in its first slot.
+        MCGuiObject* first = ChildList.front();
+        const bool alone = ChildList.size() == 1;
+        RemoveChild(first);
 
-    if (NumChildren > 0)
-    {
-        // Original behaviour (OB-071): removes the first child, then deletes whichever child is first after that
-        // (its destroy removes it). The first child is therefore only unlinked, and each later pass "removes" the
-        // child just deleted (no longer listed, so nothing happens).
-        MCGuiObject* child = ChildList[0];
-
-        do
+        if (alone)
         {
-            RemoveChild(child);
-            child = ChildList[0];
+            delete first;
+        }
 
-            if (child != nullptr)
+        while (!ChildList.empty())
+        {
+            MCGuiObject* child = ChildList.front();
+            delete child;
+
+            // A child that didn't take itself off (not ours after all) is only unlinked.
+            if (!ChildList.empty() && ChildList.front() == child)
             {
-                delete child;
+                ChildList.erase(ChildList.begin());
             }
-        } while (NumChildren > 0);
+        }
     }
 
     if (Parent != nullptr)
@@ -435,25 +364,25 @@ auto MCLogObject::Destroy() -> void
     Parent = nullptr;
     Animating = 0;
 
-    if (Application->GrabbedObject() == this)
+    if (GuiSystem()->GrabbedObject() == this)
     {
-        Application->Release();
+        GuiSystem()->Release();
     }
 
-    if (Application->TextObject() == this)
+    if (GuiSystem()->TextObject() == this)
     {
-        Application->ReleaseText();
+        GuiSystem()->ReleaseText();
     }
 
-    if (Application->ModalObject() == this)
+    if (GuiSystem()->ModalObject() == this)
     {
-        Application->ClearModal();
+        GuiSystem()->ClearModal();
     }
 
-    if (Application->CurrentObject() == this)
+    if (GuiSystem()->CurrentObject() == this)
     {
         const MCPoint cursor = MCInput::GetCursorPos();
-        Application->SetCurrentObject(ScreenWindow->FindObject(cursor.x, cursor.y));
+        GuiSystem()->SetCurrentObject(ScreenWindow()->FindObject(cursor.x, cursor.y));
     }
 }
 
@@ -464,9 +393,9 @@ auto MCLogObject::Lport() -> MCLogPort*
 
 auto MCLogObject::Draw() -> void
 {
-    const int32_t state = WinState;
+    const MCGuiWindowState state = WinState;
 
-    if (state == aSTATE_ICONIZED)
+    if (state == MCGuiWindowState::Iconized)
     {
         IconAnimation->Draw(_OwnPort->Frame(), 0, 0);
     }
@@ -474,7 +403,7 @@ auto MCLogObject::Draw() -> void
     {
         if (_BackgroundPort != nullptr)
         {
-            _BackgroundPort->CopyTo(_OwnPort->Frame(), 0, 0, -1);
+            _BackgroundPort->CopyTo(_OwnPort->Frame(), 0, 0, true);
         }
 
         if (WindowAnimation != nullptr && Animating != 0)
@@ -483,11 +412,11 @@ auto MCLogObject::Draw() -> void
         }
     }
 
-    if (state != aSTATE_ICONIZED)
+    if (state != MCGuiWindowState::Iconized)
     {
         Paint();
 
-        for (int32_t i = 0; i < NumChildren; i++)
+        for (size_t i = 0; i < ChildList.size(); i++)
         {
             DrawChild(ChildList[i]);
         }
@@ -509,7 +438,7 @@ auto MCLogObject::Display() -> void
     // An object that draws itself does so after the slide has moved it.
     if (!DrawsLive())
     {
-        if (WinState == aSTATE_ICONIZED)
+        if (WinState == MCGuiWindowState::Iconized)
         {
             if (IconAnimation != nullptr)
             {
@@ -526,18 +455,18 @@ auto MCLogObject::Display() -> void
     if (HideOffset != 0)
     {
         // A slide (HideMe) moves the whole offset each frame until the object is off the screen, or back home.
-        if (HideDirection == DIRECTION_LEFT || HideDirection == DIRECTION_RIGHT)
+        if (HideDirection == MCDirection::Left || HideDirection == MCDirection::Right)
         {
-            MoveTo(X() + HideOffset, Y(), -1);
+            MoveTo(X() + HideOffset, Y(), true);
         }
         else
         {
-            MoveTo(X(), Y() + HideOffset, -1);
+            MoveTo(X(), Y() + HideOffset, true);
         }
 
         if (Hidden != 0)
         {
-            if (RectIntersect(0, 0, Application->Width(), Application->Height()) == 0)
+            if (RectIntersect(0, 0, GuiSystem()->Width(), GuiSystem()->Height()) == 0)
             {
                 HideOffset = 0;
             }
@@ -558,7 +487,7 @@ auto MCLogObject::Display() -> void
             if (home)
             {
                 const int32_t homeYOffset = HomeY - Parent->GlobalY();
-                MoveTo(HomeX - Parent->GlobalX(), homeYOffset, -1);
+                MoveTo(HomeX - Parent->GlobalX(), homeYOffset, true);
                 HideOffset = 0;
             }
         }
@@ -572,12 +501,12 @@ auto MCLogObject::Display() -> void
 
     if (_OwnPort != nullptr)
     {
-        _OwnPort->CopyTo(FramePane, 0, 0, Transparent);
+        _OwnPort->CopyTo(FramePane.get(), 0, 0, Transparent);
     }
 
-    if (WinState != aSTATE_ICONIZED)
+    if (WinState != MCGuiWindowState::Iconized)
     {
-        for (int32_t i = 0; i < NumChildren; i++)
+        for (size_t i = 0; i < ChildList.size(); i++)
         {
             ChildList[i]->Display();
         }
@@ -611,7 +540,7 @@ auto MCLogObject::FillBox(int16_t left, int16_t top, int16_t right, int16_t bott
     VfxPaneWipe(&box, color);
 }
 
-auto MCLogObject::SetBackground(char* fileName) -> int32_t
+auto MCLogObject::SetBackground(std::string_view fileName) -> int32_t
 {
     if (_BackgroundPort != nullptr)
     {
@@ -627,5 +556,6 @@ auto MCLogObject::SetBackground(char* fileName) -> int32_t
         Fatal(0, "Not enough memory to create background port");
     }
 
-    return _BackgroundPort->Init(fileName);
+    std::string name(fileName);
+    return _BackgroundPort->Init(name.data());
 }

@@ -252,9 +252,9 @@ auto MCTacticalInterface::HandleKeyDown(MCGuiEvent* event) -> void
                 ShowTacticalMapPage(MCTacmapPage::Salvage);
                 MCGuiObject* chatInput = tacMap->ChatWindow->ChatInput;
 
-                if (Application->TextObject() != chatInput)
+                if (GuiSystem()->TextObject() != chatInput)
                 {
-                    Application->SetText(chatInput);
+                    GuiSystem()->SetText(chatInput);
                     FirstReturn = 1;
                 }
             }
@@ -285,7 +285,7 @@ auto MCTacticalInterface::HandleKeyDown(MCGuiEvent* event) -> void
         {
             ZoomOut();
         }
-        else if (is(MCKeyCommand::Stop) && Application->GrabbedObject() == nullptr)
+        else if (is(MCKeyCommand::Stop) && GuiSystem()->GrabbedObject() == nullptr)
         {
             SetMode(MCInterfaceMode::Stop);
             sendToSelection(MCTacticalOrderCode::Stop);
@@ -444,10 +444,10 @@ auto MCTacticalInterface::HandleKeyDown(MCGuiEvent* event) -> void
     }
 
     // A key other than a lance-link key ends the hidden-cursor state of a lance link.
-    if (Application->CursorHidden != 0 &&
-        Application->CursorShape == static_cast<int32_t>(MCInterfaceCursor::LinkLance) && !IsLanceLink(CurrentMode))
+    if (GuiSystem()->CursorHidden != 0 &&
+        GuiSystem()->CursorShape == static_cast<int32_t>(MCInterfaceCursor::LinkLance) && !IsLanceLink(CurrentMode))
     {
-        Application->CursorHidden = 0;
+        GuiSystem()->CursorHidden = 0;
     }
 }
 
@@ -506,8 +506,8 @@ auto MCTacticalInterface::HandleKeyUp(MCGuiEvent* event) -> void
     if (const int32_t lance = LanceKey(*this, key, MCKeyCommand::LinkLance1); lance >= 0 && AnySelected())
     {
         SetMode(static_cast<MCInterfaceMode>(static_cast<int32_t>(MCInterfaceMode::LinkLance1) + lance));
-        Application->SetCurrentCursor(static_cast<MCCursorType>(MCInterfaceCursor::LinkLance));
-        Application->CursorHidden = 1;
+        GuiSystem()->SetCurrentCursor(static_cast<MCCursorType>(MCInterfaceCursor::LinkLance));
+        GuiSystem()->CursorHidden = 1;
     }
 
     if (key == Key(MCKeyCommand::SelectVisible) && Scenario() != nullptr)

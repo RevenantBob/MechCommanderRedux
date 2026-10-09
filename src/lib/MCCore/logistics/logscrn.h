@@ -208,7 +208,7 @@ public:
     /// <summary>Calls <see cref="Destroy"/>.</summary>
     ~MCLogChatWindow() override;
 
-    void ShowGuiWindow(int show) override;
+    void ShowGuiWindow(bool show) override;
 
     void Destroy() override;
 

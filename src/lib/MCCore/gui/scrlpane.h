@@ -23,7 +23,7 @@ public:
     /// aObject::init, the size comes first: (width, height, xPos, yPos).
     /// </summary>
     /// <returns>0.</returns>
-    int32_t Init(int32_t width, int32_t height, int32_t xPos, int32_t yPos, char* name) override;
+    int32_t Init(int32_t width, int32_t height, int32_t xPos, int32_t yPos, const char* name) override;
     /// <summary>
     /// Makes the content port (<paramref name="width"/> - 13 wide), copies <paramref name="background"/> (when given)
     /// into a background port, inits the object at (<paramref name="xPos"/>, <paramref name="yPos"/>) drawing into the

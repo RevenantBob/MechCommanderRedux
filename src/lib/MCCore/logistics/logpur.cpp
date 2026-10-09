@@ -82,7 +82,7 @@ auto MCPurchaseScreen::Init() -> void
     AddChild(pane);
     AddChild(UnitPane);
     ShowGuiWindow(0);
-    ScreenWindow->AddChild(this);
+    ScreenWindow()->AddChild(this);
 
     MechTabPort = new MCLogPort;
     PilotTabPort = new MCLogPort;
@@ -100,7 +100,7 @@ auto MCPurchaseScreen::Init() -> void
 
 auto MCPurchaseScreen::Destroy() -> void
 {
-    ScreenWindow->RemoveChild(this);
+    ScreenWindow()->RemoveChild(this);
     FreePort(MechTabPort);
     FreePort(PilotTabPort);
     FreePort(CompTabPort);
@@ -353,7 +353,7 @@ auto MCPurchaseScreen::HandleEvent(MCGuiEvent* event) -> void
     }
 }
 
-auto MCPurchaseScreen::ShowGuiWindow(int show) -> void
+auto MCPurchaseScreen::ShowGuiWindow(bool show) -> void
 {
     ShowWindow = show;
     InventoryPane->ShowGuiWindow(show);

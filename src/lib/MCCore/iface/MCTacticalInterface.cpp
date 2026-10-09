@@ -1,6 +1,7 @@
 #include "stdafx.h"
 #include "iface/MCTacticalInterface.h"
 #include "camera/MCCamera.h"
+#include "gui/MCGuiInput.h"
 #include "camera/MCMainWindow.h"
 #include "gui/ahelp.h"
 #include "iface/MCCommandParser.h"
@@ -198,9 +199,9 @@ MCTacticalInterface::~MCTacticalInterface()
 
     ReserveIcons.clear();
 
-    if (_ScrollCallback != nullptr && Application != nullptr)
+    if (_ScrollCallback != nullptr && GuiSystem() != nullptr)
     {
-        Application->RemoveCallback(_ScrollCallback.get());
+        GuiSystem()->RemoveCallback(_ScrollCallback.get());
     }
 }
 
@@ -214,8 +215,8 @@ auto MCTacticalInterface::Init() -> int32_t
     MechBar->Init(0, 0, 1, 1, nullptr);
     MechBar->Resize(0x280, 0x3d);
     MechBar->ShowGuiWindow(0);
-    ScreenWindow->AddChild(MechBar.get());
-    MechBar->MoveTo(0, Application->Height() - MechBar->Height() - 1, 0);
+    ScreenWindow()->AddChild(MechBar.get());
+    MechBar->MoveTo(0, GuiSystem()->Height() - MechBar->Height() - 1, 0);
     MechBar->SetDepth(0x4b);
 
     // iface.fit's parameters.
@@ -244,7 +245,7 @@ auto MCTacticalInterface::Init() -> int32_t
         tag = MCMakeGui<MCFloatHelp>();
         Assert(tag->Init(0, 0, 10, 10, nullptr) == 0, 0, "Error initializing floating tags");
         tag->SetBackColor(0xf4);
-        ScreenWindow->AddChild(tag.get());
+        ScreenWindow()->AddChild(tag.get());
         tag->SetDepth(0x28);
         tag->ShowGuiWindow(0);
     }
@@ -373,7 +374,7 @@ auto MCTacticalInterface::StartScenario() -> void
     {
         _ScrollCallback = std::make_unique<MCGuiCallback>();
         _ScrollCallback->SetExec(ScrollScreen);
-        Application->AddCallback(_ScrollCallback.get());
+        GuiSystem()->AddCallback(_ScrollCallback.get());
     }
 
     SelectedEnemy = nullptr;
@@ -406,7 +407,7 @@ auto MCTacticalInterface::EndScenario() -> void
         MainHolder()->ShowGuiWindow(0);
     }
 
-    Application->RemoveCallback(_ScrollCallback.get());
+    GuiSystem()->RemoveCallback(_ScrollCallback.get());
     _ScrollCallback.reset();
     ReserveIcons.clear();
 }

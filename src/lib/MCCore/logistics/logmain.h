@@ -249,25 +249,25 @@ extern int32_t GameDifficulty;
 /// <summary>Sounds on the CD.</summary>
 extern char CDsoundPath[];
 /// <summary>The in-mission interface art.</summary>
-extern char InterfacePath[];
+extern char InterfacePath[80];
 /// <summary>The save games.</summary>
-extern char SavePath[];
+extern char SavePath[80];
 /// <summary>Sprites on the CD.</summary>
-extern char CDspritePath[];
+extern char CDspritePath[80];
 /// <summary>The terrain (mission) files.</summary>
-extern char TerrainPath[];
+extern char TerrainPath[80];
 /// <summary>The pilot profiles.</summary>
 extern char WarriorPath[];
 /// <summary>The sprites.</summary>
-extern char SpritePath[];
+extern char SpritePath[80];
 /// <summary>The object profiles.</summary>
 extern char ProfilePath[];
 /// <summary>The fonts.</summary>
-extern char FontPath[];
+extern char FontPath[80];
 /// <summary>The DirectX redistributable (kept for the settings; unused by the port).</summary>
-extern char DirectXPath[];
+extern char DirectXPath[80];
 /// <summary>The sounds.</summary>
-extern char SoundPath[];
+extern char SoundPath[80];
 /// <summary>The shapes (hot spot files).</summary>
 extern char ShapesPath[];
 

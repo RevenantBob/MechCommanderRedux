@@ -8,7 +8,7 @@
 #include "engine/MCCraterManager.h"
 #include "engine/MCElementBuffer.h"
 #include "engine/MCPolygonElement.h"
-#include "gui/asystem.h"
+#include "gui/MCGuiSystem.h"
 #include "main/main.h"
 #include "mission/MCScenario.h"
 #include "network/multplyr.h"

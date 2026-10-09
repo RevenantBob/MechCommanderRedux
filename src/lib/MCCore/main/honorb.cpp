@@ -1,7 +1,7 @@
 #include "stdafx.h"
 #include "main/honorb.h"
 #include "gameos/MCSoundRenderer.h"
-#include "gui/asystem.h"
+#include "gui/MCGuiSystem.h"
 #include "gui/updisp.h"
 #include "main/main.h"
 #include "network/multplyr.h"
@@ -13,7 +13,7 @@
 #include "camera/MCCameraList.h"
 #include "color/MCPalette.h"
 #include "color/MCWaterCycle.h"
-#include "gui/aport.h"
+#include "gui/MCGuiPort.h"
 #include "gui/atextbox.h"
 #include "lib/MCFatal.h"
 #include "lib/MCIDString.h"
@@ -68,7 +68,7 @@ void KillTheGame()
 
     MouseTimerKill();
     MCSoundRenderer::Uninstall();
-    Application->ShutdownDirectDraw();
+    GuiSystem()->CloseDisplay();
     FatalShutDown();
     std::exit(1);
 }
@@ -276,14 +276,14 @@ void SystemInit()
         Fatal(result, "Could not find MechCommander Prefs.");
     }
 
-    if (prefsFile->ReadIdBoolean("PaletteCycle", Application->PaletteCycle) != 0)
+    if (prefsFile->ReadIdBoolean("PaletteCycle", GuiSystem()->PaletteCycle) != 0)
     {
-        Application->PaletteCycle = 0;
+        GuiSystem()->PaletteCycle = 0;
     }
 
-    if (prefsFile->ReadIdLong("Gamma", Application->GammaLevel) != 0)
+    if (prefsFile->ReadIdLong("Gamma", GuiSystem()->GammaLevel) != 0)
     {
-        Application->GammaLevel = 0;
+        GuiSystem()->GammaLevel = 0;
     }
 
     if (prefsFile->ReadIdBoolean("Use90Pixel", Use90PixelSprite) != 0)
@@ -411,9 +411,9 @@ void SystemInit()
     }
 
     // Faithful: Brightness goes to the same field as Gamma, so it wins.
-    if (prefsFile->ReadIdLong("Brightness", Application->GammaLevel) != 0)
+    if (prefsFile->ReadIdLong("Brightness", GuiSystem()->GammaLevel) != 0)
     {
-        Application->GammaLevel = 0;
+        GuiSystem()->GammaLevel = 0;
     }
 
     if (prefsFile->ReadIdLong("MusicVolume", MusicVolume) != 0)
@@ -934,14 +934,14 @@ int32_t UserInit()
     // Port: the original switched off the screen saver, low-power and power-off timeouts (SystemParametersInfo),
     // noting in ScreenSaverActive/LowPowerActive/PowerOffActive which were on so userDestroy could restore them. SDL
     // keeps the screen saver off while its window is up.
-    GlobalPane = ScreenPort->Frame();
-    GlobalWindow = ScreenPort->Frame()->Window;
+    GlobalPane = ScreenPort()->Frame();
+    GlobalWindow = ScreenPort()->Frame()->Window;
 
     if (DebugGameSystem != 0)
     {
         GameSystemWindow = new MCScrollingTextWindow;
         GameSystemWindow->Init(10, 20, 250, 300, const_cast<char*>("Game System"));
-        ScreenWindow->AddChild(GameSystemWindow);
+        ScreenWindow()->AddChild(GameSystemWindow);
     }
 
     if (AblDebuggerEnabled != 0)
@@ -985,7 +985,7 @@ int32_t UserInit()
         AblDebuggerWindow->Init(static_cast<int32_t>(AblDebuggerX), static_cast<int32_t>(AblDebuggerY),
                                 static_cast<int32_t>(AblDebuggerWidth), static_cast<int32_t>(AblDebuggerHeight),
                                 const_cast<char*>("ABL Developer Studio (tm)"));
-        ScreenWindow->AddChild(AblDebuggerWindow);
+        ScreenWindow()->AddChild(AblDebuggerWindow);
         AblDebuggerWindow->Input()->SetEventRoutine(AblDebuggerEventRoutine);
     }
 
@@ -996,7 +996,7 @@ int32_t UserInit()
 
     ColorCallback = new MCGuiCallback;
     ColorCallback->SetExec(CycleColors);
-    Application->AddCallback(ColorCallback);
+    GuiSystem()->AddCallback(ColorCallback);
 
     // Multiplayer is made to ask the session manager whether a lobby launched the game, and dropped when not. The
     // port has no lobby (MCDirectPlay), so it is always dropped here.
@@ -1042,8 +1042,8 @@ void UserDestroy()
 
     if (ColorCallback != nullptr)
     {
-        Application->RemoveCallback(ColorCallback);
-        ColorCallback->Destroy();
+        GuiSystem()->RemoveCallback(ColorCallback);
+        ColorCallback->Clear();
         delete ColorCallback;
         ColorCallback = nullptr;
     }

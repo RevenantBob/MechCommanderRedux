@@ -7,8 +7,8 @@
 #include "camera/MCCamera.h"
 #include "camera/MCMainWindow.h"
 #include "color/MCPalette.h"
-#include "gui/abutton.h"
-#include "gui/aport.h"
+#include "gui/MCGuiButton.h"
+#include "gui/MCGuiPort.h"
 #include "gui/updisp.h"
 #include "iface/MCTacticalInterface.h"
 #include "lib/MCFile.h"
@@ -103,7 +103,7 @@ namespace
     {
         if (GFullScreen != 0)
         {
-            Application->ResetDirectDraw(Application->Width(), Application->Height(), 8);
+            GuiSystem()->ResetDisplay(GuiSystem()->Width(), GuiSystem()->Height(), 8);
         }
     }
 
@@ -112,7 +112,7 @@ namespace
     {
         auto callback = std::make_unique<MCGuiCallback>();
         callback->SetExec(exec);
-        Application->AddCallback(callback.get());
+        GuiSystem()->AddCallback(callback.get());
         return callback;
     }
 
@@ -121,9 +121,9 @@ namespace
     {
         if (callback != nullptr)
         {
-            if (Application != nullptr)
+            if (GuiSystem() != nullptr)
             {
-                Application->RemoveCallback(callback.get());
+                GuiSystem()->RemoveCallback(callback.get());
             }
 
             callback.reset();
@@ -144,8 +144,8 @@ auto PlayScenario() -> void
         MCFollowWindowSize();
     }
 
-    GlobalPane = ScreenPort->Frame();
-    GlobalWindow = ScreenPort->Frame()->Window;
+    GlobalPane = ScreenPort()->Frame();
+    GlobalWindow = ScreenPort()->Frame()->Window;
 
     if (Scenario() != nullptr && ScenarioResult == 0)
     {
@@ -171,7 +171,7 @@ auto RunMission() -> void
 
 MCMission::MCMission()
 {
-    if (Application != nullptr)
+    if (GuiSystem() != nullptr)
     {
         _MissionCallback = AddCallback(RunMission);
     }
@@ -483,9 +483,9 @@ auto MCMission::Run() -> int32_t
 
             if (GFullScreen != 0)
             {
-                Application->ResetDirectDraw(Application->Width(), Application->Height(), 8);
-                Application->PaletteCycle = 1;
-                Application->ActivatePalette(GamePalette()->RgbData.data(), 0, 0x100);
+                GuiSystem()->ResetDisplay(GuiSystem()->Width(), GuiSystem()->Height(), 8);
+                GuiSystem()->PaletteCycle = 1;
+                GuiSystem()->ActivatePalette(GamePalette()->RgbData.data(), 0, 0x100);
             }
 
             toLogistics = true;
@@ -500,7 +500,7 @@ auto MCMission::Run() -> int32_t
 
             EscapedSmackerMovie = 0;
             MovieOver = 0;
-            Application->SetCursorVisible(1);
+            GuiSystem()->SetCursorVisible(1);
 
             if (SoundSystem() != nullptr)
             {
@@ -551,7 +551,7 @@ auto MCMission::Run() -> int32_t
         }
         case MCMissionState::MoviePlaying:
         {
-            if (Application->SmackerWindow != nullptr)
+            if (GuiSystem()->SmackerWindow != nullptr)
             {
                 break;
             }
@@ -605,7 +605,7 @@ auto MCMission::Run() -> int32_t
                 std::string movieName = GamePath(CDmoviePath, Movies[static_cast<size_t>(movie)], ".smk");
                 // MCX.EXE: when movie 1 (the opening) isn't installed, it scans drives C: to Z: for a CD-ROM holding
                 // \data\movies\opening.smk. The port reads movies from the install only.
-                Application->StartSmackerMovie(movieName.data(), 0xfe000, nullptr, 1);
+                GuiSystem()->StartSmackerMovie(movieName);
                 State = MCMissionState::MoviePlaying;
                 _PlayingLogisticsMusic = 0;
                 break;
@@ -637,17 +637,13 @@ auto MCMission::Run() -> int32_t
                                                      ? Scenarios[static_cast<size_t>(CurrentScenario)]
                                                      : std::string(GlobalLogPtr->MpMissionName);
                 StartScenario(scenarioName);
-                Application->SetCursorVisible(1);
+                GuiSystem()->SetCursorVisible(1);
             }
             break;
         }
         case MCMissionState::SegmentMoviePlaying:
         {
-            if (Application->SmackerWindow2 != nullptr)
-            {
-                break;
-            }
-
+            // (The original waited here for a second movie window, which nothing in MCX.EXE ever opened.)
             if (NextState == MCMissionState::PlayMovie)
             {
                 if (CurrentMovie++ != 0)
@@ -763,16 +759,16 @@ auto MCMission::RunFeatureScreen() -> bool
             palette[i * 3 + 2] = picture[0x12 + i * 3 + 0] >> 2;
         }
 
-        Application->SetCursorVisible(0);
+        GuiSystem()->SetCursorVisible(0);
         FeatureScreen = MCMakeGui<MCGuiObject>();
         FeatureScreen->Init(0, 0, 640, 480, nullptr);
         // The picture is copied onto the screen's own (MCX.EXE never freed it).
         MCGuiOwned<MCGuiPort> picturePort = MCMakeGui<MCGuiPort>();
         picturePort->Init(const_cast<char*>("features.tga"));
         picturePort->CopyTo(FeatureScreen->Port()->Frame(), 0, 0, 0);
-        ScreenWindow->AddChild(FeatureScreen.get());
+        ScreenWindow()->AddChild(FeatureScreen.get());
         FeatureScreen->ShowGuiWindow(1);
-        Application->ActivatePalette(palette.data(), 0, 0x100);
+        GuiSystem()->ActivatePalette(palette.data(), 0, 0x100);
     }
 
     if (FeatureScreenDone != 0)
@@ -823,8 +819,8 @@ auto MCMission::StartScenario(std::string_view name) -> void
 
     GamePalette()->Activate();
     InitAlphaLookup(GamePalette()->Colors());
-    Application->PaletteCycle = 1;
-    Application->SetCursorVisible(0);
+    GuiSystem()->PaletteCycle = 1;
+    GuiSystem()->SetCursorVisible(0);
 
     MCGameContext::Current().SetScenario(std::make_unique<MCScenario>());
 
@@ -855,7 +851,7 @@ auto MCMission::StartScenario(std::string_view name) -> void
     }
 
     _InterfaceUpdateCallback->SetExec(UpdateMouseStateCallback);
-    Application->AddCallback(_InterfaceUpdateCallback.get());
+    GuiSystem()->AddCallback(_InterfaceUpdateCallback.get());
 }
 
 auto MCMission::StopScenarioCallbacks() -> void
@@ -1061,7 +1057,8 @@ auto MCMission::LoadWindowStatus() -> void
 
     if (windowFile.SeekBlock("Info") == 0)
     {
-        TacticalInterface()->TacticalMap->PaletteFrame->ShowGuiWindow(windowFile.Read<bool>("ShowPalette").value_or(true));
+        TacticalInterface()->TacticalMap->PaletteFrame->ShowGuiWindow(
+            windowFile.Read<bool>("ShowPalette").value_or(true));
     }
 
     windowFile.Close();

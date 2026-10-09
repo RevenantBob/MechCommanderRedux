@@ -2,10 +2,10 @@
 #include "MCTest.h"
 #include "TestGame.h"
 #include "fakes/MCMemoryFileSource.h"
-#include "gui/aanim.h"
-#include "gui/afont.h"
-#include "gui/aport.h"
-#include "gui/asystem.h"
+#include "gui/MCGuiAnimation.h"
+#include "gui/MCGuiFont.h"
+#include "gui/MCGuiPort.h"
+#include "gui/MCGuiSystem.h"
 #include "gui/updisp.h"
 #include "iface/MCTacticalInterface.h"
 #include "logistics/logbri.h"
@@ -73,18 +73,18 @@ TEST_CASE("gui: an animation's shapes are registered while loaded and freed with
     const void* firstShapes = nullptr;
     {
         MCGuiAnimation animation;
-        REQUIRE_EQ(animation.Init(const_cast<char*>("memanim.shp")), 0);
+        REQUIRE_EQ(animation.Load("memanim.shp"), 0);
         firstShapes = animation.ShapeTable();
         REQUIRE(firstShapes != nullptr);
         CHECK(MCRenderer::DataBlockOf(firstShapes) != nullptr);
         CHECK_EQ(animation.NumberOfFrames(), 0);
 
-        animation.Destroy();
+        animation.Unload();
         CHECK(animation.ShapeTable() == nullptr);
         CHECK(MCRenderer::DataBlockOf(firstShapes) == nullptr);
 
         // Deleted while loaded (the original left the shapes to the GUI heap): the destructor lets them go.
-        REQUIRE_EQ(animation.LoadShape(const_cast<char*>("memanim.shp")), 0);
+        REQUIRE_EQ(animation.Load("memanim.shp"), 0);
         firstShapes = animation.ShapeTable();
         CHECK(MCRenderer::DataBlockOf(firstShapes) != nullptr);
     }
@@ -106,7 +106,7 @@ TEST_CASE_ISOLATED("game: the game shuts down from the main menu and lets go of 
     REQUIRE(cursor != nullptr);
     CHECK(MCRenderer::DataBlockOf(cursor) != nullptr);
 
-    Application->Stop();
+    GuiSystem()->Stop();
     CHECK(TacticalInterface() == nullptr);
     CHECK(CursorShapes == nullptr);
     CHECK(MCRenderer::DataBlockOf(cursor) == nullptr);
@@ -121,17 +121,17 @@ TEST_CASE("gui: a font's data is registered while loaded and freed with it")
     const void* data = nullptr;
     {
         MCGuiFont font;
-        REQUIRE_EQ(font.Init(const_cast<char*>("memfont.fnt")), 0);
+        REQUIRE_EQ(font.Load("memfont.fnt"), 0);
         data = font.FontData.get();
         REQUIRE(data != nullptr);
         CHECK_EQ(font.FontData[63], 0x22);
         CHECK(MCRenderer::DataBlockOf(data) != nullptr);
 
-        font.Destroy();
+        font.Unload();
         CHECK(font.FontData == nullptr);
         CHECK(MCRenderer::DataBlockOf(data) == nullptr);
 
-        REQUIRE_EQ(font.Load(const_cast<char*>("memfont.fnt")), 0);
+        REQUIRE_EQ(font.Load("memfont.fnt"), 0);
         data = font.FontData.get();
     }
 

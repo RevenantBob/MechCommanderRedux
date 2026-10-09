@@ -1,6 +1,6 @@
 #include "stdafx.h"
 #include "object/MCTreeType.h"
-#include "gui/asystem.h"
+#include "gui/MCGuiSystem.h"
 #include "lib/MCFile.h"
 #include "lib/MCFitIniFile.h"
 #include "logistics/logmain.h"

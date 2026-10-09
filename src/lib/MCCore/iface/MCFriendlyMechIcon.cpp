@@ -3,7 +3,7 @@
 #include "ai/MCTacticalOrder.h"
 #include "camera/MCCamera.h"
 #include "camera/MCMainWindow.h"
-#include "gui/afont.h"
+#include "gui/MCGuiFont.h"
 #include "gui/ahelp.h"
 #include "iface/MCCommandParser.h"
 #include "iface/MCMechBar.h"
@@ -29,7 +29,7 @@ namespace
     /// <summary>Sets the cursor to <paramref name="cursor"/>.</summary>
     void SetCursor(MCInterfaceCursor cursor)
     {
-        Application->SetCurrentCursor(static_cast<MCCursorType>(cursor));
+        GuiSystem()->SetCurrentCursor(static_cast<MCCursorType>(cursor));
     }
 
     /// <summary>Points the main window's active camera at the mover and shows the floating tags.</summary>
@@ -50,7 +50,7 @@ namespace
         }
 
         camera->ChangeTarget(mover, 0);
-        TacticalInterface()->FloatingTags[0]->ShowGuiWindow(-1);
+        TacticalInterface()->FloatingTags[0]->ShowGuiWindow(true);
     }
 
     /// <summary>
@@ -72,7 +72,8 @@ namespace
     }
 }
 
-auto MCFriendlyMechIcon::Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, char* bitmapName) -> int32_t
+auto MCFriendlyMechIcon::Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, const char* bitmapName)
+    -> int32_t
 {
     ShowingWoundedPilot = false;
     ShowingDeadPilot = false;
@@ -204,7 +205,7 @@ auto MCFriendlyMechIcon::Enter() -> void
 
 auto MCFriendlyMechIcon::Draw() -> void
 {
-    DrawIcon(DisplayPort);
+    DrawIcon(DisplayPort.get());
 }
 
 auto MCFriendlyMechIcon::UpdateModel() -> void
@@ -257,8 +258,7 @@ auto MCFriendlyMechIcon::DrawIcon(MCGuiPort* target) -> void
     // A vehicle with a name shows it instead of its pilot.
     if (shown->ObjectClass == MCObjectClass::GroundVehicle && shown->GetIfaceName() != nullptr)
     {
-        WhiteFont->WriteString(target->Frame(), 5, 3,
-                               reinterpret_cast<uint8_t*>(const_cast<char*>(shown->GetIfaceName())), -1);
+        WhiteFont->WriteString(target->Frame(), 5, 3, shown->GetIfaceName(), -1);
         return;
     }
 
@@ -333,7 +333,7 @@ auto MCFriendlyMechIcon::DrawPilot(MCGuiPort* target) -> void
 
     if (shown->ObjectClass == MCObjectClass::BattleMech && !pilot->Callsign.empty())
     {
-        WhiteFont->WriteString(target->Frame(), 5, 3, reinterpret_cast<uint8_t*>(pilot->Callsign.data()), -1);
+        WhiteFont->WriteString(target->Frame(), 5, 3, pilot->Callsign.data(), -1);
     }
 }
 
@@ -477,7 +477,7 @@ auto MechIconHandleEvent(MCGuiObject* icon, MCGuiEvent* event) -> void
 
     if (event->Type == 1)
     {
-        Application->Grab(icon);
+        GuiSystem()->Grab(icon);
         return;
     }
 
@@ -487,12 +487,12 @@ auto MechIconHandleEvent(MCGuiObject* icon, MCGuiEvent* event) -> void
         return;
     }
 
-    if (event->Type != 4 || Application->GrabbedObject() != icon || mover == nullptr)
+    if (event->Type != 4 || GuiSystem()->GrabbedObject() != icon || mover == nullptr)
     {
         return;
     }
 
-    Application->Release();
+    GuiSystem()->Release();
 
     // An attack mode (or aimed shot, which only a mech can take) makes the selection attack this mover.
     MCInterfaceMode mode = iface->CurrentMode;
@@ -662,7 +662,7 @@ auto MechIconHandleEvent(MCGuiObject* icon, MCGuiEvent* event) -> void
             iface->SetUnit(groupId, movers, pointIndex);
             iface->MechBar->PlaceButtons(true);
             iface->SetMode(MCInterfaceMode::None);
-            Application->CursorHidden = 0;
+            GuiSystem()->CursorHidden = 0;
             icon->Enter();
             iface->SelectLance(HomeCommander()->GetGroup(groupId));
             iface->CommandParser->AddSubject(HomeCommander()->GetGroup(groupId));

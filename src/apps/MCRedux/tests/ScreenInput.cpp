@@ -2,8 +2,9 @@
 #include "MCTest.h"
 #include "ScreenInput.h"
 #include "TestGame.h"
-#include "gui/aport.h"
-#include "gui/asystem.h"
+#include "gui/MCGuiInput.h"
+#include "gui/MCGuiPort.h"
+#include "gui/MCGuiSystem.h"
 #include "gui/updisp.h"
 #include "platform/MCDisplay.h"
 #include "platform/MCInput.h"
@@ -12,7 +13,7 @@ namespace MCScreenInput
 {
     uint32_t ScreenHash()
     {
-        const MCWindow* screen = ScreenPort->Bitmap();
+        const MCWindow* screen = ScreenPort()->Bitmap();
         const int32_t width = screen->XMax + 1;
         const int32_t height = screen->YMax + 1;
         uint32_t hash = 0x811c9dc5;
@@ -76,7 +77,7 @@ namespace MCScreenInput
         event.Y = y;
         event.LeftButton = type == 1 ? 0xff : (leftHeld ? 1 : 0);
         // CheckMouse, run each frame, sees no button held and no move, so it adds no events of its own.
-        HandleEvent(&event);
+        DispatchGuiEvent(&event);
     }
 
     void Click(int32_t x, int32_t y)
@@ -108,7 +109,7 @@ namespace MCScreenInput
         event.Clear();
         event.Type = 10;
         event.Key = key;
-        HandleEvent(&event);
+        DispatchGuiEvent(&event);
     }
 
     void RealMove(int32_t x, int32_t y)

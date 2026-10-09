@@ -1,6 +1,6 @@
 #pragma once
 
-#include "gui/asystem.h"
+#include "gui/MCGuiSystem.h"
 
 class MCGuiScrollBar;
 class MCGuiTextObject;
@@ -17,7 +17,7 @@ public:
     /// Like aObject::init; makes the (inactive) scroll bar and the string table, and rounds the height to whole
     /// lines.
     /// </summary>
-    int32_t Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, char* name) override;
+    int32_t Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, const char* name) override;
     void Destroy() override;
     /// <summary>Draws the visible lines, the selected one highlighted.</summary>
     void Draw() override;
@@ -60,7 +60,7 @@ public:
     ~MCGuiComboBox() override;
 
     /// <summary>Makes the list (hidden, closed by <c>CloseListOnMousedown</c>), the drop button and the text field.</summary>
-    int32_t Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, char* name) override;
+    int32_t Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, const char* name) override;
     void Destroy() override;
     void Draw() override;
     /// <summary>Port: draws itself each frame (its frame; the list, button and text field draw themselves).</summary>

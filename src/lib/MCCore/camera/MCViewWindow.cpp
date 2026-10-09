@@ -4,8 +4,8 @@
 #include "camera/MCCameraList.h"
 #include "camera/MCMainWindow.h"
 #include "engine/MCFont.h"
-#include "gui/aport.h"
-#include "gui/asystem.h"
+#include "gui/MCGuiPort.h"
+#include "gui/MCGuiSystem.h"
 #include "iface/MCTacticalInterface.h"
 #include "linkup/sessionmanager.h"
 #include "logistics/logmain.h"
@@ -62,7 +62,7 @@ MCViewWindow::~MCViewWindow()
     MCGuiTitleWindow::Destroy();
 }
 
-auto MCViewWindow::Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, char* name) -> int32_t
+auto MCViewWindow::Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, const char* name) -> int32_t
 {
     const int32_t result = MCGuiObject::Init(xPos, yPos, width, height, name);
 
@@ -103,13 +103,13 @@ auto MCViewWindow::HandleEvent(MCGuiEvent* event) -> void
                 GetCamera()->Deactivate();
             }
 
-            ScreenWindow->RemoveChild(this);
+            ScreenWindow()->RemoveChild(this);
             return;
         }
         case 0x12:
         {
-            GlobalPane = ScreenPort->Frame();
-            GlobalWindow = ScreenPort->Frame()->Window;
+            GlobalPane = ScreenPort()->Frame();
+            GlobalWindow = ScreenPort()->Frame()->Window;
             break;
         }
         case 0x1a:
@@ -249,19 +249,16 @@ auto MCViewWindow::Display() -> void
 
             if (MPlayer->SessionManager->GetStats(stats) == 0)
             {
-                LineFont->Scaled = 0;
-                LineFont->Scale = 1.0f;
-                LineFont->Print(180, 72, stats, 0xfe, GlobalPane);
+                LineFont()->Scaled = 0;
+                LineFont()->Scale = 1.0f;
+                LineFont()->Print(180, 72, stats, 0xfe, GlobalPane);
             }
         }
     }
 
-    if (WinState != aSTATE_ICONIZED)
+    if (WinState != MCGuiWindowState::Iconized)
     {
-        for (int32_t i = 0; i < NumChildren; i++)
-        {
-            ChildList[i]->Display();
-        }
+        DisplayChildren();
     }
 
     if (SelectionBox[2] == 0.0f && SelectionBox[3] == 0.0f)
@@ -294,7 +291,7 @@ auto MCViewWindow::Display() -> void
 auto MCViewWindow::Leave() -> void
 {
     TacticalInterface()->HideTags();
-    Application->SetCurrentCursor(static_cast<MCCursorType>(0));
+    GuiSystem()->SetCurrentCursor(static_cast<MCCursorType>(0));
 }
 
 auto MCViewWindow::DrawBox(uint8_t color, int32_t left, int32_t top, int32_t right, int32_t bottom) -> void

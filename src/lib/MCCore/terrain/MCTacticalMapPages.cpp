@@ -3,8 +3,8 @@
 #include "camera/MCCamera.h"
 #include "color/MCPalette.h"
 #include "engine/MCFont.h"
-#include "gui/afont.h"
-#include "gui/aport.h"
+#include "gui/MCGuiFont.h"
+#include "gui/MCGuiPort.h"
 #include "gui/atextbox.h"
 #include "iface/MCTacticalInterface.h"
 #include "lib/MCMsvcSort.h"
@@ -170,13 +170,13 @@ namespace
     /// <summary>Writes <paramref name="text"/> in <paramref name="font"/> at (<paramref name="x"/>, <paramref name="y"/>).</summary>
     void WriteText(MCGuiFont* font, MCPane* pane, int32_t x, int32_t y, std::string text)
     {
-        font->WriteString(pane, x, y, reinterpret_cast<uint8_t*>(text.data()), -1);
+        font->WriteString(pane, x, y, text.data(), -1);
     }
 
     /// <summary>The width of <paramref name="text"/> in <paramref name="font"/>.</summary>
     int32_t TextWidth(MCGuiFont* font, std::string text)
     {
-        return font->Width(reinterpret_cast<uint8_t*>(text.data()));
+        return font->Width(text.data());
     }
 }
 
@@ -192,7 +192,7 @@ auto MCTacticalMap::Draw() -> void
     {
         case MCTacmapPage::Map:
         {
-            MapBackground->CopyTo(DisplayPort->Frame(), 0, 0, -1);
+            MapBackground->CopyTo(DisplayPort->Frame(), 0, 0, true);
             DrawMapPage();
             break;
         }
@@ -203,18 +203,18 @@ auto MCTacticalMap::Draw() -> void
                 VfxPaneWipe(DisplayPort->Frame(), 0x10);
             }
 
-            InfoBackground->CopyTo(DisplayPort->Frame(), 0, 0, -1);
+            InfoBackground->CopyTo(DisplayPort->Frame(), 0, 0, true);
             DrawInfoPage();
             break;
         }
         case MCTacmapPage::Mission:
         {
-            MissionBackground->CopyTo(DisplayPort->Frame(), 0, 0, -1);
+            MissionBackground->CopyTo(DisplayPort->Frame(), 0, 0, true);
             break;
         }
         case MCTacmapPage::Salvage:
         {
-            SalvageBackground->CopyTo(DisplayPort->Frame(), 0, 0, -1);
+            SalvageBackground->CopyTo(DisplayPort->Frame(), 0, 0, true);
             break;
         }
     }
@@ -471,7 +471,7 @@ auto MCTacticalMap::DrawObjects() -> void
         const auto [xPos, yPos] = MapPixel(*this, MCVector3D(objective.Position[0], objective.Position[1], 0.0f));
         AGEllipseFill(&MapPane, xPos, yPos, 2, 2, 0x1f);
         // The pending objective's colour (the status is 0 here).
-        LineFont->Print(xPos, yPos, std::format("{}", i + 1), 0xf2, &MapPane);
+        LineFont()->Print(xPos, yPos, std::format("{}", i + 1), 0xf2, &MapPane);
     }
 
     // The sensor contacts: a dot (dark when not identified), and with the ranges on, the unit's sensor range.

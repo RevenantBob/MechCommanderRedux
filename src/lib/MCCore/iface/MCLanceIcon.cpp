@@ -60,7 +60,7 @@ auto MCLanceIcon::Display() -> void
         return;
     }
 
-    MCPane* pane = FramePane;
+    MCPane* pane = FramePane.get();
     NumberImage->CopyTo(pane, 0, 0, 1);
     const int32_t numberWidth = NumberImage->Width();
     FirstLinkImage->CopyTo(pane, numberWidth, 0, 1);
@@ -71,7 +71,7 @@ auto MCLanceIcon::Display() -> void
 
     for (int32_t i = 1; i < GetNumActiveMovers(); i++)
     {
-        LongLinkImage->CopyTo(FramePane, xPos, 4, 1);
+        LongLinkImage->CopyTo(FramePane.get(), xPos, 4, 1);
         xPos += LongLinkImage->Width();
         linkEnd += LongLinkImage->Width();
     }
@@ -91,16 +91,16 @@ auto MCLanceIcon::HandleEvent(MCGuiEvent* event) -> void
 {
     if (event->Type == 1)
     {
-        Application->Grab(this);
+        GuiSystem()->Grab(this);
         return;
     }
 
-    if (event->Type != 4 || Application->GrabbedObject() != this)
+    if (event->Type != 4 || GuiSystem()->GrabbedObject() != this)
     {
         return;
     }
 
-    Application->Release();
+    GuiSystem()->Release();
     MCTacticalInterface* iface = TacticalInterface();
 
     // The eject, power down and power up modes go to the whole lance.

@@ -1,7 +1,7 @@
 #include "stdafx.h"
 #include "color/MCWaterCycle.h"
 #include "color/MCPalette.h"
-#include "gui/asystem.h"
+#include "gui/MCGuiSystem.h"
 #include "mission/MCScenario.h"
 #include "platform/MCDisplay.h"
 #include "platform/MCInput.h"
@@ -43,7 +43,7 @@ auto CycleColors() -> void
     {
         lastCycleTime = MCPort::Milliseconds();
 
-        if (Application->PaletteCycle != 0)
+        if (GuiSystem()->PaletteCycle != 0)
         {
             StepWaterColors(*GamePalette(), MCInput::Display());
         }

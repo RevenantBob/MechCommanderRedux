@@ -29,7 +29,7 @@ namespace
     /// <summary>Sets the cursor to <paramref name="cursor"/>.</summary>
     void SetCursor(MCInterfaceCursor cursor)
     {
-        Application->SetCurrentCursor(static_cast<MCCursorType>(cursor));
+        GuiSystem()->SetCurrentCursor(static_cast<MCCursorType>(cursor));
     }
 
     /// <summary>
@@ -93,7 +93,7 @@ auto MCTacticalInterface::UpdateMouseState(MCGuiEvent* event) -> void
     std::string text;
     CursorOffset = 0;
 
-    if (ScreenWindow == nullptr || ObjectList() == nullptr)
+    if (ScreenWindow() == nullptr || ObjectList() == nullptr)
     {
         return;
     }
@@ -105,7 +105,7 @@ auto MCTacticalInterface::UpdateMouseState(MCGuiEvent* event) -> void
         cursorEvent.Clear();
         cursorEvent.X = cursor.x;
         cursorEvent.Y = cursor.y;
-        cursorEvent.Target = ScreenWindow->FindObject(cursor.x, cursor.y);
+        cursorEvent.Target = ScreenWindow()->FindObject(cursor.x, cursor.y);
 
         if (cursorEvent.Target == MechBar.get())
         {
@@ -428,7 +428,7 @@ auto MCTacticalInterface::UpdateMouseState(MCGuiEvent* event) -> void
         if (allowed)
         {
             if (CurrentMode != MCInterfaceMode::LayMines && CurrentMode != MCInterfaceMode::Run &&
-                CurrentMode != MCInterfaceMode::Jump && Application->CursorHidden == 0)
+                CurrentMode != MCInterfaceMode::Jump && GuiSystem()->CursorHidden == 0)
             {
                 SetMode(MCInterfaceMode::None);
             }

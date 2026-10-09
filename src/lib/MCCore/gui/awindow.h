@@ -1,7 +1,8 @@
 #pragma once
 
-#include "gui/asystem.h"
-#include "gui/abutton.h"
+#include "gui/MCGuiSystem.h"
+#include "gui/MCGuiButton.h"
+#include "gui/MCGuiHolderObject.h"
 
 struct MCSmackTag;
 class MCGuiFont;
@@ -48,7 +49,7 @@ public:
     MCGuiTitleBar();
 
     /// <summary>Makes the four buttons (the close button's message is 0xd).</summary>
-    int32_t Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, char* name) override;
+    int32_t Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, const char* name) override;
     void Destroy() override;
     void Draw() override;
     /// <summary>Port: draws itself each frame from its title and buttons.</summary>
@@ -96,7 +97,7 @@ public:
     /// moves the window 13 pixels down to make room for the bar.
     /// </summary>
     /// <returns>0, or the first child's error. Out of memory is fatal.</returns>
-    int32_t Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, char* name) override;
+    int32_t Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, const char* name) override;
     void Destroy() override;
     void Draw() override;
     /// <summary>
@@ -128,10 +129,10 @@ public:
     MCGuiMenu();
 
     /// <summary>Also sets <see cref="Shown"/> when showing.</summary>
-    void ShowGuiWindow(int show) override;
+    void ShowGuiWindow(bool show) override;
     /// <summary>Allocates the item text (1000 bytes) and clears the items.</summary>
     /// <returns>0, or 0xbadd0001 when out of memory.</returns>
-    int32_t Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, char* name) override;
+    int32_t Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, const char* name) override;
     void Destroy() override;
     /// <summary>Tracks the highlighted item; a release over an item runs its callback and hides the menu.</summary>
     void HandleEvent(MCGuiEvent* event) override;
@@ -191,7 +192,7 @@ public:
     MCGuiToolBar();
 
     /// <summary>A title window without the close button, 8 buttons to a row.</summary>
-    int32_t Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, char* name) override;
+    int32_t Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, const char* name) override;
     void Destroy() override;
 
     /// <returns>0, or 0xeeee0001 when the bar is full.</returns>
@@ -223,7 +224,7 @@ public:
     /// <summary>Port: draws itself each frame (only its background; the buttons draw themselves).</summary>
     bool DrawsLive() override { return true; }
 
-    int32_t Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, char* name) override;
+    int32_t Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, const char* name) override;
     void Destroy() override;
 
     int32_t InsertButton(MCGuiButton* button, int32_t index);
@@ -361,7 +362,7 @@ public:
     /// <summary>Destroys the frame (the original's destructor calls <see cref="Destroy"/>).</summary>
     ~MCGuiEmptyTitleWindow() override;
 
-    int32_t Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, char* name) override;
+    int32_t Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, const char* name) override;
     void Destroy() override;
     void Resize(int32_t newWidth, int32_t newHeight) override;
     void HandleEvent(MCGuiEvent* event) override;

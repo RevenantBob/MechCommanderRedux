@@ -1,6 +1,6 @@
 #pragma once
 
-#include "gui/asystem.h"
+#include "gui/MCGuiSystem.h"
 #include "gui/scrlpane.h"
 #include "logistics/lport.h"
 
@@ -27,7 +27,7 @@ public:
     ~MCLogButton() override;
 
     /// <summary>Places the button, makes its callback, clears its pictures and wipes its port.</summary>
-    int32_t Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, char* name) override;
+    int32_t Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, const char* name) override;
 
     /// <summary>Frees the four pictures and the callback.</summary>
     void Destroy() override;
@@ -225,7 +225,7 @@ public:
     /// Places the list, makes the scroll tab and the text buffer, and prints <paramref name="text"/> if given (a
     /// list with no text doesn't grow its port to fit).
     /// </summary>
-    int32_t Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, char* text) override;
+    int32_t Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, const char* text) override;
 
     /// <summary>Frees the scroll tab and the text.</summary>
     void Destroy() override;
@@ -242,7 +242,7 @@ public:
     void Resize(int32_t width, int32_t height) override;
 
     /// <summary>Appends a line of <paramref name="text"/> in <paramref name="color"/> (null = an empty line).</summary>
-    virtual void Print(char* text, uint8_t color);
+    virtual void Print(const char* text, uint8_t color);
 
     /// <summary>Appends <paramref name="text"/> word-wrapped to <paramref name="width"/> pixels.</summary>
     virtual void PrintWrapped(char* text, uint8_t color, int32_t width);
@@ -305,7 +305,7 @@ public:
 
     ~MCGameList() override;
 
-    int32_t Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, char* text) override;
+    int32_t Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, const char* text) override;
 
     /// <summary>Port: draws the lines as an <see cref="MCLogScrollTextObject"/>.</summary>
     void Draw() override;
@@ -338,7 +338,7 @@ public:
     MCLogSlider();
     ~MCLogSlider() override;
 
-    int32_t Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, char* name) override;
+    int32_t Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, const char* name) override;
 
     /// <summary>Frees the thumb picture.</summary>
     void Destroy() override;
@@ -628,7 +628,7 @@ public:
     /// <summary>
     /// Shows or hides the screen; showing the load/save screen grays the buttons that have nothing to act on.
     /// </summary>
-    void ShowGuiWindow(int show) override;
+    void ShowGuiWindow(bool show) override;
 
     /// <summary>The elements; element 0 is the screen itself.</summary>
     MCGuiObject** Elements = nullptr;
@@ -691,7 +691,7 @@ public:
     void Destroy() override;
 
     /// <summary>Shows or hides the screen, starting or stopping the attract-mode timer on the main menus.</summary>
-    void ShowGuiWindow(int show) override;
+    void ShowGuiWindow(bool show) override;
 
     /// <summary>Shows only the elements listed in block <paramref name="block"/>.</summary>
     void ShowBlock(int32_t block);
@@ -719,12 +719,6 @@ void LogScrollTabHandleEvent(MCGuiObject* tab, MCGuiEvent* event);
 /// <returns>-1 when it was, else 0.</returns>
 int IsSessionDeleted(MCFidpSession* session);
 
-/// <summary>The logistics fonts, by color row and size column.</summary>
-extern MCGuiFont* Fonts[][3];
-/// <summary>The large black logistics font.</summary>
-extern MCGuiFont* LgBlackFont;
-/// <summary>The large white logistics font.</summary>
-extern MCGuiFont* LgWhiteFont;
 /// <summary>Sessions dropped from the game list because they had no players.</summary>
 extern _GUID DeletedSessions[50];
 extern int32_t NextDeletedSession;

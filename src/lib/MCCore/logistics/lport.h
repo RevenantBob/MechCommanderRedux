@@ -1,7 +1,7 @@
 #pragma once
 
-#include "gui/aport.h"
-#include "gui/asystem.h"
+#include "gui/MCGuiPort.h"
+#include "gui/MCGuiSystem.h"
 
 /// <summary>
 /// A logistics-screen drawing port: an <see cref="MCGuiPort"/> whose pane and bitmap are logistics blocks
@@ -26,7 +26,7 @@ public:
 
     /// <summary>Loads a port from a TGA-like image file under <c>artPath</c> (header, then pixels at +0x312).</summary>
     /// <returns>0, 3 when out of memory, -2 when the file can't be read.</returns>
-    int32_t Init(char* fileName);
+    int32_t Init(const char* fileName);
 
     /// <summary>Reallocates the bitmap for a new size (the screen port keeps its bitmap).</summary>
     int32_t Resize(int32_t width, int32_t height) override;
@@ -103,7 +103,7 @@ public:
     /// <paramref name="port"/> it makes its own port of that size; otherwise it draws into <paramref name="port"/>.
     /// </summary>
     /// <returns>0, or an error from <see cref="MCLogPort::Init"/> / 3 when out of memory.</returns>
-    int32_t Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, char* name, MCLogPort* port);
+    int32_t Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, const char* name, MCLogPort* port);
 
     /// <summary>Frees the ports, animations and children, and lets go of any system grab on this object.</summary>
     void Destroy() override;
@@ -124,7 +124,8 @@ public:
     void FillBox(int16_t left, int16_t top, int16_t right, int16_t bottom, uint8_t color);
 
     /// <summary>Loads <paramref name="fileName"/> as the background port.</summary>
-    int32_t SetBackground(char* fileName) override;
+    int32_t SetBackground(std::string_view fileName) override;
+    using MCGuiObject::SetBackground;
 
     /// <summary>Port: the shared places this screen shows (<see cref="MCLogScreenChrome"/>), or null for other objects.</summary>
     virtual MCLogScreenChrome* Chrome() { return nullptr; }

@@ -19,7 +19,7 @@ namespace
     };
 }
 
-auto MCMechBar::Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, char* bitmapName) -> int32_t
+auto MCMechBar::Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, const char* bitmapName) -> int32_t
 {
     MCGuiObject::Init(xPos, yPos, width, height, bitmapName);
     // The bar draws on its parent: no bitmap of its own.
@@ -46,7 +46,7 @@ auto MCMechBar::Display() -> void
         return;
     }
 
-    for (int32_t i = 0; i < NumChildren; i++)
+    for (size_t i = 0; i < ChildList.size(); i++)
     {
         ChildList[i]->Display();
     }
@@ -102,7 +102,7 @@ auto MCMechBar::HandleEvent(MCGuiEvent* event) -> void
     // A broadcast (a resolution change): back to the bottom of the screen.
     if (event->Type == 0x12)
     {
-        MoveTo(1, Application->Height() - Height() - 1, 0);
+        MoveTo(1, GuiSystem()->Height() - Height() - 1, 0);
     }
 
     event->Target = MainHolder()->GetActivePane();
@@ -277,7 +277,7 @@ auto MCMechBar::PlaceButtons(bool animate) -> void
         Dancing = true;
         _DanceCallback = std::make_unique<MCGuiCallback>();
         _DanceCallback->SetExec([] { TacticalInterface()->MechBar->Dance(); });
-        Application->AddCallback(_DanceCallback.get());
+        GuiSystem()->AddCallback(_DanceCallback.get());
         SoundSystem()->PlayDigitalSample(0x42, 1, nullptr, 0, 0);
     }
 }
@@ -395,7 +395,7 @@ auto MCMechBar::Dance() -> void
             }
 
             Dancing = false;
-            Application->RemoveCallback(_DanceCallback.get());
+            GuiSystem()->RemoveCallback(_DanceCallback.get());
             Draw();
             SoundSystem()->PlayDigitalSample(0x43, 1, nullptr, 0, 0);
             _DanceFrames++;
