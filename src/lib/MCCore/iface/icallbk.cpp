@@ -20,7 +20,7 @@
 #include "object/MCMoverGameSystem.h"
 #include "object/MCMechWarrior.h"
 #include "platform/MCFrameLog.h"
-#include "sound/soundsys.h"
+#include "sound/MCSoundSystem.h"
 #include "terrain/MCTerrain.h"
 #include "terrain/MCTacticalMap.h"
 #include "vfx/MCVfxFunctions.h"
@@ -178,7 +178,7 @@ auto MechIconHandleEvent(MCGuiObject* icon, MCGuiEvent* event) -> void
             }
 
             TheInterface->CommandParser->AddSubject(iconPartId, addToExisting);
-            SoundSystem->PlayDigitalSample(0x10, 1, nullptr, 0, 0);
+            SoundSystem()->PlayDigitalSample(0x10, 1, nullptr, 0, 0);
             break;
         }
 
@@ -234,7 +234,7 @@ auto MechIconHandleEvent(MCGuiObject* icon, MCGuiEvent* event) -> void
         case 0x2c:
         {
             // Make the selection lance (command - 0x29), with this mover as its point.
-            SoundSystem->PlayBettySample(5);
+            SoundSystem()->PlayBettySample(5);
             int32_t groupId = TheInterface->CurrentCommand - 0x29;
 
             if (TheInterface->IsSelected(mover->PartId) == 0)

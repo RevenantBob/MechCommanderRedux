@@ -25,7 +25,7 @@
 #include "object/MCProjectileLaser.h"
 #include "object/MCProjectileLaserType.h"
 #include "object/MCMechWarrior.h"
-#include "sound/soundsys.h"
+#include "sound/MCSoundSystem.h"
 #include "sprite/MCElementalActor.h"
 #include "terrain/MCTerrain.h"
 #include "object/MCObjectType.h"

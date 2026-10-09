@@ -14,7 +14,7 @@
 #include "main/main.h"
 #include "network/multplyr.h"
 #include "platform/MCInput.h"
-#include "sound/soundsys.h"
+#include "sound/MCSoundSystem.h"
 #include "vfx/MCVfxFunctions.h"
 
 int32_t ResourceDisplayState = 0;
@@ -439,7 +439,7 @@ auto MCRepairScreen::HandleEvent(MCGuiEvent* event) -> void
                 return;
             }
 
-            SoundSystem->PlayDigitalSample(0x36, 1, nullptr, 0, 0);
+            SoundSystem()->PlayDigitalSample(0x36, 1, nullptr, 0, 0);
             GlobalLogPtr->SetUpMainScreen(0);
             return;
         }
@@ -449,7 +449,7 @@ auto MCRepairScreen::HandleEvent(MCGuiEvent* event) -> void
 
         if (PtInRect(&area, point) != 0)
         {
-            SoundSystem->PlayDigitalSample(0x36, 1, nullptr, 0, 0);
+            SoundSystem()->PlayDigitalSample(0x36, 1, nullptr, 0, 0);
             SetUpMechInv(-1, -1);
             SetUpMechPurchase();
         }
@@ -459,7 +459,7 @@ auto MCRepairScreen::HandleEvent(MCGuiEvent* event) -> void
 
         if (PtInRect(&area, point) != 0)
         {
-            SoundSystem->PlayDigitalSample(0x36, 1, nullptr, 0, 0);
+            SoundSystem()->PlayDigitalSample(0x36, 1, nullptr, 0, 0);
             SetUpPilotInv(-1, -1);
             SetUpPilotPurchase();
         }
@@ -469,7 +469,7 @@ auto MCRepairScreen::HandleEvent(MCGuiEvent* event) -> void
 
         if (PtInRect(&area, point) != 0)
         {
-            SoundSystem->PlayDigitalSample(0x36, 1, nullptr, 0, 0);
+            SoundSystem()->PlayDigitalSample(0x36, 1, nullptr, 0, 0);
             SetUpCompInv(-1, -1);
             SetUpCompPurchase();
         }
@@ -479,7 +479,7 @@ auto MCRepairScreen::HandleEvent(MCGuiEvent* event) -> void
 
         if (PtInRect(&area, point) != 0)
         {
-            SoundSystem->PlayDigitalSample(0x36, 1, nullptr, 0, 0);
+            SoundSystem()->PlayDigitalSample(0x36, 1, nullptr, 0, 0);
             SetUpVhclInv(-1, -1);
             SetUpVehiclePurchase();
         }

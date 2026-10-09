@@ -10,7 +10,7 @@
 #include "object/MCMover.h"
 #include "object/MCMoverGameSystem.h"
 #include "object/MCMechWarrior.h"
-#include "sound/radio.h"
+#include "sound/MCRadio.h"
 
 int32_t MCSensorSystem::NumSensorsMade = 0;
 int SensorAutomaticSuccess = 0;
@@ -349,7 +349,7 @@ auto MCSensorSystem::UpdateScan(int forceScan) -> void
 
     if (ScanBattlefield() > 0 && IsMoverClass(Owner->ObjectClass))
     {
-        Owner->GetPilot()->RadioMessage(RADIO_SENSOR_CONTACT, 0);
+        Owner->GetPilot()->RadioMessage(MCRadioMessageType::SensorContact, 0);
     }
 
     LastScanTime = ScenarioTime;

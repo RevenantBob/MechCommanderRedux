@@ -46,8 +46,8 @@
 #include "object/MCEffectSystem.h"
 #include "object/MCMechWarrior.h"
 #include "object/MCMoverGameSystem.h"
-#include "sound/radio.h"
-#include "sound/soundsys.h"
+#include "sound/MCRadio.h"
+#include "sound/MCSoundSystem.h"
 #include "terrain/MCTerrain.h"
 #include "sprite/MCMechActor.h"
 #include "object/MCObjectTypeManager.h"
@@ -334,7 +334,7 @@ auto MCBattleMech::MineCheck() -> void
 
     if (GetPilot() != nullptr)
     {
-        GetPilot()->RadioMessage(0x16, 1);
+        GetPilot()->RadioMessage(MCRadioMessageType::HittingMines, 1);
     }
 
     SteppedOnMine = 1;
@@ -1179,7 +1179,7 @@ auto MCBattleMech::UpdateMovement() -> void
     if (ShutDownThisFrame != 0)
     {
         const int32_t result = Appearance->SetGestureGoal(0);
-        SoundSystem->PlayDigitalSample(0x3c, 1, this, 0, 0);
+        SoundSystem()->PlayDigitalSample(0x3c, 1, this, 0, 0);
 
         if (result == 0 || result == -0x1521ffff)
         {
@@ -1199,7 +1199,7 @@ auto MCBattleMech::UpdateMovement() -> void
     if (StartUpThisFrame != 0)
     {
         const int32_t result = Appearance->SetGestureGoal(1);
-        SoundSystem->PlayDigitalSample(0x3d, 1, this, 0, 0);
+        SoundSystem()->PlayDigitalSample(0x3d, 1, this, 0, 0);
 
         if (result == 0 || result == -0x1521ffff)
         {

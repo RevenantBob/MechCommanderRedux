@@ -9,7 +9,7 @@
 #include "object/MCLaserType.h"
 #include "object/MCObjectSystem.h"
 #include "platform/MCRenderer.h"
-#include "sound/soundsys.h"
+#include "sound/MCSoundSystem.h"
 #include "terrain/MCTerrain.h"
 #include "vfx/MCVfx.h"
 #include "vfx/MCVfxFunctions.h"
@@ -240,7 +240,7 @@ auto MCLaser::Update() -> int32_t
             DamageApplied = false;
             PpcFrameTimeLeft = type->LengthPpc;
             PpcAnimTimeLeft = type->AnimPpc;
-            SoundSystem->PlayDigitalSample(type->SoundEffectId, 1, this, 0, 0);
+            SoundSystem()->PlayDigitalSample(type->SoundEffectId, 1, this, 0, 0);
         }
 
         JustCreated = false;

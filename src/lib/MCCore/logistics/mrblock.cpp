@@ -19,7 +19,7 @@
 #include "mission/mission.h"
 #include "network/multplyr.h"
 #include "object/MCMasterComponent.h"
-#include "sound/soundsys.h"
+#include "sound/MCSoundSystem.h"
 #include "vfx/MCVfxFunctions.h"
 
 // 0x008009d0 is AlphaTable row 0x100 (AlphaTable is at 0x007f09d0): the alpha colour greyed-out rows darken through.
@@ -85,7 +85,7 @@ namespace
 
     void PlaySample(uint32_t sampleId)
     {
-        SoundSystem->PlayDigitalSample(sampleId, 1, nullptr, 0, 0);
+        SoundSystem()->PlayDigitalSample(sampleId, 1, nullptr, 0, 0);
     }
 
     void WriteText(MCGuiFont* font, MCPane* pane, int32_t x, int32_t y, const char* text)
@@ -734,7 +734,7 @@ auto MCMechRepairBlock::HandleEvent(MCGuiEvent* event) -> void
                         DrawBackground(row, nullptr);
                         RepairScreen()->CreatePilotInvBlock();
                         RepairScreen()->SetUpPilotInv(-1, -1);
-                        SoundSystem->PlayPilotSpeech(pilot->PilotAudio, 2);
+                        SoundSystem()->PlayPilotSpeech(pilot->PilotAudio, 2);
                         return;
                     }
 
@@ -1251,7 +1251,7 @@ auto MCMechRepairBlock::HandleEvent(MCGuiEvent* event) -> void
     if (0 < localX && localX < 100 && 0x1c < localY && localY < 0x6d && Mech->PilotIndex >= 0)
     {
         // Pick up the pilot: the portrait becomes the drag icon and its place is blanked.
-        SoundSystem->PlayPilotSpeech(warrior->PilotAudio, 10);
+        SoundSystem()->PlayPilotSpeech(warrior->PilotAudio, 10);
         Application->SetCursorVisible(0);
         Application->Grab(this);
 
@@ -3349,7 +3349,7 @@ auto MCVehicleRepairBlock::HandleEvent(MCGuiEvent* event) -> void
                 // Port fix: no pilot, no speech (nothing ever sets vehiclePilot; the original read through it).
                 if (VehiclePilot != nullptr)
                 {
-                    SoundSystem->PlayPilotSpeech(VehiclePilot->PilotAudio, 2);
+                    SoundSystem()->PlayPilotSpeech(VehiclePilot->PilotAudio, 2);
                 }
 
                 VehiclePilot = nullptr;

@@ -34,7 +34,7 @@
 #include "object/MCSmokeType.h"
 #include "object/MCMechWarrior.h"
 #include "object/MCMoverGameSystem.h"
-#include "sound/soundsys.h"
+#include "sound/MCSoundSystem.h"
 #include "object/MCObjectType.h"
 #include "object/MCWeaponChunkDebug.h"
 #include "object/MCWeaponShotInfo.h"

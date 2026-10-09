@@ -21,7 +21,7 @@
 #include "object/MCBattleMechType.h"
 #include "object/MCMechGameSystem.h"
 #include "object/MCObjectType.h"
-#include "sound/soundsys.h"
+#include "sound/MCSoundSystem.h"
 #include "vfx/MCVfxFunctions.h"
 #include "object/MCObjectTypeManager.h"
 
@@ -77,7 +77,7 @@ namespace
 
     void PlaySample(uint32_t sampleId)
     {
-        SoundSystem->PlayDigitalSample(sampleId, 1, nullptr, 0, 0);
+        SoundSystem()->PlayDigitalSample(sampleId, 1, nullptr, 0, 0);
     }
 
     /// <summary>A copy of <paramref name="text"/> in a logistics block.</summary>
@@ -584,7 +584,7 @@ auto PilotPurchaseCallback(int confirmed, int32_t) -> void
     GlobalLogPtr->PurchaseScreen->RemovePilot(GlobalPilotPurchaseBlock->Pilot->Block->Row);
     GlobalLogPtr->PurchaseScreen->SetUpPilotPurchase();
     ResourcePoints -= GlobalLogPtr->PurchaseDialog->UnitCost;
-    SoundSystem->PlayPilotSpeech(GlobalPilotPurchaseBlock->Pilot->PilotAudio, 2);
+    SoundSystem()->PlayPilotSpeech(GlobalPilotPurchaseBlock->Pilot->PilotAudio, 2);
     GlobalLogPtr->PurchaseScreen->UnitPane->SetScrollPos(scrollPos);
 }
 
@@ -2267,7 +2267,7 @@ auto MCPilotPurchaseBlock::HandleEvent(MCGuiEvent* event) -> void
                     PilotDrag.Carrying = 1;
                 }
 
-                SoundSystem->PlayPilotSpeech(Pilot->PilotAudio, 10);
+                SoundSystem()->PlayPilotSpeech(Pilot->PilotAudio, 10);
                 Application->Grab(this);
                 PilotDrag.Y = event->Y - 0x10;
                 PilotDrag.X = event->X - 0x10;

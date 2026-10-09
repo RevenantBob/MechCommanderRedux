@@ -21,7 +21,7 @@
 #include "network/multplyr.h"
 #include "platform/MCFileSystem.h"
 #include "platform/MCRenderer.h"
-#include "sound/soundsys.h"
+#include "sound/MCSoundSystem.h"
 #include "vfx/MCVfxFunctions.h"
 
 std::type_identity_t<char[256]> MCSplashScreen::_GenericPortFileName{};
@@ -398,13 +398,13 @@ auto MCLogButton::HandleEvent(MCGuiEvent* event) -> void
         {
             // Shown pressed, and on screen before the callback runs.
             Press();
-            SoundSystem->PlayDigitalSample(PressSound, 1, nullptr, 0, 0);
+            SoundSystem()->PlayDigitalSample(PressSound, 1, nullptr, 0, 0);
             UpdateDisplay(0, 0, 0, 0, 0);
             ButtonCallback->Execute();
         }
         else
         {
-            SoundSystem->PlayDigitalSample(0x33, 1, nullptr, 0, 0);
+            SoundSystem()->PlayDigitalSample(0x33, 1, nullptr, 0, 0);
         }
     }
     else if (event->Type == 4)
@@ -464,7 +464,7 @@ auto MCLogButton::Enter() -> void
             LetGoPress();
         }
 
-        SoundSystem->PlayDigitalSample(OverSound, 1, nullptr, 0, 0);
+        SoundSystem()->PlayDigitalSample(OverSound, 1, nullptr, 0, 0);
     }
 }
 
@@ -972,7 +972,7 @@ auto MCFileScrollPane::HandleEvent(MCGuiEvent* event) -> void
             if (file > -1 && file == SelectedFile)
             {
                 MCLogButton* button = static_cast<MCGenericScreen*>(Parent)->LoadSaveButton;
-                SoundSystem->PlayDigitalSample(button->PressSound, 1, nullptr, 0, 0);
+                SoundSystem()->PlayDigitalSample(button->PressSound, 1, nullptr, 0, 0);
                 button->Callback()->Execute();
                 return;
             }
@@ -3173,7 +3173,7 @@ auto MCLogComboBox::Open() -> void
     Resize(Width(), FieldHeight + VisibleRows() * RowHeight + 1);
     RaiseAmongSiblings();
     Application->Grab(this);
-    SoundSystem->PlayDigitalSample(ComboClickSound, 1, nullptr, 0, 0);
+    SoundSystem()->PlayDigitalSample(ComboClickSound, 1, nullptr, 0, 0);
 }
 
 auto MCLogComboBox::Close() -> void
@@ -3323,7 +3323,7 @@ auto MCLogComboBox::HandleEvent(MCGuiEvent* event) -> void
             else if (row >= 0)
             {
                 Close();
-                SoundSystem->PlayDigitalSample(ComboClickSound, 1, nullptr, 0, 0);
+                SoundSystem()->PlayDigitalSample(ComboClickSound, 1, nullptr, 0, 0);
                 Choose(row);
             }
             break;

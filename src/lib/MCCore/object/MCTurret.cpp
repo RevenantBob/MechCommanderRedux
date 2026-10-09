@@ -47,7 +47,7 @@
 #include "object/MCForces.h"
 #include "object/MCMechWarrior.h"
 #include "object/MCMoverGameSystem.h"
-#include "sound/soundsys.h"
+#include "sound/MCSoundSystem.h"
 #include "sprite/MCGVAppearance.h"
 #include "sprite/MCPUAppearance.h"
 #include "terrain/MCTerrain.h"
@@ -1198,9 +1198,9 @@ auto MCTurret::Render() -> void
         {
             if (VfxShapeCount(shape) <= BlipFrame)
             {
-                if (SoundSystem != nullptr && UseSound != 0)
+                if (SoundSystem() != nullptr && UseSound != 0)
                 {
-                    SoundSystem->PlayDigitalSample(0x14, 1, this, 0, 1);
+                    SoundSystem()->PlayDigitalSample(0x14, 1, this, 0, 1);
                 }
 
                 BlipFrame = 0;

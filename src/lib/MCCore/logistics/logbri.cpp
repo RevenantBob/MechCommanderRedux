@@ -24,7 +24,7 @@
 #include "object/MCMasterComponent.h"
 #include "platform/MCInput.h"
 #include "platform/MCSmacker.h"
-#include "sound/soundsys.h"
+#include "sound/MCSoundSystem.h"
 #include "vfx/MCVfxFunctions.h"
 
 char ArtPath[80] = {}; // 80 bytes (0x007ab080..0x007ab0d0); gui\asystem.cpp's RealWinMain sets it.
@@ -930,7 +930,7 @@ auto MCBriefingScreen::HandleEvent(MCGuiEvent* event) -> void
                 if (MPlayer == nullptr)
                 {
                     StopSmackerMovies();
-                    SoundSystem->PlayDigitalSample(0x36, 1, nullptr, 0, 0);
+                    SoundSystem()->PlayDigitalSample(0x36, 1, nullptr, 0, 0);
                     GlobalLogPtr->SetUpMainScreen(0);
                     return;
                 }
@@ -944,7 +944,7 @@ auto MCBriefingScreen::HandleEvent(MCGuiEvent* event) -> void
 
             if (PtInRect(&area, point) != 0)
             {
-                SoundSystem->PlayDigitalSample(0x36, 1, nullptr, 0, 0);
+                SoundSystem()->PlayDigitalSample(0x36, 1, nullptr, 0, 0);
                 SetUpOperation();
                 return;
             }
@@ -954,7 +954,7 @@ auto MCBriefingScreen::HandleEvent(MCGuiEvent* event) -> void
 
             if (PtInRect(&area, point) != 0)
             {
-                SoundSystem->PlayDigitalSample(0x36, 1, nullptr, 0, 0);
+                SoundSystem()->PlayDigitalSample(0x36, 1, nullptr, 0, 0);
                 SetUpMission();
                 return;
             }
@@ -971,7 +971,7 @@ auto MCBriefingScreen::HandleEvent(MCGuiEvent* event) -> void
                 ((MaxDeployTonnage < CurDeployTonnage || GlobalLogPtr->RequiredAssigned() == 0) &&
                  GlobalLogPtr->HammerDown == 0))
             {
-                SoundSystem->PlayBettySample(0x1b);
+                SoundSystem()->PlayBettySample(0x1b);
                 return;
             }
 
@@ -987,12 +987,12 @@ auto MCBriefingScreen::HandleEvent(MCGuiEvent* event) -> void
 
                 if (units < 0x33)
                 {
-                    SoundSystem->PlayDigitalSample(0x3a, 1, nullptr, 0, 0);
+                    SoundSystem()->PlayDigitalSample(0x3a, 1, nullptr, 0, 0);
                     Mission->StartScenario(Mission->Scenarios[Mission->CurrentScenario].data());
                     return;
                 }
 
-                SoundSystem->PlayDigitalSample(0x33, 1, nullptr, 0, 0);
+                SoundSystem()->PlayDigitalSample(0x33, 1, nullptr, 0, 0);
                 char format[256];
                 CLoadString(ThisInstance, 0x373, format, 0xfe);
                 char text[256];
@@ -1121,9 +1121,9 @@ auto MCBriefingScreen::SetUpOperation() -> void
     if (OperationPicture != nullptr)
     {
         OperationPictureShown = true;
-        SoundSystem->PlayBettySample(0x1a);
+        SoundSystem()->PlayBettySample(0x1a);
 
-        while (SoundSystem->IsChannelPlaying(0xe) != 0)
+        while (SoundSystem()->IsChannelPlaying(0xe) != 0)
         {
             UpdateDisplay(0, 0, 0, 0, 0);
         }
@@ -1449,7 +1449,7 @@ auto MCMechBriefBlock::HandleEvent(MCGuiEvent* event) -> void
                     }
 
                     GlobalLogPtr->SendAddMechMessage(Mech, lance, slot);
-                    SoundSystem->PlayDigitalSample(0x34, 1, nullptr, 0, 0);
+                    SoundSystem()->PlayDigitalSample(0x34, 1, nullptr, 0, 0);
                     deploy.Unit = GlobalLogPtr->ForceMechList->GetMechIndex(Mech);
                     CurDeployTonnage = DeployTonnageWith(Mech, 1.0f);
                     Mech->Deployed = -1;
@@ -1463,7 +1463,7 @@ auto MCMechBriefBlock::HandleEvent(MCGuiEvent* event) -> void
                 }
 
                 GlobalLogPtr->SendAddVehicleMessage(Vehicle, lance, slot);
-                SoundSystem->PlayDigitalSample(0x34, 1, nullptr, 0, 0);
+                SoundSystem()->PlayDigitalSample(0x34, 1, nullptr, 0, 0);
                 deploy.Vehicle = GlobalLogPtr->ForceVehicleList->GetVehicleIndex(Vehicle);
                 CurDeployTonnage = DeployTonnageWith(Vehicle, 1.0f);
                 Vehicle->Deployed = -1;
@@ -1488,7 +1488,7 @@ auto MCMechBriefBlock::HandleEvent(MCGuiEvent* event) -> void
             auto tooHeavy = [screen]()
             {
                 ShowMessage(0x4cu);
-                SoundSystem->PlayBettySample(0);
+                SoundSystem()->PlayBettySample(0);
                 screen->DrawTonnageBar();
             };
 
@@ -1602,7 +1602,7 @@ auto MCMechBriefBlock::HandleEvent(MCGuiEvent* event) -> void
                             if (fits)
                             {
                                 GlobalLogPtr->SendAddMechMessage(Mech, lance, slot);
-                                SoundSystem->PlayDigitalSample(0x34, 1, nullptr, 0, 0);
+                                SoundSystem()->PlayDigitalSample(0x34, 1, nullptr, 0, 0);
                                 deploy.Unit = GlobalLogPtr->ForceMechList->GetMechIndex(Mech);
                                 CurDeployTonnage = DeployTonnageWith(Mech, 1.0f);
                                 Mech->Deployed = -1;
@@ -1615,7 +1615,7 @@ auto MCMechBriefBlock::HandleEvent(MCGuiEvent* event) -> void
                             if (fits)
                             {
                                 GlobalLogPtr->SendAddVehicleMessage(Vehicle, lance, slot);
-                                SoundSystem->PlayDigitalSample(0x34, 1, nullptr, 0, 0);
+                                SoundSystem()->PlayDigitalSample(0x34, 1, nullptr, 0, 0);
                                 deploy.Unit = -1;
                                 deploy.Vehicle = GlobalLogPtr->ForceVehicleList->GetVehicleIndex(Vehicle);
                                 CurDeployTonnage = DeployTonnageWith(Vehicle, 1.0f);
@@ -1641,7 +1641,7 @@ auto MCMechBriefBlock::HandleEvent(MCGuiEvent* event) -> void
                             if (fits)
                             {
                                 GlobalLogPtr->SendAddMechMessage(Mech, lance, slot);
-                                SoundSystem->PlayDigitalSample(0x34, 1, nullptr, 0, 0);
+                                SoundSystem()->PlayDigitalSample(0x34, 1, nullptr, 0, 0);
                                 deploy.Vehicle = -1;
                                 deploy.Unit = GlobalLogPtr->ForceMechList->GetMechIndex(Mech);
                                 CurDeployTonnage = DeployTonnageWith(Mech, 1.0f);
@@ -1656,7 +1656,7 @@ auto MCMechBriefBlock::HandleEvent(MCGuiEvent* event) -> void
                             if (fits)
                             {
                                 GlobalLogPtr->SendAddVehicleMessage(Vehicle, lance, slot);
-                                SoundSystem->PlayDigitalSample(0x34, 1, nullptr, 0, 0);
+                                SoundSystem()->PlayDigitalSample(0x34, 1, nullptr, 0, 0);
                                 deploy.Vehicle = GlobalLogPtr->ForceVehicleList->GetVehicleIndex(Vehicle);
                                 CurDeployTonnage = DeployTonnageWith(Vehicle, 1.0f);
                                 Vehicle->Deployed = -1;
@@ -1702,7 +1702,7 @@ auto MCMechBriefBlock::HandleEvent(MCGuiEvent* event) -> void
                 }
             }
 
-            SoundSystem->PlayDigitalSample(sound, 1, nullptr, 0, 0);
+            SoundSystem()->PlayDigitalSample(sound, 1, nullptr, 0, 0);
 
             if (Mech != nullptr)
             {
@@ -1748,7 +1748,7 @@ auto MCMechBriefBlock::HandleEvent(MCGuiEvent* event) -> void
     }
 
     DraggedFromSlot = owner == screen ? 1 : 0;
-    SoundSystem->PlayDigitalSample(0x35, 1, nullptr, 0, 0);
+    SoundSystem()->PlayDigitalSample(0x35, 1, nullptr, 0, 0);
     Application->Grab(this);
 
     if (event->Type == 1)

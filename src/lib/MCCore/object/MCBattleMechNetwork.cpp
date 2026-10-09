@@ -41,8 +41,8 @@
 #include "object/MCSmokeType.h"
 #include "object/MCEffectSystem.h"
 #include "object/MCMechWarrior.h"
-#include "sound/radio.h"
-#include "sound/soundsys.h"
+#include "sound/MCRadio.h"
+#include "sound/MCSoundSystem.h"
 #include "sprite/MCMechActor.h"
 #include "object/MCWeaponChunkDebug.h"
 #include "object/MCWeaponShotInfo.h"
@@ -256,7 +256,7 @@ auto MCBattleMech::NetUpdateMovement() -> void
                 {
                     if (bodyState == 0)
                     {
-                        SoundSystem->PlayDigitalSample(0x3d, 1, this, 0, 0);
+                        SoundSystem()->PlayDigitalSample(0x3d, 1, this, 0, 0);
                     }
 
                     gesture = 1;
@@ -267,7 +267,7 @@ auto MCBattleMech::NetUpdateMovement() -> void
             {
                 if (bodyState != 0)
                 {
-                    SoundSystem->PlayDigitalSample(0x3c, 1, this, 0, 0);
+                    SoundSystem()->PlayDigitalSample(0x3c, 1, this, 0, 0);
                     gesture = 0;
                 }
                 break;

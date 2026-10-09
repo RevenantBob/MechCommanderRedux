@@ -16,7 +16,7 @@
 #include "main/main.h"
 #include "network/multplyr.h"
 #include "object/MCMasterComponent.h"
-#include "sound/soundsys.h"
+#include "sound/MCSoundSystem.h"
 #include "vfx/MCVfxFunctions.h"
 #include "vfx/MCAgShape.h"
 
@@ -82,7 +82,7 @@ namespace
 
     void PlaySample(uint32_t sampleId)
     {
-        SoundSystem->PlayDigitalSample(sampleId, 1, nullptr, 0, 0);
+        SoundSystem()->PlayDigitalSample(sampleId, 1, nullptr, 0, 0);
     }
 
     /// <summary>A copy of <paramref name="text"/> in a logistics block.</summary>
@@ -527,7 +527,7 @@ auto PilotSellCallback(int confirmed, int32_t) -> void
     if (confirmed != 0)
     {
         int32_t row = warrior->InventoryBlock->ListIndex;
-        SoundSystem->PlayPilotSpeech(warrior->PilotAudio, 2);
+        SoundSystem()->PlayPilotSpeech(warrior->PilotAudio, 2);
         warrior->Sold = 1;
         GlobalLogPtr->PurPilotList->SetPilotStatus(warrior->DescIndex, 3);
         GlobalLogPtr->AssignedWarriorList->RemoveWarrior(static_cast<uint8_t>(warrior->Id));
@@ -1211,7 +1211,7 @@ auto MCPilotInventoryBlock::HandleEvent(MCGuiEvent* event) -> void
                 break;
             }
 
-            SoundSystem->PlayPilotSpeech(Warrior->PilotAudio, 10);
+            SoundSystem()->PlayPilotSpeech(Warrior->PilotAudio, 10);
             Application->SetCursorVisible(0);
             Application->Grab(this);
             PilotDrag.Dragging = 1;
@@ -1235,7 +1235,7 @@ auto MCPilotInventoryBlock::HandleEvent(MCGuiEvent* event) -> void
             }
 
             PilotDrag.Carrying = 1;
-            SoundSystem->PlayPilotSpeech(Warrior->PilotAudio, 10);
+            SoundSystem()->PlayPilotSpeech(Warrior->PilotAudio, 10);
             Application->SetCursorVisible(0);
             Application->Grab(this);
             MakeDragIcon(PilotDrag, this, event);
@@ -1297,7 +1297,7 @@ auto MCPilotInventoryBlock::HandleEvent(MCGuiEvent* event) -> void
                         GlobalLogPtr->SetPilot(index, row);
                         screen->CreatePilotInvBlock();
                         screen->SetUpPilotInv(0, 1);
-                        SoundSystem->PlayPilotSpeech(logWarrior->PilotAudio, 2);
+                        SoundSystem()->PlayPilotSpeech(logWarrior->PilotAudio, 2);
                         break;
                     }
                 }
@@ -1370,7 +1370,7 @@ auto MCPilotInventoryBlock::HandleEvent(MCGuiEvent* event) -> void
                 GlobalLogPtr->SetPilot(repairBlock->SlotIndex, row);
                 screen->CreatePilotInvBlock();
                 screen->SetUpPilotInv(0, 1);
-                SoundSystem->PlayPilotSpeech(logWarrior->PilotAudio, 2);
+                SoundSystem()->PlayPilotSpeech(logWarrior->PilotAudio, 2);
                 break;
             }
 

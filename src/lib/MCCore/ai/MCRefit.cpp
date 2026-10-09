@@ -7,7 +7,7 @@
 #include "object/MCMover.h"
 #include "object/MCMoverGameSystem.h"
 #include "object/MCMechWarrior.h"
-#include "sound/soundsys.h"
+#include "sound/MCSoundSystem.h"
 
 namespace
 {
@@ -217,7 +217,7 @@ auto DoRefit(MCMover* mover, float refitPoints, float& pointsUsed, int ammoOnly)
         {
             if (mover->NetPlayerId != -1)
             {
-                mover->GetPilot()->RadioMessage(0xf, 1);
+                mover->GetPilot()->RadioMessage(MCRadioMessageType::RefitDone, 1);
                 bettySample = 0x14;
             }
 
@@ -227,7 +227,7 @@ auto DoRefit(MCMover* mover, float refitPoints, float& pointsUsed, int ammoOnly)
 
     if (bettySample.has_value())
     {
-        SoundSystem->PlayBettySample(*bettySample);
+        SoundSystem()->PlayBettySample(*bettySample);
     }
 
     // Points used, at least a quarter and rounded to quarters.

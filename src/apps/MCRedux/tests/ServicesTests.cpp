@@ -9,9 +9,8 @@
 #include "fakes/MCScriptedRandom.h"
 #include "fixtures/MCRetailData.h"
 #include "fixtures/MCTinyMap.h"
-#include "gameos/soundchannel.h"
-#include "gameos/soundrenderer.h"
-#include "gameos/soundresource.h"
+#include "gameos/MCSoundRenderer.h"
+#include "gameos/MCSoundResource.h"
 #include "lib/MCFrameOfRef.h"
 #include "lib/MCVector2D.h"
 #include "lib/MCDice.h"
@@ -268,24 +267,29 @@ TEST_CASE("services: a sound channel's play and stop reach the null audio device
 {
     MCTestContextScope scope;
     MCNullAudioDevice& device = scope.Context().SetAudio(std::make_unique<MCNullAudioDevice>());
-    GlobalSoundUninstalled = 0;
-    SoundRendererInstall(2);
+    MCSoundRenderer& renderer = MCSoundRenderer::Install(2);
     CHECK_CALLED(device.Opened, 1);
+    CHECK(SoundRenderer() == &renderer);
 
     const std::vector<uint8_t> wave = SilentWave(441);
-    auto* resource = new MCSoundResource(reinterpret_cast<const char*>(wave.data()), SOUND_RESOURCE_MEMORY, 0);
-    GosSetChannelLooping(1, true);
-    GosPlayChannel(1, resource);
+    MCSoundResource* resource = renderer.CreateResource(wave.data());
+    renderer.SetChannelLooping(1, true);
+    renderer.Play(1, resource);
     CHECK_CALLED(device.Played, 1);
     CHECK(std::get<1>(device.Played.Last()) == true);
+    CHECK(renderer.IsPlaying(1));
     CHECK_CALLED(device.Stopped, 0);
-    GosStopChannel(1);
+    renderer.Stop(1);
     CHECK_CALLED(device.Stopped, 1);
     CHECK(std::get<0>(device.Stopped.Last()) == std::get<0>(device.Played.Last()));
+    CHECK(!renderer.IsPlaying(1));
 
-    // The renderer frees the resources and the mixer.
-    SoundRendererUninstall();
-    GlobalSoundUninstalled = 0;
+    // Destroying a resource takes it off its channel; the renderer frees the rest and the mixer.
+    renderer.DestroyResource(resource);
+    CHECK_EQ(renderer.ResourceCount(), 0u);
+    CHECK(renderer.ChannelResource(1) == nullptr);
+    MCSoundRenderer::Uninstall();
+    CHECK(SoundRenderer() == nullptr);
 }
 
 /// <summary>The loopback network carries TCP streams and UDP datagrams between its own sockets.</summary>

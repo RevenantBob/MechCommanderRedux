@@ -18,7 +18,7 @@ class MCObjectEvent;
 class MCSensorSystem;
 class MCTeam;
 struct MCSystemTracker;
-enum MCRadioMessageType : int32_t;
+enum class MCRadioMessageType : int32_t;
 
 /// <summary>
 /// Anything that moves under a pilot: mechs, ground vehicles, elementals. Holds the body, armor and inventory, the

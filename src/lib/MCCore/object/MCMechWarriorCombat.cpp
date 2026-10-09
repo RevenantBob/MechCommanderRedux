@@ -4,7 +4,7 @@
 #include "main/main.h"
 #include "object/MCMover.h"
 #include "object/MCMoverGameSystem.h"
-#include "sound/radio.h"
+#include "sound/MCRadio.h"
 
 // The pilot's combat: which weapons can fire, and the combat decision tree.
 
@@ -287,7 +287,7 @@ auto MCMechWarrior::CombatDecisionTree() -> int32_t
 
     if (attackType != 3 && outOfAmmo != 0 && AmmoOutSent == 0)
     {
-        RadioMessage(RADIO_AMMO_OUT, 1);
+        RadioMessage(MCRadioMessageType::AmmoOut, 1);
         AmmoOutSent = 1;
     }
 
@@ -298,7 +298,7 @@ auto MCMechWarrior::CombatDecisionTree() -> int32_t
     {
         if (target != nullptr)
         {
-            RadioMessage(RADIO_TAUNT, 1);
+            RadioMessage(MCRadioMessageType::Taunt, 1);
         }
 
         const float targetTime = LastTargetTime;
@@ -327,7 +327,7 @@ auto MCMechWarrior::CombatDecisionTree() -> int32_t
             }
         }
 
-        RadioMessage(RADIO_ILLEGAL_ORDER, 0);
+        RadioMessage(MCRadioMessageType::IllegalOrder, 0);
         SetLastTarget(nullptr, 0, 0);
         ClearCurTacOrder(1, 0);
     }

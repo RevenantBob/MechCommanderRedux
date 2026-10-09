@@ -65,7 +65,7 @@
 #include "object/MCTrainCarType.h"
 #include "object/MCTrainManager.h"
 #include "object/MCMechWarrior.h"
-#include "sound/soundsys.h"
+#include "sound/MCSoundSystem.h"
 #include "sprite/MCVfxBuildingAppearance.h"
 #include "sprite/MCGVAppearance.h"
 #include "sprite/MCElementalActor.h"
@@ -239,13 +239,13 @@ auto MCScenario::Update() -> int32_t
     {
         if (TwoMinuteWarningPlayed == 0 && static_cast<float>(Scenario->TimeLimit) - ActualTime < 120.0f)
         {
-            SoundSystem->PlayBettySample(8);
+            SoundSystem()->PlayBettySample(8);
             TwoMinuteWarningPlayed = 1;
         }
 
         if (ThirtySecondWarningPlayed == 0 && static_cast<float>(Scenario->TimeLimit) - ActualTime < 30.0f)
         {
-            SoundSystem->PlayBettySample(7);
+            SoundSystem()->PlayBettySample(7);
             ThirtySecondWarningPlayed = 1;
         }
     }
@@ -267,13 +267,13 @@ auto MCScenario::Update() -> int32_t
 
     if (musicPending != 0)
     {
-        if (SoundSystem != nullptr)
+        if (SoundSystem() != nullptr)
         {
-            SoundSystem->StopStaticNoise();
+            SoundSystem()->StopStaticNoise();
 
-            if (SoundSystem != nullptr)
+            if (SoundSystem() != nullptr)
             {
-                SoundSystem->PlayDigitalMusic(Scenario->ScenarioTuneNum, false);
+                SoundSystem()->PlayDigitalMusic(Scenario->ScenarioTuneNum, false);
             }
         }
 
@@ -380,7 +380,7 @@ auto MCScenario::Init(char* scenarioName, char* terrainName) -> int32_t
     CurrentCreatorPart = 0;
 
     UpdateDisplay(0, 1, 100, 1, 0);
-    SoundSystem->PlayStaticNoise();
+    SoundSystem()->PlayStaticNoise();
 
     //---------------------------------------------------------------------------------------------------------------
     // The game system file.

@@ -13,7 +13,7 @@
 #include "object/MCObjectSystem.h"
 #include "object/MCVertexPlacement.h"
 #include "object/MCWeaponShotInfo.h"
-#include "sound/soundsys.h"
+#include "sound/MCSoundSystem.h"
 #include "sprite/MCPUAppearance.h"
 #include "terrain/MCTerrain.h"
 
@@ -122,7 +122,7 @@ namespace
             {
                 if (gate.IsClosed)
                 {
-                    SoundSystem->PlayDigitalSample(0x2a, 1, &gate, 0, 0);
+                    SoundSystem()->PlayDigitalSample(0x2a, 1, &gate, 0, 0);
                 }
 
                 gate.IsOpening = true;
@@ -136,7 +136,7 @@ namespace
             {
                 if (gate.IsOpen)
                 {
-                    SoundSystem->PlayDigitalSample(0x2d, 1, &gate, 0, 0);
+                    SoundSystem()->PlayDigitalSample(0x2d, 1, &gate, 0, 0);
                 }
 
                 gate.IsClosing = true;

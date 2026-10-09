@@ -47,7 +47,7 @@
 #include "object/MCForces.h"
 #include "object/MCMechWarrior.h"
 #include "object/MCMoverGameSystem.h"
-#include "sound/soundsys.h"
+#include "sound/MCSoundSystem.h"
 #include "sprite/MCElementalActor.h"
 #include "terrain/MCTerrain.h"
 #include "object/MCObjectType.h"
@@ -710,9 +710,9 @@ auto MCElemental::Render() -> void
                 {
                     if (VfxShapeCount(shape) <= BlipFrame)
                     {
-                        if (SoundSystem != nullptr && UseSound != 0)
+                        if (SoundSystem() != nullptr && UseSound != 0)
                         {
-                            SoundSystem->PlayDigitalSample(0x14, 1, this, 0, 1);
+                            SoundSystem()->PlayDigitalSample(0x14, 1, this, 0, 1);
                         }
 
                         BlipFrame = 0;

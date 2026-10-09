@@ -16,7 +16,7 @@
 #include "object/MCGroundVehicleGameSystem.h"
 #include "object/MCTreeBuilding.h"
 #include "object/MCTreeBuildingType.h"
-#include "sound/radio.h"
+#include "sound/MCRadio.h"
 #include "terrain/MCTerrain.h"
 
 // The pilot's orders: the three order slots and the current order, the main decision tree, and the order calls.

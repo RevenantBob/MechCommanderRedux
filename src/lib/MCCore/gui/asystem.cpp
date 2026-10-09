@@ -4,7 +4,7 @@
 #include "camera/MCMainWindow.h"
 #include "color/MCPalette.h"
 #include "engine/MCFont.h"
-#include "gameos/soundrenderer.h"
+#include "gameos/MCSoundRenderer.h"
 #include "gui/aanim.h"
 #include "gui/abutton.h"
 #include "gui/afont.h"
@@ -36,7 +36,7 @@
 #include "mission/scenario.h"
 #include "network/multplyr.h"
 #include "object/MCForces.h"
-#include "sound/soundsys.h"
+#include "sound/MCSoundSystem.h"
 #include "terrain/MCTerrain.h"
 #include "terrain/MCTacticalMap.h"
 #include "vfx/MCVfxFunctions.h"
@@ -2674,43 +2674,43 @@ auto TranslateMessage(void* window, uint32_t message, uint32_t wParam, int32_t l
                 {
                     if (Cheat(CheatHealAll) != 0)
                     {
-                        SoundSystem->PlayBettySample(0x1c);
+                        SoundSystem()->PlayBettySample(0x1c);
                         HealAll();
                     }
 
                     if (Cheat(CheatDeadEye) != 0)
                     {
-                        SoundSystem->PlayBettySample(0x1c);
+                        SoundSystem()->PlayBettySample(0x1c);
                         DeadEye();
                     }
 
                     if (Cheat(CheatCantHitMe) != 0)
                     {
-                        SoundSystem->PlayBettySample(0x1c);
+                        SoundSystem()->PlayBettySample(0x1c);
                         CantHitMe = CantHitMe == 0;
                     }
 
                     if (Cheat(CheatGetSalvage) != 0)
                     {
-                        SoundSystem->PlayBettySample(0x1c);
+                        SoundSystem()->PlayBettySample(0x1c);
                         CantBlowSalvage = CantBlowSalvage == 0;
                     }
 
                     if (Cheat(CheatReveal) != 0)
                     {
-                        SoundSystem->PlayBettySample(0x1c);
+                        SoundSystem()->PlayBettySample(0x1c);
                         RevealAll();
                     }
 
                     if (Cheat(CheatBunnyStrike) != 0)
                     {
-                        SoundSystem->PlayBettySample(0x16);
+                        SoundSystem()->PlayBettySample(0x16);
                         BunnyStrikesOn = BunnyStrikesOn == 0;
                     }
 
                     if (Cheat(CheatDuh) != 0)
                     {
-                        SoundSystem->PlayBettySample(0x1c);
+                        SoundSystem()->PlayBettySample(0x1c);
                         Duh = Duh == 0;
                     }
                 }
@@ -3711,7 +3711,7 @@ auto MCGuiSystem::Stop() -> void
     }
 
     MouseTimerKill();
-    SoundRendererUninstall();
+    MCSoundRenderer::Uninstall();
     MCInput::ShowCursor(true);
     ShutdownDirectDraw();
     MCInput::ClipCursor(nullptr);

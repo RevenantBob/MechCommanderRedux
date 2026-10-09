@@ -25,7 +25,7 @@
 #include "platform/MCPresenter.h"
 #include "platform/MCRegistry.h"
 #include "platform/MCRenderer.h"
-#include "sound/soundsys.h"
+#include "sound/MCSoundSystem.h"
 #include "sprite/MCSpriteManager.h"
 #include "vfx/MCVfxFunctions.h"
 
@@ -314,8 +314,8 @@ void NewCampaign()
         WriteRegistryVersionNumber();
     }
 
-    SoundSystem->StopDigitalMusic();
-    SoundSystem->PlayBettySample(0x19);
+    SoundSystem()->StopDigitalMusic();
+    SoundSystem()->PlayBettySample(0x19);
     std::strcpy(MissionName, "mechcmdr1");
     Mission->InitAgain(MissionName);
     CurPlanet = 0;
@@ -334,8 +334,8 @@ void NewMcxCampaign()
         WriteRegistryVersionNumber();
     }
 
-    SoundSystem->StopDigitalMusic();
-    SoundSystem->PlayBettySample(0x19);
+    SoundSystem()->StopDigitalMusic();
+    SoundSystem()->PlayBettySample(0x19);
     std::strcpy(MissionName, "xmechcmdr1");
     Mission->InitAgain(MissionName);
     Solo = 0;
@@ -602,9 +602,9 @@ void ShowPreferences()
     logistics->SavedPrefs0 = Application->PaletteCycle;
     logistics->SavedPrefs1 = Only45Pixel;
     logistics->SavedPrefs2 = brightness;
-    logistics->SavedPrefs3 = SoundSystem->MusicLevel;
-    logistics->SavedPrefs4 = SoundSystem->RadioLevel;
-    logistics->SavedPrefs5 = SoundSystem->DigitalMasterVolume;
+    logistics->SavedPrefs3 = SoundSystem()->MusicLevel;
+    logistics->SavedPrefs4 = SoundSystem()->RadioLevel;
+    logistics->SavedPrefs5 = SoundSystem()->DigitalMasterVolume;
     logistics->SavedPrefs6 = GameDifficulty;
     SavedRendererPreference = GRendererPreference;
     MCGenericScreen* screen = logistics->PrefScreen;
@@ -631,17 +631,17 @@ void CancelPrefs()
     // Only the saved byte is compared (a volume is 0..127).
     if (static_cast<uint8_t>(logistics->SavedPrefs3) < 0x80)
     {
-        SoundSystem->MusicLevel = static_cast<uint8_t>(logistics->SavedPrefs3);
+        SoundSystem()->MusicLevel = static_cast<uint8_t>(logistics->SavedPrefs3);
     }
 
     if (static_cast<uint8_t>(logistics->SavedPrefs4) < 0x80)
     {
-        SoundSystem->RadioLevel = static_cast<uint8_t>(logistics->SavedPrefs4);
+        SoundSystem()->RadioLevel = static_cast<uint8_t>(logistics->SavedPrefs4);
     }
 
     if (static_cast<uint8_t>(logistics->SavedPrefs5) < 0x80)
     {
-        SoundSystem->DigitalMasterVolume = static_cast<uint8_t>(logistics->SavedPrefs5);
+        SoundSystem()->DigitalMasterVolume = static_cast<uint8_t>(logistics->SavedPrefs5);
     }
 
     GameDifficulty = logistics->SavedPrefs6;
@@ -662,9 +662,9 @@ void WritePrefs()
     prefs.WriteIdBoolean("Force32Mb", Force32MB);
     prefs.WriteIdLong("Difficulty", GameDifficulty);
     prefs.WriteIdLong("Brightness", Application->GammaLevel);
-    prefs.WriteIdLong("MusicVolume", SoundSystem->MusicLevel);
-    prefs.WriteIdLong("RadioVolume", SoundSystem->RadioLevel);
-    prefs.WriteIdLong("SFXVolume", SoundSystem->DigitalMasterVolume);
+    prefs.WriteIdLong("MusicVolume", SoundSystem()->MusicLevel);
+    prefs.WriteIdLong("RadioVolume", SoundSystem()->RadioLevel);
+    prefs.WriteIdLong("SFXVolume", SoundSystem()->DigitalMasterVolume);
     // Port: keep the port-only key. Original behaviour (OB-101): the hidden "Resolution" key is not written back.
     prefs.WriteIdBoolean("StretchToFit", GStretchToFit != 0);
     prefs.WriteIdBoolean("SoftwareCursor", GSoftwareCursor != 0);
@@ -701,7 +701,7 @@ void ReplayCinema()
     Mission->MissionState = 10;
     Mission->CurrentMovie = 0;
     GlobalLogPtr->MainScreen->ShowGuiWindow(0);
-    SoundSystem->StopDigitalMusic();
+    SoundSystem()->StopDigitalMusic();
 }
 
 void ReturnToGame()
@@ -730,7 +730,7 @@ void ReturnToGame()
 void GameOverMan()
 {
     MCInput::PostMessage(WM_DESTROY, 0, 0);
-    SoundSystem->StopDigitalMusic();
+    SoundSystem()->StopDigitalMusic();
 }
 
 void LoadGame()
@@ -743,7 +743,7 @@ void LoadGame()
     }
 
     char* fileName = pane->FileNames[pane->SelectedFile];
-    SoundSystem->StopDigitalMusic();
+    SoundSystem()->StopDigitalMusic();
     GlobalLogPtr->BriefingScreen->BriefingBox = nullptr;
     const bool campaign = LoadingSolo == 0;
     const char* extension = ".sav";
@@ -762,7 +762,7 @@ void LoadGame()
         // Original behaviour: the save screen is the one hidden, not the load screen shown.
         GlobalLogPtr->SaveScreen->ShowGuiWindow(0);
         GlobalLogPtr->SetUpBriefingScreen(0);
-        SoundSystem->PlayDigitalMusic(0x16, true);
+        SoundSystem()->PlayDigitalMusic(0x16, true);
     }
 }
 
@@ -793,7 +793,7 @@ void SaveWorkedCallback(int32_t)
         GlobalLogPtr->SetUpRepairScreen(0);
     }
 
-    SoundSystem->PlayDigitalMusic(0x16, true);
+    SoundSystem()->PlayDigitalMusic(0x16, true);
 }
 
 void SaveGameCallback()
@@ -808,7 +808,7 @@ void SaveGameCallback()
 
         if (fileName != nullptr)
         {
-            SoundSystem->StopDigitalMusic();
+            SoundSystem()->StopDigitalMusic();
             result = GlobalLogPtr->SaveCampaign(fileName);
         }
 
@@ -839,7 +839,7 @@ void SaveGameCallback()
         DestroyNameEntry(pane);
     }
 
-    SoundSystem->PlayDigitalMusic(0x16, true);
+    SoundSystem()->PlayDigitalMusic(0x16, true);
 }
 
 void ClearForSaveGameCallback()
@@ -1846,7 +1846,7 @@ void LoadSaveScreenHandleEvent(MCGuiObject* object, MCGuiEvent* event)
     else if (message == 5 && object == GlobalLogPtr->SaveScreen)
     {
         // Enter in the name entry: save.
-        SoundSystem->PlayDigitalSample(screen->LoadSaveButton->PressSound, 1, nullptr, 0, 0);
+        SoundSystem()->PlayDigitalSample(screen->LoadSaveButton->PressSound, 1, nullptr, 0, 0);
         SaveGame();
     }
 }
@@ -1957,11 +1957,11 @@ void SlideMusicVolume(MCGuiObject* object, MCGuiEvent* event)
 
     if (volume < 0x80)
     {
-        SoundSystem->MusicLevel = volume;
+        SoundSystem()->MusicLevel = volume;
     }
 
-    SoundSystem->StopDigitalMusic();
-    SoundSystem->PlayDigitalMusic(0x16, true);
+    SoundSystem()->StopDigitalMusic();
+    SoundSystem()->PlayDigitalMusic(0x16, true);
 }
 
 void SlideRadioVolume(MCGuiObject* object, MCGuiEvent* event)
@@ -1975,10 +1975,10 @@ void SlideRadioVolume(MCGuiObject* object, MCGuiEvent* event)
 
     if (volume < 0x80)
     {
-        SoundSystem->RadioLevel = volume;
+        SoundSystem()->RadioLevel = volume;
     }
 
-    SoundSystem->PlayPilotSpeech(const_cast<char*>("pilotd"), 0x15);
+    SoundSystem()->PlayPilotSpeech(const_cast<char*>("pilotd"), 0x15);
 }
 
 void SlideFXVolume(MCGuiObject* object, MCGuiEvent* event)
@@ -1992,10 +1992,10 @@ void SlideFXVolume(MCGuiObject* object, MCGuiEvent* event)
 
     if (volume < 0x80)
     {
-        SoundSystem->DigitalMasterVolume = volume;
+        SoundSystem()->DigitalMasterVolume = volume;
     }
 
-    SoundSystem->PlayDigitalSample(0xf, 1, nullptr, 0, 0);
+    SoundSystem()->PlayDigitalSample(0xf, 1, nullptr, 0, 0);
 }
 
 namespace

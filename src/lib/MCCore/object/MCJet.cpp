@@ -10,7 +10,7 @@
 #include "object/MCObjectDrawing.h"
 #include "object/MCObjectSystem.h"
 #include "object/MCSmoke.h"
-#include "sound/soundsys.h"
+#include "sound/MCSoundSystem.h"
 #include "sprite/MCArmAppearance.h"
 #include "sprite/MCMechActor.h"
 #include "terrain/MCTerrain.h"
@@ -62,7 +62,7 @@ auto MCJet::Update() -> int32_t
 
         if (soundId != 0xffffffff)
         {
-            SoundSystem->PlayDigitalSample(soundId, 1, this, 0, 0);
+            SoundSystem()->PlayDigitalSample(soundId, 1, this, 0, 0);
         }
     }
 

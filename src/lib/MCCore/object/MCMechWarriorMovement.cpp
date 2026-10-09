@@ -14,7 +14,7 @@
 #include "object/MCBattleMech.h"
 #include "object/MCBattleMechType.h"
 #include "object/MCMechGameSystem.h"
-#include "sound/radio.h"
+#include "sound/MCRadio.h"
 #include "terrain/MCTerrain.h"
 
 // The pilot's movement: its move goal and paths, and the movement decision tree.
@@ -703,7 +703,7 @@ auto MCMechWarrior::CalcMovePath(int32_t selectionIndex, uint32_t moveParams, in
 
                 if ((moveParams & 0x1000) != 0)
                 {
-                    RadioMessage(RADIO_MOVE_BLOCKED, 1);
+                    RadioMessage(MCRadioMessageType::MoveBlocked, 1);
                 }
 
                 return LastMoveCalcErr;
@@ -1088,7 +1088,7 @@ auto MCMechWarrior::MovementDecisionTree() -> int
         if ((CurTacOrder.IsMoveOrder() != 0 || CurTacOrder.IsWayPathOrder() != 0) &&
             CurTacOrder.Time < static_cast<double>(ScenarioTime) - MoveTimeOut)
         {
-            RadioMessage(RADIO_MOVE_BLOCKED, 1);
+            RadioMessage(MCRadioMessageType::MoveBlocked, 1);
             ClearCurTacOrder(1, 0);
         }
 

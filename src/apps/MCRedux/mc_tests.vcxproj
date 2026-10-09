@@ -110,6 +110,7 @@
     <ClCompile Include="tests\SessionScreenTests.cpp" />
     <ClCompile Include="tests\SmackerTests.cpp" />
     <ClCompile Include="tests\SortTests.cpp" />
+    <ClCompile Include="tests\SoundTests.cpp" />
     <ClCompile Include="tests\SpriteTests.cpp" />
     <ClCompile Include="tests\StateHashTests.cpp" />
     <ClCompile Include="tests\TerrainGridTests.cpp" />

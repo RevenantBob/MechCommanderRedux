@@ -53,8 +53,8 @@
 #include "object/MCEffectSystem.h"
 #include "object/MCMechWarrior.h"
 #include "object/MCMoverGameSystem.h"
-#include "sound/radio.h"
-#include "sound/soundsys.h"
+#include "sound/MCRadio.h"
+#include "sound/MCSoundSystem.h"
 #include "object/MCObjectTypeManager.h"
 #include "object/MCWeaponChunkDebug.h"
 #include "object/MCWeaponShotInfo.h"
@@ -532,7 +532,7 @@ auto MCBattleMechType::HandleCollision(MCGameObject* collidee, MCGameObject* col
             return 0;
     }
 
-    SoundSystem->PlayDigitalSample(sampleId, 1, collidee, 0, 0);
+    SoundSystem()->PlayDigitalSample(sampleId, 1, collidee, 0, 0);
     return 0;
 }
 

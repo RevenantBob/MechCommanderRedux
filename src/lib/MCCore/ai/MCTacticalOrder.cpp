@@ -29,6 +29,7 @@
 #include "object/MCTreeBuilding.h"
 #include "object/MCTreeBuildingType.h"
 #include "object/MCMechWarrior.h"
+#include "sound/MCRadio.h"
 #include "sprite/MCMechActor.h"
 #include "terrain/MCTacticalMap.h"
 #include "object/MCWeaponShotInfo.h"
@@ -1135,7 +1136,7 @@ auto MCTacticalOrder::CaptureStatus(MCMechWarrior* pilot) -> bool
 
     if (prize->GetCaptureBlocker(alignment) != nullptr)
     {
-        pilot->RadioMessage(0xb, 1);
+        pilot->RadioMessage(MCRadioMessageType::CannotCapture, 1);
         return true;
     }
 
@@ -1194,7 +1195,7 @@ auto MCTacticalOrder::CaptureStatus(MCMechWarrior* pilot) -> bool
                 TacticalMap()->AddSalvage(prize);
             }
 
-            pilot->RadioMessage(0xd, 1);
+            pilot->RadioMessage(MCRadioMessageType::CapturedVehicle, 1);
             return true;
         }
 
@@ -1232,7 +1233,7 @@ auto MCTacticalOrder::CaptureStatus(MCMechWarrior* pilot) -> bool
                 }
             }
 
-            pilot->RadioMessage(0xc, 1);
+            pilot->RadioMessage(MCRadioMessageType::CapturedBuilding, 1);
             return true;
         }
 

@@ -27,7 +27,7 @@
 #include "object/MCObjectSystem.h"
 #include "object/MCSensorSystem.h"
 #include "object/MCTeam.h"
-#include "sound/soundsys.h"
+#include "sound/MCSoundSystem.h"
 #include "terrain/MCArtilleryButton.h"
 #include "terrain/MCTacticalMap.h"
 #include "terrain/MCTerrain.h"
@@ -263,19 +263,19 @@ auto MCArtillery::Update() -> int32_t
         }
     }
 
-    if (TimeToImpact <= 5.0 && !ImpactSoundPlayed && SoundSystem != nullptr && 0.0 < type->NominalDamage)
+    if (TimeToImpact <= 5.0 && !ImpactSoundPlayed && SoundSystem() != nullptr && 0.0 < type->NominalDamage)
     {
         const int32_t typeNum = GetObjectType()->ObjTypeNum;
 
         if (typeNum >= 507 && typeNum <= 509 && TimeToImpact < 4.0)
         {
             ImpactSoundPlayed = true;
-            SoundSystem->PlayDigitalSample(SampleIncomingMultiplayer, 1, this, 0, 0);
+            SoundSystem()->PlayDigitalSample(SampleIncomingMultiplayer, 1, this, 0, 0);
         }
         else if (TimeToImpact < 2.0)
         {
             ImpactSoundPlayed = true;
-            SoundSystem->PlayDigitalSample(SampleIncoming, 1, this, 0, 0);
+            SoundSystem()->PlayDigitalSample(SampleIncoming, 1, this, 0, 0);
         }
     }
 

@@ -9,7 +9,7 @@
 #include "object/MCExplosionType.h"
 #include "object/MCObjectDrawing.h"
 #include "object/MCObjectSystem.h"
-#include "sound/soundsys.h"
+#include "sound/MCSoundSystem.h"
 #include "sprite/MCVfxAppearance.h"
 #include "terrain/MCTerrain.h"
 
@@ -72,7 +72,7 @@ auto MCExplosion::Update() -> int32_t
 
         if (soundId != 0xffffffff)
         {
-            SoundSystem->PlayDigitalSample(soundId, 1, this, 0, 0);
+            SoundSystem()->PlayDigitalSample(soundId, 1, this, 0, 0);
         }
     }
 

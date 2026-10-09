@@ -42,7 +42,7 @@
 #include "object/MCSmokeType.h"
 #include "object/MCEffectSystem.h"
 #include "object/MCMechWarrior.h"
-#include "sound/soundsys.h"
+#include "sound/MCSoundSystem.h"
 #include "terrain/MCTerrain.h"
 #include "object/MCObjectType.h"
 #include "object/MCWeaponChunkDebug.h"

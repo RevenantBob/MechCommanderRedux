@@ -34,7 +34,7 @@
 #include "mission/mission.h"
 #include "mission/scenario.h"
 #include "network/multplyr.h"
-#include "sound/soundsys.h"
+#include "sound/MCSoundSystem.h"
 #include "vfx/MCVfxFunctions.h"
 #include "object/MCMasterComponent.h"
 #include "object/MCBattleMech.h"
@@ -8979,7 +8979,7 @@ auto MCLogistics::Transition(MCLogPort* from, MCLogPort* to, int direction) -> v
     CurrentScreen->AddChild(wipe);
     wipe->ShowGuiWindow(1);
     wipe->SetDepth(100);
-    SoundSystem->PlayDigitalSample(0x36, 1, nullptr, 0, 0);
+    SoundSystem()->PlayDigitalSample(0x36, 1, nullptr, 0, 0);
     const int64_t frequency = MCPort::PerformanceFrequency();
     float elapsed = 0.0f;
 
@@ -9381,7 +9381,7 @@ auto MCLogistics::HandleChatMessage(uint32_t playerID, const void* message) -> v
         }
 
         briefing->ChatBlinking = 1;
-        SoundSystem->PlayDigitalSample(0x14, 1, nullptr, 0, 0);
+        SoundSystem()->PlayDigitalSample(0x14, 1, nullptr, 0, 0);
     }
 
     ChatWindow->HandleNetworkMessage(playerID, const_cast<void*>(message));
@@ -9504,7 +9504,7 @@ auto MCLogistics::HandleLostPlayer(uint32_t playerID, int) -> void
 
 auto MCLogistics::HandlePrepareScenarioMessage() -> void
 {
-    SoundSystem->PlayDigitalSample(0x3a, 1, nullptr, 0, 0);
+    SoundSystem()->PlayDigitalSample(0x3a, 1, nullptr, 0, 0);
     Mission->StartScenario(MpMissionName);
 }
 
@@ -9950,7 +9950,7 @@ auto MCLogistics::ProcessCheatCode(int16_t key) -> void
                 return;
             }
 
-            SoundSystem->PlayBettySample(4);
+            SoundSystem()->PlayBettySample(4);
             CurrentMission = MissionWarpNumber;
             std::snprintf(text, sizeof(text), "start%d", CurrentMission);
             // The original called the bridge with a stack address as this (it has no fields).
@@ -10022,7 +10022,7 @@ auto MCLogistics::ProcessCheatCode(int16_t key) -> void
         case 0:
         {
             // MITCHLOVESYOU: repairs the force completely.
-            SoundSystem->PlayBettySample(4);
+            SoundSystem()->PlayBettySample(4);
 
             for (MCLogMech* mech = ForceMechList->Mechs; mech != nullptr; mech = mech->Next)
             {
@@ -10048,7 +10048,7 @@ auto MCLogistics::ProcessCheatCode(int16_t key) -> void
         case 1:
         {
             // HEREITCOMES: one more of every component.
-            SoundSystem->PlayBettySample(4);
+            SoundSystem()->PlayBettySample(4);
 
             for (MCLogInventoryItem* item = ComponentInventory->Items; item != nullptr; item = item->Next)
             {
@@ -10070,14 +10070,14 @@ auto MCLogistics::ProcessCheatCode(int16_t key) -> void
         case 2:
         {
             // POUNDOFFLESH: a million resource points.
-            SoundSystem->PlayBettySample(4);
+            SoundSystem()->PlayBettySample(4);
             ResourcePoints += 1000000;
             break;
         }
         case 4:
         {
             // ROCKANDROLLPEOPLE: no drop tonnage limit.
-            SoundSystem->PlayBettySample(4);
+            SoundSystem()->PlayBettySample(4);
             HammerDown = 1;
             BriefingScreen->CalcTonnages();
             break;

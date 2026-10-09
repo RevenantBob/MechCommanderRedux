@@ -7,7 +7,7 @@
 #include "main/main.h"
 #include "object/MCMoverMath.h"
 #include "object/MCTree.h"
-#include "sound/soundsys.h"
+#include "sound/MCSoundSystem.h"
 #include "sprite/MCVfxAppearance.h"
 #include "sprite/MCVfxAppearanceType.h"
 
@@ -133,9 +133,9 @@ auto MCTreeType::HandleCollision(MCGameObject* collidee, MCGameObject* collider)
         }
     }
 
-    if (UseSound != 0 && SoundSystem != nullptr && 1 < static_cast<int32_t>(numFrames))
+    if (UseSound != 0 && SoundSystem() != nullptr && 1 < static_cast<int32_t>(numFrames))
     {
-        SoundSystem->PlayDigitalSample(0xe, 1, tree, 0, 0);
+        SoundSystem()->PlayDigitalSample(0xe, 1, tree, 0, 0);
     }
 
     return 1;

@@ -14,7 +14,7 @@
 #include "network/multplyr.h"
 #include "platform/MCInput.h"
 #include "platform/MCSmacker.h"
-#include "sound/soundsys.h"
+#include "sound/MCSoundSystem.h"
 #include "terrain/MCTerrain.h"
 #include "vfx/MCVfxFunctions.h"
 #include "platform/MCRenderer.h"
@@ -1654,7 +1654,7 @@ auto MCGuiStartupWindow::Display() -> void
 
 auto MCGuiStartupWindow::Step() -> void
 {
-    MCSoundSystem* sounds = SoundSystem;
+    MCSoundSystem* sounds = SoundSystem();
     const int32_t step = StartupState;
     StartupState = step + 1;
     MCFont* font = LineFont.get();
@@ -1679,7 +1679,7 @@ auto MCGuiStartupWindow::Step() -> void
             return;
         }
 
-        SoundSystem->Update();
+        SoundSystem()->Update();
         DoStatic();
         AGShapeDraw(StaticPane(), StaticImages[2], 1, 0x140, 0xf0);
         return;
@@ -1793,7 +1793,7 @@ auto MCGuiStartupWindow::Step() -> void
         case 0x3b:
         {
             sounds->PlayDigitalSample(0x20, 1, nullptr, 0, 0);
-            SoundSystem->Update();
+            SoundSystem()->Update();
             DoStatic();
             return;
         }
@@ -1809,7 +1809,7 @@ auto MCGuiStartupWindow::Step() -> void
         {
             VfxPaneWipe(StaticPane(), 0);
             drawUplink();
-            SoundSystem->Update();
+            SoundSystem()->Update();
             DoStatic();
             AGShapeDraw(StaticPane(), StaticImages[1], 0, 0x140, 0xf0);
             return;
@@ -1818,8 +1818,8 @@ auto MCGuiStartupWindow::Step() -> void
         {
             EndStatic();
             drawUplink();
-            SoundSystem->PlayDigitalSample(0x10, 1, nullptr, 0, 0);
-            SoundSystem->Update();
+            SoundSystem()->PlayDigitalSample(0x10, 1, nullptr, 0, 0);
+            SoundSystem()->Update();
             AGEllipseFill(StaticPane(), pointX, pointY, 2, 2, 0xfc);
             return;
         }
@@ -1881,7 +1881,7 @@ auto MCGuiStartupWindow::Step() -> void
         case 0x63:
         {
             sounds->PlayDigitalSample(0x10, 1, nullptr, 0, 0);
-            SoundSystem->Update();
+            SoundSystem()->Update();
             return;
         }
 
@@ -1970,7 +1970,7 @@ auto MCGuiStartupWindow::Step() -> void
         case 0xa9:
         {
             NoiseSample = sounds->PlayDigitalSample(0x21, 0, nullptr, 0, 0);
-            SoundSystem->Update();
+            SoundSystem()->Update();
             DoStatic();
             AGShapeDraw(StaticPane(), StaticImages[2], 0, 0x140, 0xf0);
             return;
@@ -1979,8 +1979,8 @@ auto MCGuiStartupWindow::Step() -> void
             return;
     }
 
-    SoundSystem->PlayDigitalSample(sample, 1, nullptr, 0, 0);
-    SoundSystem->Update();
+    SoundSystem()->PlayDigitalSample(sample, 1, nullptr, 0, 0);
+    SoundSystem()->Update();
 }
 
 auto MCGuiStartupWindow::Draw() -> void

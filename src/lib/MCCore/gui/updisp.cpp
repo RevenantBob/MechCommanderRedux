@@ -1,9 +1,7 @@
 #include "stdafx.h"
 #include "gui/updisp.h"
 #include "engine/MCWriteTga.h"
-#include "gameos/soundchannel.h"
-#include "gameos/soundrenderer.h"
-#include "gameos/soundresource.h"
+#include "gameos/MCSoundRenderer.h"
 #include "gui/afont.h"
 #include "gui/aport.h"
 #include "gui/asystem.h"
@@ -502,7 +500,6 @@ int32_t UpdateDisplay(int screenShot, int staticNoise, int32_t noiseChance, int 
 
 void MouseTimerInit()
 {
-    SRData = MCSoundRendererData{};
     // timeGetDevCaps / timeBeginPeriod ("No Mouse Timer available") have no counterpart.
     InMouseCritSec = 0;
     uint32_t period = 1000 / ResultsStepTicks;
@@ -627,17 +624,10 @@ void MouseTimer(uint32_t timerId, uint32_t msg, uintptr_t user, uintptr_t dw1, u
     if (static_cast<int>(ResultsStepTicks / 2) < GSoundTimer)
     {
         GSoundTimer = 0;
-        std::lock_guard<std::recursive_mutex> soundLock(SoundCritSec);
 
-        for (int32_t i = 0; i < SRData.NumChannels; i++)
+        if (MCSoundRenderer* renderer = SoundRenderer(); renderer != nullptr)
         {
-            MCSoundChannel* channel = SRData.Channels[i];
-
-            if (channel != nullptr && channel->Resource != nullptr &&
-                channel->Resource->Type == SOUND_RESOURCE_STREAM && channel->Streaming != 0)
-            {
-                channel->ServiceBuffer();
-            }
+            renderer->ServiceStreams();
         }
     }
 

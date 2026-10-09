@@ -14,6 +14,8 @@
 #include "object/MCForces.h"
 #include "object/MCObjectSystem.h"
 #include "object/MCTrainManager.h"
+#include "gameos/MCSoundRenderer.h"
+#include "sound/MCSoundSystem.h"
 #include "lib/MCFastFileSet.h"
 #include "sprite/MCSpriteManager.h"
 #include "terrain/MCTerrain.h"
@@ -91,6 +93,8 @@ MCGameContext::~MCGameContext()
         _ObjectSystem->Unload();
     }
 
+    _SoundSystem.reset();
+    _SoundRenderer.reset();
     _AblRuntime.reset();
     _AblSymbols.reset();
     _ObjectSystem.reset();
@@ -273,6 +277,26 @@ MCAblRuntime* MCGameContext::AblRuntime() const
 std::unique_ptr<MCAblRuntime> MCGameContext::SetAblRuntime(std::unique_ptr<MCAblRuntime> runtime)
 {
     return std::exchange(_AblRuntime, std::move(runtime));
+}
+
+MCSoundRenderer* MCGameContext::SoundRenderer() const
+{
+    return FindSystem(_SoundRenderer, _Parent, &MCGameContext::SoundRenderer);
+}
+
+std::unique_ptr<MCSoundRenderer> MCGameContext::SetSoundRenderer(std::unique_ptr<MCSoundRenderer> renderer)
+{
+    return std::exchange(_SoundRenderer, std::move(renderer));
+}
+
+MCSoundSystem* MCGameContext::SoundSystem() const
+{
+    return FindSystem(_SoundSystem, _Parent, &MCGameContext::SoundSystem);
+}
+
+std::unique_ptr<MCSoundSystem> MCGameContext::SetSoundSystem(std::unique_ptr<MCSoundSystem> soundSystem)
+{
+    return std::exchange(_SoundSystem, std::move(soundSystem));
 }
 
 std::unique_ptr<MCTerrain> MCGameContext::SetTerrain(std::unique_ptr<MCTerrain> terrain)

@@ -59,7 +59,7 @@
 #include "object/MCTurret.h"
 #include "object/MCTurretType.h"
 #include "object/MCMechWarrior.h"
-#include "sound/soundsys.h"
+#include "sound/MCSoundSystem.h"
 #include "terrain/MCTerrain.h"
 #include "object/MCWeaponHitChunk.h"
 #include "object/MCWeaponShotInfo.h"
@@ -2973,7 +2973,7 @@ auto HandleAppStart(uint32_t fromID, const void* msg) -> void
 {
     Application->RemoveTimer(GlobalLogPtr->SessionScreen, 0);
     MPlayer->SessionManager->SendLatencyInfo();
-    SoundSystem->PlayBettySample(0x19);
+    SoundSystem()->PlayBettySample(0x19);
     GlobalLogPtr->InitializeMultiplayer();
     char extension[] = ".MPK";
     GlobalLogPtr->LoadCampaign(const_cast<char*>(static_cast<const MCMPFileNameMessage*>(msg)->FileName), extension, 0,

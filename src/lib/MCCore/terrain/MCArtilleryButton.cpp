@@ -7,7 +7,7 @@
 #include "logistics/logmain.h"
 #include "main/main.h"
 #include "object/MCForces.h"
-#include "sound/soundsys.h"
+#include "sound/MCSoundSystem.h"
 #include "terrain/MCTacticalMap.h"
 #include "terrain/MCTerrain.h"
 
@@ -104,7 +104,7 @@ auto MCArtilleryButton::HandleEvent(MCGuiEvent* event) -> void
 
         if (event->Type == EventLeftDown)
         {
-            SoundSystem->PlayDigitalSample(0x46, 1, nullptr, 0, 0);
+            SoundSystem()->PlayDigitalSample(0x46, 1, nullptr, 0, 0);
         }
 
         return;

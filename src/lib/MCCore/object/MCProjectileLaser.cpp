@@ -18,7 +18,7 @@
 #include "object/MCObjectSystem.h"
 #include "object/MCProjectileLaserType.h"
 #include "object/MCSmoke.h"
-#include "sound/soundsys.h"
+#include "sound/MCSoundSystem.h"
 #include "sprite/MCArmAppearance.h"
 #include "terrain/MCTerrain.h"
 
@@ -111,7 +111,7 @@ auto MCProjectileLaser::Update() -> int32_t
 
         if (laserType->SoundEffectId != 0xffffffff)
         {
-            SoundSystem->PlayDigitalSample(laserType->SoundEffectId, 1, this, 0, 0);
+            SoundSystem()->PlayDigitalSample(laserType->SoundEffectId, 1, this, 0, 0);
         }
 
         HeadPosition = Position;

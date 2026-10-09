@@ -37,7 +37,7 @@
 #include "object/MCObjectType.h"
 #include "object/MCForces.h"
 #include "object/MCMechWarrior.h"
-#include "sound/soundsys.h"
+#include "sound/MCSoundSystem.h"
 #include "terrain/MCTerrain.h"
 #include "terrain/MCTacticalMap.h"
 #include "vfx/MCVfxFunctions.h"
@@ -184,9 +184,9 @@ auto PlayScenario() -> void
         ScenarioResult = static_cast<uint32_t>(Scenario->Run());
     }
 
-    if (SoundSystem != nullptr && UseSound != 0)
+    if (SoundSystem() != nullptr && UseSound != 0)
     {
-        SoundSystem->Update();
+        SoundSystem()->Update();
     }
 }
 
@@ -744,7 +744,7 @@ auto MCMission::Run() -> int32_t
             MovieOver = 0;
             Application->SetCursorVisible(1);
 
-            if (SoundSystem != nullptr)
+            if (SoundSystem() != nullptr)
             {
                 if (Logistics == nullptr)
                 {
@@ -755,13 +755,13 @@ auto MCMission::Run() -> int32_t
 
                 if (onMainScreen && PlayingLogisticsMusic != 1)
                 {
-                    SoundSystem->PlayDigitalMusic(0x17, true);
+                    SoundSystem()->PlayDigitalMusic(0x17, true);
                     PlayingLogisticsMusic = 1;
                 }
 
                 if (!onMainScreen && PlayingLogisticsMusic != 2)
                 {
-                    SoundSystem->PlayDigitalMusic(0x16, true);
+                    SoundSystem()->PlayDigitalMusic(0x16, true);
                     PlayingLogisticsMusic = 2;
                 }
             }
@@ -843,9 +843,9 @@ auto MCMission::Run() -> int32_t
 
             if (EscapedSmackerMovie == 0)
             {
-                if (SoundSystem != nullptr)
+                if (SoundSystem() != nullptr)
                 {
-                    SoundSystem->StopDigitalMusic();
+                    SoundSystem()->StopDigitalMusic();
                 }
 
                 std::string movieName;
@@ -876,9 +876,9 @@ auto MCMission::Run() -> int32_t
         {
             if (CurrentScenario != -1)
             {
-                if (SoundSystem != nullptr)
+                if (SoundSystem() != nullptr)
                 {
-                    SoundSystem->StopDigitalMusic();
+                    SoundSystem()->StopDigitalMusic();
                 }
 
                 char* scenarioName = (MPlayer == nullptr || GlobalLogPtr == nullptr) ? Scenarios[CurrentScenario].data()
@@ -937,7 +937,7 @@ auto MCMission::Run() -> int32_t
             {
                 if (FeatureMusicPlaying == 0)
                 {
-                    SoundSystem->PlayDigitalMusic(8, false);
+                    SoundSystem()->PlayDigitalMusic(8, false);
                     FeatureMusicPlaying = 1;
                 }
             }
@@ -1027,9 +1027,9 @@ auto MCMission::Run() -> int32_t
         }
     }
 
-    if (SoundSystem != nullptr && (Scenario == nullptr || EventsToMissionResultsScreen != 0))
+    if (SoundSystem() != nullptr && (Scenario == nullptr || EventsToMissionResultsScreen != 0))
     {
-        SoundSystem->Update();
+        SoundSystem()->Update();
     }
 
     return 0;
@@ -1042,7 +1042,7 @@ auto MCMission::StartScenario(char* scenarioName) -> void
         CheckForCDInDrive(CurPlanet, false);
     }
 
-    SoundSystem->PlayBettySample(0x13);
+    SoundSystem()->PlayBettySample(0x13);
     EndScenarioRequested = 0;
     ResultsScreen = new MCMissionResultsScreen;
     ResultsScreen->Init();
@@ -1163,9 +1163,9 @@ auto MCMission::EndScenario() -> void
     TheInterface->EndScenario();
     SomethingOnFire = 0;
 
-    if (SoundSystem != nullptr)
+    if (SoundSystem() != nullptr)
     {
-        SoundSystem->PurgeSoundSystem();
+        SoundSystem()->PurgeSoundSystem();
     }
 
     // The result is thrown away (the results screen already counted the points).
@@ -1915,7 +1915,7 @@ auto MCMissionResultsScreen::Display() -> void
 
                     if (_SkipAnimation == 0)
                     {
-                        SoundSystem->PlayDigitalSample(0x32, 1, nullptr, 0, 0);
+                        SoundSystem()->PlayDigitalSample(0x32, 1, nullptr, 0, 0);
                     }
                     break;
                 }
@@ -1976,7 +1976,7 @@ auto MCMissionResultsScreen::DrawRPs() -> void
 
         if (_SkipAnimation == 0)
         {
-            SoundSystem->PlayDigitalSample(0x43, 1, nullptr, 0, 0);
+            SoundSystem()->PlayDigitalSample(0x43, 1, nullptr, 0, 0);
         }
     }
     else
@@ -1986,7 +1986,7 @@ auto MCMissionResultsScreen::DrawRPs() -> void
 
         if (_SkipAnimation == 0)
         {
-            SoundSystem->PlayDigitalSample(0x42, 1, nullptr, 0, 0);
+            SoundSystem()->PlayDigitalSample(0x42, 1, nullptr, 0, 0);
         }
 
         _DrawIndex++;
@@ -2031,7 +2031,7 @@ auto MCMissionResultsScreen::DrawStats() -> void
 
     if (_SkipAnimation == 0)
     {
-        SoundSystem->PlayDigitalSample(0x47, 1, nullptr, 0, 0);
+        SoundSystem()->PlayDigitalSample(0x47, 1, nullptr, 0, 0);
     }
 }
 
@@ -2077,7 +2077,7 @@ auto MCMissionResultsScreen::DrawObjectives() -> void
         if (MPlayer == nullptr && _DrawState == 3 && bonus.Type == 3 && bonus.Points > 0 && ScenarioResult > 3 &&
             Solo == 0)
         {
-            SoundSystem->PlayBettySample(10);
+            SoundSystem()->PlayBettySample(10);
             drew = 1;
         }
 
@@ -2093,7 +2093,7 @@ auto MCMissionResultsScreen::DrawObjectives() -> void
     {
         if (_SkipAnimation == 0)
         {
-            SoundSystem->PlayDigitalSample(0x47, 1, nullptr, 0, 0);
+            SoundSystem()->PlayDigitalSample(0x47, 1, nullptr, 0, 0);
         }
 
         _NextDrawTime = ResultsStepTicks + MouseTicks;
@@ -2217,7 +2217,7 @@ auto MCMissionResultsScreen::DrawPilots() -> void
 
     if (_SkipAnimation == 0)
     {
-        SoundSystem->PlayDigitalSample(0x10, 1, nullptr, 0, 0);
+        SoundSystem()->PlayDigitalSample(0x10, 1, nullptr, 0, 0);
     }
 }
 
@@ -2699,7 +2699,7 @@ auto MCMissionResultsScreen::Activate() -> int32_t
         _TextObject->Resize(0xc4, 0x59);
         _TextObject->ShowGuiWindow(0);
 
-        SoundSystem->PlayBettySample(ScenarioResult < 4 ? 0xb : 0x12);
+        SoundSystem()->PlayBettySample(ScenarioResult < 4 ? 0xb : 0x12);
     }
     else
     {
@@ -2863,7 +2863,7 @@ auto MCMissionResultsScreen::Activate() -> int32_t
 
         DrawMPPilots(1);
         _DrawY = 0x11d;
-        SoundSystem->PlayBettySample(HomeSideLost(ScenarioResult) ? 0xb : 0x12);
+        SoundSystem()->PlayBettySample(HomeSideLost(ScenarioResult) ? 0xb : 0x12);
     }
 
     if (MPlayer != nullptr && MPlayer->SessionManager != nullptr && Mission->EndScenarioRequested != 0)

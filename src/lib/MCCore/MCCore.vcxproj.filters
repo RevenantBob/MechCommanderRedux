@@ -237,16 +237,13 @@
     <ClCompile Include="engine\MCWriteTga.cpp">
       <Filter>engine</Filter>
     </ClCompile>
-    <ClCompile Include="gameos\soundchannel.cpp">
+    <ClCompile Include="gameos\MCSoundChannel.cpp">
       <Filter>gameos</Filter>
     </ClCompile>
-    <ClCompile Include="gameos\soundrenderer.cpp">
+    <ClCompile Include="gameos\MCSoundRenderer.cpp">
       <Filter>gameos</Filter>
     </ClCompile>
-    <ClCompile Include="gameos\soundresource.cpp">
-      <Filter>gameos</Filter>
-    </ClCompile>
-    <ClCompile Include="gameos\soundtimer.cpp">
+    <ClCompile Include="gameos\MCSoundResource.cpp">
       <Filter>gameos</Filter>
     </ClCompile>
     <ClCompile Include="gui\aanim.cpp">
@@ -820,10 +817,13 @@
     <ClCompile Include="platform\MCVulkanShaders.cpp">
       <Filter>platform</Filter>
     </ClCompile>
-    <ClCompile Include="sound\radio.cpp">
+    <ClCompile Include="sound\MCRadio.cpp">
       <Filter>sound</Filter>
     </ClCompile>
-    <ClCompile Include="sound\soundsys.cpp">
+    <ClCompile Include="sound\MCRadioMessage.cpp">
+      <Filter>sound</Filter>
+    </ClCompile>
+    <ClCompile Include="sound\MCSoundSystem.cpp">
       <Filter>sound</Filter>
     </ClCompile>
     <ClCompile Include="sprite\MCArmAppearance.cpp">
@@ -1111,16 +1111,13 @@
     <ClInclude Include="engine\MCWriteTga.h">
       <Filter>engine</Filter>
     </ClInclude>
-    <ClInclude Include="gameos\soundchannel.h">
+    <ClInclude Include="gameos\MCSoundChannel.h">
       <Filter>gameos</Filter>
     </ClInclude>
-    <ClInclude Include="gameos\soundrenderer.h">
+    <ClInclude Include="gameos\MCSoundRenderer.h">
       <Filter>gameos</Filter>
     </ClInclude>
-    <ClInclude Include="gameos\soundresource.h">
-      <Filter>gameos</Filter>
-    </ClInclude>
-    <ClInclude Include="gameos\soundtimer.h">
+    <ClInclude Include="gameos\MCSoundResource.h">
       <Filter>gameos</Filter>
     </ClInclude>
     <ClInclude Include="gui\aanim.h">
@@ -1701,10 +1698,13 @@
     <ClInclude Include="platform\MCWin32Defs.h">
       <Filter>platform</Filter>
     </ClInclude>
-    <ClInclude Include="sound\radio.h">
+    <ClInclude Include="sound\MCRadio.h">
       <Filter>sound</Filter>
     </ClInclude>
-    <ClInclude Include="sound\soundsys.h">
+    <ClInclude Include="sound\MCRadioMessage.h">
+      <Filter>sound</Filter>
+    </ClInclude>
+    <ClInclude Include="sound\MCSoundSystem.h">
       <Filter>sound</Filter>
     </ClInclude>
     <ClInclude Include="sprite\MCArmAppearance.h">

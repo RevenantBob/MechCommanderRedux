@@ -13,7 +13,7 @@
 #include "object/MCMoverGameSystem.h"
 #include "object/MCObjectSystem.h"
 #include "object/MCObjectQueue.h"
-#include "sound/soundsys.h"
+#include "sound/MCSoundSystem.h"
 
 namespace
 {
@@ -340,7 +340,7 @@ auto MCParser::SendTacOrder(MCTacticalOrder order, int sortMovers) -> int
         return 0;
     }
 
-    SoundSystem->PlayDigitalSample(0xf, 1, nullptr, 0, 0);
+    SoundSystem()->PlayDigitalSample(0xf, 1, nullptr, 0, 0);
 
     if (MovePath != nullptr)
     {
@@ -470,7 +470,7 @@ auto MCParser::SendTacOrder(MCTacticalOrder order, int sortMovers) -> int
         }
     }
 
-    SoundSystem->PlayDigitalSample(0x11, 1, nullptr, 0, 0);
+    SoundSystem()->PlayDigitalSample(0x11, 1, nullptr, 0, 0);
 
     if (TheInterface->CommandOneShot != 0)
     {

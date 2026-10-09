@@ -62,8 +62,8 @@
 #include "object/MCEffectSystem.h"
 #include "object/MCMechWarrior.h"
 #include "object/MCMoverGameSystem.h"
-#include "sound/radio.h"
-#include "sound/soundsys.h"
+#include "sound/MCRadio.h"
+#include "sound/MCSoundSystem.h"
 #include "terrain/MCTerrain.h"
 #include "sprite/MCMechActor.h"
 #include "object/MCObjectTypeManager.h"
@@ -742,7 +742,7 @@ auto MCBattleMech::CalcLegStatus() -> int32_t
         return LegStatus;
     }
 
-    Pilot->RadioMessage(0x1e, 0);
+    Pilot->RadioMessage(MCRadioMessageType::Crippled, 0);
     LegStatus = 2;
     return 2;
 }
@@ -1003,7 +1003,7 @@ namespace
         printPos.X = offsetX * 20.0f + mech->Position.X;
         printPos.Y = offsetY * 20.0f + mech->Position.Y;
         CraterManager()->AddCrater(static_cast<MCBattleMechType*>(mech->ObjType)->FootprintType, printPos, direction);
-        SoundSystem->PlayDigitalSample(0xd, 1, mech, 0, 0);
+        SoundSystem()->PlayDigitalSample(0xd, 1, mech, 0, 0);
     }
 
     /// <summary>A footprint's rotation (of 16) for <paramref name="degrees"/>.</summary>
@@ -1507,9 +1507,9 @@ auto MCBattleMech::Render() -> void
             {
                 if (VfxShapeCount(shape) <= BlipFrame)
                 {
-                    if (SoundSystem != nullptr && UseSound != 0)
+                    if (SoundSystem() != nullptr && UseSound != 0)
                     {
-                        SoundSystem->PlayDigitalSample(0x14, 1, this, 0, 1);
+                        SoundSystem()->PlayDigitalSample(0x14, 1, this, 0, 1);
                     }
 
                     BlipFrame = 0;

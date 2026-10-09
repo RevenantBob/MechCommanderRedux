@@ -51,8 +51,8 @@
 #include "object/MCTurret.h"
 #include "object/MCTurretType.h"
 #include "object/MCMechWarrior.h"
-#include "sound/radio.h"
-#include "sound/soundsys.h"
+#include "sound/MCRadio.h"
+#include "sound/MCSoundSystem.h"
 #include "sprite/MCVfxAppearance.h"
 #include "sprite/MCVfxBuildingAppearance.h"
 #include "terrain/MCTacticalMap.h"
@@ -211,9 +211,9 @@ auto ExecHbPlayDigitalMusic(MCAblRuntime& abl) -> MCAblType*
     abl.GetCodeToken();
     abl.ExecExpression();
 
-    if (SoundSystem)
+    if (SoundSystem())
     {
-        SoundSystem->PlayAblDigitalMusic(abl.Top().Integer);
+        SoundSystem()->PlayAblDigitalMusic(abl.Top().Integer);
     }
 
     abl.Top().Integer = 0;
@@ -225,9 +225,9 @@ auto ExecHbStopMusic(MCAblRuntime& abl) -> MCAblType*
 {
     abl.GetCodeToken();
 
-    if (SoundSystem)
+    if (SoundSystem())
     {
-        SoundSystem->StopAblMusic();
+        SoundSystem()->StopAblMusic();
     }
 
     // Original behaviour: nothing was pushed, so this overwrites whatever is on top of the stack.
@@ -242,9 +242,9 @@ auto ExecHbPlaySoundEffect(MCAblRuntime& abl) -> MCAblType*
     abl.GetCodeToken();
     abl.ExecExpression();
 
-    if (SoundSystem)
+    if (SoundSystem())
     {
-        SoundSystem->PlayAblsfx(abl.Top().Integer);
+        SoundSystem()->PlayAblsfx(abl.Top().Integer);
     }
 
     abl.Top().Integer = 0;
@@ -258,9 +258,9 @@ auto ExecHbPlayVideo(MCAblRuntime& abl) -> MCAblType*
     abl.GetCodeToken();
     abl.ExecExpression();
 
-    if (SoundSystem)
+    if (SoundSystem())
     {
-        SoundSystem->PlayAblVideo(abl.Top().Integer);
+        SoundSystem()->PlayAblVideo(abl.Top().Integer);
     }
 
     abl.Top().Integer = 0;
@@ -280,7 +280,7 @@ auto ExecHbSetRadio(MCAblRuntime& abl) -> void
 
     if (warrior && warrior->Radio)
     {
-        warrior->Radio->Enabled = (enable == 1) ? 1 : 0;
+        warrior->Radio->Enabled = enable == 1;
     }
 
     abl.GetCodeToken();
@@ -314,7 +314,7 @@ auto ExecHbPlayBetty(MCAblRuntime& abl) -> MCAblType*
     abl.ExecExpression();
     uint32_t bettyId = static_cast<uint32_t>(abl.Top().Integer);
     abl.Pop();
-    abl.PushInteger(SoundSystem->PlayBettySample(bettyId));
+    abl.PushInteger(SoundSystem()->PlayBettySample(bettyId));
     abl.GetCodeToken();
     return IntegerTypePtr;
 }

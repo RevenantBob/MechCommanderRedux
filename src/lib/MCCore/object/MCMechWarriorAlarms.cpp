@@ -9,7 +9,7 @@
 #include "object/MCMoverGameSystem.h"
 #include "object/MCObjectQueue.h"
 #include "object/MCObjectSystem.h"
-#include "sound/radio.h"
+#include "sound/MCRadio.h"
 
 // The pilot's alarms: raising them, and the handlers the game runs before the brain's.
 
@@ -187,7 +187,7 @@ auto MCMechWarrior::HandleHitByWeaponFire() -> int32_t
 {
     if (AlarmOf(MCPilotAlarmType::HitByWeaponFire).Trigger[0] != 0)
     {
-        RadioMessage(RADIO_UNDER_ATTACK, 1);
+        RadioMessage(MCRadioMessageType::UnderAttack, 1);
     }
 
     return 0;
@@ -286,7 +286,7 @@ auto MCMechWarrior::HandleKilledTarget() -> int32_t
     // Count the kill and score gunnery points by what it was.
     int32_t killType = -1;
     float points = 10.0f;
-    int32_t message;
+    MCRadioMessageType message;
 
     switch (target->ObjectClass)
     {
@@ -295,7 +295,7 @@ auto MCMechWarrior::HandleKilledTarget() -> int32_t
             killType = static_cast<int32_t>(static_cast<MCGameObject*>(target)->GetMechClass());
             points = KillSkill[killType];
             NumKilled[killType][1]++;
-            message = RADIO_MECH_DESTROYED;
+            message = MCRadioMessageType::MechDestroyed;
             break;
         }
         case MCObjectClass::GroundVehicle:
@@ -304,7 +304,7 @@ auto MCMechWarrior::HandleKilledTarget() -> int32_t
             killType = 5;
             points = KillSkill[4];
             NumKilled[5][1]++;
-            message = RADIO_VEHICLE_DESTROYED;
+            message = MCRadioMessageType::VehicleDestroyed;
             break;
         }
         case MCObjectClass::Elemental:
@@ -312,11 +312,11 @@ auto MCMechWarrior::HandleKilledTarget() -> int32_t
             killType = 6;
             points = KillSkill[5];
             NumKilled[6][1]++;
-            message = RADIO_OBJECT_DESTROYED;
+            message = MCRadioMessageType::ObjectDestroyed;
             break;
         }
         default:
-            message = RADIO_OBJECT_DESTROYED;
+            message = MCRadioMessageType::ObjectDestroyed;
             break;
     }
 
@@ -358,7 +358,7 @@ auto MCMechWarrior::HandleNoMovePath() -> int32_t
     if (CurTacOrder.Code == MCTacticalOrderCode::GetFixed)
     {
         ClearCurTacOrder(1, 0);
-        RadioMessage(RADIO_MOVE_BLOCKED, 0);
+        RadioMessage(MCRadioMessageType::MoveBlocked, 0);
     }
 
     return 0;

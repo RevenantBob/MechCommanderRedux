@@ -15,7 +15,7 @@
 #include "object/MCMoverGroup.h"
 #include "object/MCObjectQueue.h"
 #include "object/MCObjectSystem.h"
-#include "sound/radio.h"
+#include "sound/MCSoundSystem.h"
 #include "terrain/MCTerrain.h"
 
 const std::array<std::string_view, NumSkills> SkillsTable = {"Piloting", "Jumping", "Sensors", "Gunnery"};
@@ -99,18 +99,14 @@ auto MCMechWarrior::Load(MCFitIniFile& warriorFile) -> int32_t
     {
         AudioStr = *audio;
         VideoStr = warriorFile.Read<std::string>("pilotVideo").value_or("");
-        auto radio = std::make_unique<MCRadio>();
-        radio->Enabled = 1;
 
-        if (radio->Init(AudioStr.data(), 0x19000, VideoStr.data()) == 0)
+        // A radio that fails to open goes; the sound system owns the others (until it purges them).
+        if (MCSoundSystem* sound = SoundSystem(); sound != nullptr)
         {
-            // The sound system's radio list owns it now.
-            Radio = radio.release();
-        }
-        else
-        {
-            // The radio goes, and the sound file it may have opened with it.
-            std::unique_ptr<MCPacketFile> radioFile(std::exchange(radio->RadioFile, nullptr));
+            if (auto radio = MCRadio::Create(*sound, AudioStr, VideoStr); radio.has_value())
+            {
+                Radio = sound->AddRadio(std::move(*radio));
+            }
         }
     }
 
@@ -230,7 +226,7 @@ auto MCMechWarrior::Load(MCFitIniFile& warriorFile) -> int32_t
 
 auto MCMechWarrior::RadioMessage(int32_t messageId, int propogateIfMultiplayer) -> void
 {
-    if (messageId >= NUM_RADIO_MESSAGES || Radio == nullptr || Status != 0 || messageId == -1 || Turn <= 0)
+    if (messageId >= RadioMessageTypeCount || Radio == nullptr || Status != 0 || messageId == -1 || Turn <= 0)
     {
         return;
     }
@@ -245,9 +241,9 @@ auto MCMechWarrior::RadioMessage(int32_t messageId, int propogateIfMultiplayer) 
         return;
     }
 
-    switch (messageId)
+    switch (static_cast<MCRadioMessageType>(messageId))
     {
-        case RADIO_SENSOR_CONTACT:
+        case MCRadioMessageType::SensorContact:
         {
             if (static_cast<double>(ScenarioTime) - 15.0 < LastContactTime)
             {
@@ -257,7 +253,7 @@ auto MCMechWarrior::RadioMessage(int32_t messageId, int propogateIfMultiplayer) 
             LastContactTime = ScenarioTime;
             break;
         }
-        case RADIO_UNDER_ATTACK:
+        case MCRadioMessageType::UnderAttack:
         {
             if (static_cast<double>(ScenarioTime) - 20.0 < LastUnderAttackTime)
             {
@@ -267,7 +263,7 @@ auto MCMechWarrior::RadioMessage(int32_t messageId, int propogateIfMultiplayer) 
             LastUnderAttackTime = ScenarioTime;
             break;
         }
-        case RADIO_WEAPONS_50:
+        case MCRadioMessageType::Weapons50:
         {
             if (Weapons50Sent != 0)
             {
@@ -277,7 +273,7 @@ auto MCMechWarrior::RadioMessage(int32_t messageId, int propogateIfMultiplayer) 
             Weapons50Sent = 1;
             break;
         }
-        case RADIO_WEAPONS_OUT:
+        case MCRadioMessageType::WeaponsOut:
         {
             if (WeaponsOutSent != 0)
             {
@@ -292,25 +288,25 @@ auto MCMechWarrior::RadioMessage(int32_t messageId, int propogateIfMultiplayer) 
     }
 
     // Some messages may repeat at once; the rest wait 10 seconds before the same one plays again.
-    switch (messageId)
+    switch (static_cast<MCRadioMessageType>(messageId))
     {
-        case 0:
-        case 1:
-        case 2:
-        case 3:
-        case 4:
-        case 5:
-        case 6:
-        case 7:
-        case 8:
-        case 9:
-        case 10:
-        case RADIO_REFIT:
-        case RADIO_POWER:
-        case RADIO_MOVE_BLOCKED:
-        case RADIO_ILLEGAL_ORDER:
-        case RADIO_DEPLOY:
-        case RADIO_LOAD:
+        case MCRadioMessageType::MoveTo:
+        case MCRadioMessageType::RunTo:
+        case MCRadioMessageType::JumpTo:
+        case MCRadioMessageType::AllStop:
+        case MCRadioMessageType::Attack:
+        case MCRadioMessageType::RangeAttack:
+        case MCRadioMessageType::AttackFromHere:
+        case MCRadioMessageType::AttackRam:
+        case MCRadioMessageType::Dfa:
+        case MCRadioMessageType::AttackBody:
+        case MCRadioMessageType::Capture:
+        case MCRadioMessageType::Refit:
+        case MCRadioMessageType::Power:
+        case MCRadioMessageType::MoveBlocked:
+        case MCRadioMessageType::IllegalOrder:
+        case MCRadioMessageType::Deploy:
+        case MCRadioMessageType::Load:
             break;
         default:
         {
@@ -530,7 +526,7 @@ auto MCMechWarrior::Injure(float numWounds, int checkEject) -> int
 
     if (numWounds > 0.0f)
     {
-        RadioMessage(RADIO_PILOT_HURT, 0);
+        RadioMessage(MCRadioMessageType::PilotHurt, 0);
     }
 
     Wounds = numWounds + Wounds;
@@ -565,7 +561,7 @@ auto MCMechWarrior::Injure(float numWounds, int checkEject) -> int
 
     if (static_cast<double>(Wounds) >= 6.0)
     {
-        RadioMessage(RADIO_DEATH, 0);
+        RadioMessage(MCRadioMessageType::Death, 0);
         Status = 4;
     }
 
@@ -581,7 +577,7 @@ auto MCMechWarrior::Injure(float numWounds, int checkEject) -> int
 
     if (Radio != nullptr)
     {
-        Radio->Enabled = 0;
+        Radio->Enabled = false;
     }
 
     return 1;
@@ -601,12 +597,12 @@ auto MCMechWarrior::Eject() -> void
 
     if (Wounds < 6.0f)
     {
-        RadioMessage(RADIO_EJECTING, 0);
+        RadioMessage(MCRadioMessageType::Ejecting, 0);
         Status = 3;
     }
     else
     {
-        RadioMessage(RADIO_DEATH, 0);
+        RadioMessage(MCRadioMessageType::Death, 0);
         Status = 4;
     }
 
@@ -624,7 +620,7 @@ auto MCMechWarrior::Eject() -> void
 
     if (Radio != nullptr)
     {
-        Radio->Enabled = 0;
+        Radio->Enabled = false;
     }
 }
 

@@ -17,7 +17,7 @@
 #include "main/main.h"
 #include "network/multplyr.h"
 #include "platform/MCInput.h"
-#include "sound/soundsys.h"
+#include "sound/MCSoundSystem.h"
 #include "vfx/MCVfxFunctions.h"
 
 namespace
@@ -191,7 +191,7 @@ auto MCLogToolButton::HandleEvent(MCGuiEvent* event) -> void
     {
         // Original behaviour: the press sound is the fixed 0x33 unless an event routine is set.
         uint32_t sample = EventRoutine == nullptr ? 0x33 : PressSound;
-        SoundSystem->PlayDigitalSample(sample, 1, nullptr, 0, 0);
+        SoundSystem()->PlayDigitalSample(sample, 1, nullptr, 0, 0);
     }
     else if (event->Type != 4)
     {
@@ -253,7 +253,7 @@ auto MCLogSpinnerButton::HandleEvent(MCGuiEvent* event) -> void
                 sample = PressSound;
             }
 
-            SoundSystem->PlayDigitalSample(sample, 1, nullptr, 0, 0);
+            SoundSystem()->PlayDigitalSample(sample, 1, nullptr, 0, 0);
             break;
         }
 
@@ -703,7 +703,7 @@ void StartMissionCallback()
     SendFileName(FIMSG_GUARANTEED | MPMSG_START, missionName);
     Application->RemoveTimer(GlobalLogPtr->SessionScreen, 0);
     MPlayer->SessionManager->SendLatencyInfo();
-    SoundSystem->PlayBettySample(0x19);
+    SoundSystem()->PlayBettySample(0x19);
     GlobalLogPtr->InitializeMultiplayer();
     GlobalLogPtr->LoadCampaign(missionName, Art(".MPK"), 0, 0);
     GlobalLogPtr->SetUpBriefingScreen(0);

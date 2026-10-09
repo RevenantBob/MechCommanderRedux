@@ -23,7 +23,7 @@
 #include "object/MCBattleMech.h"
 #include "object/MCBattleMechType.h"
 #include "object/MCMechGameSystem.h"
-#include "sound/soundsys.h"
+#include "sound/MCSoundSystem.h"
 #include "terrain/MCTacticalMap.h"
 #include "terrain/MCTerrain.h"
 

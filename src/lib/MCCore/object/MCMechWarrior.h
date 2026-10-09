@@ -13,6 +13,7 @@ class MCGameObject;
 class MCMover;
 class MCMoverGroup;
 class MCRadio;
+enum class MCRadioMessageType : int32_t;
 class MCScrollingTextWindow;
 class MCTeam;
 struct MCPathQueueRec;
@@ -90,6 +91,12 @@ public:
     /// (skipping repeats too soon after the last); a server passes others' messages on as radio chunks.
     /// </summary>
     void RadioMessage(int32_t messageId, int propogateIfMultiplayer);
+    /// <summary>Plays radio message <paramref name="type"/> (as the numbered form).</summary>
+    void RadioMessage(MCRadioMessageType type, int propogateIfMultiplayer)
+    {
+        RadioMessage(std::to_underlying(type), propogateIfMultiplayer);
+    }
+
     /// <summary>The aggressiveness; halfway to 100 while on a combat order when <paramref name="current"/>.</summary>
     int32_t GetAggressiveness(int current);
     /// <summary>Queues a player order (0; 2 when full); starts it when it is the only one.</summary>

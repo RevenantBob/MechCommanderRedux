@@ -1,6 +1,6 @@
 #include "stdafx.h"
 #include "main/honorb.h"
-#include "gameos/soundrenderer.h"
+#include "gameos/MCSoundRenderer.h"
 #include "gui/asystem.h"
 #include "gui/updisp.h"
 #include "main/main.h"
@@ -33,7 +33,7 @@
 #include "platform/MCFileSystem.h"
 #include "platform/MCInput.h"
 #include "platform/MCPresenter.h"
-#include "sound/soundsys.h"
+#include "sound/MCSoundSystem.h"
 #include "sprite/MCSpriteManager.h"
 #include "terrain/MCTerrainTiles.h"
 #include "object/MCObjectTypeManager.h"
@@ -67,7 +67,7 @@ void KillTheGame()
     }
 
     MouseTimerKill();
-    SoundRendererUninstall();
+    MCSoundRenderer::Uninstall();
     Application->ShutdownDirectDraw();
     FatalShutDown();
     std::exit(1);
@@ -989,16 +989,9 @@ int32_t UserInit()
         AblDebuggerWindow->Input()->SetEventRoutine(AblDebuggerEventRoutine);
     }
 
-    if (SoundSystem == nullptr)
+    if (SoundSystem() == nullptr)
     {
-        SoundSystem = new (std::nothrow) MCSoundSystem;
-
-        if (SoundSystem == nullptr)
-        {
-            return -1;
-        }
-
-        SoundSystem->Init(const_cast<char*>("sound"));
+        MCGameContext::Current().SetSoundSystem(std::make_unique<MCSoundSystem>("sound"));
     }
 
     ColorCallback = new MCGuiCallback;
@@ -1064,6 +1057,5 @@ void UserDestroy()
     }
 
     MCGameContext::Current().FastFiles().Clear();
-    delete SoundSystem;
-    SoundSystem = nullptr;
+    MCGameContext::Current().SetSoundSystem(nullptr);
 }

@@ -22,7 +22,7 @@
 #include "object/MCObjectSystem.h"
 #include "object/MCVertexPlacement.h"
 #include "object/MCWeaponShotInfo.h"
-#include "sound/soundsys.h"
+#include "sound/MCSoundSystem.h"
 #include "sprite/MCVfxAppearance.h"
 #include "terrain/MCTerrain.h"
 #include "vfx/MCVfxFunctions.h"
@@ -366,9 +366,9 @@ auto MCFire::Render() -> void
 
     if (VfxShapeCount(shape) <= BlipFrame)
     {
-        if (SoundSystem != nullptr && UseSound != 0)
+        if (SoundSystem() != nullptr && UseSound != 0)
         {
-            SoundSystem->PlayDigitalSample(0x14, 1, this, 0, 1);
+            SoundSystem()->PlayDigitalSample(0x14, 1, this, 0, 1);
         }
 
         BlipFrame = 0;

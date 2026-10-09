@@ -23,7 +23,7 @@
 #include "object/MCTreeBuildingType.h"
 #include "object/MCVertexPlacement.h"
 #include "object/MCWeaponShotInfo.h"
-#include "sound/soundsys.h"
+#include "sound/MCSoundSystem.h"
 #include "sprite/MCVfxAppearance.h"
 #include "terrain/MCTacticalMap.h"
 #include "terrain/MCTerrain.h"
@@ -333,9 +333,9 @@ auto MCTreeBuilding::Render() -> void
         {
             if (VfxShapeCount(shape) < BlipFrame)
             {
-                if (SoundSystem != nullptr && UseSound != 0)
+                if (SoundSystem() != nullptr && UseSound != 0)
                 {
-                    SoundSystem->PlayDigitalSample(0x14, 1, this, 0, 1);
+                    SoundSystem()->PlayDigitalSample(0x14, 1, this, 0, 1);
                 }
 
                 BlipFrame = 0;
@@ -358,7 +358,7 @@ auto MCTreeBuilding::Render() -> void
     {
         if (SoundHandle != 0xffffffff)
         {
-            SoundSystem->StopDigitalSample(SoundHandle);
+            SoundSystem()->StopDigitalSample(SoundHandle);
             SoundHandle = 0xffffffff;
         }
 
@@ -381,7 +381,7 @@ auto MCTreeBuilding::Render() -> void
     {
         if (SoundHandle != 0xffffffff)
         {
-            SoundSystem->StopDigitalSample(SoundHandle);
+            SoundSystem()->StopDigitalSample(SoundHandle);
             SoundHandle = 0xffffffff;
         }
     }
@@ -401,7 +401,7 @@ auto MCTreeBuilding::Render() -> void
 
         if (SoundHandle == 0xffffffff && type->NormalEffectId != 0xffffffff)
         {
-            SoundHandle = static_cast<uint32_t>(SoundSystem->PlayDigitalSample(type->NormalEffectId, 0, this, 1, 0));
+            SoundHandle = static_cast<uint32_t>(SoundSystem()->PlayDigitalSample(type->NormalEffectId, 0, this, 1, 0));
         }
     }
 
@@ -619,7 +619,7 @@ auto MCTreeBuilding::HandleWeaponHit(MCWeaponShotInfo* shotInfo, int addMultipla
 
     if (type->DamageEffectId != 0xffffffff && 5 < Turn)
     {
-        SoundSystem->PlayDigitalSample(type->DamageEffectId, 1, this, 1, 0);
+        SoundSystem()->PlayDigitalSample(type->DamageEffectId, 1, this, 1, 0);
     }
 
     if (SensorSystem != nullptr)

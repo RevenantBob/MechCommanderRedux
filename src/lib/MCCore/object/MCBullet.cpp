@@ -16,7 +16,7 @@
 #include "object/MCObjectDrawing.h"
 #include "object/MCObjectSystem.h"
 #include "object/MCSmoke.h"
-#include "sound/soundsys.h"
+#include "sound/MCSoundSystem.h"
 #include "sprite/MCArmAppearance.h"
 #include "terrain/MCTerrain.h"
 
@@ -66,7 +66,7 @@ auto MCBullet::Update() -> int32_t
 
         if (bulletType->SoundEffectId != 0xffffffff)
         {
-            SoundSystem->PlayDigitalSample(bulletType->SoundEffectId, 1, this, 0, 0);
+            SoundSystem()->PlayDigitalSample(bulletType->SoundEffectId, 1, this, 0, 0);
         }
 
         BulletPosition = Position;

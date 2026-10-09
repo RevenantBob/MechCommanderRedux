@@ -64,7 +64,7 @@
 #include "object/MCMechWarrior.h"
 #include "platform/MCInput.h"
 #include "platform/MCRenderer.h"
-#include "sound/soundsys.h"
+#include "sound/MCSoundSystem.h"
 #include "terrain/MCTerrain.h"
 #include "terrain/MCTacticalMap.h"
 #include "vfx/MCVfx.h"
@@ -1355,7 +1355,7 @@ auto MCMechBar::PlaceButtons(int animate) -> void
         MoveCallback = new MCGuiCallback;
         MoveCallback->SetExec(DancingButtons);
         Application->AddCallback(MoveCallback);
-        SoundSystem->PlayDigitalSample(0x42, 1, nullptr, 0, 0);
+        SoundSystem()->PlayDigitalSample(0x42, 1, nullptr, 0, 0);
     }
 }
 
@@ -1518,7 +1518,7 @@ auto DancingButtons() -> void
             TheInterface->MechBar->Draw();
             delete MoveCallback;
             MoveCallback = nullptr;
-            SoundSystem->PlayDigitalSample(0x43, 1, nullptr, 0, 0);
+            SoundSystem()->PlayDigitalSample(0x43, 1, nullptr, 0, 0);
             DanceFrames++;
             return;
         }
@@ -1660,7 +1660,7 @@ auto MCLanceIcon::HandleEvent(MCGuiEvent* event) -> void
         TheInterface->DeselectEnemy();
         TheInterface->ClearMechSelection();
         TheInterface->CommandParser->ClearSubjects();
-        SoundSystem->PlayDigitalSample(0x30, 1, nullptr, 0, 0);
+        SoundSystem()->PlayDigitalSample(0x30, 1, nullptr, 0, 0);
         TheInterface->SelectLance(Group);
         TheInterface->CommandParser->AddSubject(Group, 0);
         TheInterface->UpdateInterface();
@@ -1676,7 +1676,7 @@ auto MCLanceIcon::HandleEvent(MCGuiEvent* event) -> void
     }
 
     TheInterface->DeselectEnemy();
-    SoundSystem->PlayDigitalSample(0x30, 1, nullptr, 0, 0);
+    SoundSystem()->PlayDigitalSample(0x30, 1, nullptr, 0, 0);
     TheInterface->SelectLance(Group);
     TheInterface->CommandParser->AddSubject(Group, 1);
     TheInterface->UpdateInterface();
@@ -2383,7 +2383,7 @@ auto MCInterfaceObject::HandleEvent(MCGuiEvent* event) -> void
                     ClearMechSelection();
                     SelectLance(HomeCommander()->GetGroup(lance));
                     CommandParser->AddSubject(HomeCommander()->GetGroup(lance), 0);
-                    SoundSystem->PlayDigitalSample(0x30, 1, nullptr, 0, 0);
+                    SoundSystem()->PlayDigitalSample(0x30, 1, nullptr, 0, 0);
                 }
             }
             else if (key == Keys[37] || key == Keys[38] || key == Keys[39] || key == Keys[40])
@@ -2395,7 +2395,7 @@ auto MCInterfaceObject::HandleEvent(MCGuiEvent* event) -> void
                 {
                     SelectLance(HomeCommander()->GetGroup(lance));
                     CommandParser->AddSubject(HomeCommander()->GetGroup(lance), 1);
-                    SoundSystem->PlayDigitalSample(0x30, 1, nullptr, 0, 0);
+                    SoundSystem()->PlayDigitalSample(0x30, 1, nullptr, 0, 0);
                 }
             }
             else if (key == Keys[74])
@@ -2663,7 +2663,7 @@ auto MCInterfaceObject::HandleEvent(MCGuiEvent* event) -> void
 
             if (ForceOrderType == -1)
             {
-                SoundSystem->PlayDigitalSample(0x46, 1, nullptr, 0, 0);
+                SoundSystem()->PlayDigitalSample(0x46, 1, nullptr, 0, 0);
                 return;
             }
 
@@ -3137,7 +3137,7 @@ auto MCInterfaceObject::HandleEvent(MCGuiEvent* event) -> void
                 case 0x2c:
                 {
                     // Link the selected movers into a lance, the clicked one its point.
-                    SoundSystem->PlayBettySample(5);
+                    SoundSystem()->PlayBettySample(5);
                     const int32_t lance = CurrentCommand - 0x29;
 
                     if (IsSelected(clickedPartId) == 0)
@@ -3243,7 +3243,7 @@ auto MCInterfaceObject::HandleEvent(MCGuiEvent* event) -> void
             }
 
             CommandParser->AddSubject(clickedPartId, addToExisting);
-            SoundSystem->PlayDigitalSample(0x10, 1, nullptr, 0, 0);
+            SoundSystem()->PlayDigitalSample(0x10, 1, nullptr, 0, 0);
             finish();
             return;
         }
@@ -3840,7 +3840,7 @@ auto MCInterfaceObject::ZoomIn(float factor, bool sound) -> void
     {
         if (sound)
         {
-            SoundSystem->PlayDigitalSample(0x44, 1, nullptr, 0, 0);
+            SoundSystem()->PlayDigitalSample(0x44, 1, nullptr, 0, 0);
         }
 
         Eye->ForceUpdate = 1;
@@ -3861,7 +3861,7 @@ auto MCInterfaceObject::ZoomOut(float factor, bool sound) -> void
     {
         if (sound)
         {
-            SoundSystem->PlayDigitalSample(0x45, 1, nullptr, 0, 0);
+            SoundSystem()->PlayDigitalSample(0x45, 1, nullptr, 0, 0);
         }
 
         Eye->ForceUpdate = 1;
@@ -5569,7 +5569,7 @@ auto MCInterfaceObject::CallStrike(int strikeType, MCVector3D* position, MCGameO
 
     if (needsSight && team->LineOfSight(location) == 0)
     {
-        SoundSystem->PlayDigitalSample(0x33, 1, nullptr, 0, 0);
+        SoundSystem()->PlayDigitalSample(0x33, 1, nullptr, 0, 0);
         return;
     }
 

@@ -29,7 +29,7 @@
 #include "object/MCProjectileLaserType.h"
 #include "object/MCMechWarrior.h"
 #include "object/MCMoverGameSystem.h"
-#include "sound/soundsys.h"
+#include "sound/MCSoundSystem.h"
 #include "terrain/MCTerrain.h"
 #include "object/MCObjectType.h"
 #include "object/MCWeaponShotInfo.h"

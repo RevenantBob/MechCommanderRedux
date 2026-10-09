@@ -45,8 +45,8 @@
 #include "object/MCEffectSystem.h"
 #include "object/MCMechWarrior.h"
 #include "object/MCMoverGameSystem.h"
-#include "sound/radio.h"
-#include "sound/soundsys.h"
+#include "sound/MCRadio.h"
+#include "sound/MCSoundSystem.h"
 #include "terrain/MCTerrain.h"
 #include "sprite/MCMechActor.h"
 #include "object/MCObjectTypeManager.h"
@@ -298,7 +298,7 @@ auto MCBattleMech::HitInventoryItem(int32_t itemIndex, int setupOnly) -> int
         {
             if (UseSound != 0)
             {
-                SoundSystem->PlayDigitalSample(0x13, 1, this, 0, 0);
+                SoundSystem()->PlayDigitalSample(0x13, 1, this, 0, 0);
             }
 
             std::unique_ptr<MCGameObject> sparks = CreateObject(0x3f);
@@ -739,7 +739,7 @@ auto MCBattleMech::HandleWeaponHit(MCWeaponShotInfo* shotInfo, int addMultiplayC
 
             if (holed != 0)
             {
-                PlayMessage(RADIO_ARMOR_HOLED, 0);
+                PlayMessage(MCRadioMessageType::ArmorHoled, 0);
             }
         }
     }
@@ -769,7 +769,7 @@ auto MCBattleMech::HandleWeaponHit(MCWeaponShotInfo* shotInfo, int addMultiplayC
             }
         }
 
-        PlayMessage(RADIO_ARMOR_HOLED, 0);
+        PlayMessage(MCRadioMessageType::ArmorHoled, 0);
     }
 
     MCGameObject* attacker = shotInfo->Attacker;

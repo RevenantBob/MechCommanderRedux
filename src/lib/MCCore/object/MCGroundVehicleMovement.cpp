@@ -44,7 +44,7 @@
 #include "object/MCSmokeType.h"
 #include "object/MCEffectSystem.h"
 #include "object/MCMechWarrior.h"
-#include "sound/soundsys.h"
+#include "sound/MCSoundSystem.h"
 #include "terrain/MCTerrain.h"
 #include "object/MCObjectType.h"
 #include "object/MCWeaponChunkDebug.h"
@@ -276,7 +276,7 @@ auto MCGroundVehicle::MineCheck() -> void
 
         if (GetPilot() != nullptr)
         {
-            GetPilot()->RadioMessage(0x16, 1);
+            GetPilot()->RadioMessage(MCRadioMessageType::HittingMines, 1);
         }
 
         Pilot->PausePath();

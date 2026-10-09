@@ -16,6 +16,8 @@ class MCForces;
 class MCMoveSystem;
 class MCObjectSystem;
 class MCPalette;
+class MCSoundRenderer;
+class MCSoundSystem;
 class MCSpriteManager;
 class MCTerrain;
 class MCTrainManager;
@@ -110,6 +112,13 @@ public:
 
     /// <summary>ABL's runtime: its modules, stack and interpreter (null outside AblInit .. AblClose).</summary>
     MCAblRuntime* AblRuntime() const;
+
+    /// <summary>The sound renderer: its channels, resources and mixer (null until the sound system installs it).
+    /// </summary>
+    MCSoundRenderer* SoundRenderer() const;
+
+    /// <summary>The game's sound: effects, radio, Betty, speech and music (null before UserInit makes it).</summary>
+    MCSoundSystem* SoundSystem() const;
 
     /// <summary>Gives this context its own clock.</summary>
     /// <returns>The clock, still reachable as its own type.</returns>
@@ -208,6 +217,14 @@ public:
     /// <summary>Installs ABL's runtime (AblInit); returns the one it replaces.</summary>
     std::unique_ptr<MCAblRuntime> SetAblRuntime(std::unique_ptr<MCAblRuntime> runtime);
 
+    /// <summary>Gives this context its own sound renderer (null: the one it was installed over, if any).</summary>
+    /// <returns>The renderer this context had.</returns>
+    std::unique_ptr<MCSoundRenderer> SetSoundRenderer(std::unique_ptr<MCSoundRenderer> renderer);
+
+    /// <summary>Gives this context its own sound system (null: the one it was installed over, if any).</summary>
+    /// <returns>The sound system this context had.</returns>
+    std::unique_ptr<MCSoundSystem> SetSoundSystem(std::unique_ptr<MCSoundSystem> soundSystem);
+
 private:
     friend class MCTestContextScope;
 
@@ -248,6 +265,9 @@ private:
     std::unique_ptr<MCAblSymbolTable> _AblSymbols;
     /// <summary>Declared after the symbols: it goes first (its modules' watches point into the symbols).</summary>
     std::unique_ptr<MCAblRuntime> _AblRuntime;
+    std::unique_ptr<MCSoundRenderer> _SoundRenderer;
+    /// <summary>Declared after the renderer: it goes first (it stops its channels and frees its resources).</summary>
+    std::unique_ptr<MCSoundSystem> _SoundSystem;
 };
 
 /// <summary>

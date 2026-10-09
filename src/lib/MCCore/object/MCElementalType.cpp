@@ -35,7 +35,7 @@
 #include "object/MCForces.h"
 #include "object/MCMechWarrior.h"
 #include "object/MCMoverGameSystem.h"
-#include "sound/soundsys.h"
+#include "sound/MCSoundSystem.h"
 #include "object/MCObjectType.h"
 #include "object/MCWeaponShotInfo.h"
 #include "object/MCMoverMath.h"
@@ -262,7 +262,7 @@ auto MCElementalType::HandleCollision(MCGameObject* collidee, MCGameObject* coll
             return 0;
     }
 
-    SoundSystem->PlayDigitalSample(4, 1, collidee, 0, 0);
+    SoundSystem()->PlayDigitalSample(4, 1, collidee, 0, 0);
     return 0;
 }
 

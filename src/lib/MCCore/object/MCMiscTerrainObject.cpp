@@ -15,7 +15,7 @@
 #include "object/MCObjectSystem.h"
 #include "object/MCVertexPlacement.h"
 #include "object/MCWeaponShotInfo.h"
-#include "sound/soundsys.h"
+#include "sound/MCSoundSystem.h"
 #include "terrain/MCTerrain.h"
 #include "terrain/MCTerrainTiles.h"
 
@@ -576,7 +576,7 @@ auto MCMiscTerrainObject::HandleWeaponHit(MCWeaponShotInfo* shotInfo, int addMul
             {
                 ObjType->CreateExplosion(Position, 0.0f, 0.0f);
                 Status = 2;
-                SoundSystem->PlayDigitalSample(0x48, 1, this, 0, 0);
+                SoundSystem()->PlayDigitalSample(0x48, 1, this, 0, 0);
             }
 
             break;

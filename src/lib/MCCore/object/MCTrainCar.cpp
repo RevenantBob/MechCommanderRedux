@@ -25,7 +25,7 @@
 #include "object/MCTrainManager.h"
 #include "object/MCVertexPlacement.h"
 #include "object/MCWeaponShotInfo.h"
-#include "sound/soundsys.h"
+#include "sound/MCSoundSystem.h"
 #include "sprite/MCGVAppearance.h"
 #include "terrain/MCTerrain.h"
 #include "vfx/MCVfxFunctions.h"
@@ -294,9 +294,9 @@ auto MCTrainCar::Render() -> void
             {
                 if (VfxShapeCount(shape) < BlipFrame)
                 {
-                    if (SoundSystem != nullptr)
+                    if (SoundSystem() != nullptr)
                     {
-                        SoundSystem->PlayDigitalSample(0x14, 1, this, 0, 1);
+                        SoundSystem()->PlayDigitalSample(0x14, 1, this, 0, 1);
                     }
 
                     BlipFrame = 0;

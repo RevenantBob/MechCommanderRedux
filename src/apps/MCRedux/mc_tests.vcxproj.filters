@@ -150,6 +150,9 @@
     <ClCompile Include="tests\SortTests.cpp">
       <Filter>tests</Filter>
     </ClCompile>
+    <ClCompile Include="tests\SoundTests.cpp">
+      <Filter>tests</Filter>
+    </ClCompile>
     <ClCompile Include="tests\SpriteTests.cpp">
       <Filter>tests</Filter>
     </ClCompile>

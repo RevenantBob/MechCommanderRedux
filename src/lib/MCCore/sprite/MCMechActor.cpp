@@ -20,7 +20,7 @@
 #include "object/MCForces.h"
 #include "object/MCMechWarrior.h"
 #include "object/MCMoverGameSystem.h"
-#include "sound/soundsys.h"
+#include "sound/MCSoundSystem.h"
 #include "sprite/MCShape.h"
 #include "sprite/MCSpriteMath.h"
 #include "terrain/MCTerrain.h"
@@ -1359,7 +1359,7 @@ auto MCMechActor::Update() -> int32_t
             // The footstep of the fall-down gestures.
             if (CurrentFrame[MCMechPart::Legs] == 10 && (gesture == 0xe || gesture == 0xf))
             {
-                SoundSystem->PlayDigitalSample(0x1d, 1, Owner, 0, 0);
+                SoundSystem()->PlayDigitalSample(0x1d, 1, Owner, 0, 0);
             }
         }
         else if (NextStep != 0)

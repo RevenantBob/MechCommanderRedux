@@ -29,8 +29,8 @@
 #include "object/MCForces.h"
 #include "object/MCMechWarrior.h"
 #include "platform/MCRenderer.h"
-#include "sound/radio.h"
-#include "sound/soundsys.h"
+#include "sound/MCRadio.h"
+#include "sound/MCSoundSystem.h"
 #include "terrain/MCTacticalMapLayout.h"
 #include "terrain/MCTerrain.h"
 #include "vfx/MCVfx.h"
@@ -170,7 +170,7 @@ namespace
             return;
         }
 
-        SoundSystem->CurrentMessage->CloseMovie();
+        SoundSystem()->CurrentMessage->CloseMovie();
         map->VideoWindow->SetStar(nullptr);
     }
 
@@ -211,7 +211,7 @@ namespace
 
         if (map.Zoom < 9)
         {
-            SoundSystem->PlayDigitalSample(0x44, 1, nullptr, 0, 0);
+            SoundSystem()->PlayDigitalSample(0x44, 1, nullptr, 0, 0);
             map.ZoomOffset += (map.MapVertexSide >> 1) / map.Zoom;
         }
         else
@@ -250,7 +250,7 @@ namespace
         }
         else
         {
-            SoundSystem->PlayDigitalSample(0x45, 1, nullptr, 0, 0);
+            SoundSystem()->PlayDigitalSample(0x45, 1, nullptr, 0, 0);
         }
 
         if (map.Zoom == 1)
@@ -381,7 +381,7 @@ namespace
 
         if (action == ActionToggleZoom)
         {
-            SoundSystem->PlayDigitalSample(0x2f, 1, nullptr, 0, 0);
+            SoundSystem()->PlayDigitalSample(0x2f, 1, nullptr, 0, 0);
             ToggleZoom();
             return;
         }
@@ -389,7 +389,7 @@ namespace
         if (button->Pushed != 0)
         {
             // One mode at a time.
-            SoundSystem->PlayDigitalSample(0x35, 1, nullptr, 0, 0);
+            SoundSystem()->PlayDigitalSample(0x35, 1, nullptr, 0, 0);
 
             for (size_t i = 0; i < NumModeButtons; i++)
             {
@@ -406,7 +406,7 @@ namespace
             return;
         }
 
-        SoundSystem->PlayDigitalSample(0x34, 1, nullptr, 0, 0);
+        SoundSystem()->PlayDigitalSample(0x34, 1, nullptr, 0, 0);
         TheInterface->CurrentCommand = 0;
         TheInterface->CommandOneShot = 0;
     }
@@ -448,7 +448,7 @@ namespace
                 }
 
                 SwitchPage(page);
-                SoundSystem->PlayDigitalSample(0x36, 1, nullptr, 0, 0);
+                SoundSystem()->PlayDigitalSample(0x36, 1, nullptr, 0, 0);
                 return;
             }
 
@@ -485,7 +485,7 @@ namespace
         {
             if (TacticalMap()->DisplayType != MCTacmapPage::Salvage)
             {
-                SoundSystem->PlayDigitalSample(0x36, 1, nullptr, 0, 0);
+                SoundSystem()->PlayDigitalSample(0x36, 1, nullptr, 0, 0);
                 SwitchPage(MCTacmapPage::Salvage);
             }
         }
@@ -548,7 +548,7 @@ auto MCTacticalMap::TogglePalette() -> void
 
     if (PaletteFrame->IsShowing() == 0)
     {
-        SoundSystem->PlayDigitalSample(0x41, 1, nullptr, 0, 0);
+        SoundSystem()->PlayDigitalSample(0x41, 1, nullptr, 0, 0);
     }
     else
     {
@@ -563,7 +563,7 @@ auto MCTacticalMap::TogglePalette() -> void
             }
         }
 
-        SoundSystem->PlayDigitalSample(0x40, 1, nullptr, 0, 0);
+        SoundSystem()->PlayDigitalSample(0x40, 1, nullptr, 0, 0);
     }
 
     PaletteButton->Pushed = PaletteFrame->IsShowing();
@@ -1557,7 +1557,7 @@ auto MCTacticalMap::HideMe(int hide) -> void
 
     if (Turn > 1)
     {
-        SoundSystem->PlayDigitalSample(0x3b, 1, nullptr, 0, 0);
+        SoundSystem()->PlayDigitalSample(0x3b, 1, nullptr, 0, 0);
     }
 
     if (hide != 0)
@@ -1881,7 +1881,7 @@ auto MCTacticalMap::AddSalvage(MCGameObject* obj) -> int
 
     if (MPlayer == nullptr && obj->IsBuilding() != 0)
     {
-        SoundSystem->PlayBettySample(2);
+        SoundSystem()->PlayBettySample(2);
     }
 
     Salvage.Add(obj);
@@ -2093,7 +2093,7 @@ auto MCTacticalMap::SetDataDisplayMode(char mode, int silent) -> void
 
     if (silent == 0)
     {
-        SoundSystem->PlayDigitalSample(0x47, 1, nullptr, 0, 0);
+        SoundSystem()->PlayDigitalSample(0x47, 1, nullptr, 0, 0);
     }
 }
 
@@ -2155,9 +2155,9 @@ auto MCTacticalMap::HandleChatMessage(uint32_t fromID, const void* message) -> v
         }
     }
 
-    if (SoundSystem != nullptr)
+    if (SoundSystem() != nullptr)
     {
-        SoundSystem->PlayDigitalSample(0x11, 1, nullptr, 0, 0);
+        SoundSystem()->PlayDigitalSample(0x11, 1, nullptr, 0, 0);
     }
 }
 

@@ -2,7 +2,7 @@
 #include "object/MCMechGameSystem.h"
 #include "object/MCGameSystemReader.h"
 #include "object/MCMoverGameSystem.h"
-#include "sound/soundsys.h"
+#include "sound/MCSoundSystem.h"
 
 char MechSpeedStateArray[32] = {0, 0, 0, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1,  1,  1,  1,
                                 2, 2, 1, 1, 2, 0, 0, 0, 0, 0, 0, 0, -1, -1, -1, -1};

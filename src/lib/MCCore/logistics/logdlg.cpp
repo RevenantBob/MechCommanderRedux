@@ -8,7 +8,7 @@
 #include "logistics/purchase.h"
 #include "main/logistics.h"
 #include "main/main.h"
-#include "sound/soundsys.h"
+#include "sound/MCSoundSystem.h"
 #include "vfx/MCVfxFunctions.h"
 
 namespace
@@ -84,7 +84,7 @@ auto MCLogDialogButton::HandleEvent(MCGuiEvent* event) -> void
         // Show the press, then close the dialog with this button's result.
         PressedDown = -1;
         UpdateDisplay(0, 0, 0, 0, 0);
-        SoundSystem->PlayDigitalSample(0x34, 1, nullptr, 0, 0);
+        SoundSystem()->PlayDigitalSample(0x34, 1, nullptr, 0, 0);
         Callback()->Execute();
         static_cast<MCReusableDialog*>(Parent)->Deactivate(Result);
     }
@@ -301,7 +301,7 @@ auto MCPurchaseDlg::HandleEvent(MCGuiEvent* event) -> void
             if (localX >= 0x40 && localX <= 0x6e && localY >= 0x83 && localY <= 0x8e)
             {
                 // OK.
-                SoundSystem->PlayDigitalSample(0xf, 1, nullptr, 0, 0);
+                SoundSystem()->PlayDigitalSample(0xf, 1, nullptr, 0, 0);
                 Pressed = PressedPart::Ok;
                 UpdateDisplay(0, 0, 0, 0, 0);
                 Deactivate(-1);
@@ -309,7 +309,7 @@ auto MCPurchaseDlg::HandleEvent(MCGuiEvent* event) -> void
             else if (localX >= 0x77 && localX <= 0xa5 && localY >= 0x83 && localY <= 0x8e)
             {
                 // Cancel.
-                SoundSystem->PlayDigitalSample(0xf, 1, nullptr, 0, 0);
+                SoundSystem()->PlayDigitalSample(0xf, 1, nullptr, 0, 0);
                 Pressed = PressedPart::Cancel;
                 UpdateDisplay(0, 0, 0, 0, 0);
                 Deactivate(0);
@@ -332,12 +332,12 @@ auto MCPurchaseDlg::HandleEvent(MCGuiEvent* event) -> void
 
                     if (canAddOne())
                     {
-                        SoundSystem->PlayDigitalSample(0xf, 1, nullptr, 0, 0);
+                        SoundSystem()->PlayDigitalSample(0xf, 1, nullptr, 0, 0);
                         Quantity++;
                         break;
                     }
 
-                    SoundSystem->PlayDigitalSample(0x33, 1, nullptr, 0, 0);
+                    SoundSystem()->PlayDigitalSample(0x33, 1, nullptr, 0, 0);
                 }
                 else if (localX >= 0x92 && localX <= 0x9a && localY >= 0x5b && localY <= 0x61 && !arrowsLocked)
                 {
@@ -350,12 +350,12 @@ auto MCPurchaseDlg::HandleEvent(MCGuiEvent* event) -> void
 
                     if (Quantity != 0)
                     {
-                        SoundSystem->PlayDigitalSample(0xf, 1, nullptr, 0, 0);
+                        SoundSystem()->PlayDigitalSample(0xf, 1, nullptr, 0, 0);
                         Quantity--;
                         break;
                     }
 
-                    SoundSystem->PlayDigitalSample(0x33, 1, nullptr, 0, 0);
+                    SoundSystem()->PlayDigitalSample(0x33, 1, nullptr, 0, 0);
                 }
             }
             break;

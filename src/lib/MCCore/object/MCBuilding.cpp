@@ -23,7 +23,7 @@
 #include "object/MCTeam.h"
 #include "object/MCVertexPlacement.h"
 #include "object/MCWeaponShotInfo.h"
-#include "sound/soundsys.h"
+#include "sound/MCSoundSystem.h"
 #include "sprite/MCVfxBuildingAppearance.h"
 #include "terrain/MCTacticalMap.h"
 #include "terrain/MCTerrain.h"
@@ -294,9 +294,9 @@ auto MCBuilding::Render() -> void
         {
             if (VfxShapeCount(shape) < BlipFrame)
             {
-                if (SoundSystem != nullptr && UseSound != 0)
+                if (SoundSystem() != nullptr && UseSound != 0)
                 {
-                    SoundSystem->PlayDigitalSample(0x14, 1, this, 0, 1);
+                    SoundSystem()->PlayDigitalSample(0x14, 1, this, 0, 1);
                 }
 
                 BlipFrame = 0;
@@ -319,7 +319,7 @@ auto MCBuilding::Render() -> void
     {
         if (SoundHandle != 0xffffffff)
         {
-            SoundSystem->StopDigitalSample(SoundHandle);
+            SoundSystem()->StopDigitalSample(SoundHandle);
             SoundHandle = 0xffffffff;
         }
 
@@ -342,7 +342,7 @@ auto MCBuilding::Render() -> void
     {
         if (SoundHandle != 0xffffffff)
         {
-            SoundSystem->StopDigitalSample(SoundHandle);
+            SoundSystem()->StopDigitalSample(SoundHandle);
             SoundHandle = 0xffffffff;
         }
     }
@@ -353,7 +353,7 @@ auto MCBuilding::Render() -> void
 
         if (SoundHandle == 0xffffffff && type->NormalEffectId != 0xffffffff)
         {
-            SoundHandle = static_cast<uint32_t>(SoundSystem->PlayDigitalSample(type->NormalEffectId, 0, this, 1, 0));
+            SoundHandle = static_cast<uint32_t>(SoundSystem()->PlayDigitalSample(type->NormalEffectId, 0, this, 1, 0));
         }
     }
 
