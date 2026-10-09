@@ -14,7 +14,7 @@
 #include "logistics/logbri.h"
 #include "logistics/logmain.h"
 #include "main/main.h"
-#include "mission/scenario.h"
+#include "mission/MCScenario.h"
 #include "object/MCBattleMech.h"
 #include "object/MCBattleMechType.h"
 #include "object/MCMechGameSystem.h"
@@ -822,7 +822,7 @@ auto MCCamera::ChangeTarget(int32_t newPartNumber, int32_t objectId, bool jumpTo
             TargetObject = ObjectList()->FindObjectId(objectId);
         }
     }
-    else if (Scenario != nullptr)
+    else if (Scenario() != nullptr)
     {
         TargetObject = ObjectList()->FindObjectFromPart(newPartNumber);
     }

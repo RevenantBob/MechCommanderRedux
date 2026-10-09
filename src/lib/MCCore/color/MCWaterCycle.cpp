@@ -2,7 +2,7 @@
 #include "color/MCWaterCycle.h"
 #include "color/MCPalette.h"
 #include "gui/asystem.h"
-#include "mission/scenario.h"
+#include "mission/MCScenario.h"
 #include "platform/MCDisplay.h"
 #include "platform/MCInput.h"
 #include "vfx/MCVfx.h"
@@ -34,12 +34,12 @@ auto CycleColors() -> void
     // Set on the first call; the original kept a start time it never read.
     static uint32_t lastCycleTime = MCPort::Milliseconds();
 
-    if (Scenario == nullptr)
+    if (Scenario() == nullptr)
     {
         return;
     }
 
-    if (Scenario->CycleLength * 1000.0f < static_cast<float>(MCPort::Milliseconds() - lastCycleTime))
+    if (Scenario()->CycleLength * 1000.0f < static_cast<float>(MCPort::Milliseconds() - lastCycleTime))
     {
         lastCycleTime = MCPort::Milliseconds();
 

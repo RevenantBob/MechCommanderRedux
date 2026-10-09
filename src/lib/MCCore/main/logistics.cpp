@@ -31,8 +31,8 @@
 #include "logistics/ticker.h"
 #include "main/honorb.h"
 #include "main/main.h"
-#include "mission/mission.h"
-#include "mission/scenario.h"
+#include "mission/MCMission.h"
+#include "mission/MCScenario.h"
 #include "network/multplyr.h"
 #include "sound/MCSoundSystem.h"
 #include "vfx/MCVfxFunctions.h"
@@ -5666,11 +5666,11 @@ auto MCLogistics::SetUpPurchasing(MCPacketFile* file) -> void
         pilotFile.Close();
         // A pilot the player has (or had) shows as sold, alive or dead; the pilot lists are read through the
         // mission's logistics object, which is this one.
-        int32_t ownStatus = OwnPilotStatus(Mission->Logistics->WarriorList, warriors->NumWarriors, descIndex, -1);
+        int32_t ownStatus = OwnPilotStatus(Mission()->Logistics->WarriorList, warriors->NumWarriors, descIndex, -1);
 
         if (ownStatus == -1)
         {
-            ownStatus = OwnPilotStatus(Mission->Logistics->AssignedWarriorList, AssignedWarriorList->NumWarriors,
+            ownStatus = OwnPilotStatus(Mission()->Logistics->AssignedWarriorList, AssignedWarriorList->NumWarriors,
                                        descIndex, -1);
         }
 
@@ -6483,7 +6483,7 @@ auto MCLogistics::LoadCampaign(char* campaignFile, char* saveFile, int newCampai
             std::snprintf(MissionName, sizeof(MissionName), "campaign%s", campaignFile);
         }
 
-        Mission->InitAgain(MissionName);
+        Mission()->ReloadCampaign(MissionName);
     }
 
     result = file.SeekBlock("General");
@@ -6570,8 +6570,8 @@ auto MCLogistics::LoadCampaign(char* campaignFile, char* saveFile, int newCampai
 
         if (file.SeekBlock("MPQuickStart") == 0)
         {
-            Mission->CurrentScenario = -1;
-            Mission->CurrentMovie = 0;
+            Mission()->CurrentScenario = -1;
+            Mission()->CurrentMovie = 0;
             GetCurrentMission();
             LoadQuickStart(&file);
             quickStart = 1;
@@ -6900,15 +6900,15 @@ auto MCLogistics::LoadCampaign(char* campaignFile, char* saveFile, int newCampai
 
     if (CurrentMission == savedMission || newCampaign != 0 || MPlayer != nullptr)
     {
-        Mission->CurrentScenario = CurrentMission;
-        Mission->CurrentMovie = CurrentMission + 1;
+        Mission()->CurrentScenario = CurrentMission;
+        Mission()->CurrentMovie = CurrentMission + 1;
         GetCurrentMission();
     }
     else
     {
         // Coming back from a mission: apply its results (the "<mission>.pkk" save the mission wrote).
-        const char* resultName = CurrentMission - 1 == -1 ? Mission->Scenarios[Mission->CurrentScenario].data()
-                                                          : Mission->Scenarios[CurrentMission - 1].data();
+        const char* resultName = CurrentMission - 1 == -1 ? Mission()->Scenarios[Mission()->CurrentScenario].data()
+                                                          : Mission()->Scenarios[CurrentMission - 1].data();
         std::string resultPath;
         resultPath = GamePath(SavePath, resultName, ".pkk");
         MCPacketFile resultFile;
@@ -8798,7 +8798,7 @@ auto MCLogistics::GetCurrentMission() -> void
     // Port: the original allocated the FitIniFile and leaked it when the mission file would not open.
     MCFitIniFile file;
     std::string path;
-    char* fileName = MPlayer == nullptr ? Mission->Scenarios[Mission->CurrentScenario].data() : MpMissionName;
+    char* fileName = MPlayer == nullptr ? Mission()->Scenarios[Mission()->CurrentScenario].data() : MpMissionName;
     path = GamePath(MissionPath, fileName, ".fit");
 
     if (file.Open(path) != 0)
@@ -9505,7 +9505,7 @@ auto MCLogistics::HandleLostPlayer(uint32_t playerID, int) -> void
 auto MCLogistics::HandlePrepareScenarioMessage() -> void
 {
     SoundSystem()->PlayDigitalSample(0x3a, 1, nullptr, 0, 0);
-    Mission->StartScenario(MpMissionName);
+    Mission()->StartScenario(MpMissionName);
 }
 
 auto MCLogistics::PrepareMultiplayerScenario(char* scenarioName, char* startFile) -> int32_t

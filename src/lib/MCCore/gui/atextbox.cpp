@@ -4,13 +4,13 @@
 #include "gui/abutton.h"
 #include "gui/afont.h"
 #include "gui/aport.h"
-#include "iface/iface.h"
+#include "iface/MCTacticalInterface.h"
 #include "lib/MCFatal.h"
 #include "linkup/dpmessage.h"
 #include "linkup/dpplayer.h"
 #include "linkup/sessionmanager.h"
-#include "mission/mission.h"
-#include "mission/scenario.h"
+#include "mission/MCMission.h"
+#include "mission/MCScenario.h"
 #include "network/multplyr.h"
 #include "terrain/MCTerrain.h"
 #include "terrain/MCTacticalMap.h"
@@ -1000,7 +1000,7 @@ auto MCGuiChatInput::HandleEvent(MCGuiEvent* event) -> void
     {
         case 1:
         {
-            if (Scenario != nullptr && EventsToMissionResultsScreen == 0 && GameAsked == 0)
+            if (Scenario() != nullptr && EventsToMissionResultsScreen == 0 && GameAsked == 0)
             {
                 Application->SetText(this);
             }
@@ -1012,7 +1012,7 @@ auto MCGuiChatInput::HandleEvent(MCGuiEvent* event) -> void
             // Alt combinations go to the game interface.
             if (event->AltKey != 0 || event->ScanCode == 0x38)
             {
-                TheInterface->HandleEvent(event);
+                TacticalInterface()->HandleEvent(event);
             }
             break;
         }

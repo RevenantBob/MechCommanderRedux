@@ -17,7 +17,7 @@
 #include "logistics/logsession.h"
 #include "logistics/purchase.h"
 #include "main/logistics.h"
-#include "mission/mission.h"
+#include "mission/MCMission.h"
 #include "network/multplyr.h"
 #include "platform/MCFileSystem.h"
 #include "platform/MCRenderer.h"

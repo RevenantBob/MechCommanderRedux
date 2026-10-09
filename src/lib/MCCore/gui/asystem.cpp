@@ -12,8 +12,8 @@
 #include "gui/awindow.h"
 #include "gui/mchwcursor.h"
 #include "gui/updisp.h"
-#include "iface/icallbk.h"
-#include "iface/iface.h"
+#include "iface/MCMechBar.h"
+#include "iface/MCTacticalInterface.h"
 #include "lib/MCFatal.h"
 #include "lib/MCIDString.h"
 #include "lib/MCFrameOfRef.h"
@@ -32,8 +32,9 @@
 #include "logistics/misslog.h"
 #include "main/honorb.h"
 #include "main/main.h"
-#include "mission/mission.h"
-#include "mission/scenario.h"
+#include "mission/MCMission.h"
+#include "mission/MCMissionResultsScreen.h"
+#include "mission/MCScenario.h"
 #include "network/multplyr.h"
 #include "object/MCForces.h"
 #include "sound/MCSoundSystem.h"
@@ -57,7 +58,7 @@ MCPacketFile* ArtFile = nullptr;
 char* StartupPakFile = nullptr;
 MCGuiMessageBox* VersionDialog = nullptr;
 MCGuiObject* SmackWindowPointer = nullptr;
-MCGuiObject* FeatureScreen = nullptr;
+MCGuiOwned<MCGuiObject> FeatureScreen;
 int FeatureScreenDone = 0;
 int EscapedSmackerMovie = 0;
 MCGuiCallback* MouseTrackerCallback = nullptr;
@@ -474,11 +475,11 @@ auto MCFollowWindowSize() -> bool
             event.Type = 0x12;
             ScreenWindow->HandleEvent(&event);
         }
-        else if (TheInterface != nullptr && TheInterface->MechBar != nullptr)
+        else if (TacticalInterface() != nullptr && TacticalInterface()->MechBar != nullptr)
         {
             // Before the scenario's windows exist (StartScenario after the window was resized in the menus),
             // aMechBar::handleEvent would pass the event to mainHolder's active pane: just move the bar down.
-            MCMechBar* bar = TheInterface->MechBar;
+            MCMechBar* bar = TacticalInterface()->MechBar.get();
             bar->MoveTo(1, Application->Height() - bar->Height() - 1, 0);
         }
     }
@@ -2303,12 +2304,12 @@ auto HandleEvent(MCGuiEvent* event) -> void
     if (type == 0x13 || (type > 0x13ff && type < 0x2401))
     {
         // Timer events and posted messages go to the tactical interface.
-        if (Scenario == nullptr || Turn < 1)
+        if (Scenario() == nullptr || Turn < 1)
         {
             return;
         }
 
-        TheInterface->HandleEvent(event);
+        TacticalInterface()->HandleEvent(event);
         return;
     }
 
@@ -2322,9 +2323,9 @@ auto HandleEvent(MCGuiEvent* event) -> void
     {
         target = Application->GrabbedObject();
     }
-    else if (EventsToMissionResultsScreen != 0 && Mission->ResultsScreen != nullptr)
+    else if (EventsToMissionResultsScreen != 0 && Mission()->ResultsScreen != nullptr)
     {
-        MCGuiObject* results = Mission->ResultsScreen;
+        MCGuiObject* results = Mission()->ResultsScreen.get();
 
         if (type == 10 && event->Key == VK_ESCAPE)
         {
@@ -2350,10 +2351,10 @@ auto HandleEvent(MCGuiEvent* event) -> void
             {
                 case VK_RETURN:
                 {
-                    if (Scenario != nullptr && (GamePaused != 0 || GameAsked != 0) && event->CtrlKey == 0 &&
+                    if (Scenario() != nullptr && (GamePaused != 0 || GameAsked != 0) && event->CtrlKey == 0 &&
                         event->AltKey == 0)
                     {
-                        Mission->EndScenarioRequested = -1;
+                        Mission()->EndScenarioRequested = -1;
 
                         if (GameAsked != 0)
                         {
@@ -2377,7 +2378,7 @@ auto HandleEvent(MCGuiEvent* event) -> void
                 }
                 case VK_PAUSE:
                 {
-                    if (Scenario != nullptr && MPlayer == nullptr && Turn > 0)
+                    if (Scenario() != nullptr && MPlayer == nullptr && Turn > 0)
                     {
                         GamePaused = ~GamePaused;
                     }
@@ -2391,8 +2392,8 @@ auto HandleEvent(MCGuiEvent* event) -> void
                 }
                 case VK_ESCAPE:
                 {
-                    if (Scenario != nullptr && EventsToMissionResultsScreen == 0 && Scenario->StartingUp == 0 &&
-                        Scenario->StartUpTurns < Turn)
+                    if (Scenario() != nullptr && EventsToMissionResultsScreen == 0 && Scenario()->StartingUp == 0 &&
+                        Scenario()->StartUpTurns < Turn)
                     {
                         if (MPlayer == nullptr)
                         {
@@ -2407,7 +2408,7 @@ auto HandleEvent(MCGuiEvent* event) -> void
                 }
                 case 'D':
                 {
-                    if (Scenario != nullptr && CheatsOn != 0 && MPlayer == nullptr && KeyHeld(VK_CONTROL) &&
+                    if (Scenario() != nullptr && CheatsOn != 0 && MPlayer == nullptr && KeyHeld(VK_CONTROL) &&
                         KeyHeld(VK_MENU))
                     {
                         DisableHomeTeamTargets();
@@ -2416,7 +2417,7 @@ auto HandleEvent(MCGuiEvent* event) -> void
                 }
                 case 'G':
                 {
-                    if (Scenario == nullptr)
+                    if (Scenario() == nullptr)
                     {
                         break;
                     }
@@ -2431,7 +2432,7 @@ auto HandleEvent(MCGuiEvent* event) -> void
                 }
                 case 'K':
                 {
-                    if (Scenario != nullptr && CheatsOn != 0 && MPlayer == nullptr && KeyHeld(VK_CONTROL) &&
+                    if (Scenario() != nullptr && CheatsOn != 0 && MPlayer == nullptr && KeyHeld(VK_CONTROL) &&
                         KeyHeld(VK_MENU))
                     {
                         KillHomeTeamTargets();
@@ -2440,7 +2441,7 @@ auto HandleEvent(MCGuiEvent* event) -> void
                 }
                 case 'L':
                 {
-                    if (Scenario != nullptr && CheatsOn != 0 && KeyHeld(VK_CONTROL))
+                    if (Scenario() != nullptr && CheatsOn != 0 && KeyHeld(VK_CONTROL))
                     {
                         DrawTerrainGrid = ~DrawTerrainGrid;
                     }
@@ -2467,10 +2468,10 @@ auto HandleEvent(MCGuiEvent* event) -> void
                 }
                 case 'Q':
                 {
-                    if (Scenario != nullptr && CheatsOn != 0 && event->CtrlKey != 0 && event->AltKey != 0 &&
+                    if (Scenario() != nullptr && CheatsOn != 0 && event->CtrlKey != 0 && event->AltKey != 0 &&
                         MPlayer == nullptr)
                     {
-                        Mission->EndScenarioRequested = -1;
+                        Mission()->EndScenarioRequested = -1;
                     }
                     break;
                 }
@@ -2504,13 +2505,13 @@ auto HandleEvent(MCGuiEvent* event) -> void
                 }
                 case 'W':
                 {
-                    if (CheatsOn != 0 && Scenario != nullptr && event->CtrlKey != 0 && event->AltKey != 0 &&
+                    if (CheatsOn != 0 && Scenario() != nullptr && event->CtrlKey != 0 && event->AltKey != 0 &&
                         MPlayer == nullptr)
                     {
-                        Scenario->StartingUp = 0;
-                        Mission->EndScenarioRequested = -1;
+                        Scenario()->StartingUp = 0;
+                        Mission()->EndScenarioRequested = -1;
                         ScenarioResult = 5;
-                        Scenario->StartUpCountdown = 0;
+                        Scenario()->StartUpCountdown = 0;
                     }
                     break;
                 }
@@ -2529,10 +2530,10 @@ auto HandleEvent(MCGuiEvent* event) -> void
         target = ScreenWindow->FindObject(event->X, event->Y);
     }
 
-    if ((event->Type == 8 || event->Type == 9) && Application->TextObject() == nullptr && TheInterface != nullptr &&
-        EventsToMissionResultsScreen == 0 && Scenario != nullptr && Turn > 0)
+    if ((event->Type == 8 || event->Type == 9) && Application->TextObject() == nullptr &&
+        TacticalInterface() != nullptr && EventsToMissionResultsScreen == 0 && Scenario() != nullptr && Turn > 0)
     {
-        TheInterface->HandleEvent(event);
+        TacticalInterface()->HandleEvent(event);
     }
 
     if (Application->GrabbedObject() == nullptr && Application->ModalObject() != nullptr)
@@ -2670,18 +2671,18 @@ auto TranslateMessage(void* window, uint32_t message, uint32_t wParam, int32_t l
                     AndyFramerate ^= 1;
                 }
 
-                if (Scenario != nullptr && Turn > 0 && MPlayer == nullptr)
+                if (Scenario() != nullptr && Turn > 0 && MPlayer == nullptr)
                 {
                     if (Cheat(CheatHealAll) != 0)
                     {
                         SoundSystem()->PlayBettySample(0x1c);
-                        HealAll();
+                        TacticalInterface()->CheatHealAll();
                     }
 
                     if (Cheat(CheatDeadEye) != 0)
                     {
                         SoundSystem()->PlayBettySample(0x1c);
-                        DeadEye();
+                        TacticalInterface()->CheatDeadEye();
                     }
 
                     if (Cheat(CheatCantHitMe) != 0)
@@ -2760,9 +2761,9 @@ auto TranslateMessage(void* window, uint32_t message, uint32_t wParam, int32_t l
             {
                 target = grabbed;
             }
-            else if (EventsToMissionResultsScreen != 0 && Mission != nullptr && Mission->ResultsScreen != nullptr)
+            else if (EventsToMissionResultsScreen != 0 && Mission() != nullptr && Mission()->ResultsScreen != nullptr)
             {
-                target = Mission->ResultsScreen->FindObject(cursor.x, cursor.y);
+                target = Mission()->ResultsScreen->FindObject(cursor.x, cursor.y);
             }
             else
             {
@@ -2774,19 +2775,19 @@ auto TranslateMessage(void* window, uint32_t message, uint32_t wParam, int32_t l
                 return 1;
             }
 
-            if (grabbed == nullptr && TheInterface != nullptr && Scenario != nullptr && Turn > 0 &&
+            if (grabbed == nullptr && TacticalInterface() != nullptr && Scenario() != nullptr && Turn > 0 &&
                 EventsToMissionResultsScreen == 0 && MainHolder() != nullptr && target == MainHolder()->GetActivePane())
             {
                 // A step per notch (finer wheels zoom finer); not while paused or asked.
-                const float step = std::pow(MCInterfaceObject::ZoomWheelStep, std::fabs(delta / 120.0f));
+                const float step = std::pow(MCTacticalInterface::ZoomWheelStep, std::fabs(delta / 120.0f));
 
                 if (delta > 0)
                 {
-                    TheInterface->ZoomIn(step, false);
+                    TacticalInterface()->ZoomIn(step, false);
                 }
                 else if (delta < 0)
                 {
-                    TheInterface->ZoomOut(step, false);
+                    TacticalInterface()->ZoomOut(step, false);
                 }
 
                 return 1;
@@ -2869,17 +2870,17 @@ auto ScrollScreen() -> void
     MCCamera* camera = nullptr;
     const tagRECT scrollArea = Application->ScrollRect;
 
-    if (TheInterface == nullptr)
+    if (TacticalInterface() == nullptr)
     {
         return;
     }
 
-    if (Scenario != nullptr && Turn < 5)
+    if (Scenario() != nullptr && Turn < 5)
     {
         return;
     }
 
-    int16_t speed = TheInterface->ScrollSpeed;
+    int16_t speed = TacticalInterface()->ScrollSpeed;
 
     if (MainHolder() != nullptr && MainHolder()->GetActivePane() != nullptr)
     {
@@ -2907,7 +2908,7 @@ auto ScrollScreen() -> void
 
         bool scroll = true;
 
-        if (TheInterface->ScrollDirection == -1)
+        if (TacticalInterface()->ScrollDirection == -1)
         {
             // Scroll by the mouse at the screen's edge, after the interface's start delay.
             const MCPoint cursor = MCInput::GetCursorPos();
@@ -2920,7 +2921,7 @@ auto ScrollScreen() -> void
                 }
                 else
                 {
-                    const int16_t delay = TheInterface->ScrollStart;
+                    const int16_t delay = TacticalInterface()->ScrollStart;
 
                     if (static_cast<uint32_t>(delay + static_cast<int32_t>(ScrollWait)) > MCPort::Milliseconds())
                     {
@@ -2957,7 +2958,7 @@ auto ScrollScreen() -> void
         }
         else
         {
-            switch (TheInterface->ScrollDirection)
+            switch (TacticalInterface()->ScrollDirection)
             {
                 case 0:
                     dy = static_cast<int32_t>(-step);
@@ -3025,7 +3026,7 @@ auto ScrollScreen() -> void
     }
 
     // The tactical map scrolls by its buttons.
-    const int16_t mapSpeed = TheInterface->TacScrollSpeed;
+    const int16_t mapSpeed = TacticalInterface()->TacScrollSpeed;
     int32_t mapDx = 0;
     int32_t mapDy = 0;
 
@@ -3034,7 +3035,7 @@ auto ScrollScreen() -> void
         return;
     }
 
-    switch (TheInterface->TacScrollDirection)
+    switch (TacticalInterface()->TacScrollDirection)
     {
         case 0:
             mapDy = -mapSpeed;
@@ -3450,7 +3451,6 @@ auto MCGuiSystem::Start(void* instance, void* prevInstance, char* commandLine, i
     GammaLevel = 0;
     SmackerWindow = nullptr;
     SmackerWindow2 = nullptr;
-    OpeningSmackerWindow = nullptr;
     FlipToGdiRequested = 0;
     PaletteCycle = -1;
     char title[256];
@@ -3656,14 +3656,8 @@ auto MCGuiSystem::Start(void* instance, void* prevInstance, char* commandLine, i
     MCGuiTimerManager* timers = new MCGuiTimerManager;
     TimerManager = timers;
     timers->Init();
-    TheInterface = new MCInterfaceObject;
-
-    if (TheInterface == nullptr)
-    {
-        return 2;
-    }
-
-    TheInterface->Init();
+    MCGameContext::Current().SetTacticalInterface(std::make_unique<MCTacticalInterface>());
+    TacticalInterface()->Init();
 
     if (UserInit() != 0)
     {
@@ -3695,11 +3689,9 @@ auto MCGuiSystem::Stop() -> void
 
     MouseTrackerCallback = nullptr;
 
-    if (Mission != nullptr && Mission->ResultsScreen != nullptr)
+    if (Mission() != nullptr)
     {
-        Mission->ResultsScreen->Destroy();
-        delete Mission->ResultsScreen;
-        Mission->ResultsScreen = nullptr;
+        Mission()->CloseResultsScreen();
     }
 
     UserDestroy();
@@ -3722,13 +3714,7 @@ auto MCGuiSystem::Stop() -> void
         delete[] StartupPakFile;
     }
 
-    if (TheInterface != nullptr)
-    {
-        // The original freed it without its destructor (the aObject teardown: its port and timers).
-        TheInterface->Destroy();
-        delete TheInterface;
-        TheInterface = nullptr;
-    }
+    MCGameContext::Current().SetTacticalInterface(nullptr);
 
     if (StopWindow1 != nullptr)
     {
@@ -3909,10 +3895,10 @@ auto MCGuiSystem::Run() -> void
             int32_t staticNoise = 0;
             int32_t noiseChance = 0;
 
-            if (Scenario != nullptr)
+            if (Scenario() != nullptr)
             {
-                staticNoise = Scenario->StartingUp;
-                noiseChance = Scenario->StartUpCountdown;
+                staticNoise = Scenario()->StartingUp;
+                noiseChance = Scenario()->StartUpCountdown;
             }
 
             UpdateDisplay(TakeScreenShot, staticNoise, noiseChance, 0, 0);
@@ -3934,12 +3920,7 @@ auto MCGuiSystem::Run() -> void
                 CloseMovieWindow(Application->SmackerWindow);
             }
 
-            if (FeatureScreen != nullptr)
-            {
-                ScreenWindow->RemoveChild(FeatureScreen);
-                delete FeatureScreen;
-                FeatureScreen = nullptr;
-            }
+            FeatureScreen.reset();
         }
 
         PerfStopTime = MCPort::PerformanceCounter();
@@ -4457,25 +4438,25 @@ auto MCGuiSystem::SetCurrentCursor(MCCursorType cursor) -> void
     {
         case 0xf:
         {
-            if (TheInterface != nullptr)
+            if (TacticalInterface() != nullptr)
             {
-                CursorShape = TheInterface->CursorOffset + 0xf;
+                CursorShape = TacticalInterface()->CursorOffset + 0xf;
             }
             break;
         }
         case 0x10:
         {
-            if (TheInterface != nullptr)
+            if (TacticalInterface() != nullptr)
             {
-                CursorShape = TheInterface->CursorOffset + 0x2f;
+                CursorShape = TacticalInterface()->CursorOffset + 0x2f;
             }
             break;
         }
         case 0x11:
         {
-            if (TheInterface != nullptr)
+            if (TacticalInterface() != nullptr)
             {
-                CursorShape = TheInterface->CursorOffset + 0x4f;
+                CursorShape = TacticalInterface()->CursorOffset + 0x4f;
             }
             break;
         }

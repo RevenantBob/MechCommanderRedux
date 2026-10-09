@@ -8,14 +8,14 @@
 #include "gui/aport.h"
 #include "gui/atextbox.h"
 #include "gui/awindow.h"
-#include "iface/iface.h"
+#include "iface/MCTacticalInterface.h"
 #include "lib/MCFatal.h"
 #include "lib/MCFile.h"
 #include "logistics/logmain.h"
 #include "logistics/logbri.h"
 #include "terrain/MCMapBlockManager.h"
 #include "main/main.h"
-#include "mission/scenario.h"
+#include "mission/MCScenario.h"
 #include "network/multplyr.h"
 #include "object/MCBigGameObject.h"
 #include "object/MCGroundVehicle.h"
@@ -56,15 +56,22 @@ namespace
     constexpr int32_t StrikeCameraDrone = 0x204;
 
     /// <summary>The palette button's action that toggles the zoom instead of choosing a mode.</summary>
-    constexpr int32_t ActionToggleZoom = 0x35;
+    constexpr MCInterfaceMode ActionToggleZoom = MCInterfaceMode::ToggleZoom;
     /// <summary>The palette button's action of the jump mode (enabled only when the whole selection can jump).</summary>
-    constexpr int32_t ActionJump = 0x11;
+    constexpr MCInterfaceMode ActionJump = MCInterfaceMode::Jump;
 
     /// <summary>The number of the command palette's mode buttons (the eighth toggles the zoom).</summary>
     constexpr size_t NumModeButtons = 7;
 
     /// <summary>The interface mode of each command palette button (<c>IntMode</c> values).</summary>
-    constexpr std::array<int32_t, 8> ButtonActions = {15, 14, 13, 12, 19, 17, 3, ActionToggleZoom};
+    constexpr std::array<MCInterfaceMode, 8> ButtonActions = {MCInterfaceMode::AttackFromPosition,
+                                                              MCInterfaceMode::AttackShortRange,
+                                                              MCInterfaceMode::AttackMediumRange,
+                                                              MCInterfaceMode::AttackLongRange,
+                                                              MCInterfaceMode::Guard,
+                                                              MCInterfaceMode::Jump,
+                                                              MCInterfaceMode::Run,
+                                                              ActionToggleZoom};
 
     /// <summary>A mech, vehicle, elemental or other mover (the classes that have a pilot and a sensor).</summary>
     bool IsMoverClass(const MCGameObject* obj)
@@ -277,7 +284,7 @@ namespace
     {
         if (event->Type == EventLeftDown)
         {
-            Application->AddTimer(obj, ScrollStartTimer, TheInterface->ScrollStart, 0, 0, 0);
+            Application->AddTimer(obj, ScrollStartTimer, TacticalInterface()->ScrollStart, 0, 0, 0);
             TacticalMap()->ScrollMap(dx, dy);
         }
         else if (event->Type == EventLeftUp)
@@ -292,7 +299,7 @@ namespace
             if (event->Data == ScrollStartTimer)
             {
                 Application->RemoveTimer(obj, ScrollStartTimer);
-                Application->AddTimer(obj, ScrollRepeatTimer, TheInterface->ScrollStart / 5, 0, 0, 0);
+                Application->AddTimer(obj, ScrollRepeatTimer, TacticalInterface()->ScrollStart / 5, 0, 0, 0);
             }
         }
     }
@@ -300,22 +307,22 @@ namespace
     /// <summary>Event routines of the map scroll buttons.</summary>
     void ScrollUp(MCGuiObject* obj, MCGuiEvent* event)
     {
-        ScrollButtonEvent(obj, event, 0, -TheInterface->TacScrollSpeed);
+        ScrollButtonEvent(obj, event, 0, -TacticalInterface()->TacScrollSpeed);
     }
 
     void ScrollLeft(MCGuiObject* obj, MCGuiEvent* event)
     {
-        ScrollButtonEvent(obj, event, TheInterface->TacScrollSpeed, 0);
+        ScrollButtonEvent(obj, event, TacticalInterface()->TacScrollSpeed, 0);
     }
 
     void ScrollDown(MCGuiObject* obj, MCGuiEvent* event)
     {
-        ScrollButtonEvent(obj, event, 0, TheInterface->TacScrollSpeed);
+        ScrollButtonEvent(obj, event, 0, TacticalInterface()->TacScrollSpeed);
     }
 
     void ScrollRight(MCGuiObject* obj, MCGuiEvent* event)
     {
-        ScrollButtonEvent(obj, event, -TheInterface->TacScrollSpeed, 0);
+        ScrollButtonEvent(obj, event, -TacticalInterface()->TacScrollSpeed, 0);
     }
 
     /// <summary>Callbacks of the info page's data buttons.</summary>
@@ -377,7 +384,7 @@ namespace
         }
 
         auto* button = static_cast<MCToolPalButton*>(obj);
-        const int32_t action = button->Action;
+        const MCInterfaceMode action = button->Action;
 
         if (action == ActionToggleZoom)
         {
@@ -401,14 +408,13 @@ namespace
                 }
             }
 
-            TheInterface->CurrentCommand = action;
-            TheInterface->CommandOneShot = -1;
+            TacticalInterface()->CurrentMode = action;
+            TacticalInterface()->OneShotMode = true;
             return;
         }
 
         SoundSystem()->PlayDigitalSample(0x34, 1, nullptr, 0, 0);
-        TheInterface->CurrentCommand = 0;
-        TheInterface->CommandOneShot = 0;
+        TacticalInterface()->SetMode(MCInterfaceMode::None);
     }
 
     /// <summary>Event routine of the tab strip: its four tabs switch pages; its top toggles the MFD.</summary>
@@ -558,8 +564,7 @@ auto MCTacticalMap::TogglePalette() -> void
             if (ToolButtons[i]->Pushed != 0)
             {
                 ToolButtons[i]->Pushed = 0;
-                TheInterface->CurrentCommand = 0;
-                TheInterface->CommandOneShot = 0;
+                TacticalInterface()->SetMode(MCInterfaceMode::None);
             }
         }
 
@@ -974,7 +979,11 @@ auto MCTacticalMap::Destroy() -> void
         VisibilityPort.reset();
     }
 
-    TheInterface->TacticalMap = nullptr;
+    // A context going down takes its interface down before the terrain.
+    if (TacticalInterface() != nullptr)
+    {
+        TacticalInterface()->TacticalMap = nullptr;
+    }
 
     for (MCGuiOwned<MCArtilleryButton>& button : ArtilleryButtons)
     {
@@ -1107,7 +1116,7 @@ auto MCTacticalMap::RefreshPage() -> void
 
             for (int32_t i = 0; i < count; i++, objectiveNum++)
             {
-                MCScenarioObjective* objective = &Scenario->Objectives[objectiveNum];
+                MCScenarioObjective* objective = &Scenario()->Objectives[objectiveNum];
                 uint8_t color = 0;
 
                 if (objective->Status == 0)
@@ -1128,7 +1137,7 @@ auto MCTacticalMap::RefreshPage() -> void
                 const uint32_t type = objective->Type + 1 > 3 ? 4 : objective->Type + 1;
                 line = std::format("      {}", TypeStrings[type]);
                 text->PrintWrapped(line.data(), color, -1);
-                const float timeLeft = Scenario->CheckObjectiveTimer(objectiveNum);
+                const float timeLeft = Scenario()->CheckObjectiveTimer(objectiveNum);
 
                 if (timeLeft > 0.0)
                 {
@@ -1203,14 +1212,14 @@ auto MCTacticalMap::HandleEvent(MCGuiEvent* event) -> void
                 {
                     Application->Grab(this);
                     ScrollUpMarker->ShowGuiWindow(-1);
-                    Application->AddTimer(this, ScrollStartTimer, TheInterface->ScrollStart, 0, 0, 0);
+                    Application->AddTimer(this, ScrollStartTimer, TacticalInterface()->ScrollStart, 0, 0, 0);
                     text->ReceiveClick(-1, 0);
                 }
                 else if (PtInRect(&PageRects[1], local) != 0)
                 {
                     Application->Grab(this);
                     ScrollDownMarker->ShowGuiWindow(-1);
-                    Application->AddTimer(this, ScrollStartTimer, TheInterface->ScrollStart, 0, 0, 0);
+                    Application->AddTimer(this, ScrollStartTimer, TacticalInterface()->ScrollStart, 0, 0, 0);
                     text->ReceiveClick(1, 0);
                 }
                 else if (PtInRect(&PageRects[2], local) != 0)
@@ -1294,7 +1303,7 @@ auto MCTacticalMap::HandleEvent(MCGuiEvent* event) -> void
             if (event->Data == ScrollStartTimer)
             {
                 Application->RemoveTimer(this, ScrollStartTimer);
-                Application->AddTimer(this, ScrollRepeatTimer, TheInterface->ScrollStart / 5, 0, 0, 0);
+                Application->AddTimer(this, ScrollRepeatTimer, TacticalInterface()->ScrollStart / 5, 0, 0, 0);
             }
             else if (event->Data != ScrollRepeatTimer)
             {
@@ -1449,10 +1458,10 @@ auto MCTacticalMap::Display() -> void
 auto MCTacticalMap::UpdateMapPage() -> void
 {
     // The mission timer, rewritten once a second.
-    if (Scenario->TimeLimit >= 0 && LastMapTime + 1.0f < ActualTime)
+    if (Scenario()->TimeLimit >= 0 && LastMapTime + 1.0f < ActualTime)
     {
         LastMapTime = ActualTime;
-        const float remaining = static_cast<float>(Scenario->TimeLimit) - ActualTime;
+        const float remaining = static_cast<float>(Scenario()->TimeLimit) - ActualTime;
 
         if (remaining >= 0.0f)
         {
@@ -1492,7 +1501,7 @@ auto MCTacticalMap::RevealObjectives() -> void
 
     for (int32_t i = 0; i < numObjectives; i++)
     {
-        const MCScenarioObjective& objective = Scenario->Objectives[HomeTeam()->FirstObjective + i];
+        const MCScenarioObjective& objective = Scenario()->Objectives[HomeTeam()->FirstObjective + i];
 
         if (objective.Position[0] == -99.0f || objective.Position[1] == -99.0f || objective.Position[2] == -99.0f ||
             objective.Status != 0)
@@ -1502,7 +1511,7 @@ auto MCTacticalMap::RevealObjectives() -> void
 
         for (int32_t j = 0; j < numObjectives; j++)
         {
-            const MCScenarioObjective& area = Scenario->Objectives[HomeTeam()->FirstObjective + j];
+            const MCScenarioObjective& area = Scenario()->Objectives[HomeTeam()->FirstObjective + j];
 
             if (area.Radius <= 0.0)
             {
@@ -1816,7 +1825,7 @@ auto MCTacticalMap::SetScrollMapPosition(int32_t x, int32_t y) -> void
     const int32_t oldY = ScrollY;
     ScrollY = y;
     ScrollX = x;
-    const int32_t speed = TheInterface->TacScrollSpeed;
+    const int32_t speed = TacticalInterface()->TacScrollSpeed;
     const int32_t stepX = oldX < x ? -speed : speed;
     const int32_t stepY = oldY < y ? -speed : speed;
     bool doneX = false;
@@ -2015,13 +2024,13 @@ auto MCTacticalMap::SetID(int32_t partId) -> void
 auto MCTacticalMap::UpdateOrderPalette() -> void
 {
     // A mode chosen: only its button pushed.
-    const int32_t command = TheInterface->CurrentCommand;
+    const MCInterfaceMode mode = TacticalInterface()->CurrentMode;
 
-    if (command != 0)
+    if (mode != MCInterfaceMode::None)
     {
         for (const MCGuiOwned<MCToolPalButton>& button : ToolButtons)
         {
-            if (button->Action == command)
+            if (button->Action == mode)
             {
                 if (button->Pushed == 0)
                 {
@@ -2037,7 +2046,7 @@ auto MCTacticalMap::UpdateOrderPalette() -> void
         return;
     }
 
-    if (TheInterface->AnySelected(0) == 0)
+    if (!TacticalInterface()->AnySelected())
     {
         // Nothing selected: every mode button released and grayed.
         for (size_t i = 0; i < NumModeButtons; i++)
@@ -2047,8 +2056,7 @@ auto MCTacticalMap::UpdateOrderPalette() -> void
             if (button.Pushed != 0)
             {
                 button.Pushed = 0;
-                TheInterface->CurrentCommand = 0;
-                TheInterface->CommandOneShot = 0;
+                TacticalInterface()->SetMode(MCInterfaceMode::None);
             }
 
             if (button.Disabled == 0)
@@ -2068,7 +2076,7 @@ auto MCTacticalMap::UpdateOrderPalette() -> void
 
         if (button.Action == ActionJump)
         {
-            button.Disabled = TheInterface->CanSelectionJump() == 0 ? 1 : 0;
+            button.Disabled = TacticalInterface()->CanSelectionJump() ? 0 : 1;
         }
         else
         {

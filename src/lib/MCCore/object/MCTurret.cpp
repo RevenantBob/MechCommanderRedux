@@ -14,7 +14,7 @@
 #include "lib/MCVector2D.h"
 #include "lib/MCDice.h"
 #include "main/main.h"
-#include "mission/scenario.h"
+#include "mission/MCScenario.h"
 #include "network/multplyr.h"
 #include "object/MCArtillery.h"
 #include "object/MCArtilleryType.h"
@@ -274,17 +274,18 @@ namespace
         {
             MCVector3D enemyPosition = static_cast<MCGameObject*>(enemy)->GetPosition();
 
-            if (turret->DistanceFrom(enemyPosition) < Scenario->MaxVisualRange)
+            if (turret->DistanceFrom(enemyPosition) < Scenario()->MaxVisualRange)
             {
                 MCVector3D lookVector(0.0f, 1.0f, 0.0f);
 
                 if (radius != 0)
                 {
-                    Terrain()->MarkRadiusSeen(turret->Position, lookVector, 360.0f, Scenario->FireVisualRange, seenBy);
+                    Terrain()->MarkRadiusSeen(turret->Position, lookVector, 360.0f, Scenario()->FireVisualRange,
+                                              seenBy);
                 }
                 else
                 {
-                    Terrain()->MarkSeen(turret->Position, lookVector, 360.0f, Scenario->FireVisualRange, seenBy);
+                    Terrain()->MarkSeen(turret->Position, lookVector, 360.0f, Scenario()->FireVisualRange, seenBy);
                 }
 
                 return;
@@ -458,12 +459,12 @@ auto MCTurret::Update() -> int32_t
 
         if (Alignment == 1)
         {
-            Terrain()->MarkSeen(Position, lookVector, 360.0f, Scenario->MaxVisualRange, 1);
+            Terrain()->MarkSeen(Position, lookVector, 360.0f, Scenario()->MaxVisualRange, 1);
             MarkedSeenInnerSphere = 1;
         }
         else if (Alignment == -1)
         {
-            Terrain()->MarkSeen(Position, lookVector, 360.0f, Scenario->MaxVisualRange, 2);
+            Terrain()->MarkSeen(Position, lookVector, 360.0f, Scenario()->MaxVisualRange, 2);
             MarkedSeenClan = 1;
         }
     }
@@ -1180,17 +1181,17 @@ auto MCTurret::Render() -> void
 
         if (50.0f < GetTonnage())
         {
-            shape = Scenario->SensorContactShapes[0];
+            shape = Scenario()->SensorContactShape(0);
             shapeName = "tblip1";
         }
         else if (35.0f < GetTonnage())
         {
-            shape = Scenario->SensorContactShapes[2];
+            shape = Scenario()->SensorContactShape(2);
             shapeName = "tblip2";
         }
         else
         {
-            shape = Scenario->SensorContactShapes[4];
+            shape = Scenario()->SensorContactShape(4);
             shapeName = "tblip3";
         }
 

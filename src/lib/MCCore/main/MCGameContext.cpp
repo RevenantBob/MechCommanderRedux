@@ -16,6 +16,9 @@
 #include "object/MCTrainManager.h"
 #include "gameos/MCSoundRenderer.h"
 #include "sound/MCSoundSystem.h"
+#include "mission/MCMission.h"
+#include "mission/MCScenario.h"
+#include "iface/MCTacticalInterface.h"
 #include "lib/MCFastFileSet.h"
 #include "sprite/MCSpriteManager.h"
 #include "terrain/MCTerrain.h"
@@ -86,13 +89,18 @@ MCGameContext::MCGameContext(MCGameContext* parent) : _Parent(parent)
 
 MCGameContext::~MCGameContext()
 {
-    // The objects go first, while every system they reach for is still here. Then each slot is emptied, last to first,
-    // so a system going finds the ones after it gone (null, or the parent's), never deleted ones.
+    // The scenario and the mission go first, then the objects, while every system they reach for is still here. Then
+    // each slot is emptied, last to first, so a system going finds the ones after it gone (null, or the parent's),
+    // never deleted ones.
+    _Scenario.reset();
+    _Mission.reset();
+
     if (_ObjectSystem != nullptr)
     {
         _ObjectSystem->Unload();
     }
 
+    _TacticalInterface.reset();
     _SoundSystem.reset();
     _SoundRenderer.reset();
     _AblRuntime.reset();
@@ -287,6 +295,37 @@ MCSoundRenderer* MCGameContext::SoundRenderer() const
 std::unique_ptr<MCSoundRenderer> MCGameContext::SetSoundRenderer(std::unique_ptr<MCSoundRenderer> renderer)
 {
     return std::exchange(_SoundRenderer, std::move(renderer));
+}
+
+MCMission* MCGameContext::Mission() const
+{
+    return FindSystem(_Mission, _Parent, &MCGameContext::Mission);
+}
+
+std::unique_ptr<MCMission> MCGameContext::SetMission(std::unique_ptr<MCMission> mission)
+{
+    return std::exchange(_Mission, std::move(mission));
+}
+
+MCScenario* MCGameContext::Scenario() const
+{
+    return FindSystem(_Scenario, _Parent, &MCGameContext::Scenario);
+}
+
+std::unique_ptr<MCScenario> MCGameContext::SetScenario(std::unique_ptr<MCScenario> scenario)
+{
+    return std::exchange(_Scenario, std::move(scenario));
+}
+
+MCTacticalInterface* MCGameContext::TacticalInterface() const
+{
+    return FindSystem(_TacticalInterface, _Parent, &MCGameContext::TacticalInterface);
+}
+
+std::unique_ptr<MCTacticalInterface> MCGameContext::SetTacticalInterface(
+    std::unique_ptr<MCTacticalInterface> tacticalInterface)
+{
+    return std::exchange(_TacticalInterface, std::move(tacticalInterface));
 }
 
 MCSoundSystem* MCGameContext::SoundSystem() const

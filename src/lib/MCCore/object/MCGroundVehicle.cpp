@@ -15,12 +15,12 @@
 #include "engine/MCVfxElement.h"
 #include "vfx/MCVfxFunctions.h"
 #include "gui/asystem.h"
-#include "iface/iface.h"
+#include "iface/MCTacticalInterface.h"
 #include "lib/MCFatal.h"
 #include "lib/MCFitIniFile.h"
 #include "logistics/logmain.h"
 #include "main/main.h"
-#include "mission/scenario.h"
+#include "mission/MCScenario.h"
 #include "network/multplyr.h"
 #include "object/MCAIControl.h"
 #include "object/MCArtillery.h"
@@ -910,11 +910,11 @@ auto MCGroundVehicle::Update() -> int32_t
             // Every vertex travelled, the vehicle marks what it sees.
             if (Alignment == 1)
             {
-                Terrain()->MarkSeen(Position, Frame.J, 360.0f, GetProbeEffect() + Scenario->MaxVisualRange, 1);
+                Terrain()->MarkSeen(Position, Frame.J, 360.0f, GetProbeEffect() + Scenario()->MaxVisualRange, 1);
             }
             else if (Alignment == -1)
             {
-                Terrain()->MarkSeen(Position, Frame.J, 360.0f, GetProbeEffect() + Scenario->MaxVisualRange, 2);
+                Terrain()->MarkSeen(Position, Frame.J, 360.0f, GetProbeEffect() + Scenario()->MaxVisualRange, 2);
             }
 
             DistanceSinceMarkSeen = 0.0f;
@@ -1257,7 +1257,7 @@ auto MCGroundVehicle::Render() -> void
                 shapeName = zoomedOut ? "vblip5" : "vblip6";
             }
 
-            uint8_t* shape = Scenario->SensorContactShapes[shapeIndex];
+            uint8_t* shape = Scenario()->SensorContactShape(shapeIndex);
 
             if (shape != nullptr)
             {
@@ -1331,7 +1331,7 @@ auto MCGroundVehicle::Render() -> void
     }
 
     // The selected vehicle's queued orders: waypoint markers, joined by lines when the queue is drawn as a path.
-    if (WaypointMarkers != nullptr && Selected != 0 && Pilot != nullptr && Pilot->GetTacOrderQueueSize() > 0)
+    if (WaypointMarkerShapes() != nullptr && Selected != 0 && Pilot != nullptr && Pilot->GetTacOrderQueueSize() > 0)
     {
         MCTacticalOrder tacOrder;
         tacOrder.Reset();
@@ -1366,10 +1366,10 @@ auto MCGroundVehicle::Render() -> void
                 marker++;
             }
 
-            const int32_t bounds = VfxShapeBounds(WaypointMarkers, marker);
+            const int32_t bounds = VfxShapeBounds(WaypointMarkerShapes(), marker);
             ElementList()->OpenGroup(-100000, 1);
             auto* element = ElementList()->Make<MCVfxElement>(
-                WaypointMarkers, static_cast<float>((bounds >> 16) / 2) + toScreen.X,
+                WaypointMarkerShapes(), static_cast<float>((bounds >> 16) / 2) + toScreen.X,
                 toScreen.Y - static_cast<float>(bounds >> 1 & 0x7fff), marker, 1, nullptr, 1);
             ElementList()->Add(element);
         }

@@ -8,7 +8,7 @@
 #include "ai/MCTacticalOrder.h"
 #include "gui/asystem.h"
 #include "gui/updisp.h"
-#include "iface/parser.h"
+#include "iface/MCCommandParser.h"
 #include "lib/MCFatal.h"
 #include "lib/MCFrameOfRef.h"
 #include "lib/MCVector2D.h"
@@ -27,8 +27,8 @@
 #include "main/honorb.h"
 #include "main/logistics.h"
 #include "main/main.h"
-#include "mission/mission.h"
-#include "mission/scenario.h"
+#include "mission/MCMission.h"
+#include "mission/MCScenario.h"
 #include "object/MCArtillery.h"
 #include "object/MCArtilleryType.h"
 #include "object/MCArtilleryChunk.h"
@@ -94,7 +94,7 @@ namespace
     /// <summary>Whether a mission is running a multiplayer game with company (every in-mission handler's check).</summary>
     bool InMultiplayerMission()
     {
-        return Scenario != nullptr && EventsToMissionResultsScreen == 0 && MPlayer->NumPlayers() > 1;
+        return Scenario() != nullptr && EventsToMissionResultsScreen == 0 && MPlayer->NumPlayers() > 1;
     }
 }
 
@@ -1820,12 +1820,12 @@ auto MCMultiPlayer::PlayerLeftGame(uint32_t playerID) -> void
     {
         if (NumPlayers() < 2)
         {
-            Mission->EndScenarioRequested = 1;
+            Mission()->EndScenarioRequested = 1;
         }
     }
     else if (NumPlayers() == 2)
     {
-        Mission->EndScenarioRequested = 1;
+        Mission()->EndScenarioRequested = 1;
     }
 
     if (InMission != 0)
@@ -2291,13 +2291,13 @@ auto HandleAppStartScenario(uint32_t fromID, const void* msg) -> void
 {
     auto* start = static_cast<const MCMPStartScenarioMessage*>(msg);
 
-    for (uint32_t i = 1; i <= Scenario->NumParts; i++)
+    for (uint32_t i = 1; i <= Scenario()->NumParts(); i++)
     {
-        MCFidpPlayer* player = MPlayer->SessionManager->GetPlayerNumber(Scenario->Parts[i].CommanderId);
+        MCFidpPlayer* player = MPlayer->SessionManager->GetPlayerNumber(Scenario()->Parts[i].CommanderId);
 
         if (player != nullptr)
         {
-            auto* mover = static_cast<MCMover*>(Scenario->Parts[i].Object);
+            auto* mover = static_cast<MCMover*>(Scenario()->Parts[i].Object);
             mover->NetOwnerID = player->Id;
 
             // The original copied at most 255 characters into the name's buffer.
@@ -2401,7 +2401,7 @@ auto HandleAppPlayerOrder(uint32_t fromID, const void* msg) -> void
 
         if (sortMovers != 0)
         {
-            SortMoverList(numMovers, movers, order.GetWayPoint(0));
+            SortMoverList(std::span(movers, static_cast<size_t>(numMovers)), order.GetWayPoint(0));
         }
 
         for (int32_t i = 0; i < numMovers; i++)
@@ -2867,7 +2867,7 @@ auto HandleAppWorldStateUpdate(uint32_t fromID, const void* msg) -> void
 
             case WSCHUNK_MISSION_SCRIPT_MESSAGE:
             {
-                Scenario->HandleMultiplayMessage(chunk.Param1, chunk.Param2);
+                Scenario()->HandleMultiplayMessage(chunk.Param1, chunk.Param2);
                 break;
             }
 
@@ -3021,7 +3021,7 @@ auto HandleLocalPlayerRemoved(uint32_t fromID, const void* msg) -> void
     {
         MPlayer->InMission = 0;
         MPlayer->LeaveSession();
-        Mission->EndScenario();
+        Mission()->EndScenario();
     }
 
     char text[512];
@@ -3076,7 +3076,7 @@ auto MultiPlayerSystemCallback(MCFidpMessage* msg, void* data) -> void
 
         case DPSYS_SESSIONLOST:
         {
-            if (Scenario == nullptr || Scenario->StartingUp == 0)
+            if (Scenario() == nullptr || Scenario()->StartingUp == 0)
             {
                 HandleLocalPlayerRemoved(msg->FromID, nullptr);
             }

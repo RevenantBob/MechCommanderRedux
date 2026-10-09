@@ -13,8 +13,8 @@
 #include "main/logistics.h"
 #include "main/MCGameContext.h"
 #include "main/main.h"
-#include "mission/mission.h"
-#include "mission/scenario.h"
+#include "mission/MCMission.h"
+#include "mission/MCScenario.h"
 #include "object/MCMover.h"
 #include "object/MCMoverGameSystem.h"
 #include "object/MCMechWarrior.h"
@@ -134,7 +134,7 @@ namespace MCTestGame
         Fold(hash, ScenarioTime);
         Fold(hash, MCPort::RandState());
 
-        if (Scenario == nullptr)
+        if (Scenario() == nullptr)
         {
             return hash;
         }
@@ -175,9 +175,9 @@ namespace MCTestGame
             }
         }
 
-        for (uint32_t i = 0; Scenario->Objectives != nullptr && i < Scenario->NumObjectives; i++)
+        for (int32_t i = 0; i < Scenario()->Objectives.Count(); i++)
         {
-            Fold(hash, Scenario->Objectives[i].Status);
+            Fold(hash, Scenario()->Objectives[i].Status);
         }
 
         return hash;
@@ -241,7 +241,7 @@ namespace MCTestGame
     {
         if (booted != 0)
         {
-            return booted == segment && Scenario != nullptr;
+            return booted == segment && Scenario() != nullptr;
         }
 
         booted = segment;
@@ -267,13 +267,13 @@ namespace MCTestGame
         {
             RunFrame(1.0f / 15.0f);
 
-            if (Scenario != nullptr && Mission->MissionState == 7 && Turn > 30)
+            if (Scenario() != nullptr && Mission()->State == MCMissionState::Scenario && Turn > 30)
             {
                 return true;
             }
         }
 
-        std::cout << "  the scenario never started (mission state " << Mission->MissionState << ")\n";
+        std::cout << "  the scenario never started (mission state " << std::to_underlying(Mission()->State) << ")\n";
         return false;
     }
 
@@ -298,7 +298,7 @@ namespace MCTestGame
         {
             RunFrame(1.0f / 15.0f);
 
-            if (Mission->MissionState == 3 && GlobalLogPtr != nullptr &&
+            if (Mission()->State == MCMissionState::Logistics && GlobalLogPtr != nullptr &&
                 GlobalLogPtr->CurrentScreen == GlobalLogPtr->MainScreen && Application->SmackerWindow == nullptr &&
                 Application->SmackerWindow2 == nullptr)
             {
@@ -306,7 +306,7 @@ namespace MCTestGame
             }
         }
 
-        std::cout << "  logistics never came up (mission state " << Mission->MissionState << ")\n";
+        std::cout << "  logistics never came up (mission state " << std::to_underlying(Mission()->State) << ")\n";
         return false;
     }
 
@@ -391,10 +391,10 @@ namespace MCTestGame
         int32_t staticNoise = 0;
         int32_t noiseChance = 0;
 
-        if (Scenario != nullptr)
+        if (Scenario() != nullptr)
         {
-            staticNoise = Scenario->StartingUp;
-            noiseChance = Scenario->StartUpCountdown;
+            staticNoise = Scenario()->StartingUp;
+            noiseChance = Scenario()->StartUpCountdown;
         }
 
         UpdateDisplay(0, staticNoise, noiseChance, 0, 0);
@@ -412,7 +412,7 @@ namespace MCTestGame
             std::fprintf(frameLog, "frame %d turn %d time %.3f clock %u", frame++, Turn,
                          static_cast<double>(ScenarioTime), MCPort::Milliseconds());
 
-            for (int32_t partId = MCMover::FirstPartId; partId < MCMover::EndPartId && Scenario != nullptr; partId++)
+            for (int32_t partId = MCMover::FirstPartId; partId < MCMover::EndPartId && Scenario() != nullptr; partId++)
             {
                 if (MCMover* mover = GetMoverFromPartId(partId); mover != nullptr)
                 {
@@ -429,7 +429,7 @@ namespace MCTestGame
         // --state-log <file>: each frame's state hash, to find where two builds part (tools/ci/baseline.py).
         static FILE* stateLog = OpenLog("state-log");
 
-        if (stateLog != nullptr && Scenario != nullptr)
+        if (stateLog != nullptr && Scenario() != nullptr)
         {
             static int32_t stateFrame = 0;
             std::fprintf(stateLog, "%d 0x%08x\n", stateFrame++, StateHash());

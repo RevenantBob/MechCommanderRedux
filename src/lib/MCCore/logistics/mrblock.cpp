@@ -16,7 +16,7 @@
 #include "logistics/ticker.h"
 #include "main/logistics.h"
 #include "main/main.h"
-#include "mission/mission.h"
+#include "mission/MCMission.h"
 #include "network/multplyr.h"
 #include "object/MCMasterComponent.h"
 #include "sound/MCSoundSystem.h"

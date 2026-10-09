@@ -7,7 +7,7 @@
 #include "lib/MCPacketFile.h"
 #include "logistics/logmain.h"
 #include "main/main.h"
-#include "mission/mission.h"
+#include "mission/MCMission.h"
 #include "object/MCBigGameObject.h"
 #include "object/MCMechWarrior.h"
 #include "platform/MCSmacker.h"

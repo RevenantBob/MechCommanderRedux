@@ -13,12 +13,15 @@ class MCEffectSystem;
 class MCElementBuffer;
 class MCFastFileSet;
 class MCForces;
+class MCMission;
 class MCMoveSystem;
 class MCObjectSystem;
 class MCPalette;
+class MCScenario;
 class MCSoundRenderer;
 class MCSoundSystem;
 class MCSpriteManager;
+class MCTacticalInterface;
 class MCTerrain;
 class MCTrainManager;
 
@@ -119,6 +122,15 @@ public:
 
     /// <summary>The game's sound: effects, radio, Betty, speech and music (null before UserInit makes it).</summary>
     MCSoundSystem* SoundSystem() const;
+
+    /// <summary>The game's top-level state machine (null before the game's start-up makes it).</summary>
+    MCMission* Mission() const;
+
+    /// <summary>The current battle (null outside one).</summary>
+    MCScenario* Scenario() const;
+
+    /// <summary>The player's command interface (null before the GUI's start-up makes it).</summary>
+    MCTacticalInterface* TacticalInterface() const;
 
     /// <summary>Gives this context its own clock.</summary>
     /// <returns>The clock, still reachable as its own type.</returns>
@@ -225,6 +237,18 @@ public:
     /// <returns>The sound system this context had.</returns>
     std::unique_ptr<MCSoundSystem> SetSoundSystem(std::unique_ptr<MCSoundSystem> soundSystem);
 
+    /// <summary>Gives this context its own mission (null: the one it was installed over, if any).</summary>
+    /// <returns>The mission this context had.</returns>
+    std::unique_ptr<MCMission> SetMission(std::unique_ptr<MCMission> mission);
+
+    /// <summary>Gives this context its own scenario (null: the one it was installed over, if any).</summary>
+    /// <returns>The scenario this context had.</returns>
+    std::unique_ptr<MCScenario> SetScenario(std::unique_ptr<MCScenario> scenario);
+
+    /// <summary>Gives this context its own tactical interface (null: the one it was installed over, if any).</summary>
+    /// <returns>The interface this context had.</returns>
+    std::unique_ptr<MCTacticalInterface> SetTacticalInterface(std::unique_ptr<MCTacticalInterface> tacticalInterface);
+
 private:
     friend class MCTestContextScope;
 
@@ -268,6 +292,12 @@ private:
     std::unique_ptr<MCSoundRenderer> _SoundRenderer;
     /// <summary>Declared after the renderer: it goes first (it stops its channels and frees its resources).</summary>
     std::unique_ptr<MCSoundSystem> _SoundSystem;
+    /// <summary>Goes first, before the objects (its own and the parts' still reach for every system).</summary>
+    std::unique_ptr<MCScenario> _Scenario;
+    /// <summary>Goes right after the scenario (with it gone, its results screen doesn't end it again).</summary>
+    std::unique_ptr<MCMission> _Mission;
+    /// <summary>Goes after the objects (a mover going takes itself off the mech bar), before the other systems.</summary>
+    std::unique_ptr<MCTacticalInterface> _TacticalInterface;
 };
 
 /// <summary>

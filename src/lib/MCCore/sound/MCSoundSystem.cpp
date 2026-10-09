@@ -13,8 +13,8 @@
 #include "main/MCGameContext.h"
 #include "main/logistics.h"
 #include "main/main.h"
-#include "mission/mission.h"
-#include "mission/scenario.h"
+#include "mission/MCMission.h"
+#include "mission/MCScenario.h"
 #include "object/MCBigGameObject.h"
 #include "platform/MCSmacker.h"
 #include "terrain/MCTacticalMap.h"
@@ -569,7 +569,7 @@ void MCSoundSystem::UpdateRadio()
 
 void MCSoundSystem::UpdateMusicChoice()
 {
-    Scenario->CheckAnyoneInCombat();
+    Scenario()->CheckAnyoneInCombat();
     const bool enemyCue = HasMusicState(MCMusicState::EnemyDestroyed);
 
     if (enemyCue && EnemyDestroyed != 0)
@@ -702,12 +702,12 @@ void MCSoundSystem::Update()
         DropEndedStream(1);
     }
 
-    if (Scenario != nullptr && StartMusic == 0)
+    if (Scenario() != nullptr && !Scenario()->MusicPending)
     {
         UpdateMusicChoice();
     }
 
-    if (Scenario != nullptr && SomethingOnFire != 0)
+    if (Scenario() != nullptr && SomethingOnFire != 0)
     {
         SomethingOnFire = 0;
 
@@ -739,7 +739,7 @@ void MCSoundSystem::Update()
     }
 
     // The camera-placed effects stop once the camera is out of range.
-    if (Scenario != nullptr)
+    if (Scenario() != nullptr)
     {
         for (int32_t channel = 11; channel < 14; channel++)
         {
@@ -924,7 +924,7 @@ int32_t MCSoundSystem::PlayDigitalSample(uint32_t sampleId, uint32_t channelType
     float listenerX = 0.0f;
     float listenerY = 0.0f;
 
-    if (Scenario != nullptr && Eye != nullptr)
+    if (Scenario() != nullptr && Eye != nullptr)
     {
         listenerX = Eye->Position.X;
         listenerY = Eye->Position.Y;

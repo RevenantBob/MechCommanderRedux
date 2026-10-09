@@ -4,7 +4,7 @@
 #include "ai/MCMoveSystem.h"
 #include "gui/asystem.h"
 #include "gui/atextbox.h"
-#include "iface/iface.h"
+#include "iface/MCTacticalInterface.h"
 #include "lib/MCDice.h"
 #include "lib/MCFatal.h"
 #include "lib/MCFile.h"
@@ -12,7 +12,7 @@
 #include "lib/MCVector2D.h"
 #include "logistics/logmain.h"
 #include "main/main.h"
-#include "mission/scenario.h"
+#include "mission/MCScenario.h"
 #include "network/multplyr.h"
 #include "object/MCArtillery.h"
 #include "object/MCArtilleryType.h"
@@ -70,7 +70,7 @@ auto ExecHbSetObjectivePos(MCAblRuntime& abl) -> void
     float x = abl.NextReal();
     float y = abl.NextReal();
     float z = abl.NextReal();
-    Scenario->SetObjectivePos(objectiveNumber, x, y, z);
+    Scenario()->Objectives.SetPosition(objectiveNumber, x, y, z);
     abl.GetCodeToken();
 }
 
@@ -654,11 +654,11 @@ namespace
         if (!target)
         {
             position.Z = Terrain()->GetTerrainElevation(position);
-            TheInterface->CallStrike(strikeType, &position, nullptr, 0, forClansOnPoint, delay);
+            TacticalInterface()->CallStrike(strikeType, &position, nullptr, false, forClansOnPoint != 0, delay);
         }
         else
         {
-            TheInterface->CallStrike(strikeType, nullptr, target, 0, forClansOnTarget, delay);
+            TacticalInterface()->CallStrike(strikeType, nullptr, target, false, forClansOnTarget != 0, delay);
         }
     }
 }
@@ -770,14 +770,14 @@ auto ExecHbAddPrisoner(MCAblRuntime& abl) -> MCAblType*
     int32_t result = -1;
     MCBaseObject* object = ObjectList()->FindObjectFromPart(buildingId);
 
-    if (object && static_cast<MCGameObject*>(object)->IsBuilding() && Scenario)
+    if (object && static_cast<MCGameObject*>(object)->IsBuilding() && Scenario())
     {
         // Port fix: with no warriors at all the original fills the prison with the pointer -1.
         MCMechWarrior* prisoner = nullptr;
 
-        for (uint32_t i = 1; i <= Scenario->NumWarriors; i++)
+        for (uint32_t i = 1; i <= Scenario()->NumWarriors(); i++)
         {
-            MCMechWarrior* warrior = Scenario->Warriors[i];
+            MCMechWarrior* warrior = Scenario()->Warrior(i);
 
             if (warrior && warrior->Index == pilotIndex)
             {

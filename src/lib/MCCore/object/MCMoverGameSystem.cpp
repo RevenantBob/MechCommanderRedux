@@ -4,7 +4,7 @@
 #include "lib/MCFatal.h"
 #include "lib/MCFitIniFile.h"
 #include "object/MCGameSystemReader.h"
-#include "mission/mission.h"
+#include "mission/MCMission.h"
 #include "object/MCGameObject.h"
 #include "object/MCSensorSystem.h"
 #include "object/MCBattleMech.h"

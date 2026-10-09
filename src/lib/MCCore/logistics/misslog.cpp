@@ -7,8 +7,8 @@
 #include "logistics/logmain.h"
 #include "logistics/purchase.h"
 #include "main/logistics.h"
-#include "mission/mission.h"
-#include "mission/scenario.h"
+#include "mission/MCMission.h"
+#include "mission/MCScenario.h"
 #include "object/MCMasterComponent.h"
 #include "object/MCGroundVehicle.h"
 #include "object/MCGroundVehicleType.h"
@@ -285,7 +285,7 @@ namespace
     /// <summary>Writes the purchase file: what the shop has left of each mech, vehicle, component and pilot.</summary>
     int32_t WritePurchaseFile(const char* fileName)
     {
-        MCLogistics* logistics = Mission->Logistics;
+        MCLogistics* logistics = Mission()->Logistics.get();
         MCFitIniFile file;
         const int32_t result = file.Create(fileName);
 
@@ -356,7 +356,7 @@ namespace
     int32_t WriteWarriors(MCMissionLogisticsBridge* bridge, MCFitIniFile& file, uint32_t& numWarriors,
                           uint32_t& numAssigned)
     {
-        MCLogistics* logistics = Mission->Logistics;
+        MCLogistics* logistics = Mission()->Logistics.get();
         file.WriteBlock("Warriors");
         numWarriors = CountWarriors(logistics->WarriorList, false);
         file.WriteIdULong("NumWarriors", numWarriors);
@@ -417,12 +417,12 @@ namespace
     /// <summary>The scenario's warrior <paramref name="index"/> (1-based; null out of range).</summary>
     MCMechWarrior* ScenarioWarrior(uint32_t index)
     {
-        if (static_cast<int32_t>(index) < 1 || Scenario->NumWarriors < index)
+        if (static_cast<int32_t>(index) < 1 || Scenario()->NumWarriors() < index)
         {
             return nullptr;
         }
 
-        return Scenario->Warriors[index];
+        return Scenario()->Warrior(index);
     }
 
     /// <summary>
@@ -466,7 +466,7 @@ auto MCMissionLogisticsBridge::MissionResultsStartingFitWriter(char* fileName) -
     file.WriteBlock("General");
     file.WriteIdString("PurchaseFile", CurPlanet == 0 ? "purchase" : "xpur");
     file.WriteBlock("ResourcePoints");
-    file.WriteIdULong("numPoints", static_cast<uint32_t>(Scenario->CalcResourcePointsEarned()));
+    file.WriteIdULong("numPoints", static_cast<uint32_t>(Scenario()->CalcResourcePointsEarned()));
 
     // The surviving pilots of the player's mechs.
     file.WriteBlock("Warriors");
@@ -478,7 +478,7 @@ auto MCMissionLogisticsBridge::MissionResultsStartingFitWriter(char* fileName) -
 
     uint32_t numWarriors = 0;
 
-    for (uint32_t i = 1; static_cast<int32_t>(i) <= static_cast<int32_t>(Scenario->NumWarriors); i++)
+    for (uint32_t i = 1; static_cast<int32_t>(i) <= static_cast<int32_t>(Scenario()->NumWarriors()); i++)
     {
         if (warriorReturns(ScenarioWarrior(i)))
         {
@@ -489,7 +489,7 @@ auto MCMissionLogisticsBridge::MissionResultsStartingFitWriter(char* fileName) -
     file.WriteIdULong("NumWarriors", numWarriors);
     uint32_t packet = 0;
 
-    for (uint32_t i = 1; static_cast<int32_t>(i) <= static_cast<int32_t>(Scenario->NumWarriors); i++)
+    for (uint32_t i = 1; static_cast<int32_t>(i) <= static_cast<int32_t>(Scenario()->NumWarriors()); i++)
     {
         MCMechWarrior* warrior = ScenarioWarrior(i);
 
@@ -926,7 +926,7 @@ auto MCMissionLogisticsBridge::MissionResultsWarriorProfileWriter(char* fileName
 
 auto MCMissionLogisticsBridge::LogisticsStartingFitWriter(char* fileName, int skipFlagged) -> int32_t
 {
-    MCLogistics* logistics = Mission->Logistics;
+    MCLogistics* logistics = Mission()->Logistics.get();
     std::string fitName;
     fitName = GamePath(SaveTempPath, fileName, ".fit");
     MCFitIniFile file;
@@ -1566,7 +1566,7 @@ auto MCMissionLogisticsBridge::LogisticsWarriorProfileReader(char*) -> int32_t
 
 auto MCMissionLogisticsBridge::LogisticsSaveGame(char* fileName) -> int32_t
 {
-    MCLogistics* logistics = Mission->Logistics;
+    MCLogistics* logistics = Mission()->Logistics.get();
     std::string fitName;
     fitName = GamePath(SaveTempPath, fileName, ".fit");
     MCFitIniFile file;

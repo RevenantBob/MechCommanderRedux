@@ -1,7 +1,6 @@
 #include "stdafx.h"
 #include "object/MCMechWarrior.h"
 #include "abl/MCAblRuntime.h"
-#include "iface/iface.h"
 #include "lib/MCFatal.h"
 #include "main/main.h"
 #include "network/multplyr.h"
@@ -175,11 +174,7 @@ auto MCMechWarrior::CheckAlarms() -> int32_t
 
 auto MCMechWarrior::HandleTargetOfWeaponFire() -> int32_t
 {
-    if (Vehicle != nullptr)
-    {
-        TheInterface->ObjectAttacked(Vehicle->PartId);
-    }
-
+    // The original told the interface here (InterfaceObject::ObjectAttacked, an empty hook).
     return 0;
 }
 

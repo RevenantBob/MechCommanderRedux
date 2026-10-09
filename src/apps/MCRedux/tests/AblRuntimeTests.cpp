@@ -9,7 +9,7 @@
 #include "fakes/MCMemoryFileSource.h"
 #include "fakes/MCScriptedRandom.h"
 #include "main/MCGameContext.h"
-#include "mission/scenario.h"
+#include "mission/MCScenario.h"
 #include "object/MCMover.h"
 #include "object/MCMoverGameSystem.h"
 #include "object/MCObjectQueue.h"

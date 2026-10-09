@@ -11,7 +11,7 @@
 #include "engine/MCPolygonElement.h"
 #include "engine/MCVfxElement.h"
 #include "main/main.h"
-#include "mission/scenario.h"
+#include "mission/MCScenario.h"
 #include "object/MCBattleMech.h"
 #include "object/MCBattleMechType.h"
 #include "object/MCMechGameSystem.h"

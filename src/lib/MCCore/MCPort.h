@@ -125,6 +125,15 @@ constexpr bool MCIStartsWith(std::string_view text, std::string_view prefix)
 }
 
 /// <summary>
+/// A string as MSVC's printf prints a <c>%s</c> argument, "(null)" for a null pointer: for <c>std::format</c> where the
+/// original's <c>sprintf</c> could get a null name.
+/// </summary>
+constexpr std::string_view MCPrintfText(const char* text)
+{
+    return text != nullptr ? std::string_view(text) : std::string_view("(null)");
+}
+
+/// <summary>
 /// Formats <paramref name="args"/> with a printf format the game loads at run time (its string table's), which
 /// <c>std::format</c> can't take. Strings go in as <c>const char*</c>.
 /// </summary>

@@ -1,7 +1,7 @@
 #include "stdafx.h"
 #include "object/MCMoverGroup.h"
 #include "ai/MCMoveSystem.h"
-#include "iface/iface.h"
+#include "iface/MCTacticalInterface.h"
 #include "lib/MCFatal.h"
 #include "main/main.h"
 #include "network/multplyr.h"
@@ -112,7 +112,7 @@ auto MCMoverGroup::Disband() -> void
 
     if (Point != nullptr)
     {
-        TheInterface->SetPoint(Point->PartId, 0);
+        TacticalInterface()->SetPoint(Point->PartId, false);
     }
 
     Point = nullptr;
@@ -125,11 +125,11 @@ auto MCMoverGroup::SetPoint(MCMover* mover) -> int32_t
     {
         if (Point != nullptr)
         {
-            TheInterface->SetPoint(Point->PartId, 0);
+            TacticalInterface()->SetPoint(Point->PartId, false);
         }
 
         Point = mover;
-        TheInterface->SetPoint(mover->PartId, 1);
+        TacticalInterface()->SetPoint(mover->PartId, true);
     }
 
     return 0;
@@ -207,7 +207,7 @@ auto MCMoverGroup::AddToGui(int visible) -> void
 {
     for (int32_t i = 0; i < NumMovers(); i++)
     {
-        TheInterface->AddMech(Movers[i]->PartId, Id, Movers[i]->GetAwake(), visible);
+        TacticalInterface()->AddMech(Movers[i]->PartId, Id, Movers[i]->GetAwake() != 0, visible != 0);
     }
 }
 

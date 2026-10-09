@@ -3,7 +3,7 @@
 #include "lib/MCFatal.h"
 #include "lib/MCFitIniFile.h"
 #include "logistics/logmain.h"
-#include "mission/scenario.h"
+#include "mission/MCScenario.h"
 #include "object/MCForces.h"
 #include "object/MCMechWarrior.h"
 #include "object/MCMover.h"
@@ -49,18 +49,18 @@ void LetOutBuildingMarines(MCBigGameObject& building, int32_t marinesWanted, con
     }
 
     int32_t marinesMade = 0;
-    const auto numWarriors = static_cast<int32_t>(Scenario->NumWarriors);
+    const auto numWarriors = static_cast<int32_t>(Scenario()->NumWarriors());
 
     // Each marine is piloted by an enemy warrior with no working vehicle (none, disabled or destroyed); warrior 0 is
     // never used.
     for (int32_t i = 0; i < numWarriors; i++)
     {
-        if (i <= 0 || static_cast<uint32_t>(i) > Scenario->NumWarriors)
+        if (i <= 0 || static_cast<uint32_t>(i) > Scenario()->NumWarriors())
         {
             continue;
         }
 
-        MCMechWarrior* warrior = Scenario->Warriors[i];
+        MCMechWarrior* warrior = Scenario()->Warrior(i);
 
         if (warrior == nullptr || warrior->Alignment == HomeTeam()->Alignment)
         {

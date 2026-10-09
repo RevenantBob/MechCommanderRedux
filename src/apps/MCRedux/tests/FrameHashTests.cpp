@@ -7,13 +7,15 @@
 #include "color/MCWaterCycle.h"
 #include "gui/aport.h"
 #include "gui/asystem.h"
-#include "iface/iface.h"
+#include "iface/MCMechBar.h"
+#include "iface/MCTacticalInterface.h"
 #include "logistics/logmain.h"
 #include "logistics/logpur.h"
 #include "logistics/purchase.h"
 #include "main/logistics.h"
-#include "mission/mission.h"
-#include "mission/scenario.h"
+#include "mission/MCMission.h"
+#include "mission/MCMissionResultsScreen.h"
+#include "mission/MCScenario.h"
 #include "gui/updisp.h"
 #include "platform/MCDisplay.h"
 #include "platform/MCInput.h"
@@ -285,7 +287,7 @@ TEST_CASE_ISOLATED("game: the tactical map draws every page")
     REQUIRE(MCTestGame::StartMission(1));
     MCTacticalMap* map = TacticalMap();
     REQUIRE(map != nullptr);
-    MCFriendlyMechIcon* icon = TheInterface->MechBar->GetButton(0);
+    MCFriendlyMechIcon* icon = TacticalInterface()->MechBar->GetButton(0);
     REQUIRE(icon != nullptr);
 
     // Each page shown for 10 frames (two thirds of a second: the info and mission pages refresh every half second).
@@ -393,27 +395,27 @@ namespace
         // them itself.
         MouseTimerKill();
 
-        for (uint32_t i = 0; i < Scenario->NumObjectives; i++)
+        for (int32_t i = 0; i < Scenario()->Objectives.Count(); i++)
         {
-            Scenario->Objectives[i].Status = 1;
+            Scenario()->Objectives[i].Status = 1;
         }
 
         ScenarioResult = 4;
 
-        for (int32_t frame = 0; frame < 30 && Mission->MissionState != 6; frame++)
+        for (int32_t frame = 0; frame < 30 && Mission()->State != MCMissionState::Results; frame++)
         {
             MCTestGame::RunFrame(1.0f / 15.0f);
         }
 
-        REQUIRE_EQ(Mission->MissionState, 6);
-        REQUIRE(Mission->ResultsScreen != nullptr);
+        REQUIRE(Mission()->State == MCMissionState::Results);
+        REQUIRE(Mission()->ResultsScreen != nullptr);
 
         // Five ticks a frame: a resource point step takes one tick, the others resultsStepTicks (20).
         uint32_t frames = 0x811c9dc5;
         uint32_t last = 0;
         int32_t frame = 0;
 
-        for (; frame < 3000 && Mission->ResultsScreen != nullptr && !Mission->ResultsScreen->Finished(); frame++)
+        for (; frame < 3000 && Mission()->ResultsScreen != nullptr && !Mission()->ResultsScreen->Finished(); frame++)
         {
             MouseTicks += 5;
             MCTestGame::RunFrame(1.0f / 15.0f);

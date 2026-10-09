@@ -4,7 +4,7 @@
 #include "ai/MCMoveSystem.h"
 #include "gui/asystem.h"
 #include "gui/atextbox.h"
-#include "iface/iface.h"
+#include "iface/MCTacticalInterface.h"
 #include "lib/MCDice.h"
 #include "lib/MCFatal.h"
 #include "lib/MCFile.h"
@@ -12,7 +12,7 @@
 #include "lib/MCVector2D.h"
 #include "logistics/logmain.h"
 #include "main/main.h"
-#include "mission/scenario.h"
+#include "mission/MCScenario.h"
 #include "network/multplyr.h"
 #include "object/MCArtillery.h"
 #include "object/MCArtilleryType.h"
@@ -142,7 +142,7 @@ auto ExecHbSetObjectiveTimer(MCAblRuntime& abl) -> MCAblType*
     abl.Pop();
     abl.GetCodeToken();
     abl.ExecExpression();
-    abl.Top().Integer = Scenario->SetObjectiveTimer(objectiveNumber, abl.Top().Real * 1000.0f);
+    abl.Top().Integer = Scenario()->SetObjectiveTimer(objectiveNumber, abl.Top().Real * 1000.0f);
     abl.GetCodeToken();
     return IntegerTypePtr;
 }
@@ -152,7 +152,7 @@ auto ExecHbCheckObjectiveTimer(MCAblRuntime& abl) -> MCAblType*
     abl.GetCodeToken();
     abl.GetCodeToken();
     abl.ExecExpression();
-    abl.Top().Real = Scenario->CheckObjectiveTimer(abl.Top().Integer);
+    abl.Top().Real = Scenario()->CheckObjectiveTimer(abl.Top().Integer);
     abl.GetCodeToken();
     return RealTypePtr;
 }
@@ -166,7 +166,7 @@ auto ExecHbSetObjectiveStatus(MCAblRuntime& abl) -> MCAblType*
     abl.Pop();
     abl.GetCodeToken();
     abl.ExecExpression();
-    abl.Top().Integer = Scenario->SetObjectiveStatus(objectiveNumber, static_cast<uint32_t>(abl.Top().Integer));
+    abl.Top().Integer = Scenario()->Objectives.SetStatus(objectiveNumber, static_cast<uint32_t>(abl.Top().Integer));
     abl.GetCodeToken();
     return IntegerTypePtr;
 }
@@ -176,7 +176,7 @@ auto ExecHbCheckObjectiveStatus(MCAblRuntime& abl) -> MCAblType*
     abl.GetCodeToken();
     abl.GetCodeToken();
     abl.ExecExpression();
-    abl.Top().Integer = static_cast<int32_t>(Scenario->CheckObjectiveStatus(abl.Top().Integer));
+    abl.Top().Integer = static_cast<int32_t>(Scenario()->Objectives.Status(abl.Top().Integer));
     abl.GetCodeToken();
     return IntegerTypePtr;
 }
@@ -190,7 +190,7 @@ auto ExecHbSetObjectiveType(MCAblRuntime& abl) -> MCAblType*
     abl.Pop();
     abl.GetCodeToken();
     abl.ExecExpression();
-    abl.Top().Integer = Scenario->SetObjectiveType(objectiveNumber, static_cast<uint32_t>(abl.Top().Integer));
+    abl.Top().Integer = Scenario()->Objectives.SetType(objectiveNumber, static_cast<uint32_t>(abl.Top().Integer));
     abl.GetCodeToken();
     return IntegerTypePtr;
 }
@@ -200,7 +200,7 @@ auto ExecHbCheckObjectiveType(MCAblRuntime& abl) -> MCAblType*
     abl.GetCodeToken();
     abl.GetCodeToken();
     abl.ExecExpression();
-    abl.Top().Integer = static_cast<int32_t>(Scenario->CheckObjectiveType(abl.Top().Integer));
+    abl.Top().Integer = static_cast<int32_t>(Scenario()->Objectives.Type(abl.Top().Integer));
     abl.GetCodeToken();
     return IntegerTypePtr;
 }

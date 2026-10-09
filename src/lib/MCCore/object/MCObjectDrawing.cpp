@@ -6,7 +6,7 @@
 #include "color/MCPalette.h"
 #include "engine/MCElementBuffer.h"
 #include "engine/MCEllipseElement.h"
-#include "mission/scenario.h"
+#include "mission/MCScenario.h"
 #include "terrain/MCTerrain.h"
 
 bool DrawExtents = false;
@@ -88,13 +88,13 @@ uint8_t* SensorBlipShape(float tonnage)
 {
     if (50.0f < tonnage)
     {
-        return Scenario->SensorContactShapes[0];
+        return Scenario()->SensorContactShape(0);
     }
 
     if (35.0f < tonnage)
     {
-        return Scenario->SensorContactShapes[2];
+        return Scenario()->SensorContactShape(2);
     }
 
-    return Scenario->SensorContactShapes[4];
+    return Scenario()->SensorContactShape(4);
 }

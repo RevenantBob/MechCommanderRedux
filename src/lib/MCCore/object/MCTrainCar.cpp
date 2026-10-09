@@ -10,7 +10,7 @@
 #include "lib/MCFatal.h"
 #include "lib/MCDice.h"
 #include "main/main.h"
-#include "mission/scenario.h"
+#include "mission/MCScenario.h"
 #include "network/multplyr.h"
 #include "object/MCCollisionSystem.h"
 #include "object/MCExplosion.h"

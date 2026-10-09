@@ -89,6 +89,7 @@
     <ClCompile Include="tests\GuiTests.cpp" />
     <ClCompile Include="tests\IniFileTests.cpp" />
     <ClCompile Include="tests\InputTests.cpp" />
+    <ClCompile Include="tests\InterfaceTests.cpp" />
     <ClCompile Include="tests\LibTests.cpp" />
     <ClCompile Include="tests\LinkupTests.cpp" />
     <ClCompile Include="tests\LogisticsTests.cpp" />
@@ -105,6 +106,7 @@
     <ClCompile Include="tests\PathfindingTests.cpp" />
     <ClCompile Include="tests\PortTests.cpp" />
     <ClCompile Include="tests\PresenterTests.cpp" />
+    <ClCompile Include="tests\ScenarioTests.cpp" />
     <ClCompile Include="tests\ScreenInput.cpp" />
     <ClCompile Include="tests\ServicesTests.cpp" />
     <ClCompile Include="tests\SessionScreenTests.cpp" />

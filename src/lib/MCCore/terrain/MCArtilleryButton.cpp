@@ -3,7 +3,8 @@
 #include "camera/MCCamera.h"
 #include "camera/MCMainWindow.h"
 #include "gui/afont.h"
-#include "iface/iface.h"
+#include "iface/MCMechBar.h"
+#include "iface/MCTacticalInterface.h"
 #include "logistics/logmain.h"
 #include "main/main.h"
 #include "object/MCForces.h"
@@ -149,7 +150,7 @@ auto MCArtilleryButton::HandleEvent(MCGuiEvent* event) -> void
             // Outside the tactical map: the click must land in the active view.
             MCGuiObject* target = ScreenWindow->FindObject(screenX, screenY);
 
-            if (target != MainHolder()->GetActivePane() && target != TheInterface->MechBar)
+            if (target != MainHolder()->GetActivePane() && target != TacticalInterface()->MechBar.get())
             {
                 Armed = false;
                 Application->Release();
@@ -178,13 +179,13 @@ auto MCArtilleryButton::HandleEvent(MCGuiEvent* event) -> void
             const MCVector2D screenPos = MCWindowPoint(pane, screenX, screenY);
             MCVector3D target3d;
             camera->InverseProject(screenPos, target3d);
-            TheInterface->CallStrike(CommandId, &target3d, nullptr, -1, 0, -1.0f);
+            TacticalInterface()->CallStrike(CommandId, &target3d, nullptr, true, false, -1.0f);
         }
         else
         {
             MCVector3D target3d(static_cast<float>(inMap.x), static_cast<float>(inMap.y), 0.0f);
             map->TacMapToWorld(target3d, true);
-            TheInterface->CallStrike(CommandId, &target3d, nullptr, -1, 0, -1.0f);
+            TacticalInterface()->CallStrike(CommandId, &target3d, nullptr, true, false, -1.0f);
         }
 
         map->ReleaseStatusLine();

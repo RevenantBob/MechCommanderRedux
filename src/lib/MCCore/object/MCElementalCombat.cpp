@@ -2,12 +2,12 @@
 #include "object/MCElemental.h"
 #include "ai/MCTacticalOrder.h"
 #include "camera/MCCamera.h"
-#include "iface/iface.h"
+#include "iface/MCTacticalInterface.h"
 #include "lib/MCFatal.h"
 #include "lib/MCFrameOfRef.h"
 #include "lib/MCDice.h"
 #include "main/main.h"
-#include "mission/scenario.h"
+#include "mission/MCScenario.h"
 #include "network/multplyr.h"
 #include "object/MCAIControl.h"
 #include "object/MCArtillery.h"
@@ -553,9 +553,9 @@ auto MCElemental::FireWeapon(MCGameObject* target, float targetTime, int32_t wea
         {
             MCVector3D enemyPosition = static_cast<MCGameObject*>(enemy)->GetPosition();
 
-            if (DistanceFrom(enemyPosition) < Scenario->MaxVisualRange)
+            if (DistanceFrom(enemyPosition) < Scenario()->MaxVisualRange)
             {
-                Terrain()->MarkRadiusSeen(Position, Frame.J, 360.0f, Scenario->FireVisualRange, seenBy);
+                Terrain()->MarkRadiusSeen(Position, Frame.J, 360.0f, Scenario()->FireVisualRange, seenBy);
                 break;
             }
         }

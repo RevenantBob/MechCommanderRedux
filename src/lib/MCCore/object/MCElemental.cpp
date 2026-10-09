@@ -12,13 +12,13 @@
 #include "engine/MCVfxElement.h"
 #include "engine/MCCraterManager.h"
 #include "vfx/MCVfxFunctions.h"
-#include "iface/iface.h"
+#include "iface/MCTacticalInterface.h"
 #include "lib/MCFatal.h"
 #include "lib/MCFrameOfRef.h"
 #include "lib/MCVector2D.h"
 #include "lib/MCFitIniFile.h"
 #include "main/main.h"
-#include "mission/scenario.h"
+#include "mission/MCScenario.h"
 #include "network/multplyr.h"
 #include "object/MCAIControl.h"
 #include "object/MCArtillery.h"
@@ -567,11 +567,11 @@ auto MCElemental::Update() -> int32_t
             // Every vertex travelled, the elemental marks what it sees.
             if (Alignment == 1)
             {
-                Terrain()->MarkSeen(Position, Frame.J, 360.0f, GetProbeEffect() + Scenario->MaxVisualRange, 1);
+                Terrain()->MarkSeen(Position, Frame.J, 360.0f, GetProbeEffect() + Scenario()->MaxVisualRange, 1);
             }
             else if (Alignment == -1)
             {
-                Terrain()->MarkSeen(Position, Frame.J, 360.0f, GetProbeEffect() + Scenario->MaxVisualRange, 2);
+                Terrain()->MarkSeen(Position, Frame.J, 360.0f, GetProbeEffect() + Scenario()->MaxVisualRange, 2);
             }
 
             DistanceSinceMarkSeen = 0.0f;
@@ -695,15 +695,15 @@ auto MCElemental::Render() -> void
 
                 if (50.0f < GetTonnage())
                 {
-                    shape = Scenario->SensorContactShapes[0];
+                    shape = Scenario()->SensorContactShape(0);
                 }
                 else if (35.0f < GetTonnage())
                 {
-                    shape = Scenario->SensorContactShapes[2];
+                    shape = Scenario()->SensorContactShape(2);
                 }
                 else
                 {
-                    shape = Scenario->SensorContactShapes[4];
+                    shape = Scenario()->SensorContactShape(4);
                 }
 
                 if (shape != nullptr)
@@ -815,5 +815,5 @@ auto MCElemental::RemoveMarine(float deathTime) -> void
     Pilot->TriggerAlarm(MCPilotAlarmType::VehicleDestroyed, 0);
     Status = 2;
     DeathExplosionDone = 0;
-    TheInterface->RemoveMech(PartId);
+    TacticalInterface()->RemoveMech(PartId);
 }

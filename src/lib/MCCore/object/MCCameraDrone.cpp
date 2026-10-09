@@ -6,7 +6,7 @@
 #include "appear/MCAppearanceTypeList.h"
 #include "camera/MCCamera.h"
 #include "main/main.h"
-#include "mission/scenario.h"
+#include "mission/MCScenario.h"
 #include "network/multplyr.h"
 #include "object/MCCameraDroneType.h"
 #include "object/MCMechGameSystem.h"
@@ -154,7 +154,7 @@ auto MCCameraDrone::Update() -> int32_t
     GameObjectMap()->UpdateObject(this);
     const uint8_t seenBy = Alignment == 1 ? 1 : 2;
     MCFrameOfRef lookFrame = GetFrame();
-    Terrain()->MarkRadiusSeen(Position, lookFrame.J, 360.0f, Scenario->MaxVisualRange * 0.5f, seenBy);
+    Terrain()->MarkRadiusSeen(Position, lookFrame.J, 360.0f, Scenario()->MaxVisualRange * 0.5f, seenBy);
 
     // Within a tile of the target: on to the next one.
     if (std::abs(TargetTileCol - tileC) > 1 || std::abs(TargetTileRow - tileR) > 1)

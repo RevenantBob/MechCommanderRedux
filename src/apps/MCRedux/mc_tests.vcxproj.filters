@@ -93,6 +93,9 @@
     <ClCompile Include="tests\InputTests.cpp">
       <Filter>tests</Filter>
     </ClCompile>
+    <ClCompile Include="tests\InterfaceTests.cpp">
+      <Filter>tests</Filter>
+    </ClCompile>
     <ClCompile Include="tests\LibTests.cpp">
       <Filter>tests</Filter>
     </ClCompile>
@@ -133,6 +136,9 @@
       <Filter>tests</Filter>
     </ClCompile>
     <ClCompile Include="tests\PresenterTests.cpp">
+      <Filter>tests</Filter>
+    </ClCompile>
+    <ClCompile Include="tests\ScenarioTests.cpp">
       <Filter>tests</Filter>
     </ClCompile>
     <ClCompile Include="tests\ScreenInput.cpp">

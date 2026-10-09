@@ -6,11 +6,11 @@
 #include "engine/MCFont.h"
 #include "gui/aport.h"
 #include "gui/asystem.h"
-#include "iface/iface.h"
+#include "iface/MCTacticalInterface.h"
 #include "linkup/sessionmanager.h"
 #include "logistics/logmain.h"
 #include "main/main.h"
-#include "mission/scenario.h"
+#include "mission/MCScenario.h"
 #include "network/multplyr.h"
 #include "platform/MCRenderer.h"
 #include "terrain/MCTacticalMap.h"
@@ -134,9 +134,9 @@ auto MCViewWindow::HandleEvent(MCGuiEvent* event) -> void
         }
     }
 
-    if (InterfaceWindow && TheInterface != nullptr && type != 9 && type != 8)
+    if (InterfaceWindow && TacticalInterface() != nullptr && type != 9 && type != 8)
     {
-        TheInterface->HandleEvent(event);
+        TacticalInterface()->HandleEvent(event);
         MCGuiObject::HandleEvent(event);
         return;
     }
@@ -238,9 +238,9 @@ auto MCViewWindow::Display() -> void
         MCUnderlay{this, shown->Window, MCRect{shown->X0, shown->Y0, shown->X1, shown->Y1}, &WorldWindow});
     VfxPaneWipe(Frame(), MCRenderer::UnderlayKey);
 
-    if (Scenario != nullptr && (ScenarioEndTurn == -1 || Turn < ScenarioEndTurn))
+    if (Scenario() != nullptr && (ScenarioEndTurn == -1 || Turn < ScenarioEndTurn))
     {
-        Scenario->Render(this);
+        Scenario()->Render(this);
 
         if (GetCamera()->CameraId == 1 && MPlayer != nullptr && MPlayer->SessionManager != nullptr &&
             DisplayProfileData == 2)
@@ -293,7 +293,7 @@ auto MCViewWindow::Display() -> void
 
 auto MCViewWindow::Leave() -> void
 {
-    TheInterface->HideTags();
+    TacticalInterface()->HideTags();
     Application->SetCurrentCursor(static_cast<MCCursorType>(0));
 }
 

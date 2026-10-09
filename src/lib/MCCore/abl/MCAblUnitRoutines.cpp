@@ -4,7 +4,7 @@
 #include "ai/MCMoveSystem.h"
 #include "gui/asystem.h"
 #include "gui/atextbox.h"
-#include "iface/iface.h"
+#include "iface/MCTacticalInterface.h"
 #include "lib/MCDice.h"
 #include "lib/MCFatal.h"
 #include "lib/MCFile.h"
@@ -12,7 +12,7 @@
 #include "lib/MCVector2D.h"
 #include "logistics/logmain.h"
 #include "main/main.h"
-#include "mission/scenario.h"
+#include "mission/MCScenario.h"
 #include "network/multplyr.h"
 #include "object/MCArtillery.h"
 #include "object/MCArtilleryType.h"
@@ -84,13 +84,13 @@ auto ExecHbGetTimeLeft(MCAblRuntime& abl) -> MCAblType*
 {
     float timeLeft;
 
-    if (Scenario->TimeLimit < 0)
+    if (Scenario()->TimeLimit < 0)
     {
         timeLeft = -1.0f;
     }
     else
     {
-        timeLeft = static_cast<float>(Scenario->TimeLimit) - ActualTime;
+        timeLeft = static_cast<float>(Scenario()->TimeLimit) - ActualTime;
 
         if (timeLeft <= 0.0f)
         {
@@ -244,9 +244,9 @@ auto ExecHbSelectWarrior(MCAblRuntime& abl) -> MCAblType*
 
     abl.Top().Integer = previousIndex;
 
-    if (warriorIndex > 0 && static_cast<uint32_t>(warriorIndex) <= Scenario->NumWarriors)
+    if (warriorIndex > 0 && static_cast<uint32_t>(warriorIndex) <= Scenario()->NumWarriors())
     {
-        abl.Brain.Warrior = Scenario->Warriors[warriorIndex];
+        abl.Brain.Warrior = Scenario()->Warrior(warriorIndex);
     }
     else
     {
@@ -265,9 +265,9 @@ auto ExecHbGetWarriorStatus(MCAblRuntime& abl) -> MCAblType*
     int32_t warriorIndex = abl.Top().Integer;
     abl.Top().Integer = -1;
 
-    if (warriorIndex > 0 && static_cast<uint32_t>(warriorIndex) <= Scenario->NumWarriors)
+    if (warriorIndex > 0 && static_cast<uint32_t>(warriorIndex) <= Scenario()->NumWarriors())
     {
-        MCMechWarrior* warrior = Scenario->Warriors[warriorIndex];
+        MCMechWarrior* warrior = Scenario()->Warrior(warriorIndex);
 
         if (warrior)
         {
@@ -667,7 +667,7 @@ auto ExecHbGetFireRanges(MCAblRuntime& abl) -> MCAblType*
     ranges[0] = WeaponRange[0];
     ranges[1] = WeaponRange[1];
     ranges[2] = WeaponRange[2];
-    ranges[3] = Scenario->MaxWeaponRange;
+    ranges[3] = Scenario()->MaxWeaponRange;
     abl.GetCodeToken();
     return nullptr;
 }

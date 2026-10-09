@@ -285,16 +285,37 @@
     <ClCompile Include="gui\updisp.cpp">
       <Filter>gui</Filter>
     </ClCompile>
-    <ClCompile Include="iface\icallbk.cpp">
+    <ClCompile Include="iface\MCCommandParser.cpp">
       <Filter>iface</Filter>
     </ClCompile>
-    <ClCompile Include="iface\iface.cpp">
+    <ClCompile Include="iface\MCFriendlyMechIcon.cpp">
       <Filter>iface</Filter>
     </ClCompile>
-    <ClCompile Include="iface\parser.cpp">
+    <ClCompile Include="iface\MCLanceIcon.cpp">
       <Filter>iface</Filter>
     </ClCompile>
-    <ClCompile Include="iface\statwin.cpp">
+    <ClCompile Include="iface\MCMechBar.cpp">
+      <Filter>iface</Filter>
+    </ClCompile>
+    <ClCompile Include="iface\MCMechIcon.cpp">
+      <Filter>iface</Filter>
+    </ClCompile>
+    <ClCompile Include="iface\MCOrderSink.cpp">
+      <Filter>iface</Filter>
+    </ClCompile>
+    <ClCompile Include="iface\MCTacticalInterface.cpp">
+      <Filter>iface</Filter>
+    </ClCompile>
+    <ClCompile Include="iface\MCTacticalInterfaceClicks.cpp">
+      <Filter>iface</Filter>
+    </ClCompile>
+    <ClCompile Include="iface\MCTacticalInterfaceKeys.cpp">
+      <Filter>iface</Filter>
+    </ClCompile>
+    <ClCompile Include="iface\MCTacticalInterfaceMouseState.cpp">
+      <Filter>iface</Filter>
+    </ClCompile>
+    <ClCompile Include="iface\MCTacticalInterfaceSelection.cpp">
       <Filter>iface</Filter>
     </ClCompile>
     <ClCompile Include="lib\MCDice.cpp">
@@ -415,10 +436,28 @@
       <Filter>main</Filter>
     </ClCompile>
     <ClCompile Include="MCPort.cpp" />
-    <ClCompile Include="mission\mission.cpp">
+    <ClCompile Include="mission\MCDifficultySettings.cpp">
       <Filter>mission</Filter>
     </ClCompile>
-    <ClCompile Include="mission\scenario.cpp">
+    <ClCompile Include="mission\MCMission.cpp">
+      <Filter>mission</Filter>
+    </ClCompile>
+    <ClCompile Include="mission\MCMissionResults.cpp">
+      <Filter>mission</Filter>
+    </ClCompile>
+    <ClCompile Include="mission\MCMissionResultsScreen.cpp">
+      <Filter>mission</Filter>
+    </ClCompile>
+    <ClCompile Include="mission\MCScenario.cpp">
+      <Filter>mission</Filter>
+    </ClCompile>
+    <ClCompile Include="mission\MCScenarioLoad.cpp">
+      <Filter>mission</Filter>
+    </ClCompile>
+    <ClCompile Include="mission\MCScenarioObjectives.cpp">
+      <Filter>mission</Filter>
+    </ClCompile>
+    <ClCompile Include="mission\MCScenarioPart.cpp">
       <Filter>mission</Filter>
     </ClCompile>
     <ClCompile Include="network\multplyr.cpp">
@@ -1162,16 +1201,28 @@
     <ClInclude Include="gui\updisp.h">
       <Filter>gui</Filter>
     </ClInclude>
-    <ClInclude Include="iface\icallbk.h">
+    <ClInclude Include="iface\MCCommandParser.h">
       <Filter>iface</Filter>
     </ClInclude>
-    <ClInclude Include="iface\iface.h">
+    <ClInclude Include="iface\MCFriendlyMechIcon.h">
       <Filter>iface</Filter>
     </ClInclude>
-    <ClInclude Include="iface\parser.h">
+    <ClInclude Include="iface\MCInterfaceTypes.h">
       <Filter>iface</Filter>
     </ClInclude>
-    <ClInclude Include="iface\statwin.h">
+    <ClInclude Include="iface\MCLanceIcon.h">
+      <Filter>iface</Filter>
+    </ClInclude>
+    <ClInclude Include="iface\MCMechBar.h">
+      <Filter>iface</Filter>
+    </ClInclude>
+    <ClInclude Include="iface\MCMechIcon.h">
+      <Filter>iface</Filter>
+    </ClInclude>
+    <ClInclude Include="iface\MCOrderSink.h">
+      <Filter>iface</Filter>
+    </ClInclude>
+    <ClInclude Include="iface\MCTacticalInterface.h">
       <Filter>iface</Filter>
     </ClInclude>
     <ClInclude Include="lib\MCDice.h">
@@ -1314,10 +1365,28 @@
     </ClInclude>
     <ClInclude Include="MCCore.h" />
     <ClInclude Include="MCPort.h" />
-    <ClInclude Include="mission\mission.h">
+    <ClInclude Include="mission\MCDifficultySettings.h">
       <Filter>mission</Filter>
     </ClInclude>
-    <ClInclude Include="mission\scenario.h">
+    <ClInclude Include="mission\MCMission.h">
+      <Filter>mission</Filter>
+    </ClInclude>
+    <ClInclude Include="mission\MCMissionResults.h">
+      <Filter>mission</Filter>
+    </ClInclude>
+    <ClInclude Include="mission\MCMissionResultsScreen.h">
+      <Filter>mission</Filter>
+    </ClInclude>
+    <ClInclude Include="mission\MCScenario.h">
+      <Filter>mission</Filter>
+    </ClInclude>
+    <ClInclude Include="mission\MCScenarioObjectives.h">
+      <Filter>mission</Filter>
+    </ClInclude>
+    <ClInclude Include="mission\MCScenarioPart.h">
+      <Filter>mission</Filter>
+    </ClInclude>
+    <ClInclude Include="mission\MCScenarioReading.h">
       <Filter>mission</Filter>
     </ClInclude>
     <ClInclude Include="network\multplyr.h">

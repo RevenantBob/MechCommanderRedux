@@ -4,12 +4,12 @@
 #include "camera/MCCamera.h"
 #include "engine/MCByteFlag.h"
 #include "gui/asystem.h"
-#include "iface/iface.h"
+#include "iface/MCTacticalInterface.h"
 #include "lib/MCFatal.h"
 #include "lib/MCFitIniFile.h"
 #include "logistics/logmain.h"
 #include "main/MCGameContext.h"
-#include "mission/scenario.h"
+#include "mission/MCScenario.h"
 #include "object/MCObjectBlockManager.h"
 #include "object/MCForces.h"
 #include "platform/MCDisplay.h"
@@ -311,7 +311,7 @@ auto MCTerrain::Load(std::string_view fileName) -> std::expected<void, std::stri
         return std::unexpected("could not build the tactical map");
     }
 
-    TheInterface->TacticalMap = TacticalMap.get();
+    TacticalInterface()->TacticalMap = TacticalMap.get();
     ScreenWindow->AddChild(TacticalMap.get());
     TacticalMap->RefreshPage();
     terrainFile.Close();

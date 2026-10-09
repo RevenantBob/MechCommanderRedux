@@ -19,7 +19,7 @@
 #include "logistics/ticker.h"
 #include "main/logistics.h"
 #include "main/main.h"
-#include "mission/mission.h"
+#include "mission/MCMission.h"
 #include "network/multplyr.h"
 #include "object/MCMasterComponent.h"
 #include "platform/MCInput.h"
@@ -988,7 +988,7 @@ auto MCBriefingScreen::HandleEvent(MCGuiEvent* event) -> void
                 if (units < 0x33)
                 {
                     SoundSystem()->PlayDigitalSample(0x3a, 1, nullptr, 0, 0);
-                    Mission->StartScenario(Mission->Scenarios[Mission->CurrentScenario].data());
+                    Mission()->StartScenario(Mission()->Scenarios[Mission()->CurrentScenario].data());
                     return;
                 }
 

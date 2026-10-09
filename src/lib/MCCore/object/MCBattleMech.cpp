@@ -15,11 +15,11 @@
 #include "engine/MCCraterManager.h"
 #include "vfx/MCVfxFunctions.h"
 #include "gui/asystem.h"
-#include "iface/iface.h"
+#include "iface/MCTacticalInterface.h"
 #include "lib/MCFatal.h"
 #include "lib/MCFitIniFile.h"
 #include "main/main.h"
-#include "mission/scenario.h"
+#include "mission/MCScenario.h"
 #include "network/multplyr.h"
 #include "object/MCAIControl.h"
 #include "object/MCMiscTerrainObject.h"
@@ -1098,7 +1098,7 @@ auto MCBattleMech::Update() -> int32_t
             {
                 actor->Wrecked = 1;
                 CraterManager()->AddCrater(6, Position, 0);
-                TheInterface->RemoveMech(PartId);
+                TacticalInterface()->RemoveMech(PartId);
                 WreckDone = 1;
                 return 1;
             }
@@ -1106,17 +1106,17 @@ auto MCBattleMech::Update() -> int32_t
     }
     else
     {
-        if (GetAwake() != 0 && IsDisabled() == 0 && Scenario->GodMode == 0 &&
+        if (GetAwake() != 0 && IsDisabled() == 0 && Scenario()->GodMode == 0 &&
             MCTerrain::MetersPerVertex <= DistanceSinceMarkSeen)
         {
             // Every vertex travelled, the mech marks what it sees.
             if (Alignment == 1)
             {
-                Terrain()->MarkSeen(Position, Frame.J, 360.0f, GetProbeEffect() + Scenario->MaxVisualRange, 1);
+                Terrain()->MarkSeen(Position, Frame.J, 360.0f, GetProbeEffect() + Scenario()->MaxVisualRange, 1);
             }
             else if (Alignment == -1)
             {
-                Terrain()->MarkSeen(Position, Frame.J, 360.0f, GetProbeEffect() + Scenario->MaxVisualRange, 2);
+                Terrain()->MarkSeen(Position, Frame.J, 360.0f, GetProbeEffect() + Scenario()->MaxVisualRange, 2);
             }
 
             DistanceSinceMarkSeen = 0.0f;
@@ -1501,7 +1501,7 @@ auto MCBattleMech::Render() -> void
                 shapeName = zoomedOut ? "mblip5" : "mblip6";
             }
 
-            uint8_t* shape = Scenario->SensorContactShapes[shapeIndex];
+            uint8_t* shape = Scenario()->SensorContactShape(shapeIndex);
 
             if (shape != nullptr)
             {
@@ -1575,7 +1575,7 @@ auto MCBattleMech::Render() -> void
     }
 
     // The selected mech's queued orders: waypoint markers, joined by lines when the queue is drawn as a path.
-    if (GetCommanderId() == HomeCommander()->GetId() && WaypointMarkers != nullptr && Selected != 0 &&
+    if (GetCommanderId() == HomeCommander()->GetId() && WaypointMarkerShapes() != nullptr && Selected != 0 &&
         Pilot != nullptr && Pilot->GetTacOrderQueueSize() > 0)
     {
         MCTacticalOrder tacOrder;
@@ -1611,10 +1611,10 @@ auto MCBattleMech::Render() -> void
                 marker++;
             }
 
-            const int32_t bounds = VfxShapeBounds(WaypointMarkers, marker);
+            const int32_t bounds = VfxShapeBounds(WaypointMarkerShapes(), marker);
             ElementList()->OpenGroup(-100000, 1);
             auto* element = ElementList()->Make<MCVfxElement>(
-                WaypointMarkers, static_cast<float>((bounds >> 16) / 2) + toScreen.X,
+                WaypointMarkerShapes(), static_cast<float>((bounds >> 16) / 2) + toScreen.X,
                 toScreen.Y - static_cast<float>(bounds >> 1 & 0x7fff), marker, 1, nullptr, 1);
             ElementList()->Add(element);
         }
@@ -1692,7 +1692,7 @@ auto MCBattleMech::HandleEjection() -> int
     }
 
     Disable(3);
-    TheInterface->RemoveMech(PartId);
+    TacticalInterface()->RemoveMech(PartId);
 
     if (Alignment == HomeTeam()->Alignment)
     {

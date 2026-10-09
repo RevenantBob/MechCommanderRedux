@@ -5,7 +5,7 @@
 #include "ai/MCTacticalOrder.h"
 #include "camera/MCCamera.h"
 #include "main/main.h"
-#include "mission/scenario.h"
+#include "mission/MCScenario.h"
 #include "object/MCBattleMech.h"
 #include "object/MCBattleMechType.h"
 #include "object/MCMechGameSystem.h"

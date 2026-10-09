@@ -3,7 +3,7 @@
 #include "ai/MCMoveSystem.h"
 #include "engine/MCByteFlag.h"
 #include "lib/MCFatal.h"
-#include "mission/scenario.h"
+#include "mission/MCScenario.h"
 #include "network/multplyr.h"
 #include "object/MCContactSystem.h"
 #include "object/MCForces.h"
@@ -64,7 +64,7 @@ auto MCTeam::BuildRoster(MCScenario* scenario) -> void
 {
     Roster.clear();
 
-    for (uint32_t i = 1; static_cast<int32_t>(i) < static_cast<int32_t>(scenario->NumParts + 1); i++)
+    for (uint32_t i = 1; static_cast<int32_t>(i) < static_cast<int32_t>(scenario->NumParts() + 1); i++)
     {
         const MCPart& part = scenario->Parts[i];
 

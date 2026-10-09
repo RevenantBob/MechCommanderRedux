@@ -1,7 +1,7 @@
 #include "stdafx.h"
 #include "MCTest.h"
 #include "TestGame.h"
-#include "mission/scenario.h"
+#include "mission/MCScenario.h"
 #include "object/MCMover.h"
 #include "object/MCMoverGameSystem.h"
 

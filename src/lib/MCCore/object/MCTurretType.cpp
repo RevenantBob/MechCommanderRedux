@@ -3,7 +3,7 @@
 #include "object/MCTurret.h"
 #include "camera/MCCamera.h"
 #include "lib/MCFitIniFile.h"
-#include "mission/scenario.h"
+#include "mission/MCScenario.h"
 #include "network/multplyr.h"
 #include "object/MCArtillery.h"
 #include "object/MCArtilleryType.h"

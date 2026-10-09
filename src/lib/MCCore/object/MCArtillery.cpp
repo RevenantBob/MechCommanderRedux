@@ -8,11 +8,11 @@
 #include "engine/MCFontElement.h"
 #include "engine/MCVfxElement.h"
 #include "gui/asystem.h"
-#include "iface/iface.h"
+#include "iface/MCTacticalInterface.h"
 #include "lib/MCFatal.h"
 #include "lib/MCDice.h"
 #include "main/main.h"
-#include "mission/scenario.h"
+#include "mission/MCScenario.h"
 #include "network/multplyr.h"
 #include "object/MCArtilleryType.h"
 #include "object/MCCameraDrone.h"
@@ -167,7 +167,7 @@ void CallArtillery(int32_t commanderId, int32_t strikeType, MCVector3D location,
 
     if (CommanderById(commanderId) == HomeCommander())
     {
-        for (const MCGuiOwned<MCArtilleryButton>& button : TheInterface->TacticalMap->ArtilleryButtons)
+        for (const MCGuiOwned<MCArtilleryButton>& button : TacticalInterface()->TacticalMap->ArtilleryButtons)
         {
             button->Draw();
         }

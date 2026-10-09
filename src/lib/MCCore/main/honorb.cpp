@@ -25,8 +25,8 @@
 #include "logistics/logmain.h"
 #include "main/MCGameContext.h"
 #include "main/logistics.h"
-#include "mission/mission.h"
-#include "mission/scenario.h"
+#include "mission/MCMission.h"
+#include "mission/MCScenario.h"
 #include "object/MCObjectType.h"
 #include "object/MCMechWarrior.h"
 #include "object/MCMoverGameSystem.h"
@@ -451,12 +451,12 @@ namespace
     {
         uint32_t index = static_cast<uint32_t>(debugger->DebugModule()->Id());
 
-        if ((static_cast<int32_t>(index) < 1) || (Scenario->NumWarriors < index))
+        if ((static_cast<int32_t>(index) < 1) || (Scenario()->NumWarriors() < index))
         {
             return nullptr;
         }
 
-        return Scenario->Warriors[index];
+        return Scenario()->Warrior(index);
     }
 } // namespace
 
@@ -469,7 +469,7 @@ void AblDebuggerEventRoutine(MCGuiObject* object, MCGuiEvent* event)
 
     if (AblDebuggerFirstEvent != 0)
     {
-        AblGetDebugger()->ProcessCommand(MCAblDebugCommand::SelectModule, {}, 0, Scenario->ScenarioBrain.get());
+        AblGetDebugger()->ProcessCommand(MCAblDebugCommand::SelectModule, {}, 0, Scenario()->ScenarioBrain.get());
         AblDebuggerFirstEvent = 0;
     }
 
@@ -1011,9 +1011,9 @@ int32_t UserInit()
         MPlayer = nullptr;
     }
 
-    Mission = new MCMission;
+    MCGameContext::Current().SetMission(std::make_unique<MCMission>());
     // A game segment (-mission N on the command line) starts SYSTEM.CFG's missionName; otherwise the campaign.
-    const int32_t result = Mission->Init(GlobalGameSegment == 0 ? CampaignFile : MissionName);
+    const int32_t result = Mission()->Load(GlobalGameSegment == 0 ? CampaignFile : MissionName);
 
     if (result != 0)
     {
@@ -1033,13 +1033,11 @@ void UserDestroy()
     }
 
     // Port: the original put back the screen saver and power-down timeouts userInit had switched off.
-    if (Mission != nullptr)
+    if (Mission() != nullptr)
     {
-        // Faithful: destroy runs twice (once more before the delete).
-        Mission->Destroy();
-        Mission->Destroy();
-        delete Mission;
-        Mission = nullptr;
+        // Taken down while still installed: what it frees reaches for it.
+        Mission()->Shutdown();
+        MCGameContext::Current().SetMission(nullptr);
     }
 
     if (ColorCallback != nullptr)

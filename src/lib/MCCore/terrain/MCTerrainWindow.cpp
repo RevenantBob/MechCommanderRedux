@@ -7,7 +7,7 @@
 #include "engine/MCLineElement.h"
 #include "gui/asystem.h"
 #include "lib/MCFatal.h"
-#include "mission/scenario.h"
+#include "mission/MCScenario.h"
 #include "object/MCElemental.h"
 #include "object/MCElementalType.h"
 #include "object/MCElementalGameSystem.h"
@@ -203,12 +203,12 @@ auto MCTerrainWindow::Update() -> void
 {
     MCTerrain* terrain = Terrain();
 
-    if (Scenario->AlwaysRevealed == 0)
+    if (Scenario()->AlwaysRevealed == 0)
     {
         terrain->ISVisibleBits->ResetAll(0);
     }
 
-    if (Scenario->GodMode != 0)
+    if (Scenario()->GodMode != 0)
     {
         terrain->ISVisibleBits->ResetAll(1);
     }

@@ -10,13 +10,13 @@
 // extends: 77 slots in aObject, more in aButton (82), aHolderObject (90), ScrollPane (78), ... Other code calls them
 // as `(**(code **)(*(int *)obj + 0xNN))`: slot = 0xNN / 4, and each virtual below carries its slot.
 
+#include "gui/MCGuiOwned.h"
 #include "logistics/smuti.h"
 
 class MCGuiAnimation;
 class MCGuiCallback;
 class MCGuiFont;
 class MCGuiObject;
-class MCGuiOpeningSmackerWindow;
 class MCGuiPort;
 class MCGuiTimerManager;
 class MCCamera;
@@ -794,8 +794,6 @@ public:
     MCGuiObject* SmackerWindow = nullptr;
     /// <summary>A second movie window, destroyed by run when its movie is over.</summary>
     MCGuiObject* SmackerWindow2 = nullptr;
-    /// <summary>The opening movie's window.</summary>
-    MCGuiOpeningSmackerWindow* OpeningSmackerWindow = nullptr;
     /// <summary>Where the mouse scrolls the map: outside (1, 1)..(width - 4, height - 4).</summary>
     tagRECT ScrollRect = {};
     /// <summary>The cursor shape drawn (-1 hidden).</summary>
@@ -861,7 +859,7 @@ extern MCPacketFile* ArtFile;
 extern char* StartupPakFile;
 extern MCGuiMessageBox* VersionDialog;
 extern MCGuiObject* SmackWindowPointer;
-extern MCGuiObject* FeatureScreen;
+extern MCGuiOwned<MCGuiObject> FeatureScreen;
 extern int FeatureScreenDone;
 extern int EscapedSmackerMovie;
 extern MCGuiCallback* MouseTrackerCallback;
@@ -960,7 +958,7 @@ extern int32_t LastY;
 extern int LeftMouseButtonDown;
 extern int RightMouseButtonDown;
 extern char AppName[];
-extern char WindowTitle[];
+extern char WindowTitle[0x400];
 extern char PaletteName[];
 extern char* BackPtr;
 /// <summary>The cheat codes and the ring buffer of keys typed.</summary>

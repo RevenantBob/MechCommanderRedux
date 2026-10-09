@@ -3,7 +3,7 @@
 #include "ai/MCMoveSystem.h"
 #include "gui/asystem.h"
 #include "gui/atextbox.h"
-#include "iface/iface.h"
+#include "iface/MCTacticalInterface.h"
 #include "lib/MCDice.h"
 #include "lib/MCFatal.h"
 #include "lib/MCFile.h"
@@ -11,7 +11,7 @@
 #include "lib/MCVector2D.h"
 #include "logistics/logmain.h"
 #include "main/main.h"
-#include "mission/scenario.h"
+#include "mission/MCScenario.h"
 #include "network/multplyr.h"
 #include "object/MCArtillery.h"
 #include "object/MCArtilleryType.h"
@@ -146,12 +146,12 @@ auto FindWarrior(MCAblRuntime& abl, int32_t warriorIndex) -> MCMechWarrior*
         return abl.Brain.Warrior;
     }
 
-    if (warriorIndex < 1 || static_cast<uint32_t>(warriorIndex) > Scenario->NumWarriors)
+    if (warriorIndex < 1 || static_cast<uint32_t>(warriorIndex) > Scenario()->NumWarriors())
     {
         return nullptr;
     }
 
-    return Scenario->Warriors[warriorIndex];
+    return Scenario()->Warrior(warriorIndex);
 }
 
 auto GetDamageLevel(MCGameObject* object, uint32_t& damageLevel) -> bool

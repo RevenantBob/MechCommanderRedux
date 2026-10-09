@@ -12,7 +12,8 @@
 #include "lib/MCVector2D.h"
 #include "lib/MCDice.h"
 #include "logistics/logmain.h"
-#include "mission/mission.h"
+#include "mission/MCMission.h"
+#include "mission/MCMissionResultsScreen.h"
 #include "platform/MCAudio.h"
 #include "platform/MCDisplay.h"
 #include "platform/MCFrameLog.h"
@@ -126,7 +127,7 @@ namespace
             x = movie->GlobalX() + movie->Width() / 2 - width / 2;
             y = movie->GlobalY() + movie->Height() / 2 - height / 2;
         }
-        else if (Mission == nullptr || Mission->MissionState != 7)
+        else if (Mission() == nullptr || Mission()->State != MCMissionState::Scenario)
         {
             width = interfaceWidth;
             height = interfaceHeight;

@@ -5,11 +5,11 @@
 #include "object/MCGroundVehicleGameSystem.h"
 #include "ai/MCTacticalOrder.h"
 #include "camera/MCCamera.h"
-#include "iface/iface.h"
+#include "iface/MCTacticalInterface.h"
 #include "lib/MCFatal.h"
 #include "lib/MCFitIniFile.h"
 #include "main/main.h"
-#include "mission/scenario.h"
+#include "mission/MCScenario.h"
 #include "network/multplyr.h"
 #include "object/MCAIControl.h"
 #include "object/MCArtillery.h"
@@ -383,7 +383,7 @@ auto MCGroundVehicleType::HandleDestruction(MCGameObject* collidee, MCGameObject
         vehicle->GetPilot()->TriggerAlarm(MCPilotAlarmType::VehicleWithdrawn, 0);
     }
 
-    TheInterface->RemoveMech(vehicle->PartId);
+    TacticalInterface()->RemoveMech(vehicle->PartId);
     return 1;
 }
 

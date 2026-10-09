@@ -5,7 +5,7 @@
 #include "lib/MCPacketFile.h"
 #include "logistics/logmain.h"
 #include "main/main.h"
-#include "mission/mission.h"
+#include "main/logistics.h"
 #include "sprite/MCShape.h"
 
 int Use90PixelSprite = 0;

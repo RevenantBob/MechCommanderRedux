@@ -2,8 +2,8 @@
 #include "ai/MCTacticalOrder.h"
 #include "ai/MCMoveSystem.h"
 #include "ai/MCRefit.h"
-#include "iface/iface.h"
-#include "iface/parser.h"
+#include "iface/MCTacticalInterface.h"
+#include "iface/MCCommandParser.h"
 #include "lib/MCFatal.h"
 #include "main/main.h"
 #include "network/multplyr.h"
@@ -136,19 +136,19 @@ auto MCTacticalOrder::Reset(MCOrderOrigin origin, MCTacticalOrderCode code, int 
     GroupFlags = 0;
 }
 
-auto MCTacticalOrder::InitWayPath(MCLocationNode* path) -> void
+auto MCTacticalOrder::InitWayPath(std::span<const MCWayPathPoint> path) -> void
 {
     int32_t numPoints = 0;
 
-    for (; path != nullptr; path = path->Next)
+    for (const MCWayPathPoint& point : path)
     {
         if (numPoints == MaxWayPoints)
         {
             Fatal(0, " Way Path Too Long ");
         }
 
-        SetWayPoint(numPoints, path->Location);
-        MoveParams.WayPath.Mode[numPoints] = path->Run != 0 ? 1 : 0;
+        SetWayPoint(numPoints, point.Location);
+        MoveParams.WayPath.Mode[numPoints] = point.Run ? 1 : 0;
         numPoints++;
     }
 
@@ -1172,7 +1172,7 @@ auto MCTacticalOrder::CaptureStatus(MCMechWarrior* pilot) -> bool
                 static_cast<MCMover*>(prize)->Pilot = carrier->Passengers[seat];
                 carrier->Passengers[seat] = nullptr;
                 prize->SetAwake(1);
-                TheInterface->ActivateMech(prize->PartId);
+                TacticalInterface()->ActivateMech(prize->PartId);
                 return true;
             }
 

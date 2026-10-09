@@ -7,7 +7,7 @@
 #include "engine/MCElementBuffer.h"
 #include "engine/MCLineElement.h"
 #include "lib/MCFatal.h"
-#include "mission/scenario.h"
+#include "mission/MCScenario.h"
 #include "object/MCForces.h"
 #include "terrain/MCTerrain.h"
 #include "terrain/MCTerrainTiles.h"
@@ -217,7 +217,7 @@ auto MCTerrainBlock::DrawOverlay(int32_t hazeFactor) -> void
     const int ok = (row >= 0 && row < GameMap()->Height && col >= 0 && col < GameMap()->Width) ? 1 : 0;
     Assert(ok, 0, " bldng MapTile Out of Bounds ");
     const MCMineView mines = MCTerrainMineView(GameMap()->Map[GameMap()->Width * row + col].Overlay,
-                                               HomeTeam() == InnerSphereTeam(), Scenario->GodMode != 0);
+                                               HomeTeam() == InnerSphereTeam(), Scenario()->GodMode != 0);
 
     if (mines.InnerSphereMine && !DrawMineTile(*this, hazePalette))
     {

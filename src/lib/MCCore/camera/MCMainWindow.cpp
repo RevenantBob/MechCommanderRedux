@@ -6,7 +6,7 @@
 #include "gui/aport.h"
 #include "gui/asystem.h"
 #include "lib/MCFatal.h"
-#include "mission/scenario.h"
+#include "mission/MCScenario.h"
 #include "terrain/MCTerrain.h"
 #include "vfx/MCVfxFunctions.h"
 
@@ -91,7 +91,7 @@ auto MCMainWindow::Display() -> void
 
     MCGuiHolderObject::Display();
 
-    if (Scenario->TimeLimit == 0 || LastClockTime == ActualTime)
+    if (Scenario()->TimeLimit == 0 || LastClockTime == ActualTime)
     {
         return;
     }
@@ -107,7 +107,7 @@ auto MCMainWindow::Display() -> void
     const int32_t paneHeight = pane->Height();
     std::string clock;
     int32_t textColor = 0x1f;
-    const float timeLeft = static_cast<float>(Scenario->TimeLimit) - ActualTime;
+    const float timeLeft = static_cast<float>(Scenario()->TimeLimit) - ActualTime;
 
     if (timeLeft < 0.0f)
     {

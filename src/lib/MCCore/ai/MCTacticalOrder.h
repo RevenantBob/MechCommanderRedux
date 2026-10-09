@@ -5,10 +5,18 @@
 class MCGameObject;
 class MCMover;
 class MCMechWarrior;
-struct MCLocationNode;
 
 /// <summary>Waypoints a tactical order's way path holds (P3-obj-2 decides it with the pilot's move orders).</summary>
 inline constexpr int32_t MaxWayPoints = 15;
+
+/// <summary>One point of a way path, as <see cref="MCTacticalOrder::InitWayPath"/> takes it.</summary>
+/// <remarks>Original: <c>LocationNode</c>, a singly linked list node.</remarks>
+struct MCWayPathPoint
+{
+    MCVector3D Location;
+    /// <summary>Whether to run to this point.</summary>
+    bool Run = false;
+};
 
 /// <summary>Who gave a tactical order (packed in 2 bits).</summary>
 enum class MCOrderOrigin : int32_t
@@ -115,8 +123,8 @@ public:
     void Reset();
     /// <summary>Sets up a new order: given now, with every parameter at its default.</summary>
     void Reset(MCOrderOrigin origin, MCTacticalOrderCode code, int unitOrder = 0);
-    /// <summary>Copies a location list into the way path (Fatal past <see cref="MaxWayPoints"/>).</summary>
-    void InitWayPath(MCLocationNode* path);
+    /// <summary>Copies the points into the way path (Fatal past <see cref="MaxWayPoints"/>).</summary>
+    void InitWayPath(std::span<const MCWayPathPoint> path);
     MCVector3D GetWayPoint(int32_t index) const;
     void SetWayPoint(int32_t index, MCVector3D wayPoint);
     void AddWayPoint(MCVector3D wayPoint, int32_t run);

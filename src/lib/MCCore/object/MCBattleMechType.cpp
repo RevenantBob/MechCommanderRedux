@@ -6,14 +6,14 @@
 #include "appear/MCAppearanceTypeList.h"
 #include "camera/MCCamera.h"
 #include "gui/asystem.h"
-#include "iface/iface.h"
+#include "iface/MCTacticalInterface.h"
 #include "lib/MCFatal.h"
 #include "lib/MCFile.h"
 #include "lib/MCFitIniFile.h"
 #include "lib/MCPacketFile.h"
 #include "logistics/logmain.h"
 #include "main/main.h"
-#include "mission/scenario.h"
+#include "mission/MCScenario.h"
 #include "network/multplyr.h"
 #include "object/MCAIControl.h"
 #include "object/MCMiscTerrainObject.h"
@@ -560,7 +560,7 @@ auto MCBattleMechType::HandleDestruction(MCGameObject* collidee, MCGameObject* c
     if (mech->Withdrawing != 0)
     {
         mech->GetPilot()->HandleAlarm(MCPilotAlarmType::VehicleWithdrawn, 0);
-        TheInterface->RemoveMech(mech->PartId);
+        TacticalInterface()->RemoveMech(mech->PartId);
         return 1;
     }
 

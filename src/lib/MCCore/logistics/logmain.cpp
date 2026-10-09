@@ -18,7 +18,7 @@
 #include "main/honorb.h"
 #include "main/logistics.h"
 #include "main/main.h"
-#include "mission/mission.h"
+#include "mission/MCMission.h"
 #include "network/multplyr.h"
 #include "platform/MCFileSystem.h"
 #include "platform/MCInput.h"
@@ -317,7 +317,7 @@ void NewCampaign()
     SoundSystem()->StopDigitalMusic();
     SoundSystem()->PlayBettySample(0x19);
     std::strcpy(MissionName, "mechcmdr1");
-    Mission->InitAgain(MissionName);
+    Mission()->ReloadCampaign(MissionName);
     CurPlanet = 0;
     Solo = 0;
     LastLogisticsMissionState = 0;
@@ -337,7 +337,7 @@ void NewMcxCampaign()
     SoundSystem()->StopDigitalMusic();
     SoundSystem()->PlayBettySample(0x19);
     std::strcpy(MissionName, "xmechcmdr1");
-    Mission->InitAgain(MissionName);
+    Mission()->ReloadCampaign(MissionName);
     Solo = 0;
     LastLogisticsMissionState = 0;
     GlobalLogPtr->LoadCampaign(const_cast<char*>("xstart0"), const_cast<char*>(".pkk"), 0, 0);
@@ -697,9 +697,9 @@ void ReplayCinema()
         WriteRegistryVersionNumber();
     }
 
-    NextGameState = 10;
-    Mission->MissionState = 10;
-    Mission->CurrentMovie = 0;
+    Mission()->NextState = MCMissionState::PlayMovie;
+    Mission()->State = MCMissionState::PlayMovie;
+    Mission()->CurrentMovie = 0;
     GlobalLogPtr->MainScreen->ShowGuiWindow(0);
     SoundSystem()->StopDigitalMusic();
 }

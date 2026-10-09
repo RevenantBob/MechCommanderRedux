@@ -2,7 +2,8 @@
 #include "terrain/MCVideoWindow.h"
 #include "engine/MCFont.h"
 #include "gui/aport.h"
-#include "iface/iface.h"
+#include "iface/MCMechBar.h"
+#include "iface/MCTacticalInterface.h"
 #include "main/main.h"
 #include "object/MCBigGameObject.h"
 #include "object/MCMechWarrior.h"
@@ -50,7 +51,7 @@ auto MCVideoWindow::Update() -> void
     if (BlinkTime + 0.5 < ScenarioTime)
     {
         BlinkOn = !BlinkOn;
-        TheInterface->MechBar->Layout.VideoId = BlinkOn ? Star->Vehicle->PartId : -1;
+        TacticalInterface()->MechBar->VideoId = BlinkOn ? Star->Vehicle->PartId : -1;
     }
 
     // Track the unit on the tactical map.
@@ -98,16 +99,16 @@ auto MCVideoWindow::SetStar(MCMechWarrior* newStar) -> void
         BlinkOn = false;
         Star = newStar;
         BlinkTime = static_cast<float>(ScenarioTime - 0.5);
-        TheInterface->MechBar->Layout.VideoId = newStar->Vehicle->PartId;
+        TacticalInterface()->MechBar->VideoId = newStar->Vehicle->PartId;
         Update();
         return;
     }
 
     if (Star != nullptr)
     {
-        TheInterface->MechBar->Layout.VideoId = -1;
+        TacticalInterface()->MechBar->VideoId = -1;
         MCGameObject* vehicle = Star->Vehicle;
-        vehicle->SetSelected(TheInterface->IsSelected(vehicle->PartId) != 0 ? 1 : 0);
+        vehicle->SetSelected(TacticalInterface()->IsSelected(vehicle->PartId) ? 1 : 0);
     }
 
     Star = nullptr;

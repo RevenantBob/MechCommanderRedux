@@ -7,7 +7,7 @@
 #include "gui/aport.h"
 #include "gui/asystem.h"
 #include "gui/updisp.h"
-#include "iface/iface.h"
+#include "iface/MCTacticalInterface.h"
 #include "logistics/logbri.h"
 #include "logistics/logmain.h"
 #include "main/MCGameContext.h"
@@ -100,14 +100,14 @@ TEST_CASE_ISOLATED("game: the game shuts down from the main menu and lets go of 
     }
 
     REQUIRE(MCTestGame::StartLogistics());
-    REQUIRE(TheInterface != nullptr);
+    REQUIRE(TacticalInterface() != nullptr);
     REQUIRE(CursorShapes != nullptr);
     const uint8_t* cursor = CursorShapes[0];
     REQUIRE(cursor != nullptr);
     CHECK(MCRenderer::DataBlockOf(cursor) != nullptr);
 
     Application->Stop();
-    CHECK(TheInterface == nullptr);
+    CHECK(TacticalInterface() == nullptr);
     CHECK(CursorShapes == nullptr);
     CHECK(MCRenderer::DataBlockOf(cursor) == nullptr);
 }

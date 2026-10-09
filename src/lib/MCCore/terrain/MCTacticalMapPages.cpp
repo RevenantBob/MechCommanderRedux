@@ -6,12 +6,12 @@
 #include "gui/afont.h"
 #include "gui/aport.h"
 #include "gui/atextbox.h"
-#include "iface/iface.h"
+#include "iface/MCTacticalInterface.h"
 #include "lib/MCMsvcSort.h"
 #include "main/main.h"
 #include "logistics/logmain.h"
-#include "mission/mission.h"
-#include "mission/scenario.h"
+#include "mission/MCMission.h"
+#include "mission/MCScenario.h"
 #include "object/MCArtillery.h"
 #include "object/MCArtilleryType.h"
 #include "object/MCArtilleryChunk.h"
@@ -343,7 +343,7 @@ auto MCTacticalMap::DrawMapPage() -> void
     // The mission timer (or the "no time limit" text), as UpdateMapPage last wrote it.
     MCPane* page = Port()->Frame();
 
-    if (Scenario->TimeLimit < 0)
+    if (Scenario()->TimeLimit < 0)
     {
         WriteText(WhiteFont, page, 0x3c, 0xab, TableString(0xbc));
     }
@@ -460,7 +460,7 @@ auto MCTacticalMap::DrawObjects() -> void
 
     for (int32_t i = 0; i < numObjectives; i++)
     {
-        const MCScenarioObjective& objective = Scenario->Objectives[HomeTeam()->FirstObjective + i];
+        const MCScenarioObjective& objective = Scenario()->Objectives[HomeTeam()->FirstObjective + i];
 
         if (objective.Position[0] == -99.0f || objective.Position[1] == -99.0f || objective.Position[2] == -99.0f ||
             objective.Status != 0 || !MarkersLit)
@@ -589,7 +589,7 @@ auto MCTacticalMap::DrawObjects() -> void
 
         const std::pair<int32_t, int32_t> pixel = MapPixel(*this, obj->GetPosition());
 
-        if (TheInterface->IsSelected(obj->PartId) == 0)
+        if (!TacticalInterface()->IsSelected(obj->PartId))
         {
             AGEllipseFill(&MapPane, pixel.first, pixel.second, 2, 2, 0xf);
         }

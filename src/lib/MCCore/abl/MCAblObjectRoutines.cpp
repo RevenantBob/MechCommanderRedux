@@ -4,7 +4,7 @@
 #include "ai/MCMoveSystem.h"
 #include "gui/asystem.h"
 #include "gui/atextbox.h"
-#include "iface/iface.h"
+#include "iface/MCTacticalInterface.h"
 #include "lib/MCDice.h"
 #include "lib/MCFatal.h"
 #include "lib/MCFile.h"
@@ -12,7 +12,7 @@
 #include "lib/MCVector2D.h"
 #include "logistics/logmain.h"
 #include "main/main.h"
-#include "mission/scenario.h"
+#include "mission/MCScenario.h"
 #include "network/multplyr.h"
 #include "object/MCArtillery.h"
 #include "object/MCArtilleryType.h"
@@ -199,24 +199,20 @@ auto ExecHbObjectCreate(MCAblRuntime& abl) -> MCAblType*
     int32_t partId = abl.Top().Integer;
     abl.Top().Integer = 0;
 
-    for (int32_t i = 0; i < CurrentCreatorPart; i++)
+    const std::vector<MCCreatedPart>& createdParts = Scenario()->CreatedParts;
+
+    if (const auto created = std::ranges::find(createdParts, partId, &MCCreatedPart::PartId);
+        created != createdParts.end() && !created->Created)
     {
-        if (CreatedPartRoster[i].PartId == partId)
+        Scenario()->CreateScenarioObject(partId);
+        InnerSphereTeam()->ScanBattlefield();
+
+        if (AlliedTeam())
         {
-            if (CreatedPartRoster[i].Created == 0)
-            {
-                Scenario->CreateScenarioObject(partId);
-                InnerSphereTeam()->ScanBattlefield();
-
-                if (AlliedTeam())
-                {
-                    AlliedTeam()->ScanBattlefield();
-                }
-
-                abl.Top().Integer = partId;
-            }
-            break;
+            AlliedTeam()->ScanBattlefield();
         }
+
+        abl.Top().Integer = partId;
     }
 
     abl.GetCodeToken();
@@ -557,7 +553,7 @@ auto ExecHbSetObjActive(MCAblRuntime& abl) -> MCAblType*
         if (object && object->GetAwake() != active)
         {
             object->SetAwake(active);
-            TheInterface->ActivateMech(object->PartId);
+            TacticalInterface()->ActivateMech(object->PartId);
             numChanged = 1;
         }
     }
@@ -569,7 +565,7 @@ auto ExecHbSetObjActive(MCAblRuntime& abl) -> MCAblType*
         while (object && static_cast<MCGameObject*>(object)->GetAwake() != active)
         {
             object->SetAwake(active);
-            TheInterface->ActivateMech(object->PartId);
+            TacticalInterface()->ActivateMech(object->PartId);
             numChanged++;
             object = ObjectList()->FindObjectInGroup(object, partId);
         }

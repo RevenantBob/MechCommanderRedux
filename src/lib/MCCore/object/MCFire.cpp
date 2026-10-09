@@ -9,7 +9,7 @@
 #include "engine/MCVfxElement.h"
 #include "lib/MCDice.h"
 #include "main/main.h"
-#include "mission/mission.h"
+#include "mission/MCMission.h"
 #include "network/multplyr.h"
 #include "object/MCCollisionSystem.h"
 #include "object/MCEffectSystem.h"

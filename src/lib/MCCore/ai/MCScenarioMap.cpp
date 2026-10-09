@@ -5,7 +5,7 @@
 #include "lib/MCFile.h"
 #include "lib/MCPacketFile.h"
 #include "main/main.h"
-#include "mission/scenario.h"
+#include "mission/MCScenario.h"
 #include "object/MCBigGameObject.h"
 #include "object/MCMover.h"
 #include "object/MCMoverGameSystem.h"

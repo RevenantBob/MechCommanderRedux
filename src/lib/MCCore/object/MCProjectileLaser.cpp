@@ -10,7 +10,7 @@
 #include "engine/MCPolygonElement.h"
 #include "gui/asystem.h"
 #include "main/main.h"
-#include "mission/scenario.h"
+#include "mission/MCScenario.h"
 #include "network/multplyr.h"
 #include "object/MCExplosion.h"
 #include "object/MCMechGameSystem.h"
