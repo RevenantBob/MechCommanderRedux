@@ -5,7 +5,7 @@
 #include "fakes/MCManualClock.h"
 #include "camera/MCCamera.h"
 #include "gui/MCGuiSystem.h"
-#include "gui/updisp.h"
+#include "gui/MCUpdateDisplay.h"
 #include "lib/MCFastFileSet.h"
 #include "logistics/loggen.h"
 #include "logistics/logmain.h"

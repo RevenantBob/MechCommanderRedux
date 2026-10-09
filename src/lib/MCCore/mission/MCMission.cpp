@@ -9,7 +9,7 @@
 #include "color/MCPalette.h"
 #include "gui/MCGuiButton.h"
 #include "gui/MCGuiPort.h"
-#include "gui/updisp.h"
+#include "gui/MCUpdateDisplay.h"
 #include "iface/MCTacticalInterface.h"
 #include "lib/MCFile.h"
 #include "lib/MCFitIniFile.h"

@@ -16,7 +16,7 @@
 #include "mission/MCMission.h"
 #include "mission/MCMissionResultsScreen.h"
 #include "mission/MCScenario.h"
-#include "gui/updisp.h"
+#include "gui/MCUpdateDisplay.h"
 #include "platform/MCDisplay.h"
 #include "platform/MCInput.h"
 #include "terrain/MCTerrain.h"

@@ -5,7 +5,7 @@
 #include "engine/MCFont.h"
 #include "gui/MCGuiFont.h"
 #include "gui/MCGuiPort.h"
-#include "gui/atextbox.h"
+#include "gui/MCGuiScrollTextObject.h"
 #include "iface/MCTacticalInterface.h"
 #include "lib/MCMsvcSort.h"
 #include "main/main.h"
@@ -750,7 +750,7 @@ auto MCTacticalMap::AddSalvageString(MCGameObject* obj) -> void
         }
     }
 
-    text->Print(nullptr, 0x1f);
+    text->PrintBlank(0x1f);
     SalvageText->ResetPortSize();
 }
 

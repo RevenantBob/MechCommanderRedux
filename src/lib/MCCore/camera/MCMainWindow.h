@@ -1,7 +1,8 @@
 #pragma once
 
-#include "gui/awindow.h"
 #include "gui/MCGuiOwned.h"
+#include "gui/MCGuiSystem.h"
+#include "gui/MCGuiHolderObject.h"
 
 /// <summary>The screen-filling holder of the camera panes, with the mission clock pane.</summary>
 class MCMainWindow : public MCGuiHolderObject

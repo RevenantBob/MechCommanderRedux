@@ -1,7 +1,7 @@
 #include "stdafx.h"
 #include "iface/MCLanceIcon.h"
 #include "ai/MCTacticalOrder.h"
-#include "gui/ahelp.h"
+#include "gui/MCFloatHelp.h"
 #include "iface/MCCommandParser.h"
 #include "iface/MCFriendlyMechIcon.h"
 #include "iface/MCMechBar.h"

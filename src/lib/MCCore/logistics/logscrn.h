@@ -257,7 +257,7 @@ public:
     static void DrawHistory(MCGuiPort* port, const std::vector<HistoryLine>& lines);
 
     /// <summary>Port: makes the history pane's content, a view that draws <see cref="Lines"/>.</summary>
-    MCLogPort* NewHistoryView(int32_t width, int32_t height);
+    std::unique_ptr<MCLogPort> NewHistoryView(int32_t width, int32_t height);
 
     /// <summary>The history pane.</summary>
     MCScrollPane* HistoryPane = nullptr;

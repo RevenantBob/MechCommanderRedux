@@ -1,7 +1,7 @@
 #include "stdafx.h"
 #include "logistics/purchase.h"
 #include "gui/MCGuiFont.h"
-#include "gui/scrlpane.h"
+#include "gui/MCScrollPane.h"
 #include "lib/MCFatal.h"
 #include "lib/MCIDString.h"
 #include "lib/MCFitIniFile.h"

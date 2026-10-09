@@ -1,8 +1,8 @@
 #include "stdafx.h"
 #include "logistics/mrblock.h"
 #include "gui/MCGuiFont.h"
-#include "gui/scrlpane.h"
-#include "gui/updisp.h"
+#include "gui/MCScrollPane.h"
+#include "gui/MCUpdateDisplay.h"
 #include "lib/MCFatal.h"
 #include "logistics/invblock.h"
 #include "logistics/logbri.h"
@@ -107,7 +107,7 @@ namespace
     MCLogPort* UnitRowsPort()
     {
         MCLogPort* port = nullptr;
-        RepairScreen()->UnitPane->GetDisplayPort(port);
+        port = RepairScreen()->UnitPane->ContentPort;
         return port;
     }
 
@@ -408,16 +408,11 @@ auto MCMechRepairBlock::Init(MCLogMech* logMech) -> void
     NumItems = 0;
     DragPort = nullptr;
     MCLogPort* rowsPort = nullptr;
-    rows->GetDisplayPort(rowsPort);
+    rowsPort = rows->ContentPort;
     MCLogObject::Init(0, 0, 0x19a, 0x70, nullptr, rowsPort);
     ListPosition = Mech->NameIndex;
 
     auto* pane = new MCScrollPane;
-
-    if (pane != nullptr)
-    {
-        pane->Init();
-    }
 
     InventoryPane = pane;
     pane->Init(0x62, 0x58, 0x135, 0x11, static_cast<char*>(nullptr));
@@ -2865,7 +2860,7 @@ auto MCMechRepairBlock::SetInventory(MCScrollPane* pane) -> void
         pane = InventoryPane;
     }
 
-    auto* content = new MCLogPort;
+    auto content = std::make_unique<MCLogPort>();
     int32_t lines = 0;
 
     for (MCLogInventoryItem* item = Mech->Inventory->Items; item != nullptr; item = item->Next)
@@ -2890,7 +2885,7 @@ auto MCMechRepairBlock::SetInventory(MCScrollPane* pane) -> void
     content->InitView(pane->Width() - 0xd, contentHeight);
     SetWeaponLists();
     content->DrawContent = [this](MCGuiPort* view) { DrawWeaponList(static_cast<MCLogPort*>(view)); };
-    pane->SetDisplayPort(content, -1, 0);
+    pane->SetDisplayPort(std::move(content), false);
 
     // The tonnage bar (the weapons' weight against the free weight): the rows draw theirs each frame; the original
     // also painted one into the briefing screen's picture for the box, which the box (drawn after) covered.
@@ -3621,11 +3616,6 @@ auto MCBriefingBox::Init(MCLogMech* logMech, MCLogVehicle* logVehicle) -> void
     }
 
     auto* pane = new MCScrollPane;
-
-    if (pane != nullptr)
-    {
-        pane->Init();
-    }
 
     InventoryPane = pane;
     pane->Init(0x62, 0x58, 0x143, 0x11, static_cast<char*>(nullptr));

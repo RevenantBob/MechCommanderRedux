@@ -4,7 +4,7 @@
 #include "TestGame.h"
 #include "gui/MCGuiSystem.h"
 #include "lib/MCFitIniFile.h"
-#include "gui/scrlpane.h"
+#include "gui/MCScrollPane.h"
 #include "logistics/logdlg.h"
 #include "logistics/loggen.h"
 #include "logistics/logmain.h"
@@ -472,11 +472,10 @@ TEST_CASE_ISOLATED("game: a scroll pane's arrow lets go wherever the mouse butto
 
     // A pane 0x80 x 0x60 at (100, 100) showing content four times its height: the slider is a quarter of the track.
     auto* pane = new MCScrollPane;
-    pane->Init();
     pane->Init(0x80, 0x60, 100, 100, static_cast<char*>(nullptr));
-    auto* content = new MCLogPort;
+    auto content = std::make_unique<MCLogPort>();
     content->Init(0x80 - 13, 0x180, -1);
-    pane->SetDisplayPort(content, -1, -1);
+    pane->SetDisplayPort(std::move(content), true);
     REQUIRE(pane->SliderHeight > 0);
 
     const auto send = [pane](int32_t type, int32_t xPos, int32_t yPos)
@@ -492,9 +491,9 @@ TEST_CASE_ISOLATED("game: a scroll pane's arrow lets go wherever the mouse butto
     // Press the down arrow (it shows pressed while held), then let go left of the column.
     const int32_t column = pane->GlobalX() + pane->Width() - 6;
     send(1, column, pane->GlobalY() + pane->Height() - 5);
-    CHECK_EQ(pane->HeldArrow(), 2);
+    CHECK(pane->HeldArrow() == MCScrollPane::Arrow::Down);
     send(4, pane->GlobalX() + 10, pane->GlobalY() + 10);
-    CHECK_EQ(pane->HeldArrow(), 0);
+    CHECK(pane->HeldArrow() == MCScrollPane::Arrow::None);
 
     // The slider drags.
     const int32_t before = pane->SliderPos;
@@ -520,13 +519,12 @@ TEST_CASE_ISOLATED("game: a save list longer than its pane draws its slider")
 
     REQUIRE(MCTestGame::StartLogistics());
     auto* pane = new MCFileScrollPane;
-    pane->MCScrollPane::Init();
     pane->Init(10, 10, 0xc0, 0x80);
 
     // Four panes' worth of files.
     MCLogPort* content = pane->ContentPort;
     content->InitView(0xc0 - 13, 0x200);
-    pane->SetDisplayPort(content, 0, -1);
+    pane->SetDisplayPort(content, true);
     REQUIRE(pane->SliderHeight > 0);
     CHECK(pane->SliderTexture != nullptr);
     CHECK_EQ(pane->SliderTexture->Height, pane->SliderHeight);

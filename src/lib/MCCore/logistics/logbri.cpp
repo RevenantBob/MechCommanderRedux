@@ -1,9 +1,9 @@
 #include "stdafx.h"
 #include "logistics/logbri.h"
 #include "gui/MCGuiFont.h"
-#include "gui/awindow.h"
-#include "gui/scrlpane.h"
-#include "gui/updisp.h"
+#include "gui/MCGuiSmackerWindow.h"
+#include "gui/MCScrollPane.h"
+#include "gui/MCUpdateDisplay.h"
 #include "lib/MCFatal.h"
 #include "lib/MCIDString.h"
 #include "lib/MCFitIniFile.h"
@@ -184,23 +184,13 @@ auto MCBriefingScreen::Init() -> void
 
     auto* pane = new MCScrollPane;
 
-    if (pane != nullptr)
-    {
-        pane->Init();
-    }
-
     MissionPane = pane;
     Assert(pane != nullptr, 0, " Not enough memory for missionScroll ");
     std::snprintf(fileName, sizeof(fileName), "%slogart\\lsbbk01.tga", ArtPath);
     pane->Init(0xb9, 0xdb, 7, 0x6b, fileName);
-    pane->SetDisplayPort(nullptr, -1, -1);
+    pane->ClearDisplayPort();
 
     auto* deploy = new MCScrollPane;
-
-    if (deploy != nullptr)
-    {
-        deploy->Init();
-    }
 
     DeployPane = deploy;
     Assert(deploy != nullptr, 0, " Not enough memory for deployScroll ");
@@ -665,7 +655,7 @@ auto MCBriefingScreen::Destroy() -> void
 
     if (MissionPane != nullptr)
     {
-        MissionPane->SetDisplayPort(nullptr, 0, -1);
+        MissionPane->ClearDisplayPort();
         delete MissionPane;
         MissionPane = nullptr;
     }
@@ -1152,7 +1142,7 @@ auto MCBriefingScreen::SetUpOperation() -> void
         auto* window = new MCGuiSmackerWindow;
         RECT area{0xc, 0x6f, Smacker->Player->Width(), Smacker->Player->Height()};
         SmackerWindow = window;
-        window->Init(&area, nullptr);
+        window->Init(area, nullptr);
         AddChild(window);
         SmackerWindow->StartSmackerMovie(Smacker, 0);
         SmackerWindow->Draw();
@@ -1173,7 +1163,7 @@ auto MCBriefingScreen::SetUpMission() -> void
         GlobalLogPtr->ChatWindow->ShowGuiWindow(0);
     }
 
-    MissionPane->SetDisplayPort(MissionPort, 0, 0);
+    MissionPane->SetDisplayPort(MissionPort, false);
     MissionPane->ShowGuiWindow(true);
 }
 
@@ -1255,7 +1245,7 @@ auto MCBriefingScreen::SetUpDeploy() -> void
     }
 
     // Three blocks a row.
-    auto* port = new MCLogPort;
+    auto port = std::make_unique<MCLogPort>();
     const int32_t blocks = GlobalLogPtr->ForceVehicleList->GetVehicleCount() + mechCount;
     int32_t height;
 
@@ -1288,7 +1278,7 @@ auto MCBriefingScreen::SetUpDeploy() -> void
     };
 
     const int32_t sliderPos = pane->SliderPos;
-    pane->SetDisplayPort(port, -1, -1);
+    pane->SetDisplayPort(std::move(port), true);
     int32_t block = 0;
 
     for (; block < mechCount; block++)

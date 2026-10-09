@@ -4,7 +4,7 @@
 #include "abl/MCAblSymbolTable.h"
 #include "gui/MCGuiInput.h"
 #include "gui/MCGuiSystem.h"
-#include "gui/updisp.h"
+#include "gui/MCUpdateDisplay.h"
 #include "network/multplyr.h"
 #include "platform/MCInput.h"
 

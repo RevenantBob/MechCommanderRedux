@@ -5,8 +5,8 @@
 #include "camera/MCViewWindow.h"
 #include "gui/MCGuiMessageBox.h"
 #include "gui/MCGuiSystem.h"
-#include "gui/awindow.h"
-#include "gui/updisp.h"
+#include "gui/MCGuiSmackerWindow.h"
+#include "gui/MCUpdateDisplay.h"
 #include "iface/MCTacticalInterface.h"
 #include "lib/MCVector2D.h"
 #include "main/main.h"
@@ -868,9 +868,7 @@ auto WindowProc(uint32_t message, uint32_t wParam, int32_t lParam) -> int32_t
             break;
         case WM_SIZE:
         {
-            GWinHeight = static_cast<uint32_t>(lParam) >> 16;
-            GWinWidth = lParam & 0xffff;
-            // The original snapped the window back to the screen's size (SetWindowPos); the display letterboxes.
+            // The original kept the client size and snapped the window back to the screen's size (SetWindowPos); the display letterboxes.
             return 0;
         }
         case WM_PAINT:

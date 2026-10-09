@@ -7,7 +7,7 @@
 #include "ai/MCRefit.h"
 #include "ai/MCTacticalOrder.h"
 #include "gui/MCGuiSystem.h"
-#include "gui/updisp.h"
+#include "gui/MCUpdateDisplay.h"
 #include "iface/MCCommandParser.h"
 #include "lib/MCFatal.h"
 #include "lib/MCFrameOfRef.h"

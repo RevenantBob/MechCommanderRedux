@@ -3,7 +3,7 @@
 #include "ai/MCTacticalOrder.h"
 #include "camera/MCCamera.h"
 #include "camera/MCMainWindow.h"
-#include "gui/atextbox.h"
+#include "gui/MCGuiChatWindow.h"
 #include "iface/MCCommandParser.h"
 #include "iface/MCMechBar.h"
 #include "main/main.h"
@@ -250,7 +250,7 @@ auto MCTacticalInterface::HandleKeyDown(MCGuiEvent* event) -> void
             if (tacMap != nullptr && Scenario() != nullptr && EventsToMissionResultsScreen == 0 && GameAsked == 0)
             {
                 ShowTacticalMapPage(MCTacmapPage::Salvage);
-                MCGuiObject* chatInput = tacMap->ChatWindow->ChatInput;
+                MCGuiObject* chatInput = tacMap->ChatWindow->ChatInput.get();
 
                 if (GuiSystem()->TextObject() != chatInput)
                 {

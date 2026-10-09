@@ -1,6 +1,6 @@
 #include "stdafx.h"
 #include "abl/MCAblDebuggerWindow.h"
-#include "gui/atextbox.h"
+#include "gui/MCGuiTextObject.h"
 
 MCAblDebuggerWindow::~MCAblDebuggerWindow()
 {

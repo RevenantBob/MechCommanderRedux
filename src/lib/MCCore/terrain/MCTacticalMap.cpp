@@ -6,8 +6,8 @@
 #include "engine/MCFont.h"
 #include "gui/MCGuiFont.h"
 #include "gui/MCGuiPort.h"
-#include "gui/atextbox.h"
-#include "gui/awindow.h"
+#include "gui/MCGuiScrollTextObject.h"
+#include "gui/MCGuiChatWindow.h"
 #include "iface/MCTacticalInterface.h"
 #include "lib/MCFatal.h"
 #include "lib/MCFile.h"
@@ -1153,7 +1153,7 @@ auto MCTacticalMap::RefreshPage() -> void
                 }
 
                 text->PrintWrapped(line.data(), color, -1);
-                text->Print(nullptr, 0x1f);
+                text->PrintBlank(0x1f);
             }
         }
 
@@ -1672,7 +1672,7 @@ auto MCTacticalMap::SetDisplayType(MCTacmapPage type) -> void
     {
         ChatWindow->ShowGuiWindow(0);
 
-        if (GuiSystem()->TextObject() == ChatWindow->ChatInput)
+        if (GuiSystem()->TextObject() == ChatWindow->ChatInput.get())
         {
             GuiSystem()->ReleaseText();
         }

@@ -1,6 +1,7 @@
 #pragma once
 
-#include "gui/awindow.h"
+#include "gui/MCGuiSystem.h"
+#include "gui/MCGuiTitleWindow.h"
 #include "lib/MCVector2D.h"
 
 class MCCamera;

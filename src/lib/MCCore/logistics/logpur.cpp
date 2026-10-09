@@ -1,6 +1,6 @@
 #include "stdafx.h"
 #include "logistics/logpur.h"
-#include "gui/scrlpane.h"
+#include "gui/MCScrollPane.h"
 #include "lib/MCFatal.h"
 #include "logistics/logbri.h"
 #include "logistics/logmain.h"
@@ -57,28 +57,18 @@ auto MCPurchaseScreen::Init() -> void
 
     auto* pane = new MCScrollPane;
 
-    if (pane != nullptr)
-    {
-        pane->Init();
-    }
-
     InventoryPane = pane;
     Assert(pane != nullptr, 0, " Not enough memory for inventory");
     pane->Init(0xb8, 0x10d, 8, 0x6b, static_cast<char*>(nullptr));
-    pane->SetDisplayPort(nullptr, -1, -1);
+    pane->ClearDisplayPort();
 
     auto* store = new MCScrollPane;
-
-    if (store != nullptr)
-    {
-        store->Init();
-    }
 
     UnitPane = store;
     Assert(store != nullptr, 0, "Not enough memory for vehicleScroll");
     std::snprintf(fileName, sizeof(fileName), "%slogart\\lsrbk01.tga", ArtPath);
     store->Init(0x1aa, 0x1cc, 0xd3, 0x11, fileName);
-    store->SetDisplayPort(nullptr, -1, -1);
+    store->ClearDisplayPort();
     AddChild(pane);
     AddChild(UnitPane);
     ShowGuiWindow(0);
@@ -113,14 +103,14 @@ auto MCPurchaseScreen::Destroy() -> void
     // The panes' ports were freed above or belong to the Logistics object.
     if (InventoryPane != nullptr)
     {
-        InventoryPane->SetDisplayPort(nullptr, 0, -1);
+        InventoryPane->ClearDisplayPort();
         delete InventoryPane;
         InventoryPane = nullptr;
     }
 
     if (UnitPane != nullptr)
     {
-        UnitPane->SetDisplayPort(nullptr, 0, -1);
+        UnitPane->ClearDisplayPort();
         delete UnitPane;
         UnitPane = nullptr;
     }

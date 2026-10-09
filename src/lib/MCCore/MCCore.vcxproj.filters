@@ -246,19 +246,7 @@
     <ClCompile Include="gameos\MCSoundResource.cpp">
       <Filter>gameos</Filter>
     </ClCompile>
-    <ClCompile Include="gui\ahelp.cpp">
-      <Filter>gui</Filter>
-    </ClCompile>
-    <ClCompile Include="gui\alistbox.cpp">
-      <Filter>gui</Filter>
-    </ClCompile>
-    <ClCompile Include="gui\ascroll.cpp">
-      <Filter>gui</Filter>
-    </ClCompile>
-    <ClCompile Include="gui\atextbox.cpp">
-      <Filter>gui</Filter>
-    </ClCompile>
-    <ClCompile Include="gui\awindow.cpp">
+    <ClCompile Include="gui\MCFloatHelp.cpp">
       <Filter>gui</Filter>
     </ClCompile>
     <ClCompile Include="gui\MCGuiAnimation.cpp">
@@ -267,7 +255,16 @@
     <ClCompile Include="gui\MCGuiButton.cpp">
       <Filter>gui</Filter>
     </ClCompile>
+    <ClCompile Include="gui\MCGuiButtonBar.cpp">
+      <Filter>gui</Filter>
+    </ClCompile>
     <ClCompile Include="gui\MCGuiCallback.cpp">
+      <Filter>gui</Filter>
+    </ClCompile>
+    <ClCompile Include="gui\MCGuiChatWindow.cpp">
+      <Filter>gui</Filter>
+    </ClCompile>
+    <ClCompile Include="gui\MCGuiComboBox.cpp">
       <Filter>gui</Filter>
     </ClCompile>
     <ClCompile Include="gui\MCGuiFont.cpp">
@@ -282,6 +279,12 @@
     <ClCompile Include="gui\MCGuiInput.cpp">
       <Filter>gui</Filter>
     </ClCompile>
+    <ClCompile Include="gui\MCGuiListBox.cpp">
+      <Filter>gui</Filter>
+    </ClCompile>
+    <ClCompile Include="gui\MCGuiMenu.cpp">
+      <Filter>gui</Filter>
+    </ClCompile>
     <ClCompile Include="gui\MCGuiMessageBox.cpp">
       <Filter>gui</Filter>
     </ClCompile>
@@ -291,10 +294,22 @@
     <ClCompile Include="gui\MCGuiPort.cpp">
       <Filter>gui</Filter>
     </ClCompile>
+    <ClCompile Include="gui\MCGuiScrollBar.cpp">
+      <Filter>gui</Filter>
+    </ClCompile>
+    <ClCompile Include="gui\MCGuiScrollTextObject.cpp">
+      <Filter>gui</Filter>
+    </ClCompile>
+    <ClCompile Include="gui\MCGuiSmackerWindow.cpp">
+      <Filter>gui</Filter>
+    </ClCompile>
     <ClCompile Include="gui\MCGuiSpinner.cpp">
       <Filter>gui</Filter>
     </ClCompile>
     <ClCompile Include="gui\MCGuiStartup.cpp">
+      <Filter>gui</Filter>
+    </ClCompile>
+    <ClCompile Include="gui\MCGuiStartupWindow.cpp">
       <Filter>gui</Filter>
     </ClCompile>
     <ClCompile Include="gui\MCGuiSystem.cpp">
@@ -303,16 +318,28 @@
     <ClCompile Include="gui\MCGuiSystemDisplay.cpp">
       <Filter>gui</Filter>
     </ClCompile>
+    <ClCompile Include="gui\MCGuiTextObject.cpp">
+      <Filter>gui</Filter>
+    </ClCompile>
     <ClCompile Include="gui\MCGuiTimerManager.cpp">
+      <Filter>gui</Filter>
+    </ClCompile>
+    <ClCompile Include="gui\MCGuiTitleBar.cpp">
+      <Filter>gui</Filter>
+    </ClCompile>
+    <ClCompile Include="gui\MCGuiTitleWindow.cpp">
+      <Filter>gui</Filter>
+    </ClCompile>
+    <ClCompile Include="gui\MCGuiTransparentTextObject.cpp">
       <Filter>gui</Filter>
     </ClCompile>
     <ClCompile Include="gui\MCHardwareCursor.cpp">
       <Filter>gui</Filter>
     </ClCompile>
-    <ClCompile Include="gui\scrlpane.cpp">
+    <ClCompile Include="gui\MCScrollPane.cpp">
       <Filter>gui</Filter>
     </ClCompile>
-    <ClCompile Include="gui\updisp.cpp">
+    <ClCompile Include="gui\MCUpdateDisplay.cpp">
       <Filter>gui</Filter>
     </ClCompile>
     <ClCompile Include="iface\MCCommandParser.cpp">
@@ -1189,19 +1216,7 @@
     <ClInclude Include="gameos\MCSoundResource.h">
       <Filter>gameos</Filter>
     </ClInclude>
-    <ClInclude Include="gui\ahelp.h">
-      <Filter>gui</Filter>
-    </ClInclude>
-    <ClInclude Include="gui\alistbox.h">
-      <Filter>gui</Filter>
-    </ClInclude>
-    <ClInclude Include="gui\ascroll.h">
-      <Filter>gui</Filter>
-    </ClInclude>
-    <ClInclude Include="gui\atextbox.h">
-      <Filter>gui</Filter>
-    </ClInclude>
-    <ClInclude Include="gui\awindow.h">
+    <ClInclude Include="gui\MCFloatHelp.h">
       <Filter>gui</Filter>
     </ClInclude>
     <ClInclude Include="gui\MCGuiAnimation.h">
@@ -1210,7 +1225,16 @@
     <ClInclude Include="gui\MCGuiButton.h">
       <Filter>gui</Filter>
     </ClInclude>
+    <ClInclude Include="gui\MCGuiButtonBar.h">
+      <Filter>gui</Filter>
+    </ClInclude>
     <ClInclude Include="gui\MCGuiCallback.h">
+      <Filter>gui</Filter>
+    </ClInclude>
+    <ClInclude Include="gui\MCGuiChatWindow.h">
+      <Filter>gui</Filter>
+    </ClInclude>
+    <ClInclude Include="gui\MCGuiComboBox.h">
       <Filter>gui</Filter>
     </ClInclude>
     <ClInclude Include="gui\MCGuiEvent.h">
@@ -1228,6 +1252,12 @@
     <ClInclude Include="gui\MCGuiInput.h">
       <Filter>gui</Filter>
     </ClInclude>
+    <ClInclude Include="gui\MCGuiListBox.h">
+      <Filter>gui</Filter>
+    </ClInclude>
+    <ClInclude Include="gui\MCGuiMenu.h">
+      <Filter>gui</Filter>
+    </ClInclude>
     <ClInclude Include="gui\MCGuiMessageBox.h">
       <Filter>gui</Filter>
     </ClInclude>
@@ -1240,25 +1270,49 @@
     <ClInclude Include="gui\MCGuiPort.h">
       <Filter>gui</Filter>
     </ClInclude>
+    <ClInclude Include="gui\MCGuiScrollBar.h">
+      <Filter>gui</Filter>
+    </ClInclude>
+    <ClInclude Include="gui\MCGuiScrollTextObject.h">
+      <Filter>gui</Filter>
+    </ClInclude>
+    <ClInclude Include="gui\MCGuiSmackerWindow.h">
+      <Filter>gui</Filter>
+    </ClInclude>
     <ClInclude Include="gui\MCGuiSpinner.h">
       <Filter>gui</Filter>
     </ClInclude>
     <ClInclude Include="gui\MCGuiStartup.h">
       <Filter>gui</Filter>
     </ClInclude>
+    <ClInclude Include="gui\MCGuiStartupWindow.h">
+      <Filter>gui</Filter>
+    </ClInclude>
     <ClInclude Include="gui\MCGuiSystem.h">
+      <Filter>gui</Filter>
+    </ClInclude>
+    <ClInclude Include="gui\MCGuiTextObject.h">
       <Filter>gui</Filter>
     </ClInclude>
     <ClInclude Include="gui\MCGuiTimerManager.h">
       <Filter>gui</Filter>
     </ClInclude>
+    <ClInclude Include="gui\MCGuiTitleBar.h">
+      <Filter>gui</Filter>
+    </ClInclude>
+    <ClInclude Include="gui\MCGuiTitleWindow.h">
+      <Filter>gui</Filter>
+    </ClInclude>
+    <ClInclude Include="gui\MCGuiTransparentTextObject.h">
+      <Filter>gui</Filter>
+    </ClInclude>
     <ClInclude Include="gui\MCHardwareCursor.h">
       <Filter>gui</Filter>
     </ClInclude>
-    <ClInclude Include="gui\scrlpane.h">
+    <ClInclude Include="gui\MCScrollPane.h">
       <Filter>gui</Filter>
     </ClInclude>
-    <ClInclude Include="gui\updisp.h">
+    <ClInclude Include="gui\MCUpdateDisplay.h">
       <Filter>gui</Filter>
     </ClInclude>
     <ClInclude Include="iface\MCCommandParser.h">

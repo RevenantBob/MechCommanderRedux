@@ -4,8 +4,8 @@
 #include "platform/MCDisplay.h"
 #include "gui/MCGuiFont.h"
 #include "gui/MCGuiSystem.h"
-#include "gui/scrlpane.h"
-#include "gui/updisp.h"
+#include "gui/MCScrollPane.h"
+#include "gui/MCUpdateDisplay.h"
 #include "lib/MCFatal.h"
 #include "lib/MCIDString.h"
 #include "lib/MCFile.h"
@@ -9004,7 +9004,7 @@ auto MCLogistics::Darken(int32_t amount, char* fadeTable, MCLogPort* port) -> vo
 
     if (port == nullptr)
     {
-        RepairScreen->UnitPane->GetDisplayPort(port);
+        port = RepairScreen->UnitPane->ContentPort;
         width = 0x19d;
         height = 0x70;
     }

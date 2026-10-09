@@ -2,7 +2,6 @@
 #include "abl/MCAblRoutineList.h"
 #include "ai/MCMoveSystem.h"
 #include "gui/MCGuiSystem.h"
-#include "gui/atextbox.h"
 #include "iface/MCTacticalInterface.h"
 #include "lib/MCDice.h"
 #include "lib/MCFatal.h"

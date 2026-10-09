@@ -7,7 +7,7 @@
 #include "engine/MCElementBuffer.h"
 #include "gui/MCGuiPort.h"
 #include "gui/MCGuiSystem.h"
-#include "gui/awindow.h"
+#include "gui/MCGuiTitleWindow.h"
 #include "lib/MCFatal.h"
 #include "lib/MCFile.h"
 #include "lib/MCFitIniFile.h"

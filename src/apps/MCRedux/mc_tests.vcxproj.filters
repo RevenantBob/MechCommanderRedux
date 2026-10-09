@@ -84,6 +84,9 @@
     <ClCompile Include="tests\GroundVehicleTests.cpp">
       <Filter>tests</Filter>
     </ClCompile>
+    <ClCompile Include="tests\GuiControlTests.cpp">
+      <Filter>tests</Filter>
+    </ClCompile>
     <ClCompile Include="tests\GuiObjectTests.cpp">
       <Filter>tests</Filter>
     </ClCompile>

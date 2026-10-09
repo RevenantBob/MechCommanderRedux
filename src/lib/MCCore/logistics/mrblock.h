@@ -1,6 +1,6 @@
 #pragma once
 
-#include "gui/scrlpane.h"
+#include "gui/MCScrollPane.h"
 #include "logistics/lport.h"
 
 class MCGuiEvent;

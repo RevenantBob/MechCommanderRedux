@@ -2,7 +2,7 @@
 
 #include "abl/MCScrollingTextWindow.h"
 #include "gui/MCGuiOwned.h"
-#include "gui/awindow.h"
+#include "gui/MCGuiTitleWindow.h"
 
 class MCGuiTextObject;
 

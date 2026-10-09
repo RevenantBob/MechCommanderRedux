@@ -7,8 +7,8 @@
 #include "gui/MCGuiButton.h"
 #include "gui/MCGuiFont.h"
 #include "gui/MCGuiPort.h"
-#include "gui/atextbox.h"
-#include "gui/updisp.h"
+#include "gui/MCGuiScrollTextObject.h"
+#include "gui/MCUpdateDisplay.h"
 #include "iface/MCFriendlyMechIcon.h"
 #include "iface/MCTacticalInterface.h"
 #include "linkup/dpplayer.h"
@@ -620,7 +620,7 @@ auto MCMissionResultsScreen::StepDebriefing() -> void
     MCGuiScrollTextObject* text = _TextObject;
     text->ShowGuiWindow(1);
 
-    if (text->TextBuffer == nullptr || text->TextBuffer[0] == '\0')
+    if (text->TextBuffer.empty())
     {
         std::string line = LoadGameString(0x361, 0xfe);
         text->FontIndex = 1;

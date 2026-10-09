@@ -1,6 +1,6 @@
 #include "stdafx.h"
 #include "sound/MCRadio.h"
-#include "gui/awindow.h"
+#include "gui/MCGuiSmackerWindow.h"
 #include "lib/MCDice.h"
 #include "lib/MCFatal.h"
 #include "lib/MCFile.h"
@@ -239,7 +239,7 @@ int32_t MCRadio::PlayMessage(MCRadioMessageType msgType)
     {
         message->MovieWindow = std::make_unique<MCGuiSmackerWindow>();
         tagRECT area = tacMap->GetVideoRect();
-        message->MovieWindow->Init(&area, nullptr);
+        message->MovieWindow->Init(area, nullptr);
         const std::string videoName = std::format("{}{}", MovieName, info.MovieCode);
         message->Movie = SmackOpen(GamePath(MoviePath, videoName, ".smk").c_str(), 0xfe000, -1);
     }

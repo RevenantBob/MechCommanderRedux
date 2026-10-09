@@ -2,7 +2,7 @@
 #include "logistics/loggen.h"
 #include "color/MCPalette.h"
 #include "gui/MCGuiFont.h"
-#include "gui/updisp.h"
+#include "gui/MCUpdateDisplay.h"
 #include "lib/MCFatal.h"
 #include "lib/MCIDString.h"
 #include "lib/MCFile.h"
@@ -236,7 +236,6 @@ namespace
     {
         auto* pane = new MCFileScrollPane;
         // The inlined constructors each clear the scroll pane.
-        pane->MCScrollPane::Init();
         pane->Init(xPos, yPos, width, height);
 
         if (file->ReadIdBoolean("SavePane", pane->SavePane) != 0)
@@ -774,9 +773,6 @@ auto MCFileScrollPane::Init(int32_t xPos, int32_t yPos, int32_t width, int32_t h
         AddChild(header);
         RemoveChild(ColumnHeaders[i]);
     }
-
-    // The slider's clean track, to erase the slider with.
-    std::memcpy(TrackImage, SliderPort->Frame()->Window->Buffer, static_cast<size_t>(height * SliderWidth));
 }
 
 auto MCFileScrollPane::Destroy() -> void
@@ -882,7 +878,7 @@ auto MCFileScrollPane::Display() -> void
 {
     if (IsShowing() != 0)
     {
-        DrawInFramePass(PanePort, 0, false, false);
+        DrawInFramePass(PanePort.get(), 0, false, false);
     }
 
     for (MCFileColumnHeader* header : ColumnHeaders)
@@ -991,49 +987,6 @@ auto MCFileScrollPane::HandleEvent(MCGuiEvent* event) -> void
     }
 }
 
-auto MCFileScrollPane::SetUpSlider() -> void
-{
-    const int32_t paneHeight = WinHeight;
-
-    if (ContentPort->Height() <= paneHeight)
-    {
-        SliderHeight = 0;
-        return;
-    }
-
-    if (SliderImage != nullptr)
-    {
-        LogFree(SliderImage);
-    }
-
-    const float paneHeightF = static_cast<float>(paneHeight);
-    SliderHeight = static_cast<int32_t>(static_cast<double>(paneHeightF) / ContentPort->Height() * (paneHeight - 0x20));
-    SliderPos = 0x10;
-
-    if (SliderHeight < 3)
-    {
-        SliderHeight = 3;
-    }
-
-    const uint32_t size = static_cast<uint32_t>(SliderHeight * SliderWidth);
-    SliderImageSize = size;
-    auto* image = static_cast<uint8_t*>(LogAlloc(size));
-    SliderImage = image;
-    // As ScrollPane's slider, with the splash screens' edge colour (0xc0).
-    static constexpr uint8_t sliderRow[SliderWidth] = {0xc0, 0x10, 0x1c, 0x1a, 0x1a, 0x1a, 0x1a,
-                                                       0x1a, 0x1a, 0x1a, 0x17, 0x10, 0xc0};
-
-    for (int32_t row = 0; row < SliderHeight; row++)
-    {
-        std::memcpy(image + row * SliderWidth, sliderRow, SliderWidth);
-    }
-
-    std::memset(image + 3, 0x1c, 8);
-    std::memset(image + size - 11, 0x17, 9);
-    // The pane draws the slider from its texture.
-    MakeSliderTexture();
-}
-
 auto MCFileScrollPane::GetFileAtPosition(int32_t xPos, int32_t yPos) -> int32_t
 {
     const int32_t contentY = GetScrollOffset() + yPos;
@@ -1071,7 +1024,7 @@ auto MCFileScrollPane::LayoutFiles() -> void
     {
         MCLogPort* port = ContentPort;
         port->Resize(Width() - 0x12, contentHeight);
-        SetDisplayPort(port, 0, -1);
+        SetDisplayPort(port, true);
     }
 }
 

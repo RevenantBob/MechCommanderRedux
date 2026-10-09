@@ -86,6 +86,7 @@
     <ClCompile Include="tests\FrameHashTests.cpp" />
     <ClCompile Include="tests\GpuDrawingTests.cpp" />
     <ClCompile Include="tests\GroundVehicleTests.cpp" />
+    <ClCompile Include="tests\GuiControlTests.cpp" />
     <ClCompile Include="tests\GuiObjectTests.cpp" />
     <ClCompile Include="tests\GuiTests.cpp" />
     <ClCompile Include="tests\IniFileTests.cpp" />

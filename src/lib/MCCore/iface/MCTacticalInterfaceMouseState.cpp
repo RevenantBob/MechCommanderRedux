@@ -3,7 +3,7 @@
 #include "ai/MCMoveSystem.h"
 #include "camera/MCCamera.h"
 #include "camera/MCMainWindow.h"
-#include "gui/ahelp.h"
+#include "gui/MCFloatHelp.h"
 #include "iface/MCMechBar.h"
 #include "linkup/dpplayer.h"
 #include "linkup/sessionmanager.h"

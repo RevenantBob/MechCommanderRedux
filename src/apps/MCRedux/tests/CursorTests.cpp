@@ -2,7 +2,7 @@
 #include "MCTest.h"
 #include "TestGame.h"
 #include "gui/MCHardwareCursor.h"
-#include "gui/updisp.h"
+#include "gui/MCUpdateDisplay.h"
 #include "lib/MCPacketFile.h"
 #include "vfx/MCAgShape.h"
 #include "vfx/MCVfxFunctions.h"

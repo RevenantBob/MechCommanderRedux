@@ -41,6 +41,14 @@ namespace MCGuiEventType
     inline constexpr int32_t SpinUp = 0x15;
     /// <summary>A spinner's down arrow was pressed.</summary>
     inline constexpr int32_t SpinDown = 0x16;
+    /// <summary>Enter was pressed in a text field (posted to the field's parent).</summary>
+    inline constexpr int32_t TextEntered = 0x17;
+    /// <summary>A title bar's zoom button was pressed (posted to the window).</summary>
+    inline constexpr int32_t ZoomIn = 0x1a;
+    /// <summary>A title bar's zoom-out button was pressed (posted to the window).</summary>
+    inline constexpr int32_t ZoomOut = 0x1b;
+    /// <summary>A camera window lets go of its target.</summary>
+    inline constexpr int32_t ClearTarget = 0x1c;
     /// <summary>The keyboard focus changed: <see cref="MCGuiEvent::Data"/> is 7 when gained, 8 when lost.</summary>
     inline constexpr int32_t Focus = 0x1e;
     /// <summary>The first posted game message (WM_USER + 0x1000).</summary>

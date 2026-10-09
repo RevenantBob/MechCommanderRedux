@@ -1,6 +1,6 @@
 #include "stdafx.h"
+#include "gui/MCGuiSmackerWindow.h"
 #include "sound/MCRadioMessage.h"
-#include "gui/awindow.h"
 
 MCRadioMessage::MCRadioMessage() = default;
 

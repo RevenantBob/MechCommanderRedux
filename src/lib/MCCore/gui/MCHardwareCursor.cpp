@@ -1,7 +1,7 @@
 #include "stdafx.h"
 #include "gui/MCHardwareCursor.h"
 #include "gui/MCGuiSystem.h"
-#include "gui/updisp.h"
+#include "gui/MCUpdateDisplay.h"
 #include "platform/MCInput.h"
 #include "vfx/MCVfxFunctions.h"
 

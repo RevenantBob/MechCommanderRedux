@@ -5,7 +5,7 @@
 #include "gui/MCGuiInput.h"
 #include "gui/MCGuiPort.h"
 #include "gui/MCGuiSystem.h"
-#include "gui/updisp.h"
+#include "gui/MCUpdateDisplay.h"
 #include "platform/MCDisplay.h"
 #include "platform/MCInput.h"
 

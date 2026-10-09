@@ -1,7 +1,7 @@
 #pragma once
 
 #include "gui/MCGuiSystem.h"
-#include "gui/scrlpane.h"
+#include "gui/MCScrollPane.h"
 #include "logistics/lport.h"
 
 class MCGuiFont;
@@ -538,8 +538,8 @@ public:
     /// <summary>Selecting a file (fills the entry field on a save pane), scrolling, and double clicks.</summary>
     void HandleEvent(MCGuiEvent* event) override;
 
-    /// <summary>Sizes the slider to the number of files.</summary>
-    void SetUpSlider() override;
+    /// <summary>The splash screens' slider edge colour.</summary>
+    uint8_t SliderEdgeColor() const override { return 0xc0; }
 
     /// <summary>The file under (<paramref name="xPos"/>, <paramref name="yPos"/>), or -1.</summary>
     int32_t GetFileAtPosition(int32_t xPos, int32_t yPos);

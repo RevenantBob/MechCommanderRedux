@@ -78,5 +78,4 @@ bool DrawTerrainGrid = false;
 bool AndyFramerate = false;
 std::recursive_mutex MouseCritSec;
 volatile int InMouseCritSec = 0;
-int AGMouseFrame = 0;
 int MouseThreadStarted = 0;

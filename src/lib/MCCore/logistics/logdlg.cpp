@@ -1,7 +1,7 @@
 #include "stdafx.h"
 #include "logistics/logdlg.h"
 #include "gui/MCGuiFont.h"
-#include "gui/updisp.h"
+#include "gui/MCUpdateDisplay.h"
 #include "lib/MCFatal.h"
 #include "logistics/logbri.h"
 #include "logistics/logmain.h"

@@ -1,47 +1,62 @@
 #include "stdafx.h"
-#include "gui/ascroll.h"
-#include "gui/MCGuiPort.h"
+#include "gui/MCGuiScrollBar.h"
+#include "gui/MCGuiSystem.h"
 #include "platform/MCInput.h"
 #include "vfx/MCVfxFunctions.h"
 
-// Event types the bar's children post to it (the arrow's or area's id) and the thumb sends it directly.
 namespace
 {
-    /// <summary>The event type a timer fires (<c>aEvent::data</c> holds the timer id).</summary>
-    constexpr int32_t TimerEvent = 0x13;
     /// <summary>The first repeat timer (1 s), replaced by the fast one (200 ms) once it fires.</summary>
-    constexpr int16_t RepeatDelayTimer = 4;
-    constexpr int16_t RepeatTimer = 5;
-    /// <summary>The thumb was dragged: <c>lParam</c> holds the new position.</summary>
-    constexpr int32_t ThumbDragged = 0x6a;
-    /// <summary>Sets the position (<c>lParam</c>) without telling the parent.</summary>
-    constexpr int32_t SetPositionQuietly = 0x6b;
-    /// <summary>What the bar posts its parent when the position changed.</summary>
-    constexpr int32_t ScrollChanged = 0x6c;
+    constexpr int32_t RepeatDelayTimer = 4;
+    constexpr int32_t RepeatTimer = 5;
+
+    /// <summary>Makes an arrow or area of a bar: placed, posting <paramref name="message"/>, added to the bar.</summary>
+    template <typename TPart>
+    std::expected<MCGuiOwned<TPart>, int32_t> MakePart(MCGuiScrollBar* bar, int32_t height, int32_t artPacket,
+                                                       int32_t message)
+    {
+        auto part = MCMakeGui<TPart>();
+
+        if (const int32_t result = part->Init(0, 0, 0x10, height, nullptr); result != 0)
+        {
+            return std::unexpected(result);
+        }
+
+        if (artPacket != 0)
+        {
+            if (const int32_t result = part->SetBackground(artPacket); result != 0)
+            {
+                return std::unexpected(result);
+            }
+        }
+
+        part->Message = message;
+        part->SetEventRoutine(ScrollEventHandler);
+        return part;
+    }
 }
 
 auto ScrollEventHandler(MCGuiObject* obj, MCGuiEvent* event) -> void
 {
-    // aScrollButton and aScrollArea both keep their id byte at +0x4ac.
-    const uint8_t id = static_cast<MCGuiScrollButton*>(obj)->ButtonId;
+    const int32_t message = static_cast<MCGuiScrollButton*>(obj)->Message;
 
     switch (event->Type)
     {
-        case 1:
+        case MCGuiEventType::LeftButtonDown:
         {
             GuiSystem()->Grab(obj);
             GuiSystem()->AddTimer(obj, RepeatDelayTimer, 1000, 0, 0, 0);
-            APostMessage(obj->Parent, id);
+            APostMessage(obj->Parent, message);
             break;
         }
-        case 4:
+        case MCGuiEventType::LeftButtonUp:
         {
             GuiSystem()->Release();
             GuiSystem()->RemoveTimer(obj, RepeatDelayTimer);
             GuiSystem()->RemoveTimer(obj, RepeatTimer);
             break;
         }
-        case TimerEvent:
+        case MCGuiEventType::Timer:
         {
             if (event->Data == RepeatDelayTimer)
             {
@@ -49,7 +64,7 @@ auto ScrollEventHandler(MCGuiObject* obj, MCGuiEvent* event) -> void
                 GuiSystem()->AddTimer(obj, RepeatTimer, 200, 0, 0, 0);
             }
 
-            APostMessage(obj->Parent, id);
+            APostMessage(obj->Parent, message);
             break;
         }
         default:
@@ -63,33 +78,30 @@ auto ScrollTabHandler(MCGuiObject* obj, MCGuiEvent* event) -> void
 
     switch (event->Type)
     {
-        case 1:
+        case MCGuiEventType::LeftButtonDown:
         {
             // Centre the cursor on the thumb, then drag it.
-            const int32_t cursorX = obj->Width() / 2 + obj->GlobalX();
-            const int32_t cursorY = obj->Height() / 2 + obj->GlobalY();
-            MCInput::SetCursorPos(cursorX, cursorY);
+            MCInput::SetCursorPos(obj->Width() / 2 + obj->GlobalX(), obj->Height() / 2 + obj->GlobalY());
             GuiSystem()->Grab(obj);
             break;
         }
-
-        case 4:
+        case MCGuiEventType::LeftButtonUp:
             GuiSystem()->Release();
             break;
-        case 7:
+        case MCGuiEventType::MouseMove:
         {
             if (GuiSystem()->GrabbedObject() == obj)
             {
                 const int32_t offset = event->Y - bar->GlobalY();
                 const int32_t steps = (bar->ScrollMax * offset) / (bar->Height() - 0x12);
-                const float newPos = static_cast<float>(static_cast<double>(steps) + 0.5);
+                const auto newPos = static_cast<int32_t>(static_cast<float>(static_cast<double>(steps) + 0.5));
 
-                if (static_cast<int16_t>(static_cast<int32_t>(newPos)) != bar->ScrollPos)
+                if (newPos != bar->ScrollPos)
                 {
                     MCGuiEvent dragEvent;
                     dragEvent.Clear();
-                    dragEvent.Type = ThumbDragged;
-                    dragEvent.LParam = static_cast<int32_t>(newPos);
+                    dragEvent.Type = MCGuiScrollMessage::ThumbDragged;
+                    dragEvent.LParam = newPos;
                     bar->HandleEvent(&dragEvent);
                 }
             }
@@ -122,132 +134,75 @@ auto ScrollTabPaint(MCGuiObject* obj) -> void
     VfxLineDraw(pane, 2, height - 3, width - 3, height - 3, 0x37);
 }
 
-MCGuiScrollBar::MCGuiScrollBar() = default;
+// MCGuiScrollBar
 
 auto MCGuiScrollBar::Init(int32_t xPos, int32_t yPos, int32_t, int32_t height, const char* name) -> int32_t
 {
-    constexpr int32_t outOfMemory = -0x1111fffe;
-
-    int32_t result = MCGuiObject::Init(xPos, yPos, 0x12, height, name);
-
-    if (result != 0)
+    if (const int32_t result = MCGuiObject::Init(xPos, yPos, 0x12, height, name); result != 0)
     {
         return result;
     }
 
-    UpButton = new MCGuiScrollButton;
+    auto up = MakePart<MCGuiScrollButton>(this, 8, 0x27, MCGuiScrollMessage::LineUp);
 
-    if (UpButton == nullptr)
+    if (!up)
     {
-        return outOfMemory;
+        return up.error();
     }
 
-    result = UpButton->Init(0, 0, 0x10, 8, nullptr);
+    UpButton = std::move(*up);
+    AddChild(UpButton.get());
+    UpButton->MoveTo(1, 1);
 
-    if (result != 0)
+    auto down = MakePart<MCGuiScrollButton>(this, 8, 0x28, MCGuiScrollMessage::LineDown);
+
+    if (!down)
     {
-        return result;
+        return down.error();
     }
 
-    result = UpButton->SetBackground(0x27);
+    DownButton = std::move(*down);
+    AddChild(DownButton.get());
+    DownButton->MoveTo(1, height - 9);
 
-    if (result != 0)
+    auto upArea = MakePart<MCGuiScrollArea>(this, 1, 0, MCGuiScrollMessage::PageUp);
+
+    if (!upArea)
     {
-        return result;
+        return upArea.error();
     }
 
-    AddChild(UpButton);
-    UpButton->MoveTo(1, 1, 0);
-    UpButton->ButtonId = 0x65;
-    UpButton->SetEventRoutine(ScrollEventHandler);
+    UpArea = std::move(*upArea);
+    AddChild(UpArea.get());
+    UpArea->MoveTo(1, 9);
 
-    DownButton = new MCGuiScrollButton;
+    auto downArea = MakePart<MCGuiScrollArea>(this, 1, 0, MCGuiScrollMessage::PageDown);
 
-    if (DownButton == nullptr)
+    if (!downArea)
     {
-        return outOfMemory;
+        return downArea.error();
     }
 
-    result = DownButton->Init(0, 0, 0x10, 8, nullptr);
+    DownArea = std::move(*downArea);
+    DownArea->MoveTo(1, Height() - 1);
+    AddChild(DownArea.get());
 
-    if (result != 0)
-    {
-        return result;
-    }
-
-    result = DownButton->SetBackground(0x28);
-
-    if (result != 0)
-    {
-        return result;
-    }
-
-    AddChild(DownButton);
-    DownButton->MoveTo(1, height - 9, 0);
-    DownButton->ButtonId = 0x66;
-    DownButton->SetEventRoutine(ScrollEventHandler);
-
-    UpArea = new MCGuiScrollArea;
-
-    if (UpArea == nullptr)
-    {
-        return outOfMemory;
-    }
-
-    result = UpArea->Init(0, 0, 0x10, 1, nullptr);
-
-    if (result != 0)
-    {
-        return result;
-    }
-
-    AddChild(UpArea);
-    UpArea->MoveTo(1, 9, 0);
-    UpArea->AreaId = 0x67;
-    UpArea->SetEventRoutine(ScrollEventHandler);
-
-    DownArea = new MCGuiScrollArea;
-
-    if (DownArea == nullptr)
-    {
-        return outOfMemory;
-    }
-
-    result = DownArea->Init(0, 0, 0x10, 1, nullptr);
-
-    if (result != 0)
-    {
-        return result;
-    }
-
-    DownArea->MoveTo(1, this->Height() - 1, 0);
-    AddChild(DownArea);
-    DownArea->AreaId = 0x68;
-    DownArea->SetEventRoutine(ScrollEventHandler);
-
-    ScrollTab = new MCGuiObject;
-
-    if (ScrollTab == nullptr)
-    {
-        return outOfMemory;
-    }
-
+    ScrollTab = MCMakeGui<MCGuiObject>();
     ScrollTab->SetDrawsLive();
-    result = ScrollTab->Init(0, 0, 0x10, 0x10, nullptr);
 
-    if (result != 0)
+    if (const int32_t result = ScrollTab->Init(0, 0, 0x10, 0x10, nullptr); result != 0)
     {
         return result;
     }
 
-    AddChild(ScrollTab);
-    ScrollTab->MoveTo(1, 8, 0);
+    AddChild(ScrollTab.get());
+    ScrollTab->MoveTo(1, 8);
     ScrollTab->SetBackColor(6);
     ScrollTab->SetEventRoutine(ScrollTabHandler);
     ScrollTab->SetPaintRoutine(ScrollTabPaint);
 
     SetBackColor(0xb);
-    MoveTo(xPos, yPos, 0);
+    MoveTo(xPos, yPos);
     SetDepth(10);
     UpArea->SetDepth(0xb);
     DownArea->SetDepth(0xb);
@@ -261,48 +216,38 @@ auto MCGuiScrollBar::Init(int32_t xPos, int32_t yPos, int32_t, int32_t height, c
 
 auto MCGuiScrollBar::Destroy() -> void
 {
-    auto release = [](auto*& child)
-    {
-        if (child != nullptr)
-        {
-            child->Destroy();
-            delete child;
-            child = nullptr;
-        }
-    };
-
-    release(UpArea);
-    release(DownArea);
-    release(UpButton);
-    release(DownButton);
-    release(ScrollTab);
+    UpArea.reset();
+    DownArea.reset();
+    UpButton.reset();
+    DownButton.reset();
+    ScrollTab.reset();
     MCGuiObject::Destroy();
 }
 
 auto MCGuiScrollBar::HandleEvent(MCGuiEvent* event) -> void
 {
-    int16_t newPos;
+    int32_t newPos = 0;
 
     switch (event->Type)
     {
-        case 0x65:
-            newPos = static_cast<int16_t>(ScrollPos - 1);
+        case MCGuiScrollMessage::LineUp:
+            newPos = ScrollPos - 1;
             break;
-        case 0x66:
-            newPos = static_cast<int16_t>(ScrollPos + 1);
+        case MCGuiScrollMessage::LineDown:
+            newPos = ScrollPos + 1;
             break;
-        case 0x67:
-            newPos = static_cast<int16_t>(ScrollPos - 10);
+        case MCGuiScrollMessage::PageUp:
+            newPos = ScrollPos - 10;
             break;
-        case 0x68:
-            newPos = static_cast<int16_t>(ScrollPos + 10);
+        case MCGuiScrollMessage::PageDown:
+            newPos = ScrollPos + 10;
             break;
-        case ThumbDragged:
-            newPos = static_cast<int16_t>(event->LParam);
+        case MCGuiScrollMessage::ThumbDragged:
+            newPos = event->LParam;
             break;
-        case SetPositionQuietly:
+        case MCGuiScrollMessage::SetPositionQuietly:
         {
-            SetScrollPos(static_cast<int16_t>(event->LParam));
+            SetScrollPos(event->LParam);
             return;
         }
         default:
@@ -313,28 +258,29 @@ auto MCGuiScrollBar::HandleEvent(MCGuiEvent* event) -> void
 
     if (Parent != nullptr)
     {
-        APostMessage(Parent, ScrollChanged);
+        APostMessage(Parent, MCGuiScrollMessage::Changed);
     }
 }
 
 auto MCGuiScrollBar::Draw() -> void
 {
-    VfxPaneWipe(DisplayPort->Frame(), BackgroundColor);
-    VfxLineDraw(DisplayPort->Frame(), 0, 0, Width() - 1, 0, 0xf);
-    VfxLineDraw(DisplayPort->Frame(), Width() - 1, 0, Width() - 1, Height() - 1, 0xf);
-    VfxLineDraw(DisplayPort->Frame(), 0, Height() - 1, Width() - 1, Height() - 1, 0xf);
-    VfxLineDraw(DisplayPort->Frame(), 0, 0, 0, Height() - 1, 0xf);
+    MCPane* pane = DisplayPort->Frame();
+    VfxPaneWipe(pane, BackgroundColor);
+    VfxLineDraw(pane, 0, 0, Width() - 1, 0, 0xf);
+    VfxLineDraw(pane, Width() - 1, 0, Width() - 1, Height() - 1, 0xf);
+    VfxLineDraw(pane, 0, Height() - 1, Width() - 1, Height() - 1, 0xf);
+    VfxLineDraw(pane, 0, 0, 0, Height() - 1, 0xf);
     MCGuiObject::Draw();
 }
 
-auto MCGuiScrollBar::SetScrollMax(int16_t newMax) -> void
+auto MCGuiScrollBar::SetScrollMax(int32_t newMax) -> void
 {
     ScrollMax = newMax;
     ScrollTab->ShowGuiWindow(newMax != 0);
     ResizeAreas();
 }
 
-auto MCGuiScrollBar::SetScrollPos(int16_t newPos) -> void
+auto MCGuiScrollBar::SetScrollPos(int32_t newPos) -> void
 {
     if (newPos < 0)
     {
@@ -359,11 +305,13 @@ auto MCGuiScrollBar::ResizeAreas() -> void
 
     // The thumb (16 high) travels between the arrows (9 each) and a 1-pixel border.
     const int32_t tabTop = (ScrollPos * (Height() - 0x22)) / ScrollMax;
-    ScrollTab->MoveTo(1, tabTop + 9, 0);
+    ScrollTab->MoveTo(1, tabTop + 9);
     UpArea->Resize(0x10, tabTop);
     DownArea->Resize(0x10, Height() + (-0x11 - (tabTop + 0x10)));
-    DownArea->MoveTo(1, tabTop + 0x19, 0);
+    DownArea->MoveTo(1, tabTop + 0x19);
 }
+
+// MCGuiScrollArea
 
 auto MCGuiScrollArea::Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, const char*) -> int32_t
 {
@@ -390,20 +338,6 @@ auto MCGuiScrollArea::Init(int32_t xPos, int32_t yPos, int32_t width, int32_t he
     Animating = false;
     IconAnimation.reset();
     return 0;
-}
-
-auto MCGuiScrollArea::Destroy() -> void
-{
-    FramePane.reset();
-    ChildList.clear();
-
-    if (Parent != nullptr)
-    {
-        Parent->RemoveChild(this);
-    }
-
-    Parent = nullptr;
-    Animating = false;
 }
 
 auto MCGuiScrollArea::HandleEvent(MCGuiEvent* event) -> void

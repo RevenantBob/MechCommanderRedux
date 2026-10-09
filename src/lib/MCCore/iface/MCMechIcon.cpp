@@ -1,7 +1,7 @@
 #include "stdafx.h"
 #include "iface/MCMechIcon.h"
 #include "color/MCPalette.h"
-#include "gui/ahelp.h"
+#include "gui/MCFloatHelp.h"
 #include "iface/MCMechBar.h"
 #include "iface/MCTacticalInterface.h"
 #include "mission/MCScenario.h"

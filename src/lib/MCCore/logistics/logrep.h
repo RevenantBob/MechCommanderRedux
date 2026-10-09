@@ -47,7 +47,7 @@ public:
     /// into each frame (the original painted each block into a picture, and copied rows about in new ones as the
     /// force changed).
     /// </summary>
-    static MCLogPort* NewUnitRowsView(MCScrollPane* pane);
+    static std::unique_ptr<MCLogPort> NewUnitRowsView(MCScrollPane* pane);
 
     /// <summary>The tabs, the screen buttons, the resource display toggle and the help text.</summary>
     void HandleEvent(MCGuiEvent* event) override;

@@ -2,7 +2,7 @@
 #include "sound/MCSoundSystem.h"
 #include "camera/MCCamera.h"
 #include "gameos/MCSoundRenderer.h"
-#include "gui/awindow.h"
+#include "gui/MCGuiSmackerWindow.h"
 #include "lib/MCDice.h"
 #include "lib/MCFatal.h"
 #include "lib/MCFile.h"

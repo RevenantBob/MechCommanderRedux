@@ -4,7 +4,7 @@
 #include "camera/MCCamera.h"
 #include "camera/MCMainWindow.h"
 #include "gui/MCGuiFont.h"
-#include "gui/ahelp.h"
+#include "gui/MCFloatHelp.h"
 #include "iface/MCCommandParser.h"
 #include "iface/MCMechBar.h"
 #include "iface/MCOrderSink.h"

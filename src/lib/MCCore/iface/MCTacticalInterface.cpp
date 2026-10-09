@@ -3,7 +3,7 @@
 #include "camera/MCCamera.h"
 #include "gui/MCGuiInput.h"
 #include "camera/MCMainWindow.h"
-#include "gui/ahelp.h"
+#include "gui/MCFloatHelp.h"
 #include "iface/MCCommandParser.h"
 #include "iface/MCMechBar.h"
 #include "iface/MCOrderSink.h"

@@ -1,7 +1,7 @@
 #include "stdafx.h"
 #include "logistics/logscrn.h"
 #include "gui/MCGuiFont.h"
-#include "gui/scrlpane.h"
+#include "gui/MCScrollPane.h"
 #include "lib/MCFatal.h"
 #include "linkup/dpplayer.h"
 #include "linkup/sessionmanager.h"
@@ -328,7 +328,7 @@ auto MCLogInvScreen::CreateVehiclePane() -> void
     int32_t row = 0;
     MCScrollPane* pane = GlobalLogPtr->RepairScreen->UnitPane;
     int32_t count = GlobalLogPtr->ForceVehicleList->GetVehicleCount() + GlobalLogPtr->ForceMechList->GetMechCount();
-    pane->SetDisplayPort(MCRepairScreen::NewUnitRowsView(pane), -1, -1);
+    pane->SetDisplayPort(MCRepairScreen::NewUnitRowsView(pane), true);
 
     int32_t yPos = 0;
 
@@ -374,7 +374,7 @@ auto MCLogInvScreen::CreatePurVehiclePane(int redraw) -> void
         // The store's mechs.
         MCLogPort* port = StoreView(screen->PurMechPort, MCStoreTab::Mechs, pane, width,
                                     GlobalLogPtr->PurMechList->GetMechCount() * UnitBlockHeight, 0x10);
-        pane->SetDisplayPort(port, 0, -1);
+        pane->SetDisplayPort(port, true);
         MCPurMech* purMech = GlobalLogPtr->PurMechList->First;
 
         if (GlobalLogPtr->PurMechList->GetMechCount() > 0)
@@ -568,8 +568,8 @@ auto MCLogInvScreen::SetUpMechInv(int scrollPos, int redrawTabs) -> void
         block->MoveTo(0, block->ListIndex * InvBlockHeight, 0);
     }
 
-    GlobalLogPtr->PurchaseScreen->InventoryPane->SetDisplayPort(GlobalLogPtr->InvTabPorts[0], 0, scrollPos);
-    GlobalLogPtr->RepairScreen->InventoryPane->SetDisplayPort(GlobalLogPtr->InvTabPorts[0], 0, scrollPos);
+    GlobalLogPtr->PurchaseScreen->InventoryPane->SetDisplayPort(GlobalLogPtr->InvTabPorts[0], scrollPos != 0);
+    GlobalLogPtr->RepairScreen->InventoryPane->SetDisplayPort(GlobalLogPtr->InvTabPorts[0], scrollPos != 0);
 }
 
 auto MCLogInvScreen::SetUpMechPurchase() -> void
@@ -582,7 +582,7 @@ auto MCLogInvScreen::SetUpMechPurchase() -> void
     }
 
     ClearPane(screen->UnitPane);
-    screen->UnitPane->SetDisplayPort(screen->PurMechPort, 0, -1);
+    screen->UnitPane->SetDisplayPort(screen->PurMechPort, true);
     int32_t row = 0;
 
     for (MCPurMech* purMech = GlobalLogPtr->PurMechList->First; purMech != nullptr; purMech = purMech->Next)
@@ -648,8 +648,8 @@ auto MCLogInvScreen::SetUpPilotInv(int scrollPos, int redrawTabs) -> void
         yPos += InvBlockHeight;
     }
 
-    GlobalLogPtr->PurchaseScreen->InventoryPane->SetDisplayPort(GlobalLogPtr->InvTabPorts[1], 0, scrollPos);
-    GlobalLogPtr->RepairScreen->InventoryPane->SetDisplayPort(GlobalLogPtr->InvTabPorts[1], 0, scrollPos);
+    GlobalLogPtr->PurchaseScreen->InventoryPane->SetDisplayPort(GlobalLogPtr->InvTabPorts[1], scrollPos != 0);
+    GlobalLogPtr->RepairScreen->InventoryPane->SetDisplayPort(GlobalLogPtr->InvTabPorts[1], scrollPos != 0);
 }
 
 auto MCLogInvScreen::SetUpCompInv(int scrollPos, int redrawTabs) -> void
@@ -675,8 +675,8 @@ auto MCLogInvScreen::SetUpCompInv(int scrollPos, int redrawTabs) -> void
         block->DrawBackground();
     }
 
-    GlobalLogPtr->PurchaseScreen->InventoryPane->SetDisplayPort(GlobalLogPtr->InvTabPorts[2], 0, scrollPos);
-    GlobalLogPtr->RepairScreen->InventoryPane->SetDisplayPort(GlobalLogPtr->InvTabPorts[2], 0, scrollPos);
+    GlobalLogPtr->PurchaseScreen->InventoryPane->SetDisplayPort(GlobalLogPtr->InvTabPorts[2], scrollPos != 0);
+    GlobalLogPtr->RepairScreen->InventoryPane->SetDisplayPort(GlobalLogPtr->InvTabPorts[2], scrollPos != 0);
 }
 
 auto MCLogInvScreen::SetUpVhclInv(int scrollPos, int redrawTabs) -> void
@@ -697,8 +697,8 @@ auto MCLogInvScreen::SetUpVhclInv(int scrollPos, int redrawTabs) -> void
         yPos += InvBlockHeight;
     }
 
-    GlobalLogPtr->PurchaseScreen->InventoryPane->SetDisplayPort(GlobalLogPtr->InvTabPorts[3], 0, scrollPos);
-    GlobalLogPtr->RepairScreen->InventoryPane->SetDisplayPort(GlobalLogPtr->InvTabPorts[3], 0, scrollPos);
+    GlobalLogPtr->PurchaseScreen->InventoryPane->SetDisplayPort(GlobalLogPtr->InvTabPorts[3], scrollPos != 0);
+    GlobalLogPtr->RepairScreen->InventoryPane->SetDisplayPort(GlobalLogPtr->InvTabPorts[3], scrollPos != 0);
 }
 
 auto MCLogInvScreen::SetUpVehiclePurchase() -> void
@@ -724,7 +724,7 @@ auto MCLogInvScreen::SetUpVehiclePurchase() -> void
         ++row;
     }
 
-    screen->UnitPane->SetDisplayPort(screen->PurVehiclePort, 0, -1);
+    screen->UnitPane->SetDisplayPort(screen->PurVehiclePort, true);
 }
 
 auto MCLogInvScreen::SetUpPilotPurchase() -> void
@@ -754,7 +754,7 @@ auto MCLogInvScreen::SetUpPilotPurchase() -> void
         ++row;
     }
 
-    screen->UnitPane->SetDisplayPort(screen->PurPilotPort, 0, -1);
+    screen->UnitPane->SetDisplayPort(screen->PurPilotPort, true);
 }
 
 auto MCLogInvScreen::ReIndexComponents() -> void
@@ -785,7 +785,7 @@ auto MCLogInvScreen::SetUpCompPurchase() -> void
         block->BringToFront(0);
     }
 
-    screen->UnitPane->SetDisplayPort(screen->PurCompPort, 0, -1);
+    screen->UnitPane->SetDisplayPort(screen->PurCompPort, true);
 }
 
 auto MCLogInvScreen::RemovePilot(int32_t pilotIndex) -> void
@@ -797,7 +797,7 @@ auto MCLogInvScreen::RemovePilot(int32_t pilotIndex) -> void
     // a block, and the rest was wiped. The view draws the remaining pilots at their new rows.
     MCLogPort* port =
         StoreView(screen->PurPilotPort, MCStoreTab::Pilots, pane, pane->Width() - 0x10, count * UnitBlockHeight, 0xff);
-    screen->UnitPane->SetDisplayPort(port, -1, -1);
+    screen->UnitPane->SetDisplayPort(port, true);
 
     // Move the blocks from the removed one on up a row.
     for (MCPurPilotData* pilot = GlobalLogPtr->PurPilotList->First; pilot != nullptr; pilot = pilot->Next)
@@ -959,11 +959,6 @@ auto MCLogChatWindow::Init(int32_t xPos, int32_t yPos, int32_t width, int32_t he
 
     auto* pane = new MCScrollPane;
 
-    if (pane != nullptr)
-    {
-        pane->Init();
-    }
-
     HistoryPane = pane;
     Assert(pane != nullptr, 0, "Not enough memory for chat scroll");
     pane->Init(0xb8, height - FramePort->Height() - 7, 6, 6, static_cast<char*>(nullptr));
@@ -972,7 +967,7 @@ auto MCLogChatWindow::Init(int32_t xPos, int32_t yPos, int32_t width, int32_t he
 
     // The history (wiped to 0x10, then written along the bottom as lines come) is drawn from lines.
     Lines.clear();
-    pane->SetDisplayPort(NewHistoryView(pane->Lport()->Width(), historySize / pane->Lport()->Width()), -1, -1);
+    pane->SetDisplayPort(NewHistoryView(pane->Lport()->Width(), historySize / pane->Lport()->Width()), true);
     pane->SetScrollPos(100.0f);
 
     ChatInput = new MCLogChatInput;
@@ -1096,9 +1091,9 @@ auto MCLogChatWindow::DrawHistory(MCGuiPort* port, const std::vector<HistoryLine
     }
 }
 
-auto MCLogChatWindow::NewHistoryView(int32_t width, int32_t height) -> MCLogPort*
+auto MCLogChatWindow::NewHistoryView(int32_t width, int32_t height) -> std::unique_ptr<MCLogPort>
 {
-    auto* view = new MCLogPort;
+    auto view = std::make_unique<MCLogPort>();
     view->InitView(width, height);
     view->DrawContent = [this](MCGuiPort* port) { DrawHistory(port, Lines); };
     return view;
@@ -1134,20 +1129,15 @@ auto MCLogChatWindow::Resize(int32_t height) -> void
 
     // Keep the history across the new pane (the original copied its picture into a new one).
     MCLogPort* oldHistory = HistoryPane->ContentPort;
-    MCLogPort* history = NewHistoryView(oldHistory->Width(), oldHistory->Height());
+    auto history = NewHistoryView(oldHistory->Width(), oldHistory->Height());
     delete HistoryPane;
 
     auto* pane = new MCScrollPane;
 
-    if (pane != nullptr)
-    {
-        pane->Init();
-    }
-
     HistoryPane = pane;
     Assert(pane != nullptr, 0, "Not enough memory for chat scroll");
     pane->Init(0xb8, height - FramePort->Height() - 7, 6, 6, static_cast<char*>(nullptr));
-    pane->SetDisplayPort(history, -1, -1);
+    pane->SetDisplayPort(std::move(history), true);
     AddChild(pane);
     HistoryPane->SetScrollPos(100.0f);
     HistoryPane->ShowGuiWindow(true);
@@ -1158,6 +1148,6 @@ auto MCLogChatWindow::Reset() -> void
     MCScrollPane* pane = HistoryPane;
     MCLogPort* oldHistory = pane->ContentPort;
     Lines.clear();
-    pane->SetDisplayPort(NewHistoryView(oldHistory->Width(), oldHistory->Height()), -1, -1);
+    pane->SetDisplayPort(NewHistoryView(oldHistory->Width(), oldHistory->Height()), true);
     ChatInput->Text[0] = 0;
 }

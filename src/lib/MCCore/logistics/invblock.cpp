@@ -2,7 +2,7 @@
 #include "logistics/invblock.h"
 #include "gui/MCGuiFont.h"
 #include "gui/MCHardwareCursor.h"
-#include "gui/scrlpane.h"
+#include "gui/MCScrollPane.h"
 #include "logistics/logbri.h"
 #include "logistics/logdlg.h"
 #include "logistics/loggen.h"

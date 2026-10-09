@@ -1,7 +1,7 @@
 #include "stdafx.h"
 #include "logistics/logrep.h"
 #include "gui/MCGuiFont.h"
-#include "gui/scrlpane.h"
+#include "gui/MCScrollPane.h"
 #include "lib/MCFatal.h"
 #include "logistics/logbri.h"
 #include "logistics/logmain.h"
@@ -101,7 +101,7 @@ namespace
     /// </summary>
     void RemoveUnitRow(MCScrollPane* pane)
     {
-        pane->SetDisplayPort(MCRepairScreen::NewUnitRowsView(pane), -1, 0);
+        pane->SetDisplayPort(MCRepairScreen::NewUnitRowsView(pane), false);
         PlaceUnitBlocks(pane);
     }
 
@@ -127,22 +127,12 @@ auto MCRepairScreen::Init() -> void
 
     auto* pane = new MCScrollPane;
 
-    if (pane != nullptr)
-    {
-        pane->Init();
-    }
-
     InventoryPane = pane;
     Assert(pane != nullptr, 0, " Not enough memory for inventory");
     pane->Init(0xb8, 0x10d, 8, 0x6b, static_cast<char*>(nullptr));
-    pane->SetDisplayPort(nullptr, -1, -1);
+    pane->ClearDisplayPort();
 
     pane = new MCScrollPane;
-
-    if (pane != nullptr)
-    {
-        pane->Init();
-    }
 
     UnitPane = pane;
     Assert(pane != nullptr, 0, "Not enough memory for vehicleScroll");
@@ -160,14 +150,14 @@ auto MCRepairScreen::Destroy() -> void
     if (InventoryPane != nullptr)
     {
         // The inventory ports belong to the Logistics object.
-        InventoryPane->SetDisplayPort(nullptr, 0, -1);
+        InventoryPane->ClearDisplayPort();
         delete InventoryPane;
         InventoryPane = nullptr;
     }
 
     if (UnitPane != nullptr)
     {
-        UnitPane->SetDisplayPort(nullptr, -1, -1);
+        UnitPane->ClearDisplayPort();
         delete UnitPane;
         UnitPane = nullptr;
     }
@@ -247,7 +237,7 @@ auto MCRepairScreen::AddMechToList(MCLogMech*) -> void
     // The new mech is first in the force list: the old rows move down one block (the original copied them down in a
     // new picture; the view draws each row where its block is).
     MCScrollPane* pane = UnitPane;
-    pane->SetDisplayPort(NewUnitRowsView(pane), -1, 0);
+    pane->SetDisplayPort(NewUnitRowsView(pane), false);
     PlaceUnitBlocks(pane);
 }
 
@@ -255,7 +245,7 @@ auto MCRepairScreen::AddVehicleToList(MCLogVehicle* vehicle) -> void
 {
     // The new vehicle is first in the vehicle list, right after the mechs: the vehicle rows move down one block.
     MCScrollPane* pane = UnitPane;
-    pane->SetDisplayPort(NewUnitRowsView(pane), -1, 0);
+    pane->SetDisplayPort(NewUnitRowsView(pane), false);
     vehicle->RepairBlock->DrawBackground(GlobalLogPtr->ForceMechList->GetMechCount(), nullptr);
     PlaceUnitBlocks(pane);
 }
@@ -270,9 +260,9 @@ auto MCRepairScreen::RemoveVehicleFromList(MCLogVehicle* vehicle) -> void
     RemoveUnitRow(UnitPane);
 }
 
-auto MCRepairScreen::NewUnitRowsView(MCScrollPane* pane) -> MCLogPort*
+auto MCRepairScreen::NewUnitRowsView(MCScrollPane* pane) -> std::unique_ptr<MCLogPort>
 {
-    auto* port = new MCLogPort;
+    auto port = std::make_unique<MCLogPort>();
     int32_t height = (GlobalLogPtr->ForceVehicleList->GetVehicleCount() + GlobalLogPtr->ForceMechList->GetMechCount()) *
                      UnitBlockHeight;
 

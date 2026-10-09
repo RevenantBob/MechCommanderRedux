@@ -8,8 +8,8 @@
 #include "gui/MCGuiMessageBox.h"
 #include "gui/MCGuiStartup.h"
 #include "gui/MCHardwareCursor.h"
-#include "gui/awindow.h"
-#include "gui/updisp.h"
+#include "gui/MCGuiSmackerWindow.h"
+#include "gui/MCUpdateDisplay.h"
 #include "iface/MCTacticalInterface.h"
 #include "lib/MCFatal.h"
 #include "lib/MCFile.h"
@@ -645,7 +645,6 @@ auto MCGuiSystem::SetCurrentCursor(MCCursorType cursor) -> void
         return;
     }
 
-    AGMouseFrame = 0;
     CurrentCursor = cursor;
     CursorShape = static_cast<int32_t>(cursor);
 

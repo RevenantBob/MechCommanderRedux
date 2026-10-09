@@ -139,8 +139,6 @@ extern bool AndyFramerate;
 /// <summary>The mouse thread's lock (a CRITICAL_SECTION in the original), and whether it is held for a frame.</summary>
 extern std::recursive_mutex MouseCritSec;
 extern volatile int InMouseCritSec;
-/// <summary>The animated cursor's frame.</summary>
-extern int AGMouseFrame;
 /// <summary>Set while the mouse thread (the cursor timer) runs.</summary>
 extern int MouseThreadStarted;
 

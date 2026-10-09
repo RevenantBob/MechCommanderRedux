@@ -6,7 +6,7 @@
 #include "gui/MCGuiFont.h"
 #include "gui/MCGuiPort.h"
 #include "gui/MCGuiSystem.h"
-#include "gui/updisp.h"
+#include "gui/MCUpdateDisplay.h"
 #include "iface/MCTacticalInterface.h"
 #include "logistics/logbri.h"
 #include "logistics/logmain.h"
