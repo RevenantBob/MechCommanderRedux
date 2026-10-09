@@ -3,7 +3,8 @@
 #include "gui/afont.h"
 #include "gui/aport.h"
 #include "object/MCMasterComponent.h"
-#include "object/mover.h"
+#include "object/MCMover.h"
+#include "object/MCMoverGameSystem.h"
 #include "object/MCObjectSystem.h"
 #include "object/MCObjectQueue.h"
 #include "vfx/MCVfxFunctions.h"
@@ -80,7 +81,7 @@ auto DrawMechInfo(MCGuiObject* window) -> void
 
     int32_t yPos = 0x1e;
     int32_t numItems = mover->NumOther + mover->NumAmmos + mover->NumWeapons;
-    MCInventoryItem* item = mover->Inventory.get();
+    MCInventoryItem* item = mover->Inventory.data();
 
     for (; numItems != 0; numItems--, item++)
     {

@@ -33,10 +33,16 @@
     <ClCompile Include="tests\ColorTests.cpp">
       <Filter>tests</Filter>
     </ClCompile>
+    <ClCompile Include="tests\ControlTests.cpp">
+      <Filter>tests</Filter>
+    </ClCompile>
     <ClCompile Include="tests\CursorTests.cpp">
       <Filter>tests</Filter>
     </ClCompile>
     <ClCompile Include="tests\DirectPlayTests.cpp">
+      <Filter>tests</Filter>
+    </ClCompile>
+    <ClCompile Include="tests\ElementalTests.cpp">
       <Filter>tests</Filter>
     </ClCompile>
     <ClCompile Include="tests\EngineTests.cpp">
@@ -99,7 +105,13 @@
     <ClCompile Include="tests\MCTest.cpp">
       <Filter>tests</Filter>
     </ClCompile>
+    <ClCompile Include="tests\MechTests.cpp">
+      <Filter>tests</Filter>
+    </ClCompile>
     <ClCompile Include="tests\MissionTests.cpp">
+      <Filter>tests</Filter>
+    </ClCompile>
+    <ClCompile Include="tests\MoverTests.cpp">
       <Filter>tests</Filter>
     </ClCompile>
     <ClCompile Include="tests\ObjectCoreTests.cpp">
@@ -148,6 +160,9 @@
       <Filter>tests</Filter>
     </ClCompile>
     <ClCompile Include="tests\TestGame.cpp">
+      <Filter>tests</Filter>
+    </ClCompile>
+    <ClCompile Include="tests\TurretTests.cpp">
       <Filter>tests</Filter>
     </ClCompile>
     <ClCompile Include="tests\VfxFontImageTests.cpp">

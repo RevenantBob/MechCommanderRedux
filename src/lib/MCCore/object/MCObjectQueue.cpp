@@ -5,7 +5,8 @@
 #include "object/MCObjectSystem.h"
 #include "object/MCObjectType.h"
 #include "object/MCTeam.h"
-#include "object/mover.h"
+#include "object/MCMover.h"
+#include "object/MCMoverGameSystem.h"
 
 int32_t MCObjectQueue::ObjectsInList = 0;
 

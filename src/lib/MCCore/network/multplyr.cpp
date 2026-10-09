@@ -35,15 +35,19 @@
 #include "object/explode.h"
 #include "object/MCBigGameObject.h"
 #include "object/MCMoverGroup.h"
-#include "object/mech.h"
-#include "object/mover.h"
+#include "object/MCBattleMech.h"
+#include "object/MCBattleMechType.h"
+#include "object/MCMechGameSystem.h"
+#include "object/MCMover.h"
+#include "object/MCMoverGameSystem.h"
 #include "object/MCObjectSystem.h"
 #include "object/MCObjectQueue.h"
 #include "object/tbldng.h"
 #include "object/terrobj.h"
 #include "object/tree.h"
-#include "object/turret.h"
-#include "object/warrior.h"
+#include "object/MCTurret.h"
+#include "object/MCTurretType.h"
+#include "object/MCMechWarrior.h"
 #include "sound/soundsys.h"
 #include "terrain/MCTerrain.h"
 #include "object/MCWeaponHitChunk.h"
@@ -1113,7 +1117,7 @@ namespace
             if (pilot != nullptr)
             {
                 pilot->ClearCurTacOrder(0, 0);
-                pilot->OrderState = 0;
+                pilot->OrderState = MCOrderState::General;
             }
         }
     }
@@ -1452,7 +1456,8 @@ auto MCMultiPlayer::SendMoverWeaponFireUpdate(uint32_t toID) -> int32_t
         for (int32_t i = 0; i < NumMovers; i++)
         {
             int32_t grabbed = MoverRoster[i]->GrabWeaponFireChunks(
-                0, reinterpret_cast<uint32_t*>(MsgBuffer + 0x22 + numChunks * 4), 0x77 - numChunks);
+                0, std::span(reinterpret_cast<uint32_t*>(MsgBuffer + 0x22 + numChunks * 4),
+                             static_cast<size_t>(0x77 - numChunks)));
             MsgBuffer[10 + i] = static_cast<uint8_t>(grabbed);
             numChunks += grabbed;
 
@@ -1480,7 +1485,7 @@ auto MCMultiPlayer::SendTurretWeaponFireUpdate(uint32_t toID) -> int32_t
 
     for (int32_t i = 0; i < NumTurrets; i++)
     {
-        if (TurretRoster[i]->NumWeaponFireChunks[0] > 0)
+        if (!TurretRoster[i]->WeaponFireChunks[0].empty())
         {
             numFiring++;
         }
@@ -1498,11 +1503,12 @@ auto MCMultiPlayer::SendTurretWeaponFireUpdate(uint32_t toID) -> int32_t
     for (int32_t i = 0; i < NumTurrets; i++)
     {
         MCTurret* turret = TurretRoster[i];
-        int32_t turretChunks = turret->NumWeaponFireChunks[0];
 
-        if (turretChunks > 0)
+        if (!turret->WeaponFireChunks[0].empty())
         {
-            turret->GrabWeaponFireChunks(0, reinterpret_cast<uint32_t*>(MsgBuffer + numChunks * 4 + numFiring + 9));
+            const size_t offset = static_cast<size_t>(numChunks * 4 + numFiring + 9);
+            const int32_t turretChunks = turret->GrabWeaponFireChunks(
+                0, std::span(reinterpret_cast<uint32_t*>(MsgBuffer + offset), (0x1400 - offset) / 4));
             numChunks += turretChunks;
             MsgBuffer[9 + entry] = static_cast<uint8_t>(turretChunks + turret->NetRosterIndex * 4);
             entry++;
@@ -2283,10 +2289,8 @@ auto HandleAppStartScenario(uint32_t fromID, const void* msg) -> void
             auto* mover = static_cast<MCMover*>(Scenario->Parts[i].Object);
             mover->NetOwnerID = player->Id;
 
-            if (mover->NetName != nullptr)
-            {
-                std::strncpy(mover->NetName.get(), player->Name, 0xff);
-            }
+            // The original copied at most 255 characters into the name's buffer.
+            mover->NetName.assign(player->Name, strnlen(player->Name, 0xff));
         }
     }
 
@@ -2590,7 +2594,7 @@ auto HandleAppMoverWeaponFireUpdate(uint32_t fromID, const void* msg) -> void
     {
         uint8_t numChunks = bytes[10 + i];
         MPlayer->MoverRoster[firstMover + i]->AddWeaponFireChunks(
-            1, reinterpret_cast<uint32_t*>(const_cast<uint8_t*>(bytes + 0x22 + chunkIndex * 4)), numChunks);
+            1, std::span(reinterpret_cast<const uint32_t*>(bytes + 0x22 + chunkIndex * 4), numChunks));
         chunkIndex += numChunks;
     }
 }
@@ -2613,7 +2617,8 @@ auto HandleAppTurretWeaponFireUpdate(uint32_t fromID, const void* msg) -> void
         uint8_t entry = bytes[9 + i];
         int32_t numChunks = entry & 3;
         MPlayer->TurretRoster[entry >> 2]->AddWeaponFireChunks(
-            1, reinterpret_cast<uint32_t*>(const_cast<uint8_t*>(bytes + 9 + numTurrets + chunkIndex * 4)), numChunks);
+            1, std::span(reinterpret_cast<const uint32_t*>(bytes + 9 + numTurrets + chunkIndex * 4),
+                         static_cast<size_t>(numChunks)));
         chunkIndex += numChunks;
     }
 }
@@ -2639,8 +2644,7 @@ auto HandleAppMoverCriticalHitUpdate(uint32_t fromID, const void* msg) -> void
 
         if (numCriticalHits != 0)
         {
-            mover->AddCriticalHitChunks(1, const_cast<uint8_t*>(bytes + 0x3a + chunkIndex),
-                                        static_cast<int32_t>(numCriticalHits));
+            mover->AddCriticalHitChunks(1, std::span(bytes + 0x3a + chunkIndex, numCriticalHits));
             chunkIndex += static_cast<int32_t>(numCriticalHits);
         }
 
@@ -2649,7 +2653,7 @@ auto HandleAppMoverCriticalHitUpdate(uint32_t fromID, const void* msg) -> void
 
         if (numRadio != 0)
         {
-            mover->AddRadioChunks(1, const_cast<uint8_t*>(bytes + 0x3a + chunkIndex), static_cast<int32_t>(numRadio));
+            mover->AddRadioChunks(1, std::span(bytes + 0x3a + chunkIndex, numRadio));
             chunkIndex += static_cast<int32_t>(numRadio);
         }
     }

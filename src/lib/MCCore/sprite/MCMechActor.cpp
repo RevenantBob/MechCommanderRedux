@@ -12,11 +12,14 @@
 #include "engine/MCVfxElement.h"
 #include "main/main.h"
 #include "mission/scenario.h"
-#include "object/mech.h"
+#include "object/MCBattleMech.h"
+#include "object/MCBattleMechType.h"
+#include "object/MCMechGameSystem.h"
 #include "object/MCObjectSystem.h"
 #include "object/MCObjectQueue.h"
 #include "object/MCForces.h"
-#include "object/warrior.h"
+#include "object/MCMechWarrior.h"
+#include "object/MCMoverGameSystem.h"
 #include "sound/soundsys.h"
 #include "sprite/MCShape.h"
 #include "sprite/MCSpriteMath.h"
@@ -90,16 +93,16 @@ namespace
 
     /// <summary>The outline table of <paramref name="mech"/> for gesture <paramref name="gesture"/> (the jump and
     /// fall heights), or null.</summary>
-    auto GestureHeights(MCBattleMech* mech, int32_t gesture) -> float*
+    auto GestureHeights(MCBattleMech* mech, int32_t gesture) -> const float*
     {
         auto* type = static_cast<MCBattleMechType*>(mech->GetObjectType());
 
-        if (type->GestureOutlines == nullptr)
+        if (type->GestureOutlines.empty())
         {
             return nullptr;
         }
 
-        return reinterpret_cast<float*>(type->GestureOutlines[HotSpotFinderArray[gesture]]);
+        return type->GestureOutline(static_cast<uint32_t>(HotSpotFinderArray[gesture]));
     }
 
 }
@@ -942,11 +945,6 @@ auto MCMechActor::Update() -> int32_t
             GestureGoal = -1;
             InTransition = false;
 
-            if (CurrentStateGesture == 7 || CurrentStateGesture == 8)
-            {
-                mech->HandleFall(CurrentStateGesture == 7 ? 1 : 0);
-            }
-
             if (mech->IsDisabled() == 0)
             {
                 if (CurrentStateGesture == 1 && static_cast<uint8_t>(mech->Status) != 4)
@@ -1175,7 +1173,7 @@ auto MCMechActor::Update() -> int32_t
 
                 const float distance = static_cast<float>(pathLength * 0.3 + pathLength);
 
-                float* heights = GestureHeights(mech, GestureJump);
+                const float* heights = GestureHeights(mech, GestureJump);
                 FrameHeights = heights;
                 const MCGestureData& jump = tree->Gestures[GestureJump];
                 // Port fix: the original reads a missing height table.

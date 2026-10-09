@@ -11,13 +11,10 @@ class MCGameObject;
 class MCControlData
 {
 public:
-    /// <summary>The original's destructor is not virtual: it resets the vtable and calls destroy.</summary>
-    ~MCControlData() { Destroy(); }
+    virtual ~MCControlData() = default;
 
-    virtual int32_t Init(int32_t unused);
-    virtual void Destroy();
     /// <summary>Clears the requests for the next frame.</summary>
-    virtual void Reset();
+    virtual void Reset() {}
     virtual int32_t Brake() { return 0; }
     /// <summary>1 for a mech's, 2 a ground vehicle's, 3 an elemental's.</summary>
     virtual uint32_t GetControlDataClass() { return 0; }
@@ -31,18 +28,19 @@ public:
 class MCControl
 {
 public:
-    /// <summary>The original's destructor is not virtual: it resets the vtable and calls destroy.</summary>
-    ~MCControl() { Destroy(); }
+    /// <summary>Controls <paramref name="object"/>.</summary>
+    explicit MCControl(MCGameObject& object) : Me(&object) {}
+    virtual ~MCControl() = default;
+    MCControl(const MCControl&) = delete;
+    MCControl& operator=(const MCControl&) = delete;
 
-    /// <summary>Remembers the object it controls.</summary>
-    virtual int32_t Init(MCGameObject* object, int32_t unused);
-    virtual void Destroy();
-    virtual int32_t Update();
+    /// <summary>Fills the control data for this frame and drives the object.</summary>
+    virtual int32_t Update() { return 0; }
     /// <summary>1 for player control, 2 AI, 3 network (the subclasses' values).</summary>
     virtual uint32_t GetControlClass() { return 0; }
 
     /// <summary>The object controlled.</summary>
     MCGameObject* Me = nullptr;
     /// <summary>The object's control data, filled by update.</summary>
-    MCControlData* ControlData = nullptr;
+    std::unique_ptr<MCControlData> ControlData;
 };

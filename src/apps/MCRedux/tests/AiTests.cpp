@@ -8,7 +8,8 @@
 #include "object/MCBigGameObject.h"
 #include "object/MCObjectSystem.h"
 #include "object/MCObjectQueue.h"
-#include "object/warrior.h"
+#include "object/MCMechWarrior.h"
+#include "object/MCMoverGameSystem.h"
 #include "terrain/MCTerrain.h"
 
 namespace

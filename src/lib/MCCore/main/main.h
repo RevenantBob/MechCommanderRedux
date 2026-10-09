@@ -109,6 +109,12 @@ extern void* HInst;
 /// <returns>The string's length.</returns>
 int32_t CLoadString(void* instance, uint32_t id, char* buffer, int bufferSize);
 
+/// <summary>
+/// String resource <paramref name="id"/> (offset by the language), cut as a <paramref name="bufferSize"/>-byte
+/// buffer of <see cref="CLoadString"/> cuts it; empty when there is none.
+/// </summary>
+std::string LoadGameString(uint32_t id, int bufferSize);
+
 /// <summary>Reads registry value <paramref name="valueName"/> of key <paramref name="keyName"/> (HKEY_LOCAL_MACHINE).</summary>
 /// <returns>The value (a static buffer), or null.</returns>
 char* ReadRegistry(char* keyName, char* valueName);

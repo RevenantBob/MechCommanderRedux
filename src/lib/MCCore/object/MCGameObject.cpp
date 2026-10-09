@@ -6,7 +6,8 @@
 #include "object/MCObjectSystem.h"
 #include "object/MCObjectType.h"
 #include "object/MCObjectTypeManager.h"
-#include "object/mover.h"
+#include "object/MCMover.h"
+#include "object/MCMoverGameSystem.h"
 #include "terrain/MCTerrain.h"
 
 std::array<int32_t, 9> ObjCellArray = {};

@@ -13,9 +13,12 @@
 #include "object/MCMasterComponent.h"
 #include "object/MCForces.h"
 #include "object/MCBigGameObject.h"
-#include "object/mech.h"
-#include "object/mover.h"
-#include "object/warrior.h"
+#include "object/MCBattleMech.h"
+#include "object/MCBattleMechType.h"
+#include "object/MCMechGameSystem.h"
+#include "object/MCMover.h"
+#include "object/MCMoverGameSystem.h"
+#include "object/MCMechWarrior.h"
 #include "platform/MCFrameLog.h"
 #include "sound/soundsys.h"
 #include "terrain/MCTerrain.h"
@@ -341,12 +344,12 @@ auto HealAll() -> void
             continue;
         }
 
-        for (int32_t j = 0; j < mover->NumArmorLocations; j++)
+        for (int32_t j = 0; j < mover->NumArmorLocations(); j++)
         {
             mover->Armor[j].CurArmor = static_cast<float>(mover->Armor[j].MaxArmor);
         }
 
-        for (int32_t j = 0; j < mover->NumBodyLocations; j++)
+        for (int32_t j = 0; j < mover->NumBodyLocations(); j++)
         {
             mover->BodyAt(j).CurInternalStructure = static_cast<float>(mover->BodyAt(j).MaxInternalStructure);
         }
@@ -364,7 +367,7 @@ auto HealAll() -> void
             mover->Inventory[j].Disabled = 0;
         }
 
-        for (int32_t j = 0; j < mover->NumAmmoTypes; j++)
+        for (int32_t j = 0; j < mover->NumAmmoTypes(); j++)
         {
             if (mover->AmmoTypeTotal[j].CurAmount != 9999)
             {
@@ -389,7 +392,7 @@ auto DeadEye() -> void
 
         if (mover != nullptr && mover->IsDisabled() == 0 && mover->GetPilot() != nullptr)
         {
-            mover->GetPilot()->Skills[MWS_GUNNERY] = 120;
+            mover->GetPilot()->Skills[SkillGunnery] = 120;
         }
     }
 }
@@ -415,7 +418,7 @@ auto Test3() -> void
         uint32_t firstWeapon = mover->NumOther;
         uint32_t endWeapon = firstWeapon + mover->NumWeapons;
 
-        if (mover->AmmoTypeTotal == nullptr)
+        if (mover->AmmoTypeTotal.empty())
         {
             // No ammunition: every weapon becomes component 0x9a, which needs none.
             for (uint32_t j = firstWeapon; j < endWeapon; j++)
@@ -441,7 +444,7 @@ auto Test3() -> void
                 item.AmmoIndex = 0;
             }
 
-            MCAmmoTally* ammo = mover->AmmoTypeTotal.get();
+            MCAmmoTally* ammo = mover->AmmoTypeTotal.data();
             ammo->MasterId = MasterComponentList[0x70].AmmoMasterId;
             ammo->CurAmount = 0x14d;
             ammo->StartAmount = 0x14d;

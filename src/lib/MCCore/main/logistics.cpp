@@ -37,7 +37,9 @@
 #include "sound/soundsys.h"
 #include "vfx/MCVfxFunctions.h"
 #include "object/MCMasterComponent.h"
-#include "object/mech.h"
+#include "object/MCBattleMech.h"
+#include "object/MCBattleMechType.h"
+#include "object/MCMechGameSystem.h"
 #include "object/MCObjectType.h"
 #include "platform/MCRegistry.h"
 #include "platform/MCRenderer.h"
@@ -2144,7 +2146,7 @@ auto MCLogMech::PlaceItem(uint8_t masterID, int32_t itemNum, int32_t hits) -> vo
             case MCComponentForm::Probe:
             {
                 // Head equipment (the component is not recorded).
-                fill(MECH_BODY_LOCATION_HEAD, false);
+                fill(MechHead, false);
                 return;
             }
             case MCComponentForm::Actuator:
@@ -2152,26 +2154,26 @@ auto MCLogMech::PlaceItem(uint8_t masterID, int32_t itemNum, int32_t hits) -> vo
                 if (masterID != 4 && masterID != 0x21)
                 {
                     // Leg actuators: the left leg, or the right leg when the left already has one.
-                    if (holds(MECH_BODY_LOCATION_LLEG))
+                    if (holds(MechLeftLeg))
                     {
-                        fill(MECH_BODY_LOCATION_RLEG, true);
+                        fill(MechRightLeg, true);
                     }
                     else
                     {
-                        fill(MECH_BODY_LOCATION_LLEG, true);
+                        fill(MechLeftLeg, true);
                     }
 
                     return;
                 }
 
                 // Arm actuators (4 and 0x21): the left arm, or the right arm when the left already has one.
-                if (holds(MECH_BODY_LOCATION_LARM))
+                if (holds(MechLeftArm))
                 {
-                    fill(MECH_BODY_LOCATION_RARM, true);
+                    fill(MechRightArm, true);
                 }
                 else
                 {
-                    fill(MECH_BODY_LOCATION_LARM, true);
+                    fill(MechLeftArm, true);
                 }
 
                 return;
@@ -2180,7 +2182,7 @@ auto MCLogMech::PlaceItem(uint8_t masterID, int32_t itemNum, int32_t hits) -> vo
             case MCComponentForm::Gyroscope:
             {
                 // Centre torso (the component is not recorded).
-                fill(MECH_BODY_LOCATION_CTORSO, false);
+                fill(MechCenterTorso, false);
                 return;
             }
             case MCComponentForm::JumpJet:
@@ -2204,9 +2206,7 @@ auto MCLogMech::PlaceItem(uint8_t masterID, int32_t itemNum, int32_t hits) -> vo
                     return count;
                 };
 
-                const int32_t location = countJets(MECH_BODY_LOCATION_RLEG) < countJets(MECH_BODY_LOCATION_LLEG)
-                                             ? MECH_BODY_LOCATION_RLEG
-                                             : MECH_BODY_LOCATION_LLEG;
+                const int32_t location = countJets(MechRightLeg) < countJets(MechLeftLeg) ? MechRightLeg : MechLeftLeg;
                 fill(location, true);
                 return;
             }
@@ -2220,10 +2220,8 @@ auto MCLogMech::PlaceItem(uint8_t masterID, int32_t itemNum, int32_t hits) -> vo
     // first. Small weapons search the arms first, large weapons the side torsos.
     // OB-092 (fixed): MCX.EXE started the large search from the left torso's count but with the left arm chosen, so
     // large weapons piled into the left arm, and it wrote into a full location's slot 12 (the next location's first).
-    static constexpr int32_t smallWeaponOrder[4] = {MECH_BODY_LOCATION_LARM, MECH_BODY_LOCATION_RARM,
-                                                    MECH_BODY_LOCATION_LTORSO, MECH_BODY_LOCATION_RTORSO};
-    static constexpr int32_t largeWeaponOrder[4] = {MECH_BODY_LOCATION_LTORSO, MECH_BODY_LOCATION_RTORSO,
-                                                    MECH_BODY_LOCATION_LARM, MECH_BODY_LOCATION_RARM};
+    static constexpr int32_t smallWeaponOrder[4] = {MechLeftArm, MechRightArm, MechLeftTorso, MechRightTorso};
+    static constexpr int32_t largeWeaponOrder[4] = {MechLeftTorso, MechRightTorso, MechLeftArm, MechRightArm};
     const bool large = GetWeaponLarge(masterID) != 0;
     int32_t location = -1;
     int32_t fewest = 0;

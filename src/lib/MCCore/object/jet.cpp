@@ -10,7 +10,9 @@
 #include "lib/MCFile.h"
 #include "lib/MCFitIniFile.h"
 #include "main/main.h"
-#include "object/mech.h"
+#include "object/MCBattleMech.h"
+#include "object/MCBattleMechType.h"
+#include "object/MCMechGameSystem.h"
 #include "object/MCObjectSystem.h"
 #include "object/smoke.h"
 #include "sound/soundsys.h"
@@ -186,7 +188,7 @@ auto MCJet::Update() -> int32_t
     Position = mech->GetJumpPosition(JetNumber);
 
     // Coming down: the jets cut out and the smoke stops.
-    if (static_cast<MCMechActor*>(mech->Appearance)->Airborne != 0 && Position.Z < LastAltitude)
+    if (static_cast<MCMechActor*>(mech->Appearance.get())->Airborne != 0 && Position.Z < LastAltitude)
     {
         Landing = 1;
     }

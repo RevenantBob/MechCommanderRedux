@@ -2,7 +2,8 @@
 #include "MCTest.h"
 #include "TestGame.h"
 #include "mission/scenario.h"
-#include "object/mover.h"
+#include "object/MCMover.h"
+#include "object/MCMoverGameSystem.h"
 
 namespace
 {

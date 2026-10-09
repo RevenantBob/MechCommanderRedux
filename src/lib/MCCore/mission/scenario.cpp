@@ -33,19 +33,26 @@
 #include "object/MCCollisionSystem.h"
 #include "object/MCForces.h"
 #include "object/MCContactSystem.h"
-#include "object/elemntl.h"
+#include "object/MCElemental.h"
+#include "object/MCElementalType.h"
+#include "object/MCElementalGameSystem.h"
 #include "object/fire.h"
 #include "object/MCMoverGroup.h"
-#include "object/gvehicl.h"
-#include "object/mech.h"
-#include "object/mover.h"
+#include "object/MCGroundVehicle.h"
+#include "object/MCGroundVehicleType.h"
+#include "object/MCGroundVehicleGameSystem.h"
+#include "object/MCBattleMech.h"
+#include "object/MCBattleMechType.h"
+#include "object/MCMechGameSystem.h"
+#include "object/MCMover.h"
+#include "object/MCMoverGameSystem.h"
 #include "object/MCObjectSystem.h"
 #include "object/MCObjectQueue.h"
 #include "object/MCObjectType.h"
 #include "object/smoke.h"
 #include "object/smokmgr.h"
 #include "object/train.h"
-#include "object/warrior.h"
+#include "object/MCMechWarrior.h"
 #include "sound/soundsys.h"
 #include "sprite/MCVfxBuildingAppearance.h"
 #include "sprite/MCGVAppearance.h"
@@ -134,38 +141,6 @@ namespace
         const MCVector3D oldI = frame.I;
         frame.I = frame.I * c + frame.J * s;
         frame.J = frame.J * c - oldI * s;
-    }
-
-    /// <summary>A warrior with its (inlined) constructor: every tactical order cleared, then <c>init()</c>.</summary>
-    MCMechWarrior* NewWarrior()
-    {
-        auto* warrior = new MCMechWarrior;
-
-        if (warrior != nullptr)
-        {
-            for (MCTacticalOrder& order : warrior->TacOrder)
-            {
-                order.Reset();
-            }
-
-            warrior->LastTacOrder.Reset();
-            warrior->CurTacOrder.Reset();
-            warrior->Init();
-        }
-
-        return warrior;
-    }
-
-    /// <summary>A warrior's (inlined) destructor: <c>destroy()</c>, its tactical orders, then free it.</summary>
-    void DeleteWarrior(MCMechWarrior* warrior)
-    {
-        warrior->Destroy();
-
-        for (int32_t i = NUM_ORDERSTATES - 1; i >= 0; --i)
-        {
-        }
-
-        delete warrior;
     }
 
     /// <summary>Reads a whole file into a new block (the scenario's connect and waypoint shapes).</summary>
@@ -378,7 +353,6 @@ auto InitDifficultySettings(MCFitIniFile* gameSystemFile) -> void
 auto MCScenario::Init(char* scenarioName, char* terrainName) -> int32_t
 {
     int32_t result = 0;
-    TacOrderQueuePos = 0;
     NumCameraDrones = 0;
 
     ConnectShape = LoadShapeFile("connect", ConnectShape, 0);
@@ -478,11 +452,11 @@ auto MCScenario::Init(char* scenarioName, char* terrainName) -> int32_t
     RequireOk(result, " No Bonus points per Ton in GameSys ");
 
     InitDifficultySettings(gameSystemFile);
-    result = LoadMoverGameSystem(gameSystemFile, MaxVisualRange);
+    result = LoadMoverGameSystem(*gameSystemFile);
     RequireOk(result, " could not load Mover System in GameSys ");
     result = LoadMultiplayerGameSystem(gameSystemFile);
     RequireOk(result, " could not load Multiplayer System in GameSys ");
-    result = LoadMechGameSystem(gameSystemFile);
+    result = LoadMechGameSystem(*gameSystemFile);
     RequireOk(result, " could not load Mech System in GameSys ");
 
     if (GameDifficulty == 0)
@@ -494,9 +468,9 @@ auto MCScenario::Init(char* scenarioName, char* terrainName) -> int32_t
         MechSalvageChance = GlobalSalvageModifier[1];
     }
 
-    result = LoadGroundVehicleGameSystem(gameSystemFile);
+    result = LoadGroundVehicleGameSystem(*gameSystemFile);
     RequireOk(result, " could not load Ground Vehicle System in GameSys ");
-    result = LoadElementalGameSystem(gameSystemFile);
+    result = LoadElementalGameSystem(*gameSystemFile);
     RequireOk(result, " could not load Elemental System in GameSys ");
 
     result = gameSystemFile->SeekBlock("Mine");
@@ -994,7 +968,7 @@ auto MCScenario::Init(char* scenarioName, char* terrainName) -> int32_t
             char profileName[100];
             result = ScenarioFile->ReadIdString("Profile", profileName, 99);
             Assert(result == 0, 0, " Could not find Warrior Profile in Warrior Number Block ");
-            Warriors[i] = NewWarrior();
+            Warriors[i] = new MCMechWarrior;
             Assert(Warriors[i] != nullptr, 0, " No RAM for Warrior ");
 
             std::string profileFileName;
@@ -1005,7 +979,7 @@ auto MCScenario::Init(char* scenarioName, char* terrainName) -> int32_t
 
             if (profileResult == 0)
             {
-                profileResult = Warriors[i]->Init(profileFile);
+                profileResult = Warriors[i]->Load(*profileFile);
                 Assert(profileResult == 0, static_cast<uint32_t>(profileResult), " Could not load Warrior Profile ");
             }
             else
@@ -1017,7 +991,7 @@ auto MCScenario::Init(char* scenarioName, char* terrainName) -> int32_t
                 profileResult = savedProfileFile.Open(savedProfileName);
                 Assert(profileResult == 0, static_cast<uint32_t>(profileResult),
                        " Could not open Warrior Profile File ");
-                profileResult = Warriors[i]->Init(&savedProfileFile);
+                profileResult = Warriors[i]->Load(savedProfileFile);
                 Assert(profileResult == 0, static_cast<uint32_t>(profileResult), " Could not load Warrior Profile ");
             }
 
@@ -1763,7 +1737,7 @@ auto MCScenario::DestroyWarriors() -> void
     {
         if (Warriors[i] != nullptr)
         {
-            DeleteWarrior(Warriors[i]);
+            delete Warriors[i];
             Warriors[i] = nullptr;
         }
     }
@@ -1808,7 +1782,7 @@ auto MCScenario::CreatePartObject(int32_t partNumber) -> void
 
         if (profileFile->Open(profileFileName) == 0)
         {
-            if (object->Init(profileFile) != 0)
+            if (object->LoadProfile(*profileFile) != 0)
             {
                 Fatal(static_cast<int32_t>(0xfaaf0007), " Bad Profile File ");
             }
@@ -1825,7 +1799,7 @@ auto MCScenario::CreatePartObject(int32_t partNumber) -> void
                 Fatal(openResult);
             }
 
-            if (object->Init(&savedProfileFile) != 0)
+            if (object->LoadProfile(savedProfileFile) != 0)
             {
                 Fatal(static_cast<int32_t>(0xfaaf0007), " Bad Profile File ");
             }
@@ -1862,7 +1836,7 @@ auto MCScenario::CreatePartObject(int32_t partNumber) -> void
         mech->CalcWeaponRangeRatings();
         mech->Captureable = part.Captureable;
         const int32_t paintScheme = (part.PaintScheme == -1) ? Warriors[part.Pilot]->PaintScheme : part.PaintScheme;
-        static_cast<MCMechActor*>(mech->Appearance)->FadeTableIndex = paintScheme;
+        static_cast<MCMechActor*>(mech->Appearance.get())->FadeTableIndex = paintScheme;
     }
     else if (objectClass == MCObjectClass::GroundVehicle || objectClass == MCObjectClass::Elemental)
     {
@@ -1875,7 +1849,7 @@ auto MCScenario::CreatePartObject(int32_t partNumber) -> void
         // MCX.EXE only ever sets to 0.
         if (objectClass == MCObjectClass::GroundVehicle && static_cast<MCGroundVehicle*>(mover)->GvAppearance != 0)
         {
-            static_cast<MCGVAppearance*>(mover->Appearance)->FadeTableIndex =
+            static_cast<MCGVAppearance*>(mover->Appearance.get())->FadeTableIndex =
                 (part.PaintScheme == -1) ? Warriors[part.Pilot]->PaintScheme : part.PaintScheme;
         }
     }

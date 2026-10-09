@@ -1,6 +1,7 @@
 #pragma once
 
 #include "ai/MCTacticalOrder.h"
+#include "object/MCPilotAlarm.h"
 
 class MCGameObject;
 class MCMechWarrior;
@@ -72,7 +73,7 @@ public:
     int32_t OrderWithdraw(MCOrderOrigin origin, MCVector3D location);
     int32_t OrderEject(MCOrderOrigin origin);
     /// <summary>Triggers alarm <paramref name="alarmCode"/> in every member's pilot.</summary>
-    void TriggerAlarm(int32_t alarmCode, uint32_t triggerId);
+    void TriggerAlarm(MCPilotAlarmType alarm, uint32_t triggerId);
     /// <summary>Alarm 4 for every member.</summary>
     int32_t HandleMateCrippled(uint32_t mateId);
     int32_t HandleMateDisabled(uint32_t mateId);

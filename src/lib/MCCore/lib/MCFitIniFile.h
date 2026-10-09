@@ -337,3 +337,51 @@ private:
     /// <summary>The current block's length in bytes (to the next block's first entry, or the end of the file).</summary>
     uint32_t _CurrentBlockSize = 0;
 };
+
+/// <summary>
+/// Reads entries of a <see cref="MCFitIniFile"/>'s current block one after another until one fails: from then on the
+/// reads do nothing, and <see cref="Error"/> says which error stopped them. For loaders that give up at the first
+/// missing entry.
+/// </summary>
+class MCFitReader
+{
+public:
+    explicit MCFitReader(MCFitIniFile& file) : _File(file) {}
+
+    /// <summary>Whether a read failed.</summary>
+    bool Failed() const { return _Error.has_value(); }
+
+    /// <summary>The error of the read that failed (call only when <see cref="Failed"/>).</summary>
+    MCFitError Error() const { return *_Error; }
+
+    /// <summary>
+    /// Reads entry <paramref name="name"/> into <paramref name="value"/>. A missing entry stores zero (as the
+    /// original's reads did) and stops the reading; another error leaves the value alone.
+    /// </summary>
+    template <MCFitValue T> void Value(std::string_view name, T& value)
+    {
+        if (_Error.has_value())
+        {
+            return;
+        }
+
+        const MCFitResult<T> result = _File.Read<T>(name);
+
+        if (result.has_value())
+        {
+            value = *result;
+            return;
+        }
+
+        if (result.error() == MCFitError::VariableNotFound)
+        {
+            value = T{};
+        }
+
+        _Error = result.error();
+    }
+
+private:
+    MCFitIniFile& _File;
+    std::optional<MCFitError> _Error;
+};

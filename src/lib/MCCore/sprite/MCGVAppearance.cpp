@@ -8,10 +8,13 @@
 #include "engine/MCVfxElement.h"
 #include "main/main.h"
 #include "object/artlry.h"
-#include "object/gvehicl.h"
+#include "object/MCGroundVehicle.h"
+#include "object/MCGroundVehicleType.h"
+#include "object/MCGroundVehicleGameSystem.h"
 #include "object/MCForces.h"
 #include "object/train.h"
-#include "object/turret.h"
+#include "object/MCTurret.h"
+#include "object/MCTurretType.h"
 #include "sprite/MCShape.h"
 #include "sprite/MCSpriteMath.h"
 #include "terrain/MCTerrain.h"
@@ -354,7 +357,7 @@ auto MCGVAppearance::DrawBars() -> void
         if (obj->ObjectClass == MCObjectClass::GroundVehicle && vehicle->Refitter != 0)
         {
             // A refit vehicle shows the refit points left against the turret's full armor.
-            const auto capacity = static_cast<float>(vehicle->Armor[GROUNDVEHICLE_LOCATION_TURRET].MaxArmor);
+            const auto capacity = static_cast<float>(vehicle->Armor[GroundVehicleTurret].MaxArmor);
             health = static_cast<float>(vehicle->GetRefitPoints() / capacity * health);
         }
     }

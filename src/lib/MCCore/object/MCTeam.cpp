@@ -10,8 +10,9 @@
 #include "object/MCMasterComponent.h"
 #include "object/MCSortList.h"
 #include "object/MCWeaponShotInfo.h"
-#include "object/mover.h"
-#include "object/warrior.h"
+#include "object/MCMover.h"
+#include "object/MCMoverGameSystem.h"
+#include "object/MCMechWarrior.h"
 #include "terrain/MCTerrain.h"
 
 int InContact = 0;

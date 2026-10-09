@@ -6,7 +6,8 @@
 #include "object/MCMasterComponent.h"
 #include "object/MCWeaponChunkDebug.h"
 #include "object/MCWeaponShotInfo.h"
-#include "object/mover.h"
+#include "object/MCMover.h"
+#include "object/MCMoverGameSystem.h"
 
 auto MCWeaponHitChunk::BuildMoverTarget(MCBigGameObject* target, int32_t hitCause, float hitDamage, int32_t location,
                                         float angle, int isRefit) -> void

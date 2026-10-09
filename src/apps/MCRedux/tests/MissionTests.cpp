@@ -6,11 +6,14 @@
 #include "camera/MCCamera.h"
 #include "main/main.h"
 #include "mission/scenario.h"
-#include "object/mech.h"
-#include "object/mechctrl.h"
-#include "object/mover.h"
+#include "object/MCBattleMech.h"
+#include "object/MCBattleMechType.h"
+#include "object/MCMechGameSystem.h"
+#include "object/MCMechControlData.h"
+#include "object/MCMover.h"
+#include "object/MCMoverGameSystem.h"
 #include "object/MCObjectType.h"
-#include "object/warrior.h"
+#include "object/MCMechWarrior.h"
 #include "sprite/MCMechActor.h"
 #include "sprite/MCSpriteManager.h"
 #include "sprite/MCSpriteTree.h"
@@ -55,7 +58,7 @@ TEST_CASE_ISOLATED("game: mission 1 boots and every mover stands on a passable c
 
     REQUIRE(MCTestGame::StartMission(1));
 
-    for (int32_t partId = 0x200; partId < MAX_MOVER_PART_ID; partId++)
+    for (int32_t partId = MCMover::FirstPartId; partId < MCMover::EndPartId; partId++)
     {
         MCMover* mover = GetMoverFromPartId(partId);
 
@@ -90,7 +93,7 @@ namespace
         /// <summary>Every blocked cell entered.</summary>
         int32_t blockedCells = 0;
         /// <summary>Its withdraw flag last frame.</summary>
-        int32_t withdrawing = 0;
+        bool withdrawing = false;
         /// <summary>The last frames.</summary>
         std::deque<std::string> trace;
         /// <summary>The frames up to the end of the longest run.</summary>
@@ -107,7 +110,7 @@ namespace
 
         if (mover->ObjectClass == MCObjectClass::BattleMech)
         {
-            auto* actor = static_cast<MCMechActor*>(mover->Appearance);
+            auto* actor = static_cast<MCMechActor*>(mover->Appearance.get());
             line += std::format(" gesture {}/{} goal {} legs {}", actor->CurrentGesture, actor->CurrentStateGesture,
                                 actor->GestureGoal, static_cast<int32_t>(static_cast<MCBattleMech*>(mover)->LegStatus));
         }
@@ -141,14 +144,14 @@ namespace
         // MechAIControl::update only moves a mech whose pilot can (not disabled, wounds under 6, status 0..2 or 4).
         line += std::format(" pilot wounds {:.1f} status {} disabled {} awake {}", pilot->Wounds, pilot->Status,
                             mover->IsDisabled(), mover->GetAwake());
-        line +=
-            std::format(" order {} pathType {} withdraw {} moveState {}/{}",
-                        static_cast<int32_t>(pilot->CurTacOrder.Code), static_cast<int32_t>(pilot->MoveOrders.PathType),
-                        mover->Withdrawing, pilot->MoveOrders.MoveState, pilot->MoveOrders.MoveStateGoal);
+        line += std::format(
+            " order {} pathType {} withdraw {} moveState {}/{}", static_cast<int32_t>(pilot->CurTacOrder.Code),
+            static_cast<int32_t>(pilot->MoveOrders.PathType), mover->Withdrawing,
+            std::to_underlying(pilot->MoveOrders.MoveState), std::to_underlying(pilot->MoveOrders.MoveStateGoal));
 
         if (mover->ObjectClass == MCObjectClass::BattleMech)
         {
-            auto* controlData = static_cast<MCMechControlData*>(mover->Control->ControlData);
+            auto* controlData = static_cast<MCMechControlData*>(mover->Control->ControlData.get());
             line += std::format(" rotate {} throttle {} pivot {}", static_cast<int32_t>(controlData->Rotate),
                                 static_cast<int32_t>(controlData->Throttle), controlData->Pivot);
             // updateMovement's early exits.
@@ -229,7 +232,7 @@ TEST_CASE_ISOLATED("game: mission 1's battle keeps every mover on passable cells
 
         MCTestGame::RunFrame(FrameSeconds);
 
-        for (int32_t partId = 0x200; partId < MAX_MOVER_PART_ID; partId++)
+        for (int32_t partId = MCMover::FirstPartId; partId < MCMover::EndPartId; partId++)
         {
             MCMover* mover = GetMoverFromPartId(partId);
 
@@ -419,13 +422,13 @@ TEST_CASE_ISOLATED("game: mission 3's mechs preload full-size part shapes")
                                                     PartShapeStart[3], TreeShapeCount};
     std::set<MCSpriteTree*> trees;
 
-    for (int32_t partId = 0x200; partId < MAX_MOVER_PART_ID; partId++)
+    for (int32_t partId = MCMover::FirstPartId; partId < MCMover::EndPartId; partId++)
     {
         MCMover* mover = GetMoverFromPartId(partId);
 
         if (mover != nullptr && mover->ObjectClass == MCObjectClass::BattleMech)
         {
-            trees.insert(static_cast<MCMechActor*>(mover->Appearance)->MechTree);
+            trees.insert(static_cast<MCMechActor*>(mover->Appearance.get())->MechTree);
         }
     }
 

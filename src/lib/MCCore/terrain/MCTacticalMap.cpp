@@ -18,13 +18,16 @@
 #include "mission/scenario.h"
 #include "network/multplyr.h"
 #include "object/MCBigGameObject.h"
-#include "object/gvehicl.h"
-#include "object/mover.h"
+#include "object/MCGroundVehicle.h"
+#include "object/MCGroundVehicleType.h"
+#include "object/MCGroundVehicleGameSystem.h"
+#include "object/MCMover.h"
+#include "object/MCMoverGameSystem.h"
 #include "object/MCObjectType.h"
 #include "object/MCObjectSystem.h"
 #include "object/MCObjectQueue.h"
 #include "object/MCForces.h"
-#include "object/warrior.h"
+#include "object/MCMechWarrior.h"
 #include "platform/MCRenderer.h"
 #include "sound/radio.h"
 #include "sound/soundsys.h"
@@ -1961,7 +1964,7 @@ auto MCTacticalMap::SetID(int32_t partId) -> void
         DataButtons[2]->MoveTo(0x56, 0xcc, 0);
         DataButtons[1]->ShowGuiWindow(-1);
         shapeName = std::format("mechrep{:02}", static_cast<int32_t>(obj->GetObjectType()->IconNumber));
-        InfoPorts[0]->Init(obj->GetPilot()->Picture);
+        InfoPorts[0]->Init(obj->GetPilot()->Picture.data());
     }
     else if (obj->ObjectClass == MCObjectClass::GroundVehicle)
     {
@@ -1986,7 +1989,7 @@ auto MCTacticalMap::SetID(int32_t partId) -> void
         {
             if (vehicle->Passengers[seat] != nullptr)
             {
-                InfoPorts[static_cast<size_t>(seat)]->Init(vehicle->Passengers[seat]->Picture);
+                InfoPorts[static_cast<size_t>(seat)]->Init(vehicle->Passengers[seat]->Picture.data());
             }
         }
 

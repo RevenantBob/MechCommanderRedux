@@ -427,9 +427,6 @@
     <ClCompile Include="network\multplyr.cpp">
       <Filter>network</Filter>
     </ClCompile>
-    <ClCompile Include="object\aictrl.cpp">
-      <Filter>object</Filter>
-    </ClCompile>
     <ClCompile Include="object\artlry.cpp">
       <Filter>object</Filter>
     </ClCompile>
@@ -445,15 +442,6 @@
     <ClCompile Include="object\debris.cpp">
       <Filter>object</Filter>
     </ClCompile>
-    <ClCompile Include="object\elemctrl.cpp">
-      <Filter>object</Filter>
-    </ClCompile>
-    <ClCompile Include="object\elemdyn.cpp">
-      <Filter>object</Filter>
-    </ClCompile>
-    <ClCompile Include="object\elemntl.cpp">
-      <Filter>object</Filter>
-    </ClCompile>
     <ClCompile Include="object\explode.cpp">
       <Filter>object</Filter>
     </ClCompile>
@@ -461,15 +449,6 @@
       <Filter>object</Filter>
     </ClCompile>
     <ClCompile Include="object\gate.cpp">
-      <Filter>object</Filter>
-    </ClCompile>
-    <ClCompile Include="object\gvehctrl.cpp">
-      <Filter>object</Filter>
-    </ClCompile>
-    <ClCompile Include="object\gvehdyn.cpp">
-      <Filter>object</Filter>
-    </ClCompile>
-    <ClCompile Include="object\gvehicl.cpp">
       <Filter>object</Filter>
     </ClCompile>
     <ClCompile Include="object\jet.cpp">
@@ -481,7 +460,25 @@
     <ClCompile Include="object\light.cpp">
       <Filter>object</Filter>
     </ClCompile>
+    <ClCompile Include="object\MCAIControl.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
     <ClCompile Include="object\MCBaseObject.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
+    <ClCompile Include="object\MCBattleMech.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
+    <ClCompile Include="object\MCBattleMechCombat.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
+    <ClCompile Include="object\MCBattleMechMovement.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
+    <ClCompile Include="object\MCBattleMechNetwork.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
+    <ClCompile Include="object\MCBattleMechType.cpp">
       <Filter>object</Filter>
     </ClCompile>
     <ClCompile Include="object\MCBigGameObject.cpp">
@@ -499,10 +496,25 @@
     <ClCompile Include="object\MCContactSystem.cpp">
       <Filter>object</Filter>
     </ClCompile>
-    <ClCompile Include="object\MCControl.cpp">
+    <ClCompile Include="object\MCDynamics.cpp">
       <Filter>object</Filter>
     </ClCompile>
-    <ClCompile Include="object\MCDynamics.cpp">
+    <ClCompile Include="object\MCElemental.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
+    <ClCompile Include="object\MCElementalCombat.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
+    <ClCompile Include="object\MCElementalDynamics.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
+    <ClCompile Include="object\MCElementalGameSystem.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
+    <ClCompile Include="object\MCElementalMovement.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
+    <ClCompile Include="object\MCElementalType.cpp">
       <Filter>object</Filter>
     </ClCompile>
     <ClCompile Include="object\MCForces.cpp">
@@ -511,10 +523,67 @@
     <ClCompile Include="object\MCGameObject.cpp">
       <Filter>object</Filter>
     </ClCompile>
+    <ClCompile Include="object\MCGroundVehicle.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
+    <ClCompile Include="object\MCGroundVehicleCombat.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
+    <ClCompile Include="object\MCGroundVehicleDynamics.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
+    <ClCompile Include="object\MCGroundVehicleGameSystem.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
+    <ClCompile Include="object\MCGroundVehicleMovement.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
+    <ClCompile Include="object\MCGroundVehicleNetwork.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
+    <ClCompile Include="object\MCGroundVehicleType.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
     <ClCompile Include="object\MCMasterComponent.cpp">
       <Filter>object</Filter>
     </ClCompile>
+    <ClCompile Include="object\MCMechDynamics.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
+    <ClCompile Include="object\MCMechGameSystem.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
+    <ClCompile Include="object\MCMechWarrior.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
+    <ClCompile Include="object\MCMechWarriorAlarms.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
+    <ClCompile Include="object\MCMechWarriorCombat.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
+    <ClCompile Include="object\MCMechWarriorMovement.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
+    <ClCompile Include="object\MCMechWarriorOrders.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
+    <ClCompile Include="object\MCMover.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
+    <ClCompile Include="object\MCMoverGameSystem.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
     <ClCompile Include="object\MCMoverGroup.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
+    <ClCompile Include="object\MCMoverMovement.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
+    <ClCompile Include="object\MCMoverWeapons.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
+    <ClCompile Include="object\MCNetControl.cpp">
       <Filter>object</Filter>
     </ClCompile>
     <ClCompile Include="object\MCObjectBlockManager.cpp">
@@ -541,6 +610,12 @@
     <ClCompile Include="object\MCObjectWatcher.cpp">
       <Filter>object</Filter>
     </ClCompile>
+    <ClCompile Include="object\MCPilotOrders.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
+    <ClCompile Include="object\MCPlayerControl.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
     <ClCompile Include="object\MCPotentialContact.cpp">
       <Filter>object</Filter>
     </ClCompile>
@@ -550,7 +625,19 @@
     <ClCompile Include="object\MCSortList.cpp">
       <Filter>object</Filter>
     </ClCompile>
+    <ClCompile Include="object\MCStatusChunk.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
+    <ClCompile Include="object\MCTacOrderQueue.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
     <ClCompile Include="object\MCTeam.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
+    <ClCompile Include="object\MCTurret.cpp">
+      <Filter>object</Filter>
+    </ClCompile>
+    <ClCompile Include="object\MCTurretType.cpp">
       <Filter>object</Filter>
     </ClCompile>
     <ClCompile Include="object\MCWeaponChunkDebug.cpp">
@@ -563,24 +650,6 @@
       <Filter>object</Filter>
     </ClCompile>
     <ClCompile Include="object\MCWeaponShotInfo.cpp">
-      <Filter>object</Filter>
-    </ClCompile>
-    <ClCompile Include="object\mech.cpp">
-      <Filter>object</Filter>
-    </ClCompile>
-    <ClCompile Include="object\mechctrl.cpp">
-      <Filter>object</Filter>
-    </ClCompile>
-    <ClCompile Include="object\mechdyn.cpp">
-      <Filter>object</Filter>
-    </ClCompile>
-    <ClCompile Include="object\mover.cpp">
-      <Filter>object</Filter>
-    </ClCompile>
-    <ClCompile Include="object\netctrl.cpp">
-      <Filter>object</Filter>
-    </ClCompile>
-    <ClCompile Include="object\plyrctrl.cpp">
       <Filter>object</Filter>
     </ClCompile>
     <ClCompile Include="object\prjlase.cpp">
@@ -602,12 +671,6 @@
       <Filter>object</Filter>
     </ClCompile>
     <ClCompile Include="object\tree.cpp">
-      <Filter>object</Filter>
-    </ClCompile>
-    <ClCompile Include="object\turret.cpp">
-      <Filter>object</Filter>
-    </ClCompile>
-    <ClCompile Include="object\warrior.cpp">
       <Filter>object</Filter>
     </ClCompile>
     <ClCompile Include="platform\MCAllocator.cpp">
@@ -1188,9 +1251,6 @@
     <ClInclude Include="network\multplyr.h">
       <Filter>network</Filter>
     </ClInclude>
-    <ClInclude Include="object\aictrl.h">
-      <Filter>object</Filter>
-    </ClInclude>
     <ClInclude Include="object\artlry.h">
       <Filter>object</Filter>
     </ClInclude>
@@ -1206,15 +1266,6 @@
     <ClInclude Include="object\debris.h">
       <Filter>object</Filter>
     </ClInclude>
-    <ClInclude Include="object\elemctrl.h">
-      <Filter>object</Filter>
-    </ClInclude>
-    <ClInclude Include="object\elemdyn.h">
-      <Filter>object</Filter>
-    </ClInclude>
-    <ClInclude Include="object\elemntl.h">
-      <Filter>object</Filter>
-    </ClInclude>
     <ClInclude Include="object\explode.h">
       <Filter>object</Filter>
     </ClInclude>
@@ -1222,15 +1273,6 @@
       <Filter>object</Filter>
     </ClInclude>
     <ClInclude Include="object\gate.h">
-      <Filter>object</Filter>
-    </ClInclude>
-    <ClInclude Include="object\gvehctrl.h">
-      <Filter>object</Filter>
-    </ClInclude>
-    <ClInclude Include="object\gvehdyn.h">
-      <Filter>object</Filter>
-    </ClInclude>
-    <ClInclude Include="object\gvehicl.h">
       <Filter>object</Filter>
     </ClInclude>
     <ClInclude Include="object\jet.h">
@@ -1242,7 +1284,16 @@
     <ClInclude Include="object\light.h">
       <Filter>object</Filter>
     </ClInclude>
+    <ClInclude Include="object\MCAIControl.h">
+      <Filter>object</Filter>
+    </ClInclude>
     <ClInclude Include="object\MCBaseObject.h">
+      <Filter>object</Filter>
+    </ClInclude>
+    <ClInclude Include="object\MCBattleMech.h">
+      <Filter>object</Filter>
+    </ClInclude>
+    <ClInclude Include="object\MCBattleMechType.h">
       <Filter>object</Filter>
     </ClInclude>
     <ClInclude Include="object\MCBigGameObject.h">
@@ -1266,16 +1317,76 @@
     <ClInclude Include="object\MCDynamics.h">
       <Filter>object</Filter>
     </ClInclude>
+    <ClInclude Include="object\MCElemental.h">
+      <Filter>object</Filter>
+    </ClInclude>
+    <ClInclude Include="object\MCElementalControlData.h">
+      <Filter>object</Filter>
+    </ClInclude>
+    <ClInclude Include="object\MCElementalDynamics.h">
+      <Filter>object</Filter>
+    </ClInclude>
+    <ClInclude Include="object\MCElementalGameSystem.h">
+      <Filter>object</Filter>
+    </ClInclude>
+    <ClInclude Include="object\MCElementalType.h">
+      <Filter>object</Filter>
+    </ClInclude>
     <ClInclude Include="object\MCForces.h">
       <Filter>object</Filter>
     </ClInclude>
     <ClInclude Include="object\MCGameObject.h">
       <Filter>object</Filter>
     </ClInclude>
+    <ClInclude Include="object\MCGameSystemReader.h">
+      <Filter>object</Filter>
+    </ClInclude>
+    <ClInclude Include="object\MCGroundVehicle.h">
+      <Filter>object</Filter>
+    </ClInclude>
+    <ClInclude Include="object\MCGroundVehicleControlData.h">
+      <Filter>object</Filter>
+    </ClInclude>
+    <ClInclude Include="object\MCGroundVehicleDynamics.h">
+      <Filter>object</Filter>
+    </ClInclude>
+    <ClInclude Include="object\MCGroundVehicleGameSystem.h">
+      <Filter>object</Filter>
+    </ClInclude>
+    <ClInclude Include="object\MCGroundVehicleType.h">
+      <Filter>object</Filter>
+    </ClInclude>
     <ClInclude Include="object\MCMasterComponent.h">
       <Filter>object</Filter>
     </ClInclude>
+    <ClInclude Include="object\MCMechControlData.h">
+      <Filter>object</Filter>
+    </ClInclude>
+    <ClInclude Include="object\MCMechDynamics.h">
+      <Filter>object</Filter>
+    </ClInclude>
+    <ClInclude Include="object\MCMechGameSystem.h">
+      <Filter>object</Filter>
+    </ClInclude>
+    <ClInclude Include="object\MCMechWarrior.h">
+      <Filter>object</Filter>
+    </ClInclude>
+    <ClInclude Include="object\MCMover.h">
+      <Filter>object</Filter>
+    </ClInclude>
+    <ClInclude Include="object\MCMoverGameSystem.h">
+      <Filter>object</Filter>
+    </ClInclude>
     <ClInclude Include="object\MCMoverGroup.h">
+      <Filter>object</Filter>
+    </ClInclude>
+    <ClInclude Include="object\MCMoverMath.h">
+      <Filter>object</Filter>
+    </ClInclude>
+    <ClInclude Include="object\MCMoverParts.h">
+      <Filter>object</Filter>
+    </ClInclude>
+    <ClInclude Include="object\MCNetControl.h">
       <Filter>object</Filter>
     </ClInclude>
     <ClInclude Include="object\MCObjectBlockManager.h">
@@ -1302,6 +1413,15 @@
     <ClInclude Include="object\MCObjectWatcher.h">
       <Filter>object</Filter>
     </ClInclude>
+    <ClInclude Include="object\MCPilotAlarm.h">
+      <Filter>object</Filter>
+    </ClInclude>
+    <ClInclude Include="object\MCPilotOrders.h">
+      <Filter>object</Filter>
+    </ClInclude>
+    <ClInclude Include="object\MCPlayerControl.h">
+      <Filter>object</Filter>
+    </ClInclude>
     <ClInclude Include="object\MCPotentialContact.h">
       <Filter>object</Filter>
     </ClInclude>
@@ -1314,7 +1434,19 @@
     <ClInclude Include="object\MCSortList.h">
       <Filter>object</Filter>
     </ClInclude>
+    <ClInclude Include="object\MCStatusChunk.h">
+      <Filter>object</Filter>
+    </ClInclude>
+    <ClInclude Include="object\MCTacOrderQueue.h">
+      <Filter>object</Filter>
+    </ClInclude>
     <ClInclude Include="object\MCTeam.h">
+      <Filter>object</Filter>
+    </ClInclude>
+    <ClInclude Include="object\MCTurret.h">
+      <Filter>object</Filter>
+    </ClInclude>
+    <ClInclude Include="object\MCTurretType.h">
       <Filter>object</Filter>
     </ClInclude>
     <ClInclude Include="object\MCWeaponChunkDebug.h">
@@ -1327,24 +1459,6 @@
       <Filter>object</Filter>
     </ClInclude>
     <ClInclude Include="object\MCWeaponShotInfo.h">
-      <Filter>object</Filter>
-    </ClInclude>
-    <ClInclude Include="object\mech.h">
-      <Filter>object</Filter>
-    </ClInclude>
-    <ClInclude Include="object\mechctrl.h">
-      <Filter>object</Filter>
-    </ClInclude>
-    <ClInclude Include="object\mechdyn.h">
-      <Filter>object</Filter>
-    </ClInclude>
-    <ClInclude Include="object\mover.h">
-      <Filter>object</Filter>
-    </ClInclude>
-    <ClInclude Include="object\netctrl.h">
-      <Filter>object</Filter>
-    </ClInclude>
-    <ClInclude Include="object\plyrctrl.h">
       <Filter>object</Filter>
     </ClInclude>
     <ClInclude Include="object\prjlase.h">
@@ -1366,12 +1480,6 @@
       <Filter>object</Filter>
     </ClInclude>
     <ClInclude Include="object\tree.h">
-      <Filter>object</Filter>
-    </ClInclude>
-    <ClInclude Include="object\turret.h">
-      <Filter>object</Filter>
-    </ClInclude>
-    <ClInclude Include="object\warrior.h">
       <Filter>object</Filter>
     </ClInclude>
     <ClInclude Include="platform\MCAllocator.h">

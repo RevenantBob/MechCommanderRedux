@@ -3,7 +3,8 @@
 #include "TestGame.h"
 #include "appear/MCAppearance.h"
 #include "camera/MCCamera.h"
-#include "object/mover.h"
+#include "object/MCMover.h"
+#include "object/MCMoverGameSystem.h"
 
 /// <summary>
 /// While the zoom eases, units stay where the terrain is: each frame, the screen position a mover took in its update

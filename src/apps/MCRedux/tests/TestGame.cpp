@@ -15,8 +15,9 @@
 #include "main/main.h"
 #include "mission/mission.h"
 #include "mission/scenario.h"
-#include "object/mover.h"
-#include "object/warrior.h"
+#include "object/MCMover.h"
+#include "object/MCMoverGameSystem.h"
+#include "object/MCMechWarrior.h"
 #include "platform/MCDisplay.h"
 #include "platform/MCFileSystem.h"
 #include "platform/MCInput.h"
@@ -138,7 +139,7 @@ namespace MCTestGame
             return hash;
         }
 
-        for (int32_t partId = 0x200; partId < MAX_MOVER_PART_ID; partId++)
+        for (int32_t partId = MCMover::FirstPartId; partId < MCMover::EndPartId; partId++)
         {
             MCMover* mover = GetMoverFromPartId(partId);
 
@@ -154,13 +155,13 @@ namespace MCTestGame
             FoldVector(hash, mover->Frame.K);
             Fold(hash, mover->Status);
 
-            for (int32_t i = 0; mover->Body != nullptr && i < mover->NumBodyLocations; i++)
+            for (int32_t i = 0; i < mover->NumBodyLocations(); i++)
             {
                 Fold(hash, mover->Body[i].CurInternalStructure);
                 Fold(hash, mover->Body[i].DamageState);
             }
 
-            for (int32_t i = 0; mover->Armor != nullptr && i < mover->NumArmorLocations; i++)
+            for (int32_t i = 0; i < mover->NumArmorLocations(); i++)
             {
                 Fold(hash, mover->Armor[i].CurArmor);
             }
@@ -411,7 +412,7 @@ namespace MCTestGame
             std::fprintf(frameLog, "frame %d turn %d time %.3f clock %u", frame++, Turn,
                          static_cast<double>(ScenarioTime), MCPort::Milliseconds());
 
-            for (int32_t partId = 0x200; partId < MAX_MOVER_PART_ID && Scenario != nullptr; partId++)
+            for (int32_t partId = MCMover::FirstPartId; partId < MCMover::EndPartId && Scenario != nullptr; partId++)
             {
                 if (MCMover* mover = GetMoverFromPartId(partId); mover != nullptr)
                 {

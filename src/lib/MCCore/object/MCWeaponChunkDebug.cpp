@@ -8,7 +8,8 @@
 #include "object/MCObjectSystem.h"
 #include "object/MCWeaponFireChunk.h"
 #include "object/MCWeaponHitChunk.h"
-#include "object/mover.h"
+#include "object/MCMover.h"
+#include "object/MCMoverGameSystem.h"
 
 std::string ChunkDebugMsg;
 

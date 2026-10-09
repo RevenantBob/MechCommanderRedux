@@ -6,8 +6,10 @@
 #include "object/MCBigGameObject.h"
 #include "object/MCWeaponChunkDebug.h"
 #include "object/MCWeaponShotInfo.h"
-#include "object/mover.h"
-#include "object/turret.h"
+#include "object/MCMover.h"
+#include "object/MCMoverGameSystem.h"
+#include "object/MCTurret.h"
+#include "object/MCTurretType.h"
 
 auto MCWeaponFireChunk::Init() -> void
 {

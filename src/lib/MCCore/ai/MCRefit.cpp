@@ -1,9 +1,12 @@
 #include "stdafx.h"
 #include "ai/MCRefit.h"
 #include "object/MCMasterComponent.h"
-#include "object/mech.h"
-#include "object/mover.h"
-#include "object/warrior.h"
+#include "object/MCBattleMech.h"
+#include "object/MCBattleMechType.h"
+#include "object/MCMechGameSystem.h"
+#include "object/MCMover.h"
+#include "object/MCMoverGameSystem.h"
+#include "object/MCMechWarrior.h"
 #include "sound/soundsys.h"
 
 namespace
@@ -17,7 +20,7 @@ namespace
     /// <summary>Whether a location's internal structure or armor is below its maximum.</summary>
     bool LocationNeedsRepair(MCMover* mover, int32_t location)
     {
-        return (location < mover->NumBodyLocations &&
+        return (location < mover->NumBodyLocations() &&
                 mover->BodyAt(location).CurInternalStructure <
                     static_cast<float>(mover->BodyAt(location).MaxInternalStructure)) ||
                mover->Armor[location].CurArmor < static_cast<float>(mover->Armor[location].MaxArmor);
@@ -47,14 +50,14 @@ auto DoRefit(MCMover* mover, float refitPoints, float& pointsUsed, int ammoOnly)
 
         if (ammoOnly == 0)
         {
-            for (int32_t location = 0; location < mover->NumArmorLocations; location++)
+            for (int32_t location = 0; location < mover->NumArmorLocations(); location++)
             {
                 if (SkipLocation(mover, location))
                 {
                     continue;
                 }
 
-                if (location < mover->NumBodyLocations &&
+                if (location < mover->NumBodyLocations() &&
                     mover->BodyAt(location).CurInternalStructure <
                         static_cast<float>(mover->BodyAt(location).MaxInternalStructure))
                 {
@@ -68,7 +71,7 @@ auto DoRefit(MCMover* mover, float refitPoints, float& pointsUsed, int ammoOnly)
             }
         }
 
-        for (int32_t i = 0; i < mover->NumAmmoTypes; i++)
+        for (int32_t i = 0; i < mover->NumAmmoTypes(); i++)
         {
             if (mover->AmmoTypeTotal[i].CurAmount < mover->AmmoTypeTotal[i].StartAmount)
             {
@@ -76,7 +79,7 @@ auto DoRefit(MCMover* mover, float refitPoints, float& pointsUsed, int ammoOnly)
             }
         }
 
-        for (int32_t location = 0; location < mover->NumArmorLocations; location++)
+        for (int32_t location = 0; location < mover->NumArmorLocations(); location++)
         {
             if (locationsToFix == 0 || pointsLeft <= 0.0f || SkipLocation(mover, location))
             {
@@ -104,7 +107,7 @@ auto DoRefit(MCMover* mover, float refitPoints, float& pointsUsed, int ammoOnly)
                 pointsLeft = static_cast<float>(pointsLeft - share);
             }
 
-            if (location < mover->NumBodyLocations)
+            if (location < mover->NumBodyLocations())
             {
                 MCBodyLocation& body = mover->BodyAt(location);
                 const float maxStructure = static_cast<float>(body.MaxInternalStructure);
@@ -153,7 +156,7 @@ auto DoRefit(MCMover* mover, float refitPoints, float& pointsUsed, int ammoOnly)
             }
         }
 
-        for (int32_t i = 0; i < mover->NumAmmoTypes; i++)
+        for (int32_t i = 0; i < mover->NumAmmoTypes(); i++)
         {
             if (ammoToFix <= 0 || pointsLeft <= 0.0f)
             {
@@ -199,13 +202,13 @@ auto DoRefit(MCMover* mover, float refitPoints, float& pointsUsed, int ammoOnly)
 
         if (ammoOnly == 0)
         {
-            for (int32_t location = 0; location < mover->NumArmorLocations && !needsMore; location++)
+            for (int32_t location = 0; location < mover->NumArmorLocations() && !needsMore; location++)
             {
                 needsMore = !SkipLocation(mover, location) && LocationNeedsRepair(mover, location);
             }
         }
 
-        for (int32_t i = 0; i < mover->NumAmmoTypes && !needsMore; i++)
+        for (int32_t i = 0; i < mover->NumAmmoTypes() && !needsMore; i++)
         {
             needsMore = mover->AmmoTypeTotal[i].CurAmount < mover->AmmoTypeTotal[i].StartAmount;
         }

@@ -32,7 +32,7 @@ public:
         }
     }
 
-    int32_t Init(MCFitIniFile* objFile) override { return 0; }
+    int32_t LoadProfile(MCFitIniFile& profileFile) override { return 0; }
     /// <summary>Projects the object through the main camera; on screen, remembers the turn.</summary>
     int OnScreen() override;
     MCTeam* GetTeam() override { return Team; }
@@ -55,8 +55,6 @@ public:
     void SetAlignment(int32_t newAlignment) override;
     void SetCommanderId(int32_t commanderId) override {}
     int32_t GetCommanderId() override { return -1; }
-    /// <summary>Writes tonnage, status, damage, captured, explosion radius and damage.</summary>
-    int32_t Write(MCFile* objFile) override;
     /// <summary>A building or a tree building.</summary>
     int IsBuilding() override
     {

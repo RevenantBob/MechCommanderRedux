@@ -54,8 +54,8 @@ public:
     /// <summary>The terrain block and vertex under the object's position.</summary>
     void GetBlockAndVertexNumber(int32_t& blockNumber, int32_t& vertexNumber) override;
 
-    /// <summary>Reads the object's own data from a FIT file (nothing here).</summary>
-    virtual int32_t Init(MCFitIniFile* objFile) { return 0; }
+    /// <summary>Reads the object's profile (a mover's loadout and pilot) from a FIT file (nothing here).</summary>
+    virtual int32_t LoadProfile(MCFitIniFile& profileFile) { return 0; }
     /// <summary>Whether the object is on screen (updates its screen position).</summary>
     virtual int OnScreen() { return 0; }
     /// <summary>
@@ -125,8 +125,6 @@ public:
     virtual void SetAlignment(int32_t newAlignment) { Alignment = newAlignment; }
     virtual void SetCommanderId(int32_t commanderId) {}
     virtual int32_t GetCommanderId() { return -1; }
-    /// <summary>Writes the object's state to a save file.</summary>
-    virtual int32_t Write(MCFile* objFile) { return 0; }
     /// <summary>The distance on the ground from the object to <paramref name="goal"/>, in meters.</summary>
     virtual double DistanceFrom(MCVector3D& goal);
     /// <summary>Whether the map gives the object sight of <paramref name="target"/> (both ignore themselves).</summary>
@@ -139,9 +137,6 @@ public:
     virtual float RelFacingTo(MCVector3D goal, int32_t bodyPart);
     /// <summary>The angle from the object's view (torso or turret) facing to <paramref name="goal"/>.</summary>
     virtual float RelViewFacingTo(MCVector3D goal);
-    /// <summary>Opens the object's status window at the given screen rectangle.</summary>
-    virtual int32_t OpenStatusWindow(int32_t left, int32_t top, int32_t right, int32_t bottom) { return 0; }
-    virtual int32_t CloseStatusWindow() { return 0; }
     virtual int32_t GetMoveState() { return 0; }
     virtual void SetSelected(int32_t newSelected) { Selected = newSelected; }
     virtual void OrderWithdraw() {}

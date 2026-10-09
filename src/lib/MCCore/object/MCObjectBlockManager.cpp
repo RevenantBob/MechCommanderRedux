@@ -12,7 +12,8 @@
 #include "object/gate.h"
 #include "object/tbldng.h"
 #include "object/terrobj.h"
-#include "object/turret.h"
+#include "object/MCTurret.h"
+#include "object/MCTurretType.h"
 #include "sprite/MCVfxAppearance.h"
 #include "terrain/MCTerrain.h"
 

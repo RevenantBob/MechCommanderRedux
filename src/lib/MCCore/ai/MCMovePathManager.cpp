@@ -1,6 +1,7 @@
 #include "stdafx.h"
 #include "ai/MCMovePathManager.h"
-#include "object/warrior.h"
+#include "object/MCMechWarrior.h"
+#include "object/MCMoverGameSystem.h"
 
 auto MCMovePathManager::Remove(const MCPathQueueRec* rec) -> void
 {

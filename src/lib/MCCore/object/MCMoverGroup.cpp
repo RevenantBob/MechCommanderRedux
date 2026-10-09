@@ -7,8 +7,9 @@
 #include "network/multplyr.h"
 #include "object/MCObjectSystem.h"
 #include "object/MCSortList.h"
-#include "object/mover.h"
-#include "object/warrior.h"
+#include "object/MCMover.h"
+#include "object/MCMoverGameSystem.h"
+#include "object/MCMechWarrior.h"
 
 const std::array<int8_t, 162> CellSpiralIncrement = {
     -1, 0, 0,  1,  1,  0,  1,  0,  0,  -1, 0,  -1, -1, 0,  -1, 0,  -1, 0,  0, 1,  0, 1,  0, 1,  1, 0,  1,
@@ -413,13 +414,9 @@ auto MCMoverGroup::HandleTacticalOrder(MCTacticalOrder tacOrder, int32_t priorit
         {
             // Moving: the members set off in order of distance from the goal, the point first.
             formation = 1;
-            MCSortList* sortList = MCMover::SortList;
-
-            if (sortList == nullptr)
-            {
-                break;
-            }
-
+            // Sorted in a list as long as the 100-entry one the movers shared in MCX.EXE.
+            MCSortList sortListStorage(100);
+            MCSortList* sortList = &sortListStorage;
             sortList->Clear(0);
             int32_t numSorted = 0;
 
@@ -786,7 +783,7 @@ auto MCMoverGroup::OrderEject(MCOrderOrigin origin) -> int32_t
     return result;
 }
 
-auto MCMoverGroup::TriggerAlarm(int32_t alarmCode, uint32_t triggerId) -> void
+auto MCMoverGroup::TriggerAlarm(MCPilotAlarmType alarm, uint32_t triggerId) -> void
 {
     for (int32_t i = 0; i < NumMovers(); i++)
     {
@@ -794,14 +791,14 @@ auto MCMoverGroup::TriggerAlarm(int32_t alarmCode, uint32_t triggerId) -> void
 
         if (pilot != nullptr)
         {
-            pilot->TriggerAlarm(alarmCode, triggerId);
+            pilot->TriggerAlarm(alarm, triggerId);
         }
     }
 }
 
 auto MCMoverGroup::HandleMateCrippled(uint32_t mateId) -> int32_t
 {
-    TriggerAlarm(4, mateId);
+    TriggerAlarm(MCPilotAlarmType::FriendlyVehicleCrippled, mateId);
     return 0;
 }
 
@@ -812,7 +809,7 @@ auto MCMoverGroup::HandleMateDisabled(uint32_t) -> int32_t
 
 auto MCMoverGroup::HandleMateDestroyed(uint32_t mateId) -> int32_t
 {
-    TriggerAlarm(3, mateId);
+    TriggerAlarm(MCPilotAlarmType::DeathOfMate, mateId);
     return 0;
 }
 
@@ -823,5 +820,5 @@ auto MCMoverGroup::HandleMateEjected(uint32_t) -> int32_t
 
 auto MCMoverGroup::HandleMateFiredWeapon(uint32_t mateId) -> void
 {
-    TriggerAlarm(0xd, mateId);
+    TriggerAlarm(MCPilotAlarmType::MateFiredWeapon, mateId);
 }

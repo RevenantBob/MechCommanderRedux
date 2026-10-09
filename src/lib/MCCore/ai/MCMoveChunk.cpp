@@ -6,9 +6,12 @@
 #include "lib/MCFatal.h"
 #include "lib/MCFile.h"
 #include "main/main.h"
-#include "object/mech.h"
-#include "object/mover.h"
-#include "object/warrior.h"
+#include "object/MCBattleMech.h"
+#include "object/MCBattleMechType.h"
+#include "object/MCMechGameSystem.h"
+#include "object/MCMover.h"
+#include "object/MCMoverGameSystem.h"
+#include "object/MCMechWarrior.h"
 #include "object/MCWeaponChunkDebug.h"
 
 namespace

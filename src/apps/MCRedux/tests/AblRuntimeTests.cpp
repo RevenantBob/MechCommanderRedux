@@ -10,9 +10,10 @@
 #include "fakes/MCScriptedRandom.h"
 #include "main/MCGameContext.h"
 #include "mission/scenario.h"
-#include "object/mover.h"
+#include "object/MCMover.h"
+#include "object/MCMoverGameSystem.h"
 #include "object/MCObjectQueue.h"
-#include "object/warrior.h"
+#include "object/MCMechWarrior.h"
 
 // ABL's runtime: running modules (arithmetic, control flow, calls, arrays, statics, libraries, parameters from C++),
 // its runtime errors, the standard routines and the debugger. Expected values come from the language as the retail
@@ -646,7 +647,7 @@ TEST_CASE_ISOLATED("game: mission 1's world through script routines: objects, si
                                       goal.X, goal.Y, goal.Z),
                           "ordermoveto(goal, false)"));
     CHECK_EQ(result, 0);
-    const MCTacticalOrder& order = lead->GetPilot()->TacOrder[ORDERSTATE_GENERAL];
+    const MCTacticalOrder& order = lead->GetPilot()->TacOrderOf(MCOrderState::General);
     CHECK(order.Code == MCTacticalOrderCode::MoveToPoint);
     CHECK(order.Origin == MCOrderOrigin::Commander);
 }

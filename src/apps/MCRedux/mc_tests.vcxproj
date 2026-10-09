@@ -69,8 +69,10 @@
     <ClCompile Include="tests\AllocatorTests.cpp" />
     <ClCompile Include="tests\BlockStoreTests.cpp" />
     <ClCompile Include="tests\ColorTests.cpp" />
+    <ClCompile Include="tests\ControlTests.cpp" />
     <ClCompile Include="tests\CursorTests.cpp" />
     <ClCompile Include="tests\DirectPlayTests.cpp" />
+    <ClCompile Include="tests\ElementalTests.cpp" />
     <ClCompile Include="tests\EngineTests.cpp" />
     <ClCompile Include="tests\fakes\MCLoopbackTransport.cpp" />
     <ClCompile Include="tests\fakes\MCManualClock.cpp" />
@@ -93,7 +95,9 @@
     <ClCompile Include="tests\MCTest.cpp">
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
     </ClCompile>
+    <ClCompile Include="tests\MechTests.cpp" />
     <ClCompile Include="tests\MissionTests.cpp" />
+    <ClCompile Include="tests\MoverTests.cpp" />
     <ClCompile Include="tests\ObjectCoreTests.cpp" />
     <ClCompile Include="tests\ObjectQueueTests.cpp" />
     <ClCompile Include="tests\ObjectTypeTests.cpp" />
@@ -110,6 +114,7 @@
     <ClCompile Include="tests\TerrainGridTests.cpp" />
     <ClCompile Include="tests\TerrainTests.cpp" />
     <ClCompile Include="tests\TestGame.cpp" />
+    <ClCompile Include="tests\TurretTests.cpp" />
     <ClCompile Include="tests\VfxFontImageTests.cpp" />
     <ClCompile Include="tests\VfxGameHelperTests.cpp" />
     <ClCompile Include="tests\VfxPolygonTests.cpp" />

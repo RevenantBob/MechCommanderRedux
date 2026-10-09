@@ -1,7 +1,6 @@
 #pragma once
 
 class MCDynamics;
-class MCFitIniFile;
 class MCGameObject;
 
 /// <summary>
@@ -12,30 +11,24 @@ class MCGameObject;
 class MCDynamicsType
 {
 public:
-    /// <summary>The original's destructor is not virtual: it resets the vtable and calls destroy.</summary>
-    ~MCDynamicsType() { Destroy(); }
+    virtual ~MCDynamicsType() = default;
 
-    /// <summary>Reads the type's dynamics block from its FIT; 0 on success, else the FitIniFile error.</summary>
-    virtual int32_t Init(MCFitIniFile* objFile) { return 0; }
-    virtual void Destroy();
-    /// <summary>Makes a <see cref="MCDynamics"/> of this type (the subclasses make theirs).</summary>
-    virtual MCDynamics* CreateInstance();
+    /// <summary>Makes the dynamics that moves <paramref name="object"/> within this type's limits.</summary>
+    virtual std::unique_ptr<MCDynamics> CreateInstance(MCGameObject& object);
     /// <summary>1 for a mech's, 2 a ground vehicle's.</summary>
     virtual uint32_t GetDynamicsTypeClass() { return 0; }
 };
 
 /// <summary>Moves one mover each frame within its <see cref="MCDynamicsType"/>'s limits, from its control data.</summary>
-/// <remarks>Original source: <c>object\dyn.cpp</c>, <c>object\dyn.h</c>; 0xc bytes.</remarks>
+/// <remarks>Original source: <c>object\dyn.cpp</c>, <c>object\dyn.h</c>.</remarks>
 class MCDynamics
 {
 public:
-    /// <summary>The original's destructor is not virtual: it resets the vtable and calls destroy.</summary>
-    ~MCDynamics() { Destroy(); }
+    /// <summary>Moves <paramref name="object"/> within the limits of <paramref name="type"/>.</summary>
+    MCDynamics(MCDynamicsType& type, MCGameObject& object) : Type(&type), Me(&object) {}
+    virtual ~MCDynamics() = default;
 
-    /// <summary>Remembers its type and the object it moves.</summary>
-    virtual int32_t Init(MCDynamicsType* dynType, MCGameObject* object);
-    virtual void Destroy();
-    virtual int32_t Update();
+    virtual int32_t Update() { return 0; }
     virtual int32_t Brake() { return 0; }
     /// <summary>1 for a mech's, 2 a ground vehicle's, 3 an elemental's.</summary>
     virtual uint32_t GetDynamicsClass() { return 0; }

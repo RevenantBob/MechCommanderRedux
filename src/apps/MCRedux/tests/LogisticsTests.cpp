@@ -6,7 +6,9 @@
 #include "logistics/logmain.h"
 #include "main/logistics.h"
 #include "object/MCMasterComponent.h"
-#include "object/mech.h"
+#include "object/MCBattleMech.h"
+#include "object/MCBattleMechType.h"
+#include "object/MCMechGameSystem.h"
 #include "object/MCObjectType.h"
 #include "object/MCObjectTypeManager.h"
 
@@ -259,8 +261,7 @@ TEST_CASE("game: logistics spreads weapons over the arms and side torsos")
     }
 
     REQUIRE(smallID >= 0);
-    const int32_t weaponLocations[4] = {MECH_BODY_LOCATION_LTORSO, MECH_BODY_LOCATION_RTORSO, MECH_BODY_LOCATION_LARM,
-                                        MECH_BODY_LOCATION_RARM};
+    const int32_t weaponLocations[4] = {MechLeftTorso, MechRightTorso, MechLeftArm, MechRightArm};
 
     // Eight large weapons: two in each arm and side torso, not all in the left arm (OB-092).
     ClearSlots(*mech);
@@ -279,9 +280,9 @@ TEST_CASE("game: logistics spreads weapons over the arms and side torsos")
     // The first large weapon goes to a side torso, the first small weapon to an arm.
     ClearSlots(*mech);
     mech->PlaceItem(largeID, 0, 0);
-    CHECK_EQ(CountHeld(*mech, MECH_BODY_LOCATION_LTORSO, largeID), 1);
+    CHECK_EQ(CountHeld(*mech, MechLeftTorso, largeID), 1);
     mech->PlaceItem(static_cast<uint8_t>(smallID), 1, 0);
-    CHECK_EQ(CountHeld(*mech, MECH_BODY_LOCATION_LARM, static_cast<uint8_t>(smallID)), 1);
+    CHECK_EQ(CountHeld(*mech, MechLeftArm, static_cast<uint8_t>(smallID)), 1);
 
     // Four small weapons: one in each.
     ClearSlots(*mech);
@@ -300,15 +301,15 @@ TEST_CASE("game: logistics spreads weapons over the arms and side torsos")
     // A full left arm is passed over, and nothing spills into the right arm's first slot.
     ClearSlots(*mech);
 
-    for (MCLogMech::ItemSlot& slot : mech->ItemSlots[MECH_BODY_LOCATION_LARM])
+    for (MCLogMech::ItemSlot& slot : mech->ItemSlots[MechLeftArm])
     {
         slot = {50, 0, 0};
     }
 
-    mech->ItemSlots[MECH_BODY_LOCATION_RARM][0] = {51, 0, 0};
+    mech->ItemSlots[MechRightArm][0] = {51, 0, 0};
     mech->PlaceItem(static_cast<uint8_t>(smallID), 52, 0);
-    CHECK_EQ(mech->ItemSlots[MECH_BODY_LOCATION_RARM][0].Row, 51);
-    CHECK_EQ(mech->ItemSlots[MECH_BODY_LOCATION_RARM][1].Row, 52);
+    CHECK_EQ(mech->ItemSlots[MechRightArm][0].Row, 51);
+    CHECK_EQ(mech->ItemSlots[MechRightArm][1].Row, 52);
 
     // With every arm and side torso full, the weapon gets no slot and nothing is overwritten.
     ClearSlots(*mech);
@@ -331,7 +332,7 @@ TEST_CASE("game: logistics spreads weapons over the arms and side torsos")
         }
     }
 
-    CHECK_EQ(mech->ItemSlots[MECH_BODY_LOCATION_LLEG][0].Row, 0xff);
+    CHECK_EQ(mech->ItemSlots[MechLeftLeg][0].Row, 0xff);
     mechs.Destroy();
 }
 
@@ -354,8 +355,8 @@ TEST_CASE("game: logistics puts each jump jet in one slot of the leg with fewer"
     // One jet takes one slot, in the left leg.
     ClearSlots(*mech);
     mech->PlaceItem(jet, 0, 0);
-    CHECK_EQ(CountHeld(*mech, MECH_BODY_LOCATION_LLEG, jet), 1);
-    CHECK_EQ(CountHeld(*mech, MECH_BODY_LOCATION_RLEG, jet), 0);
+    CHECK_EQ(CountHeld(*mech, MechLeftLeg, jet), 1);
+    CHECK_EQ(CountHeld(*mech, MechRightLeg, jet), 0);
 
     // Four jets: two per leg.
     for (int32_t item = 1; item < 4; ++item)
@@ -363,19 +364,19 @@ TEST_CASE("game: logistics puts each jump jet in one slot of the leg with fewer"
         mech->PlaceItem(jet, item, 0);
     }
 
-    CHECK_EQ(CountHeld(*mech, MECH_BODY_LOCATION_LLEG, jet), 2);
-    CHECK_EQ(CountHeld(*mech, MECH_BODY_LOCATION_RLEG, jet), 2);
+    CHECK_EQ(CountHeld(*mech, MechLeftLeg, jet), 2);
+    CHECK_EQ(CountHeld(*mech, MechRightLeg, jet), 2);
 
     // Another component in the left leg's first slot doesn't stop the jets after it being counted.
     ClearSlots(*mech);
-    mech->ItemSlots[MECH_BODY_LOCATION_LLEG][0] = {40, 0, 0};
+    mech->ItemSlots[MechLeftLeg][0] = {40, 0, 0};
 
     for (int32_t item = 0; item < 3; ++item)
     {
         mech->PlaceItem(jet, item, 0);
     }
 
-    CHECK_EQ(CountHeld(*mech, MECH_BODY_LOCATION_LLEG, jet), 2);
-    CHECK_EQ(CountHeld(*mech, MECH_BODY_LOCATION_RLEG, jet), 1);
+    CHECK_EQ(CountHeld(*mech, MechLeftLeg, jet), 2);
+    CHECK_EQ(CountHeld(*mech, MechRightLeg, jet), 1);
     mechs.Destroy();
 }

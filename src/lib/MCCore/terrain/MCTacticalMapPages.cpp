@@ -17,14 +17,17 @@
 #include "object/MCMasterComponent.h"
 #include "object/MCContactSystem.h"
 #include "object/MCBigGameObject.h"
-#include "object/gvehicl.h"
-#include "object/mover.h"
+#include "object/MCGroundVehicle.h"
+#include "object/MCGroundVehicleType.h"
+#include "object/MCGroundVehicleGameSystem.h"
+#include "object/MCMover.h"
+#include "object/MCMoverGameSystem.h"
 #include "object/MCObjectSystem.h"
 #include "object/MCObjectQueue.h"
 #include "object/MCObjectType.h"
 #include "object/tbldng.h"
 #include "object/MCForces.h"
-#include "object/warrior.h"
+#include "object/MCMechWarrior.h"
 #include "terrain/MCTacticalMapLayout.h"
 #include "terrain/MCTerrain.h"
 #include "vfx/MCVfx.h"
@@ -247,8 +250,8 @@ auto MCTacticalMap::DrawInfoPage() -> void
         }
 
         const int32_t shape = obj->ObjectClass == MCObjectClass::BattleMech
-                                  ? mover->NumArmorLocations + 1 + mover->NumBodyLocations
-                                  : mover->NumBodyLocations;
+                                  ? mover->NumArmorLocations() + 1 + mover->NumBodyLocations()
+                                  : mover->NumBodyLocations();
         AGShapeDraw(Port()->Frame(), PartShapes.Data(), shape, 0x22, 0x65);
         DrawParts();
     }
@@ -780,13 +783,14 @@ auto MCTacticalMap::DrawParts() -> void
     // The armor locations: a mech's front ones (0..7) or, in the rear view, its rear ones over the rear diagram;
     // other units all of theirs.
     int16_t first = 0;
-    int16_t end = mover->ObjectClass == MCObjectClass::BattleMech ? 8 : mover->NumArmorLocations;
+    int16_t end = mover->ObjectClass == MCObjectClass::BattleMech ? 8 : mover->NumArmorLocations();
 
     if (DataDisplayMode == 1)
     {
-        AGShapeDraw(Port()->Frame(), PartShapes.Data(), mover->NumBodyLocations + mover->NumArmorLocations, 0x22, 0x65);
+        AGShapeDraw(Port()->Frame(), PartShapes.Data(), mover->NumBodyLocations() + mover->NumArmorLocations(), 0x22,
+                    0x65);
         first = 8;
-        end = mover->NumArmorLocations;
+        end = mover->NumArmorLocations();
     }
 
     for (int32_t i = first; i < end; i++)
@@ -798,9 +802,9 @@ auto MCTacticalMap::DrawParts() -> void
     // A mech's front view also shows its internal structure.
     if (mover->ObjectClass == MCObjectClass::BattleMech && DataDisplayMode == 0)
     {
-        for (int16_t i = 0; i < mover->NumBodyLocations; i++)
+        for (int16_t i = 0; i < mover->NumBodyLocations(); i++)
         {
-            const int8_t numArmor = mover->NumArmorLocations;
+            const int8_t numArmor = mover->NumArmorLocations();
             AGShapeLookaside(PartColorTable(*this, BodyColors[static_cast<size_t>(i)]));
             AGShapeTranslateDraw(Port()->Frame(), PartShapes.Data(), static_cast<int16_t>(numArmor + i), 0x22, 0x65);
         }
@@ -816,7 +820,7 @@ auto MCTacticalMap::GetColors() -> void
         return;
     }
 
-    for (int32_t i = 0; i < mover->NumBodyLocations; i++)
+    for (int32_t i = 0; i < mover->NumBodyLocations(); i++)
     {
         const MCBodyLocation& location = mover->BodyAt(i);
         BodyColors[static_cast<size_t>(i)] =
@@ -824,7 +828,7 @@ auto MCTacticalMap::GetColors() -> void
                                       : DamageColor(location.CurInternalStructure, location.MaxInternalStructure);
     }
 
-    for (int32_t i = 0; i < mover->NumArmorLocations; i++)
+    for (int32_t i = 0; i < mover->NumArmorLocations(); i++)
     {
         const MCArmorLocation& location = mover->Armor[i];
         ArmorColors[static_cast<size_t>(i)] =
@@ -1009,7 +1013,7 @@ auto MCTacticalMap::DrawWeapons() -> void
     // The ammo: red when out, yellow under half.
     const std::string amountFormat = TableString(0x380);
 
-    for (int32_t i = 0; i < mover->NumAmmoTypes; i++)
+    for (int32_t i = 0; i < mover->NumAmmoTypes(); i++)
     {
         const MCAmmoTally& ammo = mover->AmmoTypeTotal[i];
         const int32_t amount = ammo.CurAmount;

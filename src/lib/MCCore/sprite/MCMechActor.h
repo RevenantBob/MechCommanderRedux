@@ -134,7 +134,7 @@ public:
     /// </summary>
     float JumpVelocity = 0.0f;
     /// <summary>The jump's or fall's height per frame of the legs (the type's gesture outline), or null.</summary>
-    float* FrameHeights = nullptr;
+    const float* FrameHeights = nullptr;
     /// <summary>Whether the mech is jumping (read by BattleMech::setControlSettings).</summary>
     bool InJump = false;
     /// <summary>Set to 4 by <see cref="SetJumpParameters"/>.</summary>

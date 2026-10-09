@@ -23,16 +23,20 @@
 #include "object/MCBigGameObject.h"
 #include "object/gate.h"
 #include "object/MCMoverGroup.h"
-#include "object/gvehicl.h"
-#include "object/mover.h"
+#include "object/MCGroundVehicle.h"
+#include "object/MCGroundVehicleType.h"
+#include "object/MCGroundVehicleGameSystem.h"
+#include "object/MCMover.h"
+#include "object/MCMoverGameSystem.h"
 #include "object/MCObjectSystem.h"
 #include "object/MCObjectQueue.h"
 #include "object/MCObjectType.h"
 #include "object/tbldng.h"
 #include "object/terrobj.h"
 #include "object/train.h"
-#include "object/turret.h"
-#include "object/warrior.h"
+#include "object/MCTurret.h"
+#include "object/MCTurretType.h"
+#include "object/MCMechWarrior.h"
 #include "sound/radio.h"
 #include "sound/soundsys.h"
 #include "sprite/MCVfxAppearance.h"
@@ -901,7 +905,7 @@ namespace
     auto MechStatus(MCMover* mech) -> float
     {
         // Armor locations: 0 head, 1 center torso, 2 / 3 arms, 4 / 5 side torsos, 8 rear center torso, 9 / 10 legs.
-        MCArmorLocation* armor = mech->Armor.get();
+        MCArmorLocation* armor = mech->Armor.data();
         float centerArmor = armor[1].CurArmor;
         uint8_t centerMax = armor[1].MaxArmor;
 
@@ -928,7 +932,7 @@ namespace
     /// <summary>getunitstatus of a ground vehicle: the product of its five armor locations' factors.</summary>
     auto VehicleStatus(MCMover* vehicle) -> float
     {
-        MCArmorLocation* armor = vehicle->Armor.get();
+        MCArmorLocation* armor = vehicle->Armor.data();
         double turret = 1.0;
 
         if (armor[4].MaxArmor != 0)
@@ -1112,12 +1116,12 @@ namespace
     /// numBodyLocations on, cover the torsos from 1 on).</summary>
     auto ArmorLocationState(MCMover* mover, int32_t armorIndex) -> uint8_t
     {
-        if (armorIndex < mover->NumBodyLocations)
+        if (armorIndex < mover->NumBodyLocations())
         {
             return mover->BodyAt(armorIndex).DamageState;
         }
 
-        return mover->BodyAt(armorIndex - mover->NumBodyLocations + 1).DamageState;
+        return mover->BodyAt(armorIndex - mover->NumBodyLocations() + 1).DamageState;
     }
 }
 
@@ -1136,7 +1140,7 @@ auto ExecHbRepair(MCAblRuntime& abl) -> void
         // Fills internal structure first, then armor, location by location, skipping destroyed ones.
         MCMover* mech = static_cast<MCMover*>(object);
 
-        for (int32_t i = 0; i < mech->NumBodyLocations; i++)
+        for (int32_t i = 0; i < mech->NumBodyLocations(); i++)
         {
             MCBodyLocation& location = mech->BodyAt(i);
             float needed = static_cast<float>(location.MaxInternalStructure) - location.CurInternalStructure;
@@ -1155,7 +1159,7 @@ auto ExecHbRepair(MCAblRuntime& abl) -> void
             }
         }
 
-        for (int32_t i = 0; i < mech->NumArmorLocations; i++)
+        for (int32_t i = 0; i < mech->NumArmorLocations(); i++)
         {
             MCArmorLocation& location = mech->Armor[i];
             float needed = static_cast<float>(location.MaxArmor) - location.CurArmor;
@@ -1193,7 +1197,7 @@ auto ExecHbGetRepairState(MCAblRuntime& abl) -> MCAblType*
     {
         MCMover* mover = static_cast<MCMover*>(object);
 
-        for (int32_t i = 0; i < mover->NumBodyLocations; i++)
+        for (int32_t i = 0; i < mover->NumBodyLocations(); i++)
         {
             if (mover->BodyAt(i).DamageState != 2)
             {
@@ -1202,7 +1206,7 @@ auto ExecHbGetRepairState(MCAblRuntime& abl) -> MCAblType*
             }
         }
 
-        for (int32_t i = 0; i < mover->NumArmorLocations; i++)
+        for (int32_t i = 0; i < mover->NumArmorLocations(); i++)
         {
             if (ArmorLocationState(mover, i) != 2)
             {

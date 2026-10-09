@@ -11,22 +11,29 @@
 #include "object/bridge.h"
 #include "object/bullet.h"
 #include "object/debris.h"
-#include "object/elemntl.h"
+#include "object/MCElemental.h"
+#include "object/MCElementalType.h"
+#include "object/MCElementalGameSystem.h"
 #include "object/explode.h"
 #include "object/fire.h"
 #include "object/gate.h"
-#include "object/gvehicl.h"
+#include "object/MCGroundVehicle.h"
+#include "object/MCGroundVehicleType.h"
+#include "object/MCGroundVehicleGameSystem.h"
 #include "object/jet.h"
 #include "object/laser.h"
 #include "object/light.h"
-#include "object/mech.h"
+#include "object/MCBattleMech.h"
+#include "object/MCBattleMechType.h"
+#include "object/MCMechGameSystem.h"
 #include "object/prjlase.h"
 #include "object/smoke.h"
 #include "object/tbldng.h"
 #include "object/terrobj.h"
 #include "object/train.h"
 #include "object/tree.h"
-#include "object/turret.h"
+#include "object/MCTurret.h"
+#include "object/MCTurretType.h"
 
 char ObjectPath[80] = "data\\objects\\";
 
@@ -42,17 +49,9 @@ namespace
             case 1:
                 return std::make_unique<MCBuildingType>();
             case 2:
-            {
-                auto mechType = std::make_unique<MCBattleMechType>();
-                mechType->Init();
-                return mechType;
-            }
+                return std::make_unique<MCBattleMechType>();
             case 3:
-            {
-                auto vehicleType = std::make_unique<MCGroundVehicleType>();
-                vehicleType->Init();
-                return vehicleType;
-            }
+                return std::make_unique<MCGroundVehicleType>();
             case 4:
                 return std::make_unique<MCExplosionType>();
             case 5:

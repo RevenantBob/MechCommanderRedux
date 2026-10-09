@@ -214,17 +214,6 @@ auto MCBigGameObject::SetAlignment(int32_t newAlignment) -> void
     }
 }
 
-auto MCBigGameObject::Write(MCFile* objFile) -> int32_t
-{
-    objFile->Write(reinterpret_cast<const uint8_t*>(&Tonnage), 4);
-    objFile->WriteLong(Status);
-    objFile->WriteLong(static_cast<int32_t>(Damage));
-    objFile->WriteByte(IsCaptured() != 0 ? 1 : 0);
-    objFile->Write(reinterpret_cast<const uint8_t*>(&ExplRadius), 4);
-    objFile->Write(reinterpret_cast<const uint8_t*>(&ExplDamage), 4);
-    return 0;
-}
-
 auto MCBigGameObject::GetMechClass() -> MCMechClass
 {
     if (ObjectClass != MCObjectClass::BattleMech)

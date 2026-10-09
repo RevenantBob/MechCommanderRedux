@@ -2,7 +2,8 @@
 #include "object/MCCommander.h"
 #include "lib/MCFatal.h"
 #include "object/MCForces.h"
-#include "object/mover.h"
+#include "object/MCMover.h"
+#include "object/MCMoverGameSystem.h"
 #include "terrain/MCTacticalMap.h"
 #include "terrain/MCTerrain.h"
 

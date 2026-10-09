@@ -7,11 +7,14 @@
 #include "main/main.h"
 #include "mission/scenario.h"
 #include "object/MCBigGameObject.h"
-#include "object/gvehicl.h"
-#include "object/mover.h"
+#include "object/MCGroundVehicle.h"
+#include "object/MCGroundVehicleType.h"
+#include "object/MCGroundVehicleGameSystem.h"
+#include "object/MCMover.h"
+#include "object/MCMoverGameSystem.h"
 #include "object/MCObjectSystem.h"
 #include "object/MCObjectQueue.h"
-#include "object/warrior.h"
+#include "object/MCMechWarrior.h"
 
 namespace
 {

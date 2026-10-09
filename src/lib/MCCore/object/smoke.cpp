@@ -564,7 +564,12 @@ auto MCSmoke::Destroy() -> void
         OwnerVelocity = nullptr;
     }
 
-    SmokeManager->FreeSpheres(Spheres, NumSpheres);
+    // A mover's smoke goes with the mover, which may outlive the mission's smoke manager.
+    if (SmokeManager != nullptr)
+    {
+        SmokeManager->FreeSpheres(Spheres, NumSpheres);
+    }
+
     Spheres = nullptr;
 }
 

@@ -35,16 +35,20 @@
 #include "object/MCBigGameObject.h"
 #include "object/gate.h"
 #include "object/MCMoverGroup.h"
-#include "object/mech.h"
-#include "object/mover.h"
+#include "object/MCBattleMech.h"
+#include "object/MCBattleMechType.h"
+#include "object/MCMechGameSystem.h"
+#include "object/MCMover.h"
+#include "object/MCMoverGameSystem.h"
 #include "object/MCObjectSystem.h"
 #include "object/MCObjectEvent.h"
 #include "object/MCObjectQueue.h"
 #include "object/MCObjectType.h"
 #include "object/tbldng.h"
 #include "object/train.h"
-#include "object/turret.h"
-#include "object/warrior.h"
+#include "object/MCTurret.h"
+#include "object/MCTurretType.h"
+#include "object/MCMechWarrior.h"
 #include "platform/MCInput.h"
 #include "platform/MCRenderer.h"
 #include "sound/soundsys.h"
@@ -251,7 +255,7 @@ namespace
     void ShowMoverTag(MCFloatHelp* tag, MCGameObject* mover)
     {
         char text[100];
-        sprintf(text, "%s\n%s", mover->GetPilot()->Callsign, static_cast<MCMover*>(mover)->GetIfaceName());
+        sprintf(text, "%s\n%s", mover->GetPilot()->Callsign.c_str(), static_cast<MCMover*>(mover)->GetIfaceName());
         tag->HelpObject = mover;
         tag->SetBackColor(0);
         tag->TextColor = 0xb;
@@ -431,7 +435,7 @@ auto MCMechIcon::GetColors() -> void
         return;
     }
 
-    const int8_t numLocations = shown->NumBodyLocations;
+    const int8_t numLocations = shown->NumBodyLocations();
 
     for (int32_t i = 0; i < numLocations; i++)
     {
@@ -521,7 +525,7 @@ auto MCMechIcon::SetID(int32_t newPartId) -> void
     if (Mover != nullptr)
     {
         PartId = newPartId;
-        NumParts = static_cast<MCMover*>(Mover)->NumBodyLocations;
+        NumParts = static_cast<MCMover*>(Mover)->NumBodyLocations();
     }
 }
 
@@ -837,9 +841,10 @@ auto MCFriendlyMechIcon::DrawPilot(MCGuiPort* target) -> void
 
     VfxPaneCopy(PilotImage->Frame(), 0, 0, target->Frame(), 0x1c, 0xe, 0xfff);
 
-    if (shown->ObjectClass == MCObjectClass::BattleMech && shown->GetPilot()->Callsign != nullptr)
+    if (shown->ObjectClass == MCObjectClass::BattleMech && !shown->GetPilot()->Callsign.empty())
     {
-        WhiteFont->WriteString(target->Frame(), 5, 3, reinterpret_cast<uint8_t*>(shown->GetPilot()->Callsign), -1);
+        WhiteFont->WriteString(target->Frame(), 5, 3, reinterpret_cast<uint8_t*>(shown->GetPilot()->Callsign.data()),
+                               -1);
     }
 }
 
@@ -962,13 +967,13 @@ auto MCFriendlyMechIcon::SetID(int32_t newPartId) -> void
     shapeFile.Close();
 
     auto* shown = static_cast<MCMover*>(object);
-    NumParts = shown->NumBodyLocations;
+    NumParts = shown->NumBodyLocations();
     Mover = object;
     PartId = newPartId;
 
-    if (shown->GetPilot() != nullptr && shown->GetPilot()->Picture != nullptr)
+    if (shown->GetPilot() != nullptr && !shown->GetPilot()->Picture.empty())
     {
-        PilotImage->Init(shown->GetPilot()->Picture);
+        PilotImage->Init(shown->GetPilot()->Picture.data());
     }
 
     IsPoint = shown == shown->GetPoint() ? 1 : 0;
@@ -2409,8 +2414,8 @@ auto MCInterfaceObject::HandleEvent(MCGuiEvent* event) -> void
                     MCBaseObject* selected = ObjectList()->FindObjectFromPart(SelectedMechs[0]);
 
                     if (selected == nullptr || selected->ObjectClass != MCObjectClass::BattleMech ||
-                        static_cast<MCBattleMech*>(selected)->SecondStepPrinted == 0 ||
-                        static_cast<MCBattleMech*>(selected)->FirstStepPrinted < 1)
+                        !static_cast<MCBattleMech*>(selected)->SecondStepPrinted ||
+                        !static_cast<MCBattleMech*>(selected)->FirstStepPrinted)
                     {
                         return;
                     }
@@ -4533,12 +4538,12 @@ auto MCInterfaceObject::UpdateMouseState(MCGuiEvent* event) -> void
                                 if (MPlayer != nullptr)
                                 {
                                     NetPlayerName(object, format);
-                                    sprintf(text, "%s\n%s\n%s", mover->GetPilot()->Callsign, mover->GetIfaceName(),
-                                            format);
+                                    sprintf(text, "%s\n%s\n%s", mover->GetPilot()->Callsign.c_str(),
+                                            mover->GetIfaceName(), format);
                                 }
                                 else
                                 {
-                                    sprintf(text, "%s\n%s", mover->GetPilot()->Callsign, mover->GetIfaceName());
+                                    sprintf(text, "%s\n%s", mover->GetPilot()->Callsign.c_str(), mover->GetIfaceName());
                                 }
                             }
                             else
@@ -4568,7 +4573,8 @@ auto MCInterfaceObject::UpdateMouseState(MCGuiEvent* event) -> void
                         {
                             // A teammate's mover.
                             NetPlayerName(object, format);
-                            sprintf(text, "%s\n%s\n%s", mover->GetPilot()->Callsign, mover->GetIfaceName(), format);
+                            sprintf(text, "%s\n%s\n%s", mover->GetPilot()->Callsign.c_str(), mover->GetIfaceName(),
+                                    format);
                             MouseObjectType = 3;
                             showTag(0, 0xb);
                             break;
@@ -4790,7 +4796,7 @@ auto MCInterfaceObject::UpdateMouseState(MCGuiEvent* event) -> void
 
             // A mover whose order queue is full takes no more.
             if (IsMoverClass(object) && static_cast<MCMover*>(object)->GetPilot() != nullptr &&
-                static_cast<MCMover*>(object)->GetPilot()->GetTacOrderQueue(nullptr) >= 0xf)
+                static_cast<MCMover*>(object)->GetPilot()->GetTacOrderQueueSize() >= 0xf)
             {
                 allowed = false;
             }
@@ -5471,13 +5477,11 @@ namespace
     bool InJumpRange(MCMover* mover, const MCVector3D& position, bool fromWayPoint)
     {
         MCVector3D from;
-        const int32_t numQueued = mover->GetPilot()->GetTacOrderQueue(nullptr);
+        const int32_t numQueued = mover->GetPilot()->GetTacOrderQueueSize();
 
         if (numQueued > 0 && fromWayPoint)
         {
-            MCQueuedTacOrder queue[MAX_QUEUED_TACORDERS_PER_WARRIOR];
-            mover->GetPilot()->GetTacOrderQueue(queue);
-            from = queue[numQueued - 1].Point;
+            from = mover->GetPilot()->GetTacOrderQueue().back().Point;
         }
         else
         {

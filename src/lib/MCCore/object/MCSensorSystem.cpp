@@ -7,8 +7,9 @@
 #include "object/MCForces.h"
 #include "object/MCMasterComponent.h"
 #include "object/MCTeam.h"
-#include "object/mover.h"
-#include "object/warrior.h"
+#include "object/MCMover.h"
+#include "object/MCMoverGameSystem.h"
+#include "object/MCMechWarrior.h"
 #include "sound/radio.h"
 
 int32_t MCSensorSystem::NumSensorsMade = 0;

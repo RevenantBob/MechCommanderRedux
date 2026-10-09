@@ -30,12 +30,13 @@
 #include "network/multplyr.h"
 #include "object/MCMasterComponent.h"
 #include "object/MCContactSystem.h"
-#include "object/mover.h"
+#include "object/MCMover.h"
+#include "object/MCMoverGameSystem.h"
 #include "object/MCObjectSystem.h"
 #include "object/MCObjectQueue.h"
 #include "object/MCObjectType.h"
 #include "object/MCForces.h"
-#include "object/warrior.h"
+#include "object/MCMechWarrior.h"
 #include "sound/soundsys.h"
 #include "terrain/MCTerrain.h"
 #include "terrain/MCTacticalMap.h"
@@ -47,7 +48,7 @@
 #include "object/MCObjectTypeManager.h"
 
 uint32_t ResultsStepTicks = 20;
-int32_t StevesOrderLut[4] = {MWS_GUNNERY, MWS_PILOTING, MWS_JUMPING, MWS_SENSORS};
+int32_t StevesOrderLut[4] = {SkillGunnery, SkillPiloting, SkillJumping, SkillSensors};
 int32_t GlobalGameSegment = 0;
 int32_t StartingResourcePoints = 0;
 float MinPilotSkill = 0.0f;
@@ -1516,7 +1517,7 @@ namespace
 
         if (status == 3)
         {
-            icon->PilotImage->Init(warrior->Picture);
+            icon->PilotImage->Init(warrior->Picture.data());
         }
 
         auto* picture = new MCGuiPort;
@@ -2398,7 +2399,7 @@ auto MCMissionResultsScreen::DrawMPPilotList() -> void
 
         char text[256];
         auto* mover = static_cast<MCMover*>(warrior->Vehicle);
-        WhiteFont->WriteString(Port()->Frame(), left + 3, top + 2, reinterpret_cast<uint8_t*>(mover->NetName.get()),
+        WhiteFont->WriteString(Port()->Frame(), left + 3, top + 2, reinterpret_cast<uint8_t*>(mover->NetName.data()),
                                -1);
         std::snprintf(text, sizeof(text), "%i", TotalKills(warrior));
         WhiteFont->WriteString(Port()->Frame(), left + 0x8c, top + 3, reinterpret_cast<uint8_t*>(text), -1);
@@ -2437,7 +2438,7 @@ auto MCMissionResultsScreen::DrawMPSummary() -> void
         // The best pilot.
         MCMechWarrior* best = _PilotResults[0].Warrior;
         auto* bestMover = static_cast<MCMover*>(best->Vehicle);
-        MedWhiteFont->WriteString(Port()->Frame(), 0x70, 0x40, reinterpret_cast<uint8_t*>(bestMover->NetName.get()),
+        MedWhiteFont->WriteString(Port()->Frame(), 0x70, 0x40, reinterpret_cast<uint8_t*>(bestMover->NetName.data()),
                                   0x68);
         CLoadString(ThisInstance, best->Alignment == HomeTeam()->Alignment ? 0xb6 : 0xb7, text, 0xfe);
         MedWhiteFont->WriteString(Port()->Frame(), 0x70, 0x4d, reinterpret_cast<uint8_t*>(text), -1);
@@ -2622,11 +2623,11 @@ auto MCMissionResultsScreen::Activate() -> int32_t
 
             if (vehicle->SensorSystem != nullptr)
             {
-                warrior->SkillPoints[MWS_SENSORS] =
+                warrior->SkillPoints[SkillSensors] =
                     static_cast<float>(vehicle->SensorSystem->TotalContacts) * SensorSkill;
             }
 
-            warrior->SkillPoints[MWS_PILOTING] += warrior->SkillRank[MWS_PILOTING];
+            warrior->SkillPoints[SkillPiloting] += warrior->SkillRank[SkillPiloting];
             entry.OldRank = static_cast<int8_t>(warrior->Rank);
 
             for (int32_t skill = 0; skill < 4; skill++)
@@ -2661,7 +2662,7 @@ auto MCMissionResultsScreen::Activate() -> int32_t
             Assert(entry.OldRank <= static_cast<int8_t>(warrior->Rank), 0, "Hey, how'd we drop in rank???");
             entry.SortKey = (3 - static_cast<int8_t>(warrior->Rank)) * 10000;
             // Original behaviour (OB-058): meant as letter * 10^n, the callsign's letters are XORed with n.
-            const char* callsign = warrior->Callsign;
+            const char* callsign = warrior->Callsign.c_str();
 
             for (int32_t letter = 0, power = 2; power >= 0; letter++, power--)
             {
@@ -2799,14 +2800,14 @@ auto MCMissionResultsScreen::Activate() -> int32_t
             }
 
             // Damage taken counts against the pilot: armor lost, and internal structure lost twice over.
-            for (int32_t j = 0; j < vehicle->NumArmorLocations; j++)
+            for (int32_t j = 0; j < vehicle->NumArmorLocations(); j++)
             {
                 const MCArmorLocation& armor = vehicle->Armor[j];
                 entry.SortKey =
                     static_cast<int32_t>(static_cast<double>(armor.MaxArmor) - armor.CurArmor + entry.SortKey);
             }
 
-            for (int32_t j = 0; j < vehicle->NumBodyLocations; j++)
+            for (int32_t j = 0; j < vehicle->NumBodyLocations(); j++)
             {
                 const MCBodyLocation& body = vehicle->BodyAt(j);
                 entry.SortKey = static_cast<int32_t>(

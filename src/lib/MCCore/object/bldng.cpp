@@ -21,12 +21,13 @@
 #include "object/MCCollisionSystem.h"
 #include "object/MCContactSystem.h"
 #include "object/fire.h"
-#include "object/mover.h"
+#include "object/MCMover.h"
+#include "object/MCMoverGameSystem.h"
 #include "object/MCObjectSystem.h"
 #include "object/MCObjectEvent.h"
 #include "object/MCObjectQueue.h"
 #include "object/MCForces.h"
-#include "object/warrior.h"
+#include "object/MCMechWarrior.h"
 #include "sound/soundsys.h"
 #include "sprite/MCVfxBuildingAppearance.h"
 #include "sprite/MCElementalActor.h"
@@ -1019,7 +1020,7 @@ auto MCBuilding::CreateBuildingMarines() -> void
             Fatal(result, " Unable to open Vehicle Marine Profile ");
         }
 
-        if (marine->Init(&profileFile) != 0)
+        if (marine->LoadProfile(profileFile) != 0)
         {
             Fatal(-1, " Bad Vehicle Marine Profile File ");
         }

@@ -22,12 +22,13 @@
 #include "object/bldng.h"
 #include "object/MCContactSystem.h"
 #include "object/fire.h"
-#include "object/mover.h"
+#include "object/MCMover.h"
+#include "object/MCMoverGameSystem.h"
 #include "object/MCObjectSystem.h"
 #include "object/MCObjectEvent.h"
 #include "object/MCObjectQueue.h"
 #include "object/MCForces.h"
-#include "object/warrior.h"
+#include "object/MCMechWarrior.h"
 #include "sound/soundsys.h"
 #include "sprite/MCVfxAppearance.h"
 #include "sprite/MCElementalActor.h"
@@ -1050,7 +1051,7 @@ auto MCTreeBuilding::CreateBuildingMarines() -> void
             Fatal(result, " Unable to open Vehicle Marine Profile ");
         }
 
-        if (marine->Init(&profileFile) != 0)
+        if (marine->LoadProfile(profileFile) != 0)
         {
             Fatal(-1, " Bad Vehicle Marine Profile File ");
         }
@@ -1162,7 +1163,7 @@ auto MCTreeBuilding::HandleWeaponHit(MCWeaponShotInfo* shotInfo, int addMultipla
         (attacker->ObjectClass == MCObjectClass::BattleMech || attacker->ObjectClass == MCObjectClass::GroundVehicle ||
          attacker->ObjectClass == MCObjectClass::Elemental || attacker->ObjectClass == MCObjectClass::Mover))
     {
-        attacker->GetPilot()->TriggerAlarm(12, static_cast<uint32_t>(PartId));
+        attacker->GetPilot()->TriggerAlarm(MCPilotAlarmType::KilledTarget, static_cast<uint32_t>(PartId));
     }
 
     if (MPlayer == nullptr)

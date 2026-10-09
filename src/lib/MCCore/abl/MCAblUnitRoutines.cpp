@@ -23,16 +23,20 @@
 #include "object/MCBigGameObject.h"
 #include "object/gate.h"
 #include "object/MCMoverGroup.h"
-#include "object/gvehicl.h"
-#include "object/mover.h"
+#include "object/MCGroundVehicle.h"
+#include "object/MCGroundVehicleType.h"
+#include "object/MCGroundVehicleGameSystem.h"
+#include "object/MCMover.h"
+#include "object/MCMoverGameSystem.h"
 #include "object/MCObjectSystem.h"
 #include "object/MCObjectQueue.h"
 #include "object/MCObjectType.h"
 #include "object/tbldng.h"
 #include "object/terrobj.h"
 #include "object/train.h"
-#include "object/turret.h"
-#include "object/warrior.h"
+#include "object/MCTurret.h"
+#include "object/MCTurretType.h"
+#include "object/MCMechWarrior.h"
 #include "sound/radio.h"
 #include "sound/soundsys.h"
 #include "sprite/MCVfxAppearance.h"
@@ -903,7 +907,8 @@ auto ExecHbGetAlarmTriggers(MCAblRuntime& abl) -> MCAblType*
     abl.GetCodeToken();
     abl.GetCodeToken();
     uint32_t* triggerList = reinterpret_cast<uint32_t*>(abl.NextReference());
-    abl.Top().Integer = abl.Brain.Warrior->GetAlarmTriggers(abl.Brain.Alarm, triggerList);
+    abl.Top().Integer =
+        abl.Brain.Warrior->GetAlarmTriggers(static_cast<MCPilotAlarmType>(abl.Brain.Alarm), triggerList);
     abl.GetCodeToken();
     return IntegerTypePtr;
 }

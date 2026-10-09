@@ -8,16 +8,23 @@
 #include "main/main.h"
 #include "network/multplyr.h"
 #include "object/bldng.h"
-#include "object/elemntl.h"
+#include "object/MCElemental.h"
+#include "object/MCElementalType.h"
+#include "object/MCElementalGameSystem.h"
 #include "object/MCBigGameObject.h"
 #include "object/MCMoverGroup.h"
-#include "object/gvehicl.h"
-#include "object/mech.h"
-#include "object/mover.h"
+#include "object/MCGroundVehicle.h"
+#include "object/MCGroundVehicleType.h"
+#include "object/MCGroundVehicleGameSystem.h"
+#include "object/MCBattleMech.h"
+#include "object/MCBattleMechType.h"
+#include "object/MCMechGameSystem.h"
+#include "object/MCMover.h"
+#include "object/MCMoverGameSystem.h"
 #include "object/MCObjectQueue.h"
 #include "object/MCObjectSystem.h"
 #include "object/tbldng.h"
-#include "object/warrior.h"
+#include "object/MCMechWarrior.h"
 #include "sprite/MCMechActor.h"
 #include "terrain/MCTacticalMap.h"
 #include "object/MCWeaponShotInfo.h"
@@ -940,7 +947,7 @@ auto MCTacticalOrder::Execute(MCMechWarrior* pilot, int32_t& message) -> int32_t
 
     if (Origin == MCOrderOrigin::Player)
     {
-        pilot->TriggerAlarm(0xe, static_cast<uint32_t>(Code));
+        pilot->TriggerAlarm(MCPilotAlarmType::PlayerOrder, static_cast<uint32_t>(Code));
     }
     else
     {
@@ -1044,7 +1051,7 @@ auto MCTacticalOrder::Status(MCMechWarrior* pilot) -> bool
             return Stage == 3;
         case MCTacticalOrderCode::JumpToObject:
             return !(static_cast<MCBattleMech*>(vehicle)->InJump == 0 ||
-                     static_cast<MCMechActor*>(vehicle->Appearance)->InJump != 0);
+                     static_cast<MCMechActor*>(vehicle->Appearance.get())->InJump != 0);
         case MCTacticalOrderCode::TraversePath:
             return Stage == 2;
         case MCTacticalOrderCode::Stop:

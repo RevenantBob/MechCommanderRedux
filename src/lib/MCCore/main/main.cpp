@@ -23,6 +23,13 @@ int32_t CLoadString(void* instance, uint32_t id, char* buffer, int bufferSize)
     return MCStringTable::Game().LoadString(stringId, buffer, bufferSize);
 }
 
+std::string LoadGameString(uint32_t id, int bufferSize)
+{
+    std::vector<char> buffer(static_cast<size_t>(bufferSize), '\0');
+    CLoadString(nullptr, id, buffer.data(), bufferSize);
+    return buffer.data();
+}
+
 namespace
 {
     /// <summary>Set on entry to AssertTest: a second error while reporting one can only quit (0x0080bb1a).</summary>
