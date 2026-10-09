@@ -339,7 +339,7 @@ auto MCGuiChatWindow::ProcessChatString(uint32_t playerId, std::string_view text
     // The original scrolled its picture up by the new text's height, wiped the bottom and wrote the text there; the
     // line is kept and Draw shows the lines that way. Lines scrolled wholly off the top are dropped.
     MCSmuti& formatter = GuiSystem()->TextFormatter;
-    const int32_t textHeight = formatter.Process(reinterpret_cast<uint8_t*>(line.data()), nullptr, Port()->Width(), 0);
+    const int32_t textHeight = formatter.Process(line, nullptr, Port()->Width(), 0);
     ChatLines.push_back(ChatLine{std::move(line), textHeight});
     int32_t below = 0;
 
@@ -370,8 +370,7 @@ auto MCGuiChatWindow::Draw() -> void
 
     for (const ChatLine& chatLine : ChatLines)
     {
-        std::string line = chatLine.Text;
-        formatter.Process(reinterpret_cast<uint8_t*>(line.data()), Port(), 0, lineY);
+        formatter.Process(chatLine.Text, Port(), 0, lineY);
         lineY += chatLine.Height;
     }
 

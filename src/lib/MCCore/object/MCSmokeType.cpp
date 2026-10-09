@@ -2,7 +2,7 @@
 #include "object/MCSmokeType.h"
 #include "lib/MCFile.h"
 #include "lib/MCFitIniFile.h"
-#include "logistics/logmain.h"
+#include "main/MCGamePaths.h"
 #include "main/main.h"
 #include "object/MCSmoke.h"
 

@@ -4,7 +4,7 @@
 #include "lib/MCFatal.h"
 #include "lib/MCFile.h"
 #include "lib/MCPacketFile.h"
-#include "logistics/logbri.h"
+#include "main/MCGamePaths.h"
 #include "ai/MCMoveGeometry.h"
 #include "vfx/MCVfxFunctions.h"
 #include "platform/MCBlockStore.h"
@@ -67,21 +67,18 @@ MCGuiPort::~MCGuiPort()
 
 auto MCGuiPort::MakeBitmap(int32_t width, int32_t height, const PixelSource& pixels) -> int32_t
 {
-    if (PortWindow != nullptr)
+    if (_Window != nullptr)
     {
-        MCRenderer::DestroyTexture(PortWindow);
+        MCRenderer::DestroyTexture(_Window.get());
 
-        if (PortWindow->Buffer != nullptr)
+        if (_Window->Buffer != nullptr)
         {
-            pixels.Free(PortWindow->Buffer);
+            pixels.Free(_Window->Buffer);
         }
-
-        _OwnedWindow.reset();
     }
 
-    _OwnedWindow = std::make_unique<MCWindow>();
-    MCWindow* window = _OwnedWindow.get();
-    PortWindow = window;
+    _Window = std::make_unique<MCWindow>();
+    MCWindow* window = _Window.get();
     window->XMax = width - 1;
     window->YMax = height - 1;
 
@@ -95,9 +92,8 @@ auto MCGuiPort::MakeBitmap(int32_t width, int32_t height, const PixelSource& pix
         }
     }
 
-    _OwnedPane = std::make_unique<MCPane>();
-    PortPane = _OwnedPane.get();
-    SetExtent(window, PortPane, width, height);
+    _Pane = std::make_unique<MCPane>();
+    SetExtent(window, _Pane.get(), width, height);
     PortWidth = width;
     PortHeight = height;
 
@@ -114,38 +110,35 @@ auto MCGuiPort::ResizeBitmap(int32_t width, int32_t height, const PixelSource& p
     // A view has no pixels to reallocate, and the screen port's are the display's.
     if (!_Screen && !IsView())
     {
-        if (PortWindow->Buffer != nullptr)
+        if (_Window->Buffer != nullptr)
         {
-            pixels.Free(PortWindow->Buffer);
+            pixels.Free(_Window->Buffer);
         }
 
-        PortWindow->Buffer = static_cast<uint8_t*>(pixels.Allocate(static_cast<uint32_t>(width * height)));
+        _Window->Buffer = static_cast<uint8_t*>(pixels.Allocate(static_cast<uint32_t>(width * height)));
     }
 
-    SetExtent(PortWindow, PortPane, width, height);
+    SetExtent(_Window.get(), _Pane.get(), width, height);
     PortWidth = width;
     PortHeight = height;
-    MCRenderer::ResizeTexture(PortWindow);
+    MCRenderer::ResizeTexture(_Window.get());
     return 0;
 }
 
 auto MCGuiPort::FreeBitmap(const PixelSource& pixels) -> void
 {
-    if (PortWindow != nullptr)
+    if (_Window != nullptr)
     {
-        MCRenderer::DestroyTexture(PortWindow);
+        MCRenderer::DestroyTexture(_Window.get());
 
-        if (PortWindow->Buffer != nullptr && !_Screen)
+        if (_Window->Buffer != nullptr && !_Screen)
         {
-            pixels.Free(PortWindow->Buffer);
+            pixels.Free(_Window->Buffer);
         }
-
-        PortWindow = nullptr;
     }
 
-    _OwnedWindow.reset();
-    _OwnedPane.reset();
-    PortPane = nullptr;
+    _Window.reset();
+    _Pane.reset();
 }
 
 auto MCGuiPort::Init(int32_t width, int32_t height) -> int32_t
@@ -200,7 +193,7 @@ auto MCGuiPort::Init(int32_t artPacket) -> int32_t
         return result;
     }
 
-    VfxGifDraw(PortPane, gif.data(), decodeBuffer.data());
+    VfxGifDraw(_Pane.get(), gif.data(), decodeBuffer.data());
     return 0;
 }
 
@@ -257,7 +250,7 @@ auto MCGuiPort::Init(std::string_view fileName) -> int32_t
         Fatal(result, std::format("Failed trying to create a {} by {} aPort with dataBuffer", width, height));
     }
 
-    MCTexture* texture = PortPane->Window->Texture;
+    MCTexture* texture = _Pane->Window->Texture;
     std::memcpy(MCRenderer::LockTexture(texture), data.data() + 0x312, static_cast<size_t>(height * width));
     MCRenderer::UnlockTexture(texture);
     return 0;
@@ -288,15 +281,11 @@ auto MCGuiPort::InitView(int32_t width, int32_t height) -> int32_t
     }
 
     FreeBitmap(GuiPixels);
-    _OwnedWindow = std::make_unique<MCWindow>();
-    _OwnedPane = std::make_unique<MCPane>();
-    MCWindow* window = _OwnedWindow.get();
-    MCPane* pane = _OwnedPane.get();
-    PortWindow = window;
-    PortPane = pane;
-    window->View = &View;
+    _Window = std::make_unique<MCWindow>();
+    _Pane = std::make_unique<MCPane>();
+    _Window->View = &View;
     View = MCView{};
-    SetExtent(window, pane, width, height);
+    SetExtent(_Window.get(), _Pane.get(), width, height);
     PortWidth = width;
     PortHeight = height;
     return 0;
@@ -358,12 +347,12 @@ auto MCGuiPort::CopyTo(MCPane* dest, int32_t xPos, int32_t yPos, bool transparen
 
     if (transparent)
     {
-        MCWindow* source = PortPane->Window;
+        MCWindow* source = _Pane->Window;
         DrawTransparent(dest, source, xPos, yPos, source->XMax + 1, source->YMax + 1);
         return;
     }
 
-    VfxPaneCopy(PortPane, 0, 0, dest, xPos, yPos, -1);
+    VfxPaneCopy(_Pane.get(), 0, 0, dest, xPos, yPos, -1);
 }
 
 // aScrollPort

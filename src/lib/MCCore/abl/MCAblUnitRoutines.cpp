@@ -9,7 +9,6 @@
 #include "lib/MCFile.h"
 #include "lib/MCFrameOfRef.h"
 #include "lib/MCVector2D.h"
-#include "logistics/logmain.h"
 #include "main/main.h"
 #include "mission/MCScenario.h"
 #include "network/multplyr.h"

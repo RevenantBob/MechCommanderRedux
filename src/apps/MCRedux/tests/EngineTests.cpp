@@ -7,7 +7,7 @@
 #include "engine/MCFont.h"
 #include "fakes/MCMemoryFileSource.h"
 #include "lib/MCPacketFile.h"
-#include "logistics/logmain.h"
+#include "main/MCGamePaths.h"
 #include "main/MCGameContext.h"
 
 namespace

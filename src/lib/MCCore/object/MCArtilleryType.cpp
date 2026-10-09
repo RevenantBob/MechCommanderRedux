@@ -2,7 +2,7 @@
 #include "object/MCArtilleryType.h"
 #include "lib/MCFile.h"
 #include "lib/MCFitIniFile.h"
-#include "logistics/logmain.h"
+#include "main/MCGamePaths.h"
 #include "main/main.h"
 #include "network/multplyr.h"
 #include "object/MCArtillery.h"

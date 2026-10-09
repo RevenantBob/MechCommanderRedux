@@ -68,6 +68,7 @@
     <ClCompile Include="tests\AiTests.cpp" />
     <ClCompile Include="tests\AllocatorTests.cpp" />
     <ClCompile Include="tests\BlockStoreTests.cpp" />
+    <ClCompile Include="tests\BriefingTests.cpp" />
     <ClCompile Include="tests\ColorTests.cpp" />
     <ClCompile Include="tests\ControlTests.cpp" />
     <ClCompile Include="tests\CursorTests.cpp" />
@@ -94,6 +95,7 @@
     <ClCompile Include="tests\InterfaceTests.cpp" />
     <ClCompile Include="tests\LibTests.cpp" />
     <ClCompile Include="tests\LinkupTests.cpp" />
+    <ClCompile Include="tests\LogisticsControlTests.cpp" />
     <ClCompile Include="tests\LogisticsTests.cpp" />
     <ClCompile Include="tests\LogisticsViewTests.cpp" />
     <ClCompile Include="tests\MCTest.cpp">
@@ -108,6 +110,7 @@
     <ClCompile Include="tests\PathfindingTests.cpp" />
     <ClCompile Include="tests\PortTests.cpp" />
     <ClCompile Include="tests\PresenterTests.cpp" />
+    <ClCompile Include="tests\PurchaseTests.cpp" />
     <ClCompile Include="tests\ScenarioTests.cpp" />
     <ClCompile Include="tests\ScreenInput.cpp" />
     <ClCompile Include="tests\ServicesTests.cpp" />

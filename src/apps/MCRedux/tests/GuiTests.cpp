@@ -8,8 +8,7 @@
 #include "gui/MCGuiSystem.h"
 #include "gui/MCUpdateDisplay.h"
 #include "iface/MCTacticalInterface.h"
-#include "logistics/logbri.h"
-#include "logistics/logmain.h"
+#include "main/MCGamePaths.h"
 #include "main/MCGameContext.h"
 #include "platform/MCRenderer.h"
 

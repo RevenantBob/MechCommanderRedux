@@ -101,6 +101,8 @@ extern bool BScreenDump;
 extern bool BLogDump;
 /// <summary>The application instance (HINSTANCE) WinMain received.</summary>
 extern void* HInst;
+/// <summary>The application instance <see cref="CLoadString"/> takes (unused by the port; set at start-up).</summary>
+extern void* ThisInstance;
 
 /// <summary>
 /// Loads string resource <paramref name="id"/> (offset by the language) into <paramref name="buffer"/>.

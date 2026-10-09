@@ -3,7 +3,7 @@
 #include "appear/MCAppearanceType.h"
 #include "lib/MCFatal.h"
 #include "lib/MCPacketFile.h"
-#include "logistics/logmain.h"
+#include "main/MCGamePaths.h"
 #include "main/main.h"
 #include "main/logistics.h"
 #include "sprite/MCShape.h"

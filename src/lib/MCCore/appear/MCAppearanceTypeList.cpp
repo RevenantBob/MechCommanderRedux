@@ -2,7 +2,7 @@
 #include "appear/MCAppearanceTypeList.h"
 #include "appear/MCAppearanceType.h"
 #include "lib/MCPacketFile.h"
-#include "logistics/logmain.h"
+#include "main/MCGamePaths.h"
 #include "sprite/MCArmAppearanceType.h"
 #include "sprite/MCElementalTree.h"
 #include "sprite/MCGVAppearanceType.h"

@@ -9,7 +9,6 @@
 #include "iface/MCTacticalInterface.h"
 #include "lib/MCMsvcSort.h"
 #include "main/main.h"
-#include "logistics/logmain.h"
 #include "mission/MCMission.h"
 #include "mission/MCScenario.h"
 #include "object/MCArtillery.h"

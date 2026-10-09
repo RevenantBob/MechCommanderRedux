@@ -2,7 +2,6 @@
 #include "object/MCMover.h"
 #include "engine/MCByteFlag.h"
 #include "lib/MCFatal.h"
-#include "logistics/logmain.h"
 #include "main/main.h"
 #include "mission/MCMission.h"
 #include "mission/MCScenario.h"

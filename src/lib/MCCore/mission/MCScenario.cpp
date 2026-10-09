@@ -5,7 +5,7 @@
 #include "appear/MCAppearanceTypeList.h"
 #include "engine/MCElementBuffer.h"
 #include "lib/MCFatal.h"
-#include "logistics/logbri.h"
+#include "logistics/MCBriefingScreen.h"
 #include "sprite/MCSpriteManager.h"
 #include "abl/MCAblRuntime.h"
 #include "ai/MCMoveSystem.h"

@@ -2,7 +2,6 @@
 #include "gui/MCGuiTitleWindow.h"
 #include "camera/MCCamera.h"
 #include "gui/MCGuiSystem.h"
-#include "logistics/logmain.h"
 #include "platform/MCInput.h"
 #include "terrain/MCTerrain.h"
 #include "vfx/MCVfxFunctions.h"

@@ -2,7 +2,6 @@
 #include "camera/MCCameraList.h"
 #include "camera/MCMainWindow.h"
 #include "lib/MCFitIniFile.h"
-#include "logistics/logmain.h"
 #include "main/MCGameContext.h"
 #include "terrain/MCTerrain.h"
 

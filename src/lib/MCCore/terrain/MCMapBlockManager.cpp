@@ -3,7 +3,7 @@
 #include "ai/MCMoveSystem.h"
 #include "lib/MCFatal.h"
 #include "lib/MCPacketFile.h"
-#include "logistics/logmain.h"
+#include "main/MCGamePaths.h"
 #include "main/main.h"
 #include "terrain/MCTerrain.h"
 #include "terrain/MCTerrainWindow.h"

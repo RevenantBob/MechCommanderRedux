@@ -2,7 +2,7 @@
 #include "gui/MCGuiFont.h"
 #include "lib/MCFatal.h"
 #include "lib/MCFile.h"
-#include "logistics/logmain.h"
+#include "main/MCGamePaths.h"
 #include "platform/MCRenderer.h"
 #include "vfx/MCVfxFunctions.h"
 

@@ -3,7 +3,7 @@
 #include "lib/MCFatal.h"
 #include "lib/MCFile.h"
 #include "lib/MCPacketFile.h"
-#include "logistics/logmain.h"
+#include "main/MCGamePaths.h"
 #include "network/multplyr.h"
 #include "object/MCObjectSystem.h"
 #include "object/MCSensorSystem.h"

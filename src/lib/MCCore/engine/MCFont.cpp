@@ -1,7 +1,7 @@
 #include "stdafx.h"
 #include "engine/MCFont.h"
 #include "lib/MCFile.h"
-#include "logistics/logmain.h"
+#include "main/MCGamePaths.h"
 #include "vfx/MCVfxFunctions.h"
 
 namespace

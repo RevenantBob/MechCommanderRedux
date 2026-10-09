@@ -13,7 +13,7 @@
 #include "mission/MCMission.h"
 #include "mission/MCMissionResultsScreen.h"
 #include "mission/MCScenario.h"
-#include "logistics/logmain.h"
+#include "logistics/MCConnectMenu.h"
 #include "network/multplyr.h"
 #include "object/MCTeam.h"
 #include "sound/MCSoundSystem.h"

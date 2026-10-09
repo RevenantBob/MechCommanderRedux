@@ -9,7 +9,7 @@
 #include "iface/MCOrderSink.h"
 #include "lib/MCFatal.h"
 #include "lib/MCFitIniFile.h"
-#include "logistics/logmain.h"
+#include "main/MCGamePaths.h"
 #include "mission/MCScenario.h"
 #include "main/MCGameContext.h"
 #include "main/main.h"

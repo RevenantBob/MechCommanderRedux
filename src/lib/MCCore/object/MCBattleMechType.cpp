@@ -11,7 +11,7 @@
 #include "lib/MCFile.h"
 #include "lib/MCFitIniFile.h"
 #include "lib/MCPacketFile.h"
-#include "logistics/logmain.h"
+#include "main/MCGamePaths.h"
 #include "main/main.h"
 #include "mission/MCScenario.h"
 #include "network/multplyr.h"

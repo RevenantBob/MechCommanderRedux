@@ -11,8 +11,8 @@
 #include "iface/MCTacticalInterface.h"
 #include "lib/MCFatal.h"
 #include "lib/MCFile.h"
-#include "logistics/logmain.h"
-#include "logistics/logbri.h"
+#include "main/MCGamePaths.h"
+#include "logistics/MCPreferencesMenu.h"
 #include "terrain/MCMapBlockManager.h"
 #include "main/main.h"
 #include "mission/MCScenario.h"
@@ -883,7 +883,7 @@ auto MCTacticalMap::Init(int32_t xPos, int32_t yPos) -> int32_t
         if (zoomButton)
         {
             // The original also disabled zoom in multiplayer; the port allows it.
-            if (Only45Pixel == 0)
+            if (!Only45Pixel)
             {
                 button.Action = ActionToggleZoom;
                 button.HelpText = LoadHelpText(0x91);

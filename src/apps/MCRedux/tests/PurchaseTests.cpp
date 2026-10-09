@@ -1,0 +1,824 @@
+#include "stdafx.h"
+#include "MCTest.h"
+#include "ScreenInput.h"
+#include "TestGame.h"
+#include "gui/MCGuiSystem.h"
+#include "gui/MCGuiTimerManager.h"
+#include "lib/MCFitIniFile.h"
+#include "logistics/MCCompInventoryBlock.h"
+#include "logistics/MCCompPurchaseBlock.h"
+#include "logistics/MCInventoryBlock.h"
+#include "logistics/MCLogRows.h"
+#include "logistics/MCMechInventoryBlock.h"
+#include "logistics/MCMechPurchaseBlock.h"
+#include "logistics/MCMechRepairBlock.h"
+#include "logistics/MCPilotInventoryBlock.h"
+#include "logistics/MCRepairScreen.h"
+#include "logistics/MCPilotPurchaseBlock.h"
+#include "logistics/MCPurMechList.h"
+#include "logistics/MCPurPilotList.h"
+#include "logistics/MCPurVehicleList.h"
+#include "logistics/MCPurchaseScreen.h"
+#include "logistics/MCSessionScreen.h"
+#include "logistics/MCUnitLimits.h"
+#include "logistics/MCVehiclePurchaseBlock.h"
+#include "main/MCGamePaths.h"
+#include "logistics/MCMainMenu.h"
+#include "main/MCGameContext.h"
+#include "main/logistics.h"
+#include "network/multplyr.h"
+#include "object/MCMasterComponent.h"
+#include "object/MCObjectTypeManager.h"
+
+// The shop and the repair bay (P3-log-2): the shop's lists, prices and stock, the unit limit, what a mech can mount,
+// the repair order, the session screen's player order, and buying and selling by dragging between the panes.
+
+using namespace MCScreenInput;
+
+namespace
+{
+    /// <summary>A test context whose GUI system has a 640x480 screen window and timers (no display): for the rows.</summary>
+    struct GuiContext
+    {
+        GuiContext()
+        {
+            Scope.Context().SetGuiSystem(std::make_unique<MCGuiSystem>());
+            GuiSystem()->ScreenWidth = 640;
+            GuiSystem()->ScreenHeight = 480;
+            GuiSystem()->TimerManager = std::make_unique<MCGuiTimerManager>();
+            GuiSystem()->MakeScreen(640, 480);
+        }
+
+        MCTestContextScope Scope;
+    };
+
+    /// <summary>
+    /// What the shop lists need to read the retail profiles: the FastFiles, the master component list, the profile path,
+    /// a GUI context for their rows, and a <c>GlobalLogPtr</c> with its block store and empty unit lists (no screens).
+    /// </summary>
+    class ShopFixture
+    {
+    public:
+        ShopFixture()
+        {
+            MCTestGame::OpenFastFiles();
+
+            if (MasterComponentList.empty())
+            {
+                InitMasterComponentListExcel(GamePath(ObjectPath, "compbas", ".csv"), 0xff, 1.0f, 0.0f);
+            }
+
+            ProfilePath = "data\\missions\\profiles\\";
+            _Logistics = std::make_unique<MCLogistics>();
+            _Logistics->LogisticsBlocks = std::make_unique<MCBlockStore>();
+            _Logistics->MechList = &Mechs;
+            _Logistics->VehicleList = &Vehicles;
+            _Logistics->ForceMechList = &ForceMechs;
+            _Logistics->ForceVehicleList = &ForceVehicles;
+            _Saved = GlobalLogPtr;
+            GlobalLogPtr = _Logistics.get();
+        }
+
+        ~ShopFixture() { GlobalLogPtr = _Saved; }
+
+    private:
+        GuiContext _Gui;
+
+    public:
+        MCLogMechList Mechs;
+        MCLogVehicleList Vehicles;
+        MCLogMechList ForceMechs;
+        MCLogVehicleList ForceVehicles;
+
+    private:
+        std::unique_ptr<MCLogistics> _Logistics;
+        MCLogistics* _Saved = nullptr;
+    };
+
+    /// <summary>A pilot for hire with <paramref name="rank"/> and <paramref name="callsign"/> (no profile read).</summary>
+    std::unique_ptr<MCPurPilotData> Pilot(int32_t rank, std::string_view callsign, int32_t descIndex)
+    {
+        auto pilot = std::make_unique<MCPurPilotData>();
+        pilot->Rank = rank;
+        pilot->Callsign = callsign;
+        pilot->DescIndex = descIndex;
+        return pilot;
+    }
+
+    /// <summary>The callsigns of <paramref name="pilots"/> in list order.</summary>
+    std::vector<std::string> Callsigns(const MCPurPilotList& pilots)
+    {
+        std::vector<std::string> names;
+
+        for (const auto& pilot : pilots.Pilots)
+        {
+            names.push_back(pilot->Callsign);
+        }
+
+        return names;
+    }
+
+    /// <summary>
+    /// A mech profile's price by the shop's rule, read straight from the profile: its ResourcePoints, 40 per armor point,
+    /// each item's component price and 50 per internal structure point.
+    /// </summary>
+    int32_t ProfilePrice(std::string_view name)
+    {
+        MCFitIniFile file;
+        REQUIRE_EQ(file.Open(GamePath(ProfilePath, name, ".fit")), 0);
+        int32_t price = 0;
+        REQUIRE_EQ(file.SeekBlock("General"), 0);
+        REQUIRE_EQ(file.ReadIdLong("ResourcePoints", price), 0);
+        REQUIRE_EQ(file.SeekBlock("CurArmorPoints"), 0);
+
+        for (const char* location : {"Head", "CenterTorso", "LeftTorso", "RightTorso", "LeftArm", "RightArm", "LeftLeg",
+                                     "RightLeg", "RearCenterTorso", "RearLeftTorso", "RearRightTorso"})
+        {
+            uint8_t points = 0;
+            REQUIRE_EQ(file.ReadIdUChar(location, points), 0);
+            price += 40 * points;
+        }
+
+        REQUIRE_EQ(file.SeekBlock("InventoryInfo"), 0);
+        uint8_t other = 0;
+        uint8_t weapons = 0;
+        uint8_t ammo = 0;
+        file.ReadIdUChar("NumOther", other);
+        file.ReadIdUChar("NumWeapons", weapons);
+        file.ReadIdUChar("NumAmmo", ammo);
+
+        for (int32_t item = 0; item < other + weapons + ammo; ++item)
+        {
+            REQUIRE_EQ(file.SeekBlock(std::format("Item:{}", item)), 0);
+            uint8_t masterID = 0;
+            REQUIRE_EQ(file.ReadIdUChar("MasterID", masterID), 0);
+            price += MasterComponentList[masterID].ResourcePoints;
+        }
+
+        int32_t internal = 0;
+
+        for (const char* location :
+             {"Head", "CenterTorso", "LeftTorso", "RightTorso", "LeftArm", "RightArm", "LeftLeg", "RightLeg"})
+        {
+            REQUIRE_EQ(file.SeekBlock(location), 0);
+            uint8_t points = 0;
+            REQUIRE_EQ(file.ReadIdUChar("CurInternalStructure", points), 0);
+            internal += points;
+        }
+
+        return price + 50 * internal;
+    }
+
+    /// <summary>The first master component of <paramref name="form"/> from <paramref name="first"/> on, or -1.</summary>
+    int32_t FindComponent(MCComponentForm form, int32_t first = 0)
+    {
+        for (int32_t id = first; id < NumMasterComponents(); ++id)
+        {
+            if (MasterComponentList[id].Form == form)
+            {
+                return id;
+            }
+        }
+
+        return -1;
+    }
+
+    /// <summary>A mech with every armor and internal structure location full (<paramref name="points"/> each).</summary>
+    MCLogMech FullMech(uint8_t points)
+    {
+        MCLogMech mech{};
+
+        for (auto& location : mech.Armor)
+        {
+            location = {points, points};
+        }
+
+        for (auto& location : mech.Internals)
+        {
+            location = {points, points};
+        }
+
+        return mech;
+    }
+}
+
+TEST_CASE("logistics: the session screen lists player ids in order, empty slots last")
+{
+    const std::array<uint32_t, 3> ids = {0x30, 0x10, 0x20};
+    const auto sorted = MCSessionScreen::SortedPlayerIds(ids);
+    const uint32_t none = MCSessionScreen::NoPlayer;
+    CHECK(sorted == (std::array<uint32_t, MCSessionScreen::MaxPlayers>{0x10, 0x20, 0x30, none, none, none}));
+
+    // A full session.
+    const std::array<uint32_t, 6> full = {6, 5, 4, 3, 2, 1};
+    CHECK(MCSessionScreen::SortedPlayerIds(full) ==
+          (std::array<uint32_t, MCSessionScreen::MaxPlayers>{1, 2, 3, 4, 5, 6}));
+}
+
+TEST_CASE("logistics: a unit sells for half its value in the campaign, all of it in a single mission")
+{
+    REQUIRE(MPlayer == nullptr);
+    const bool saved = Solo;
+    Solo = false;
+    CHECK_EQ(MCInventoryBlock::SalePrice(2500), 1250);
+    CHECK_EQ(MCInventoryBlock::SalePrice(75), 37);
+    Solo = true;
+    CHECK_EQ(MCInventoryBlock::SalePrice(2500), 2500);
+    Solo = saved;
+}
+
+TEST_CASE("logistics: pilots for hire are listed by rank, then callsign")
+{
+    MCPurPilotList pilots;
+    pilots.Insert(Pilot(1, "Delta", 1));
+    pilots.Insert(Pilot(0, "Alpha", 2));
+    pilots.Insert(Pilot(1, "Charlie", 3));
+    pilots.Insert(Pilot(2, "Bravo", 4));
+    CHECK(Callsigns(pilots) == (std::vector<std::string>{"Alpha", "Charlie", "Delta", "Bravo"}));
+    CHECK_EQ(pilots.GetPilotCount(), 4);
+    CHECK_EQ(pilots.GetVisiblePilotCount(), 4);
+
+    // Hiring one takes it off the visible list but not off the list.
+    pilots.SetPilotStatus(3, MCPurPilotData::Hired);
+    CHECK_EQ(pilots.GetVisiblePilotCount(), 3);
+    MCPurPilotData* found = nullptr;
+    REQUIRE_EQ(pilots.GetPilotInfo(1, found), 0);
+    CHECK_EQ(found->Status, MCPurPilotData::Hired);
+    CHECK_EQ(pilots.GetPilotInfo(4, found), -1);
+    pilots.SetPilotStatus(4, MCPurPilotData::OffShop);
+    CHECK_EQ(pilots.GetVisiblePilotCount(), 2);
+
+    // Original behaviour (OB-165): the callsign walk ignores rank, so a lower-ranked pilot with a later callsign goes
+    // after the higher-ranked ones it passes.
+    MCPurPilotList quirk;
+    quirk.Insert(Pilot(1, "Bravo", 1));
+    quirk.Insert(Pilot(0, "Zulu", 2));
+    CHECK(Callsigns(quirk) == (std::vector<std::string>{"Bravo", "Zulu"}));
+}
+
+TEST_CASE("logistics: the unit limit caps a purchase at the room left")
+{
+    if (!MCTestGame::Available())
+    {
+        return;
+    }
+
+    ShopFixture shop;
+    shop.Mechs.NumMechs = 30;
+    shop.Vehicles.NumVehicles = 10;
+    shop.ForceMechs.NumMechs = 3;
+    shop.ForceVehicles.NumVehicles = 2;
+    CHECK_EQ(NumUnits(), 45);
+    CHECK_EQ(MaxPurchase(10), 5);
+    CHECK_EQ(MaxPurchase(3), 3);
+    CHECK_EQ(MaxPurchase(5), 5);
+    // Unlimited stock (-1) is capped by the room.
+    CHECK_EQ(MaxPurchase(-1), 5);
+    CHECK(!CheckMaxUnits());
+    shop.Mechs.NumMechs = 35;
+    CHECK_EQ(MaxPurchase(10), 0);
+    shop.Mechs.NumMechs = 0;
+    shop.Vehicles.NumVehicles = 0;
+    shop.ForceMechs.NumMechs = 0;
+    shop.ForceVehicles.NumVehicles = 0;
+}
+
+TEST_CASE("game: the shop prices a mech by its profile and keeps its stock")
+{
+    if (!MCTestGame::Available())
+    {
+        return;
+    }
+
+    ShopFixture shop;
+    MCPurMechList mechs;
+    mechs.AddMech("PM100100", 2, "PM100100", 0, "PM100100", 1);
+    REQUIRE_EQ(mechs.GetMechCount(), 1);
+    MCPurMech* mech = nullptr;
+    REQUIRE_EQ(mechs.GetMechInfo(0, mech), 0);
+    CHECK_EQ(mech->Variants[0]->Cost, ProfilePrice("PM100100"));
+    CHECK_EQ(mech->Variants[0]->Name, std::string("Commando A"));
+    CHECK_EQ(mech->Variants[0]->NumAvailable, 2);
+    CHECK_EQ(mech->Variants[1]->NumAvailable, 1);
+    CHECK_EQ(mech->Variants[2]->NumAvailable, 0);
+    CHECK_EQ(mech->Block->CurVariant, 0);
+
+    // Stock changes add up and stop at none.
+    CHECK_EQ(mechs.ModMech("PM100100", -5, 3, 1), 0);
+    CHECK_EQ(mech->Variants[0]->NumAvailable, 0);
+    CHECK_EQ(mech->Variants[1]->NumAvailable, 2);
+    CHECK_EQ(mech->Variants[2]->NumAvailable, 3);
+    CHECK_EQ(mechs.ModMech("PM999999", 1, 1, 1), -1);
+
+    // A mech out of its first variant shows the next one in stock; the newest mech comes first.
+    mechs.AddMech("PM100100", 0, "PM100100", 0, "PM100100", 4);
+    REQUIRE_EQ(mechs.GetMechInfo(0, mech), 0);
+    CHECK_EQ(mech->Block->CurVariant, 1);
+    CHECK_EQ(mech->Variants[1]->NumAvailable, 4);
+    mechs.Clear();
+    CHECK_EQ(mechs.GetMechCount(), 0);
+}
+
+TEST_CASE("game: the shop lists vehicles by tonnage and keeps their stock")
+{
+    if (!MCTestGame::Available())
+    {
+        return;
+    }
+
+    ShopFixture shop;
+    MCPurVehicleList vehicles;
+
+    for (const char* name : {"PV20500", "PV20000", "PV21000", "PV20100"})
+    {
+        vehicles.AddVehicle(name, 1);
+    }
+
+    REQUIRE_EQ(vehicles.GetVehicleCount(), 4);
+
+    for (size_t i = 1; i < vehicles.Vehicles.size(); ++i)
+    {
+        MCTest::Scope scope(std::format("vehicle {}", i));
+        CHECK(vehicles.Vehicles[i - 1]->Data->CurTonnage <= vehicles.Vehicles[i]->Data->CurTonnage);
+    }
+
+    // A vehicle's price is its own plus its components'.
+    for (const auto& vehicle : vehicles.Vehicles)
+    {
+        MCTest::Scope scope(vehicle->Data->FileName);
+        int32_t price = vehicle->Data->BaseCost;
+
+        for (MCLogInventoryItem* item = vehicle->Data->Inventory->Items; item != nullptr; item = item->Next)
+        {
+            price += MasterComponentList[item->MasterID].ResourcePoints * item->Count;
+        }
+
+        CHECK_EQ(vehicle->Data->Cost, price);
+    }
+
+    CHECK_EQ(vehicles.ModVehicle("PV20000", 3), 0);
+    CHECK_EQ(vehicles.ModVehicle("PV20000", -10), 0);
+    MCPurVehicle* found = nullptr;
+
+    for (int32_t i = 0; i < vehicles.GetVehicleCount(); ++i)
+    {
+        vehicles.GetVehicleInfo(i, found);
+
+        if (found->Data->FileName == "PV20000")
+        {
+            break;
+        }
+    }
+
+    CHECK_EQ(found->Data->NumAvailable, 0);
+    CHECK_EQ(vehicles.ModVehicle("PV99999", 1), -1);
+}
+
+TEST_CASE("game: a mech mounts a component its free tonnage, one of each equipment and its chassis allow")
+{
+    if (!MCTestGame::Available())
+    {
+        return;
+    }
+
+    ShopFixture shop;
+    const int32_t weapon = FindComponent(MCComponentForm::WeaponEnergy);
+    const int32_t ecm = FindComponent(MCComponentForm::Ecm);
+    const int32_t sensor = FindComponent(MCComponentForm::Sensor);
+    REQUIRE(weapon >= 0 && ecm >= 0 && sensor >= 0);
+
+    MCInventoryList inventory;
+    MCLogMech mech{};
+    mech.Inventory = &inventory;
+    mech.CurTonnage = 30.0f;
+    mech.UsedTonnage = 25.0f;
+    mech.NameIndex = 4;
+    const auto id = [](int32_t value) { return static_cast<uint8_t>(value); };
+
+    // Five tons free.
+    CHECK(MCCompInventoryBlock::CanMount(id(weapon), 5.0f, &mech));
+    CHECK(!MCCompInventoryBlock::CanMount(id(weapon), 5.5f, &mech));
+    CHECK(!MCCompInventoryBlock::CanMount(id(weapon), 0.0f, nullptr));
+
+    // One ECM: a second is refused, a sensor still fits.
+    inventory.AddItem(id(ecm), inventory.CreateStat(0, 0, 0, 1, 0xff), -1);
+    CHECK(!MCCompInventoryBlock::CanMount(id(ecm), 0.0f, &mech));
+    CHECK(MCCompInventoryBlock::CanMount(id(sensor), 0.0f, &mech));
+
+    // The restricted components fit only the mechs of name index 5, 14 and 16.
+    for (uint8_t restricted : RestrictedComps)
+    {
+        MCTest::Scope scope(std::format("component {}", restricted));
+
+        if (IsEquipment(MasterComponentList[restricted].Form))
+        {
+            continue;
+        }
+
+        mech.NameIndex = 4;
+        CHECK(!MCCompInventoryBlock::CanMount(restricted, 0.0f, &mech));
+
+        for (int32_t allowed : {5, 14, 16})
+        {
+            mech.NameIndex = allowed;
+            CHECK(MCCompInventoryBlock::CanMount(restricted, 0.0f, &mech));
+        }
+    }
+}
+
+TEST_CASE("logistics: armor repair fills the head first, then the most damaged location")
+{
+    MCLogMech mech = FullMech(12);
+    mech.Armor[0] = {9, 6};
+    // The left arm at half, the center torso at three quarters (it counts a fifth more damaged: 60%).
+    mech.Armor[4] = {12, 6};
+    mech.Armor[1] = {16, 12};
+    GuiContext gui;
+    MCMechRepairBlock block;
+    block.Mech = &mech;
+
+    // Three points all go to the head.
+    block.RepairArmor(3);
+    CHECK_EQ(mech.Armor[0].CurArmor, 9);
+    CHECK_EQ(mech.Armor[4].CurArmor, 6);
+    CHECK_EQ(mech.Armor[1].CurArmor, 12);
+
+    // Then the left arm (50%, 58%), the center torso (60%), the center torso (65% < the arm's 67%), the left arm.
+    block.RepairArmor(2);
+    CHECK_EQ(mech.Armor[4].CurArmor, 8);
+    CHECK_EQ(mech.Armor[1].CurArmor, 12);
+    block.RepairArmor(3);
+    CHECK_EQ(mech.Armor[1].CurArmor, 14);
+    CHECK_EQ(mech.Armor[4].CurArmor, 9);
+
+    // A head point short goes there before the rest.
+    mech.Armor[0].CurArmor = 8;
+    block.RepairArmor(1);
+    CHECK_EQ(mech.Armor[0].CurArmor, 9);
+    CHECK_EQ(mech.Armor[4].CurArmor, 9);
+
+    // A negative count repairs it all.
+    block.RepairArmor(-1);
+
+    for (const auto& location : mech.Armor)
+    {
+        CHECK_EQ(location.CurArmor, location.MaxArmor);
+    }
+
+    block.Mech = nullptr;
+}
+
+TEST_CASE("logistics: internal structure repair goes to the most damaged location")
+{
+    MCLogMech mech = FullMech(6);
+    // The head at a third counts 30% more damaged (23%); the left arm at a third counts as it is.
+    mech.Internals[0] = {3, 1};
+    mech.Internals[4] = {6, 2};
+    GuiContext gui;
+    MCMechRepairBlock block;
+    block.Mech = &mech;
+    block.RepairInternal(1);
+    CHECK_EQ(mech.Internals[0].CurArmor, 2);
+    CHECK_EQ(mech.Internals[4].CurArmor, 2);
+    // The head at two thirds counts 47%; the arm's 33% is lower.
+    block.RepairInternal(1);
+    CHECK_EQ(mech.Internals[0].CurArmor, 2);
+    CHECK_EQ(mech.Internals[4].CurArmor, 3);
+    block.RepairInternal(-1);
+
+    for (const auto& location : mech.Internals)
+    {
+        CHECK_EQ(location.CurArmor, location.MaxArmor);
+    }
+
+    block.Mech = nullptr;
+}
+
+TEST_CASE("game: the repair bay lists weapons by damage, lowest first")
+{
+    if (!MCTestGame::Available())
+    {
+        return;
+    }
+
+    ShopFixture shop;
+    // Three weapons with different damage, in the inventory in id order.
+    std::vector<int32_t> ids;
+
+    for (int32_t id = 0; id < NumMasterComponents() && ids.size() < 3; ++id)
+    {
+        const MCComponentForm form = MasterComponentList[id].Form;
+        const bool newDamage = std::ranges::none_of(
+            ids, [id](int32_t other) { return MasterComponentList[other].Damage == MasterComponentList[id].Damage; });
+
+        if (IsWeapon(form) && newDamage)
+        {
+            ids.push_back(id);
+        }
+    }
+
+    REQUIRE_EQ(ids.size(), size_t{3});
+    MCInventoryList inventory;
+
+    for (int32_t id : ids)
+    {
+        inventory.AddItem(static_cast<uint8_t>(id), inventory.CreateStat(0, 0, 0, 1, 0xff), -1);
+    }
+
+    std::vector<int32_t> entries = {0, 1, 2};
+    std::vector<int32_t> hits = {10, 20, 30};
+    MCMechRepairBlock::SortByDamage(entries, hits, inventory);
+    auto damage = [&inventory](int32_t entry)
+    { return MasterComponentList[inventory.GetMasterIDFromIndex(entry)].Damage; };
+    CHECK(damage(entries[0]) < damage(entries[1]));
+    CHECK(damage(entries[1]) < damage(entries[2]));
+
+    // Each damage figure stays with its entry.
+    for (size_t i = 0; i < entries.size(); ++i)
+    {
+        CHECK_EQ(hits[i], 10 * (entries[i] + 1));
+    }
+}
+
+namespace
+{
+    /// <summary>Runs the logistics screens for two seconds: a screen change or a dialog settles.</summary>
+    void Settle()
+    {
+        for (int32_t frame = 0; frame < 30; frame++)
+        {
+            MCTestGame::RunFrame(1.0f / 15.0f);
+        }
+    }
+
+    /// <summary>The purchase dialog's accept button.</summary>
+    void Accept()
+    {
+        Click(316, 299);
+        Settle();
+    }
+
+    /// <summary>The store's first row dragged onto the inventory.</summary>
+    void BuyFirst()
+    {
+        Drag(300, 80, 100, 200);
+        Settle();
+    }
+
+    /// <summary>The inventory's first row dragged onto the store.</summary>
+    void SellFirst()
+    {
+        Drag(100, 120, 300, 200);
+        Settle();
+    }
+
+    /// <summary><paramref name="pilot"/>'s inventory row dragged onto the unit pane's first row.</summary>
+    void DragPilot(MCLogWarrior* pilot)
+    {
+        MCPilotInventoryBlock* row = pilot->InventoryBlock;
+        REQUIRE(row != nullptr);
+        Drag(row->GlobalX() + 40, row->GlobalY() + row->Height() / 2, 300, 60);
+    }
+
+    /// <summary>The unit in inventory row 0 of <paramref name="list"/>.</summary>
+    MCLogMech* FirstInventoryMech(MCLogMechList* list)
+    {
+        for (MCLogMech* mech = list->Mechs; mech != nullptr; mech = mech->Next)
+        {
+            if (mech->InventoryBlock != nullptr && mech->InventoryBlock->ListIndex == 0)
+            {
+                return mech;
+            }
+        }
+
+        return nullptr;
+    }
+}
+
+TEST_CASE_ISOLATED("game: the purchase screen buys and sells mechs, vehicles, components and pilots by dragging")
+{
+    if (!MCTestGame::Available())
+    {
+        return;
+    }
+
+    REQUIRE(MCTestGame::StartLogistics());
+    Settle();
+    NewCampaign();
+    Settle();
+    GlobalLogPtr->SetUpPurchaseScreen(-1);
+    Settle();
+    REQUIRE(GlobalLogPtr->CurrentScreen == GlobalLogPtr->PurchaseScreen);
+    ResourcePoints = 100000;
+
+    // A mech: the shown variant's price, one more in the inventory, one less in stock.
+    {
+        MCTest::Scope scope("mech");
+        MCPurMech* purMech = GlobalLogPtr->PurMechList->Mechs.front().get();
+
+        for (const auto& variant : purMech->Variants)
+        {
+            variant->NumAvailable = 2;
+        }
+
+        const MCPurMechData* shown = purMech->Variants[static_cast<size_t>(purMech->Block->CurVariant)].get();
+        const int32_t mechs = GlobalLogPtr->MechList->GetMechCount();
+        BuyFirst();
+        Accept();
+        CHECK_EQ(GlobalLogPtr->MechList->GetMechCount(), mechs + 1);
+        CHECK_EQ(ResourcePoints, 100000 - shown->Cost);
+        CHECK_EQ(shown->NumAvailable, 1);
+    }
+
+    // Selling the inventory's first mech back returns half its value.
+    {
+        MCTest::Scope scope("mech sale");
+        MCLogMech* sold = FirstInventoryMech(GlobalLogPtr->MechList);
+        REQUIRE(sold != nullptr);
+        REQUIRE_EQ(sold->Required, 0);
+        // The value as the sale works it out: the mech's price as it is now.
+        sold->CalcMechCost(0);
+        const int32_t value = sold->ResourcePoints;
+        const int32_t points = ResourcePoints;
+        const int32_t mechs = GlobalLogPtr->MechList->GetMechCount();
+        SellFirst();
+        Accept();
+        CHECK_EQ(GlobalLogPtr->MechList->GetMechCount(), mechs - 1);
+        CHECK_EQ(ResourcePoints, points + value / 2);
+    }
+
+    // A vehicle.
+    {
+        MCTest::Scope scope("vehicle");
+        Click(200, 350);
+        Settle();
+        MCPurVehicleData* data = GlobalLogPtr->PurVehicleList->Vehicles.front()->Data.get();
+        data->NumAvailable = 2;
+        const int32_t vehicles = GlobalLogPtr->VehicleList->GetVehicleCount();
+        const int32_t points = ResourcePoints;
+        BuyFirst();
+        Accept();
+        CHECK_EQ(GlobalLogPtr->VehicleList->GetVehicleCount(), vehicles + 1);
+        CHECK_EQ(ResourcePoints, points - data->Cost);
+        CHECK_EQ(data->NumAvailable, 1);
+    }
+
+    // A component: the store row drawn first (row 0).
+    {
+        MCTest::Scope scope("component");
+        Click(200, 280);
+        Settle();
+        MCLogInventoryItem* stock = nullptr;
+
+        for (MCLogInventoryItem* item = GlobalLogPtr->PurchaseComponents->Items; item != nullptr; item = item->Next)
+        {
+            if (item->PurchaseBlock->Row == 0)
+            {
+                stock = item;
+            }
+        }
+
+        REQUIRE(stock != nullptr);
+        stock->Count = 3;
+        const uint8_t masterID = stock->MasterID;
+        MCInventoryList* spares = GlobalLogPtr->ComponentInventory;
+        const int32_t index = spares->GetIndexFromMasterID(masterID);
+        const int32_t before = index < 0 ? 0 : spares->GetItemInfo(index)->Count;
+        const int32_t points = ResourcePoints;
+        BuyFirst();
+        Accept();
+        MCLogInventoryItem* bought = spares->GetItemInfo(spares->GetIndexFromMasterID(masterID));
+        REQUIRE(bought != nullptr);
+        CHECK_EQ(bought->Count, before + 1);
+        CHECK_EQ(stock->Count, 2);
+        CHECK_EQ(ResourcePoints, points - MasterComponentList[masterID].ResourcePoints);
+    }
+
+    // A pilot: hired, off the store, paid for.
+    {
+        MCTest::Scope scope("pilot");
+        // The campaign starts with no pilot for hire: one goes up for hire, as a later mission's shop puts them.
+        REQUIRE(GlobalLogPtr->PurPilotList->GetPilotCount() > 0);
+        GlobalLogPtr->PurPilotList->Pilots.back()->Status = MCPurPilotData::ForHire;
+        GlobalLogPtr->PurchaseScreen->CreatePurVehiclePane(true);
+        Click(200, 180);
+        Settle();
+        MCPurPilotData* hired = nullptr;
+
+        for (const auto& pilot : GlobalLogPtr->PurPilotList->Pilots)
+        {
+            if (pilot->Status == MCPurPilotData::ForHire && pilot->Block->Row == 0)
+            {
+                hired = pilot.get();
+            }
+        }
+
+        REQUIRE(hired != nullptr);
+        const int32_t pilots = GlobalLogPtr->WarriorList->NumWarriors;
+        const int32_t visible = GlobalLogPtr->PurPilotList->GetVisiblePilotCount();
+        const int32_t points = ResourcePoints;
+        const int32_t cost = hired->Cost;
+        BuyFirst();
+        Accept();
+        CHECK_EQ(GlobalLogPtr->WarriorList->NumWarriors, pilots + 1);
+        CHECK_EQ(hired->Status, MCPurPilotData::Hired);
+        CHECK_EQ(GlobalLogPtr->PurPilotList->GetVisiblePilotCount(), visible - 1);
+        CHECK_EQ(ResourcePoints, points - cost);
+    }
+
+    // Not enough points: nothing is bought.
+    {
+        MCTest::Scope scope("too dear");
+        Click(200, 120);
+        Settle();
+        ResourcePoints = 10;
+        const int32_t mechs = GlobalLogPtr->MechList->GetMechCount();
+        BuyFirst();
+        CHECK_EQ(GlobalLogPtr->MechList->GetMechCount(), mechs);
+        CHECK_EQ(ResourcePoints, 10);
+    }
+}
+
+TEST_CASE_ISOLATED("game: a pilot dragged onto a force mech on the repair screen becomes its pilot")
+{
+    if (!MCTestGame::Available())
+    {
+        return;
+    }
+
+    REQUIRE(MCTestGame::StartLogistics());
+    Settle();
+    NewCampaign();
+    Settle();
+    GlobalLogPtr->SetUpRepairScreen(-1);
+    Settle();
+    REQUIRE(GlobalLogPtr->CurrentScreen == GlobalLogPtr->RepairScreen);
+
+    // The pilots tab: the inventory's first pilot, and the force's first mech.
+    Click(202, 180);
+    Settle();
+    MCLogWarrior* pilot = nullptr;
+
+    for (MCLogWarrior* warrior = GlobalLogPtr->WarriorList->Warriors; warrior != nullptr; warrior = warrior->Next)
+    {
+        if (warrior->InventoryBlock != nullptr && warrior->InventoryBlock->ListIndex == 0)
+        {
+            pilot = warrior;
+        }
+    }
+
+    MCLogMech* mech = nullptr;
+
+    for (MCLogMech* forceMech = GlobalLogPtr->ForceMechList->Mechs; forceMech != nullptr; forceMech = forceMech->Next)
+    {
+        if (forceMech->RepairBlock != nullptr && forceMech->RepairBlock->SlotIndex == 0)
+        {
+            mech = forceMech;
+        }
+    }
+
+    REQUIRE(pilot != nullptr);
+    REQUIRE(mech != nullptr);
+    const int32_t id = pilot->Id;
+    MCLogWarrior* previous = nullptr;
+    REQUIRE_EQ(GlobalLogPtr->AssignedWarriorList->GetWarriorInfo(mech->PilotIndex, previous), 0);
+    REQUIRE(previous != nullptr && previous->Id != id);
+    const int32_t previousId = previous->Id;
+
+    // A mech with a pilot takes no other: the inventory's pilots are greyed and can't be picked up.
+    Click(300, 60);
+    Settle();
+    REQUIRE(GlobalLogPtr->RepairScreen->SelectedMech == mech);
+    Click(202, 180);
+    Settle();
+    CHECK(pilot->InventoryBlock->GreyedOut);
+    DragPilot(pilot);
+    Settle();
+    MCLogWarrior* flying = nullptr;
+    REQUIRE_EQ(GlobalLogPtr->AssignedWarriorList->GetWarriorInfo(mech->PilotIndex, flying), 0);
+    CHECK_EQ(flying->Id, previousId);
+
+    // The mech's pilot dragged off its portrait into the inventory leaves the seat empty.
+    MCMechRepairBlock* row = mech->RepairBlock;
+    Drag(row->GlobalX() + 30, row->GlobalY() + 0x40, 100, 200);
+    Settle();
+    CHECK_EQ(mech->PilotIndex, -1);
+    bool unseated = false;
+
+    for (MCLogWarrior* warrior = GlobalLogPtr->WarriorList->Warriors; warrior != nullptr; warrior = warrior->Next)
+    {
+        unseated = unseated || warrior->Id == previousId;
+    }
+
+    CHECK(unseated);
+
+    // Now the pilot dropped on the selected mech takes the seat.
+    Click(202, 180);
+    Settle();
+    CHECK(!pilot->InventoryBlock->GreyedOut);
+    DragPilot(pilot);
+    Settle();
+    REQUIRE_EQ(GlobalLogPtr->AssignedWarriorList->GetWarriorInfo(mech->PilotIndex, flying), 0);
+    REQUIRE(flying != nullptr);
+    CHECK_EQ(flying->Id, id);
+}

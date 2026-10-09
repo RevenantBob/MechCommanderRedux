@@ -2,8 +2,7 @@
 #include "gui/MCScrollPane.h"
 #include "gui/MCGuiFont.h"
 #include "lib/MCFatal.h"
-#include "logistics/logbri.h"
-#include "logistics/logmain.h"
+#include "main/MCGamePaths.h"
 #include "main/logistics.h"
 #include "vfx/MCVfxFunctions.h"
 
@@ -27,38 +26,38 @@ auto MCScrollPane::Init(int32_t width, int32_t height, int32_t xPos, int32_t yPo
     }
 
     MCLogPort background;
-    background.Init(name);
+    background.Load(name);
     Init(width, height, xPos, yPos, &background);
     return 0;
 }
 
 auto MCScrollPane::Init(int32_t width, int32_t height, int32_t xPos, int32_t yPos, MCLogPort* background) -> void
 {
-    _OwnPort = nullptr;
+    _Port = nullptr;
     FramePane = nullptr;
 
     OwnedContent = std::make_unique<MCLogPort>();
     ContentPort = OwnedContent.get();
-    ContentPort->Init(width - SliderWidth, height, -1);
+    ContentPort->Init(width - SliderWidth, height);
     VfxPaneWipe(ContentPort->Frame(), 0x10);
 
     if (background != nullptr)
     {
         BackgroundCopy = std::make_unique<MCLogPort>();
-        BackgroundCopy->Init(background->Width(), background->Height(), -1);
+        BackgroundCopy->Init(background->Width(), background->Height());
         background->CopyTo(BackgroundCopy->Frame(), 0, 0, true);
     }
 
-    const int32_t result = MCLogObject::Init(xPos, yPos, width, height, nullptr, ContentPort);
-    Assert(result == 0, 0, " could not initialize ScrollPane ");
-    _OwnPort = ContentPort;
+    // The pane draws into its content.
+    InitWithoutPort(xPos, yPos, width, height);
+    _Port = ContentPort;
 
     SliderPort = std::make_unique<MCLogPort>();
-    SliderPort->Init(SliderWidth, height, -1);
+    SliderPort->Init(SliderWidth, height);
 
     // The track tile repeats down the column, below the first row; the arrows go at the ends.
     MCLogPort art;
-    art.Init(std::format("{}logart\\scroll.tga", ArtPath).c_str());
+    art.Load(std::format("{}logart\\scroll.tga", ArtPath));
     const int32_t numTiles = height / art.Height() - 1;
 
     for (int32_t i = 0; i < numTiles; i++)
@@ -66,10 +65,9 @@ auto MCScrollPane::Init(int32_t width, int32_t height, int32_t xPos, int32_t yPo
         art.CopyTo(SliderPort->Frame(), 0, art.Height() * i + 1, true);
     }
 
-    art.Init(std::format("{}logart\\supbup.tga", ArtPath).c_str());
+    art.Load(std::format("{}logart\\supbup.tga", ArtPath));
     art.CopyTo(SliderPort->Frame(), 0, 0, true);
-    art.Destroy();
-    art.Init(std::format("{}logart\\sdnbup.tga", ArtPath).c_str());
+    art.Load(std::format("{}logart\\sdnbup.tga", ArtPath));
     art.CopyTo(SliderPort->Frame(), 0, height - 15, true);
 
     if (PanePort == nullptr)
@@ -86,7 +84,7 @@ auto MCScrollPane::Init(int32_t width, int32_t height, int32_t xPos, int32_t yPo
 
 auto MCScrollPane::Destroy() -> void
 {
-    _OwnPort = nullptr;
+    _Port = nullptr;
     MCLogObject::Destroy();
     ContentPort = nullptr;
     OwnedContent.reset();
@@ -227,7 +225,7 @@ auto MCScrollPane::HeldArrow() const -> Arrow
 
 auto MCScrollPane::PressedArrowArt(bool down) -> MCLogPort*
 {
-    return LogArtf("%slogart\\%s", ArtPath, down ? "lscsb04.tga" : "lscsb03.tga");
+    return LogScreenArt(down ? "lscsb04.tga" : "lscsb03.tga");
 }
 
 auto MCScrollPane::DrawSliderColumn(MCPane* target, int32_t xPos, int32_t yPos, bool keyed) -> void
@@ -333,7 +331,7 @@ auto MCScrollPane::ClearDisplayPort() -> void
 {
     OwnedContent.reset();
     ContentPort = nullptr;
-    _OwnPort = nullptr;
+    _Port = nullptr;
 }
 
 auto MCScrollPane::ShowContent(MCLogPort* port, bool resetPosition) -> void
@@ -345,7 +343,7 @@ auto MCScrollPane::ShowContent(MCLogPort* port, bool resetPosition) -> void
     }
 
     ContentPort = port;
-    _OwnPort = port;
+    _Port = port;
     const auto unit = static_cast<float>(port->Height() * 0.01);
     ScrollUnit = unit;
     MaxScroll = static_cast<float>(port->Height() - WinHeight) / unit;

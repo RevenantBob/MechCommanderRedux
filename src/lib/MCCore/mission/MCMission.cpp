@@ -2,8 +2,17 @@
 #include "mission/MCMission.h"
 #include "lib/MCFatal.h"
 #include "linkup/sessionmanager.h"
-#include "logistics/invblock.h"
-#include "logistics/logbri.h"
+#include "logistics/MCInventoryBlock.h"
+#include "logistics/MCMechInventoryBlock.h"
+#include "logistics/MCPilotInventoryBlock.h"
+#include "logistics/MCVehicleInventoryBlock.h"
+#include "logistics/MCCompInventoryBlock.h"
+#include "logistics/MCDragIcon.h"
+#include "logistics/MCLogRows.h"
+#include "main/MCGamePaths.h"
+#include "logistics/MCConnectMenu.h"
+#include "gui/MCGuiSmackerWindow.h"
+#include "logistics/MCMissionLogisticsBridge.h"
 #include "camera/MCCamera.h"
 #include "camera/MCMainWindow.h"
 #include "color/MCPalette.h"
@@ -13,10 +22,13 @@
 #include "iface/MCTacticalInterface.h"
 #include "lib/MCFile.h"
 #include "lib/MCFitIniFile.h"
-#include "logistics/logdlg.h"
-#include "logistics/loggen.h"
-#include "logistics/logmain.h"
-#include "logistics/misslog.h"
+#include "logistics/MCPurchaseDlg.h"
+#include "logistics/MCReusableDialog.h"
+#include "logistics/MCFileScrollPane.h"
+#include "logistics/MCGameList.h"
+#include "logistics/MCLogComboBox.h"
+#include "logistics/MCLogSlider.h"
+#include "logistics/MCSplashScreen.h"
 #include "main/honorb.h"
 #include "main/logistics.h"
 #include "main/main.h"
@@ -33,6 +45,7 @@
 #include "platform/MCInput.h"
 #include "platform/MCSmacker.h"
 #include "platform/MCWin32Defs.h"
+#include "logistics/MCBriefingScreen.h"
 
 int32_t GlobalGameSegment = 0;
 float MinPilotSkill = 0.0f;
@@ -892,9 +905,9 @@ auto MCMission::EndScenario() -> void
     if (GlobalGameSegment == 0 && MPlayer == nullptr)
     {
         std::string bridgeName = Scenario()->ScenarioScript;
-        MCMissionLogisticsBridge bridge;
 
-        if (const int32_t result = bridge.MissionResultsStartingFitWriter(bridgeName.data()); result != 0)
+        if (const int32_t result = MCMissionLogisticsBridge::MissionResultsStartingFitWriter(bridgeName.data());
+            result != 0)
         {
             Fatal(result, " Unable to write Mission to Logistics Bridge File ");
         }

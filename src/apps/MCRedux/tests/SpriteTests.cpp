@@ -5,7 +5,7 @@
 #include "fixtures/MCRetailData.h"
 #include "lib/MCFile.h"
 #include "lib/MCPacketFile.h"
-#include "logistics/logmain.h"
+#include "main/MCGamePaths.h"
 #include "main/main.h"
 #include "platform/MCRenderer.h"
 #include "sprite/MCGVAppearance.h"
@@ -546,15 +546,9 @@ namespace
     /// <summary>Points <c>SpritePath</c> at <paramref name="path"/> for its lifetime.</summary>
     struct SpritePathScope
     {
-        /// <summary>The size of <c>SpritePath</c>.</summary>
-        static constexpr size_t PathSize = 80;
+        explicit SpritePathScope(std::string_view path) : _Saved(SpritePath) { SpritePath = path; }
 
-        explicit SpritePathScope(std::string_view path) : _Saved(SpritePath)
-        {
-            std::snprintf(SpritePath, PathSize, "%.*s", static_cast<int>(path.size()), path.data());
-        }
-
-        ~SpritePathScope() { std::snprintf(SpritePath, PathSize, "%s", _Saved.c_str()); }
+        ~SpritePathScope() { SpritePath = _Saved; }
 
         std::string _Saved;
     };

@@ -9,8 +9,9 @@
 #include "linkup/dpplayer.h"
 #include "linkup/ficommonnetwork.h"
 #include "linkup/sessionmanager.h"
-#include "logistics/logbri.h"
-#include "logistics/logmain.h"
+#include "main/MCGamePaths.h"
+#include "main/main.h"
+#include "logistics/MCConnectMenu.h"
 #include "main/MCGameContext.h"
 #include "mission/MCMission.h"
 #include "network/multplyr.h"
@@ -286,15 +287,15 @@ auto RealWinMain(void* instance, std::string_view commandLine) -> int
     // string 0x355), and refused a second instance; none of that applies.
     MCPort::SeedRand(static_cast<uint32_t>(std::time(nullptr)));
     ThisInstance = instance;
-    MCStrCopy(SavePath, "c:\\Program Files\\Honor Bound\\");
-    MCStrCopy(DirectXPath, "\\honorb\\directx\\");
-    MCStrCopy(TerrainPath, "data\\terrain\\");
+    SavePath = "c:\\Program Files\\Honor Bound\\";
+    DirectXPath = "\\honorb\\directx\\";
+    TerrainPath = "data\\terrain\\";
     PalettePath = "data\\palette\\";
-    MCStrCopy(ArtPath, "data\\art\\");
-    MCStrCopy(FontPath, "data\\fonts\\");
-    MCStrCopy(SoundPath, "data\\sound\\");
-    MCStrCopy(SpritePath, "data\\sprites\\");
-    MCStrCopy(InterfacePath, "data\\iface\\");
+    ArtPath = "data\\art\\";
+    FontPath = "data\\fonts\\";
+    SoundPath = "data\\sound\\";
+    SpritePath = "data\\sprites\\";
+    InterfacePath = "data\\iface\\";
     PaletteName = "palette.gif";
     OldMouseY = -1;
     OldMouseX = -1;

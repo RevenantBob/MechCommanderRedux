@@ -15,20 +15,50 @@
 #include "linkup/dpplayer.h"
 #include "linkup/linkedlist.hpp"
 #include "linkup/sessionmanager.h"
-#include "logistics/invblock.h"
-#include "logistics/logbri.h"
-#include "logistics/logdlg.h"
-#include "logistics/loggen.h"
-#include "logistics/logmain.h"
-#include "logistics/logpur.h"
-#include "logistics/logrep.h"
-#include "logistics/logscrn.h"
-#include "logistics/logsession.h"
-#include "logistics/lport.h"
-#include "logistics/misslog.h"
-#include "logistics/mrblock.h"
-#include "logistics/purchase.h"
-#include "logistics/ticker.h"
+#include "logistics/MCInventoryBlock.h"
+#include "logistics/MCMechInventoryBlock.h"
+#include "logistics/MCPilotInventoryBlock.h"
+#include "logistics/MCVehicleInventoryBlock.h"
+#include "logistics/MCCompInventoryBlock.h"
+#include "logistics/MCDragIcon.h"
+#include "logistics/MCLogRows.h"
+#include "main/MCGamePaths.h"
+#include "logistics/MCPreferencesMenu.h"
+#include "logistics/MCLoadSaveMenu.h"
+#include "logistics/MCConnectMenu.h"
+#include "logistics/MCMainMenu.h"
+#include "logistics/MCBriefingScreen.h"
+#include "logistics/MCMechBriefBlock.h"
+#include "logistics/MCMissionLogisticsBridge.h"
+#include "logistics/MCPurchaseDlg.h"
+#include "logistics/MCReusableDialog.h"
+#include "logistics/MCFileScrollPane.h"
+#include "logistics/MCGameList.h"
+#include "logistics/MCLogComboBox.h"
+#include "logistics/MCLogSlider.h"
+#include "logistics/MCSplashScreen.h"
+#include "logistics/MCPurchaseScreen.h"
+#include "logistics/MCRepairScreen.h"
+#include "logistics/MCLogChatWindow.h"
+#include "logistics/MCLogInvScreen.h"
+#include "logistics/MCLogToolButton.h"
+#include "logistics/MCLogChatInput.h"
+#include "logistics/MCPlayerNameObject.h"
+#include "logistics/MCSessionScreen.h"
+#include "logistics/MCLogObject.h"
+#include "logistics/MCMechRepairBlock.h"
+#include "logistics/MCVehicleRepairBlock.h"
+#include "logistics/MCBriefingBox.h"
+#include "logistics/MCPurMechList.h"
+#include "logistics/MCPurPilotList.h"
+#include "logistics/MCPurVehicleList.h"
+#include "logistics/MCMechPurchaseBlock.h"
+#include "logistics/MCPilotPurchaseBlock.h"
+#include "logistics/MCVehiclePurchaseBlock.h"
+#include "logistics/MCCompPurchaseBlock.h"
+#include "logistics/MCUnitLimits.h"
+#include "logistics/MCPurProfile.h"
+#include "logistics/MCTicker.h"
 #include "main/honorb.h"
 #include "main/main.h"
 #include "mission/MCMission.h"
@@ -54,6 +84,9 @@ int LogCheatActive[7] = {};
 int32_t MultiPlayerColors[6] = {};
 std::type_identity_t<int32_t> LogCurCheatChar{};
 std::type_identity_t<int> InDemo{};
+bool Solo = false;
+MCLogistics* GlobalLogPtr = nullptr;
+int32_t LastLogisticsMissionState = 0;
 
 namespace
 {
@@ -128,8 +161,7 @@ namespace
     {
         MCFitIniFile file;
         char text[1024];
-        std::snprintf(text, sizeof(text), "%s%s", ObjectPath, ObjectDesc);
-        int32_t result = file.Open(text);
+        int32_t result = file.Open(std::format("{}{}", ObjectPath, ObjectDesc));
         Assert(result == 0, static_cast<uint32_t>(result), "Could not open description file");
         std::snprintf(text, sizeof(text), "Desc%d", descIndex);
 
@@ -534,6 +566,19 @@ auto MCInventoryList::AddCountToItem(int32_t count, int32_t masterID) -> void
     }
 }
 
+MCInventoryList::~MCInventoryList()
+{
+    Destroy();
+}
+
+auto MCInventoryList::MakeInventoryBlock(MCLogInventoryItem* item) -> MCCompInventoryBlock*
+{
+    auto* block = new MCCompInventoryBlock;
+    item->InventoryBlock = block;
+    block->Init(item);
+    return block;
+}
+
 auto MCInventoryList::Destroy() -> void
 {
     MCLogInventoryItem* item = Items;
@@ -613,9 +658,7 @@ namespace
             item->PurchaseBlock = new MCCompPurchaseBlock;
             item->PurchaseBlock->Init(item);
             item->PurchaseBlock->SortOrder = item->SortOrder;
-            item->InventoryBlock = new MCCompInventoryBlock;
-            item->InventoryBlock->Init(item);
-            item->InventoryBlock->InventoryIndex = item->SortOrder;
+            MCInventoryList::MakeInventoryBlock(item)->InventoryIndex = item->SortOrder;
         }
         else
         {
@@ -1729,8 +1772,7 @@ auto MCLogWarriorList::SaveWarriorText(char* fileName, int32_t index) -> int32_t
         warrior = warrior->Next;
     }
 
-    MCMissionLogisticsBridge bridge;
-    return bridge.LogisticsWarriorProfileWriter(fileName, warrior);
+    return MCMissionLogisticsBridge::LogisticsWarriorProfileWriter(fileName, warrior);
 }
 
 auto MCLogWarriorList::GetWarriorInfo(int32_t index, MCLogWarrior*& warrior) -> int32_t
@@ -1790,7 +1832,7 @@ auto MCLogWarriorList::SaveWarriorBinary(char* fileName, int32_t index) -> int32
 {
     MCFile file;
     char path[256];
-    std::snprintf(path, sizeof(path), "%s%s", SavePath, fileName);
+    std::snprintf(path, sizeof(path), "%s%s", SavePath.c_str(), fileName);
     file.Create(path);
     file.WriteLong(NumWarriors);
     // Port fix (OB-089): the original passed the address of its buffer pointer to getBinaryData (writing the record
@@ -3292,8 +3334,7 @@ auto MCLogMechList::SaveMechText(char* fileName, int32_t index) -> int32_t
         mech = mech->Next;
     }
 
-    MCMissionLogisticsBridge bridge;
-    return bridge.LogisticsMechProfileWriter(fileName, mech, 0);
+    return MCMissionLogisticsBridge::LogisticsMechProfileWriter(fileName, mech, false);
 }
 
 auto MCLogMechList::SaveMechBinary(char* fileName, int32_t index) -> int32_t
@@ -3841,8 +3882,7 @@ auto MCLogVehicleList::SaveVehicleText(char* fileName, int32_t index) -> int32_t
         vehicle = vehicle->Next;
     }
 
-    MCMissionLogisticsBridge bridge;
-    bridge.LogisticsVehicleProfileWriter(fileName, vehicle, 0);
+    MCMissionLogisticsBridge::LogisticsVehicleProfileWriter(fileName, vehicle, false);
     return 0;
 }
 
@@ -3960,9 +4000,14 @@ auto MyGetUserName(char* name, uint32_t* size) -> int
 //---------------------------------------------------------------------------
 // MPPlayerLights
 
+MCMPPlayerLights::~MCMPPlayerLights()
+{
+    Destroy();
+}
+
 auto MCMPPlayerLights::Init() -> void
 {
-    MCLogObject::Init(0xd8, 0, 1, 0x10, nullptr, nullptr);
+    MCLogObject::Init(0xd8, 0, 1, 0x10);
     NumPlayers = 0;
 
     for (uint32_t& id : PlayerIDs)
@@ -3981,18 +4026,18 @@ auto MCMPPlayerLights::Init() -> void
     char fileName[256];
     // One light's width comes from the first player's light.
     LightsPort = new MCLogPort;
-    std::snprintf(fileName, sizeof(fileName), "%slogart\\lsc_p1.tga", ArtPath);
-    LightsPort->Init(fileName);
+    std::snprintf(fileName, sizeof(fileName), "%slogart\\lsc_p1.tga", ArtPath.c_str());
+    LightsPort->Load(fileName);
     LightWidth = LightsPort->Width();
     LightsPort->Destroy();
-    std::snprintf(fileName, sizeof(fileName), "%slogart\\lsc_pn.tga", ArtPath);
-    LightsPort->Init(fileName);
+    std::snprintf(fileName, sizeof(fileName), "%slogart\\lsc_pn.tga", ArtPath.c_str());
+    LightsPort->Load(fileName);
     ReadyPort = new MCLogPort;
-    std::snprintf(fileName, sizeof(fileName), "%slogart\\lsc_pg.tga", ArtPath);
-    ReadyPort->Init(fileName);
+    std::snprintf(fileName, sizeof(fileName), "%slogart\\lsc_pg.tga", ArtPath.c_str());
+    ReadyPort->Load(fileName);
     BlinkPort = new MCLogPort;
-    std::snprintf(fileName, sizeof(fileName), "%slogart\\lsc_pg1.tga", ArtPath);
-    BlinkPort->Init(fileName);
+    std::snprintf(fileName, sizeof(fileName), "%slogart\\lsc_pg1.tga", ArtPath.c_str());
+    BlinkPort->Load(fileName);
 }
 
 auto MCMPPlayerLights::Destroy() -> void
@@ -4058,7 +4103,7 @@ auto MCMPPlayerLights::Draw() -> void
     for (int32_t light = 0; light < std::min(NumPlayers, MAX_PLAYERS); light++)
     {
         // The numbered light, then the status over it: 1 lit, 2 blinking (while the timer runs).
-        MCLogPort* lightPort = LogArtf("%slogart\\lsc_p%d.tga", ArtPath, light + 1);
+        MCLogPort* lightPort = LogScreenArt(std::format("lsc_p{}.tga", light + 1));
 
         if (lightPort == nullptr)
         {
@@ -4070,7 +4115,7 @@ auto MCMPPlayerLights::Draw() -> void
 
         if (status == 1)
         {
-            if (MCLogPort* statusPort = LogArtf("%slogart\\lsc_ph.tga", ArtPath))
+            if (MCLogPort* statusPort = LogScreenArt("lsc_ph.tga"))
             {
                 statusPort->CopyTo(target, lightPort->Width() * light, 2, 1);
             }
@@ -4121,7 +4166,7 @@ namespace
     MCLogPort* NewPort(int32_t width, int32_t height)
     {
         auto* port = new MCLogPort;
-        port->Init(width, height, 1);
+        port->Init(width, height);
         return port;
     }
 
@@ -4131,7 +4176,7 @@ namespace
         char fileName[256];
         std::snprintf(fileName, sizeof(fileName), format, path);
         auto* port = new MCLogPort;
-        port->Init(fileName);
+        port->Load(fileName);
         return port;
     }
 
@@ -4177,7 +4222,7 @@ namespace
     /// <summary>Makes <paramref name="screen"/>'s elements from its ini file (<see cref="OpenScreenFile"/>).</summary>
     void InitSplashScreen(MCSplashScreen* screen, MCFitIniFile& file, const char* startError)
     {
-        const int32_t result = screen->Init(&file);
+        const int32_t result = screen->Init(file);
         Assert(result == 0, static_cast<uint32_t>(result), startError);
     }
 
@@ -4233,10 +4278,9 @@ namespace
 
 auto MCLogistics::Init() -> void
 {
-    if (EmptyFile == nullptr)
+    if (EmptyFile.empty())
     {
-        EmptyFile = static_cast<char*>(std::malloc(0xff));
-        CLoadString(ThisInstance, 0x381, EmptyFile, 0xfe);
+        EmptyFile = LoadGameString(0x381, 0xfe);
     }
 
     AutoPlayMovie = 0;
@@ -4320,10 +4364,10 @@ auto MCLogistics::Init() -> void
     PurchaseComponents = new MCInventoryList;
     Assert(PurchaseComponents != nullptr, 0, "Could not initialize purchaseInventory list");
 
-    InventoryIconPorts[0] = NewPort("%slogart\\lsciim.tga", ArtPath);
-    InventoryIconPorts[1] = NewPort("%slogart\\lsciip.tga", ArtPath);
-    InventoryIconPorts[2] = NewPort("%slogart\\lsciic.tga", ArtPath);
-    InventoryIconPorts[3] = NewPort("%slogart\\lsciiv.tga", ArtPath);
+    InventoryIconPorts[0] = NewPort("%slogart\\lsciim.tga", ArtPath.c_str());
+    InventoryIconPorts[1] = NewPort("%slogart\\lsciip.tga", ArtPath.c_str());
+    InventoryIconPorts[2] = NewPort("%slogart\\lsciic.tga", ArtPath.c_str());
+    InventoryIconPorts[3] = NewPort("%slogart\\lsciiv.tga", ArtPath.c_str());
 
     LoadScreen = new MCSplashScreen;
     SaveScreen = new MCSplashScreen;
@@ -4400,8 +4444,8 @@ auto MCLogistics::Init() -> void
             nameField->SetBackColor(0x10);
             gameField->SetBackColor(0x10);
             playersField->SetBackColor(0x10);
-            nameField->InitBuffer(0x10, 0);
-            gameField->InitBuffer(0x18, 0);
+            nameField->InitBuffer(0x10, MCLogInputType::Text);
+            gameField->InitBuffer(0x18, MCLogInputType::Text);
             uint32_t size = 0x3f;
             char* gameName;
             char gameText[0x200];
@@ -4417,12 +4461,12 @@ auto MCLogistics::Init() -> void
                 char format[0x100];
                 CLoadString(ThisInstance, 0x377, format, 0xfe);
                 std::snprintf(gameText, sizeof(gameText), format, userName);
-                gameField->InitBuffer(0x18, 0);
+                gameField->InitBuffer(0x18, MCLogInputType::Text);
                 gameName = gameText;
             }
 
             gameField->SetStringBuffer(gameName);
-            playersField->InitBuffer(2, 3);
+            playersField->InitBuffer(2, MCLogInputType::Port);
             playersField->SetStringBuffer(const_cast<char*>("6"));
             auto* joinButton = ScreenElement<MCLogButton>(screen, 6);
             joinButton->Disabled = 1;
@@ -4442,8 +4486,8 @@ auto MCLogistics::Init() -> void
             phoneField->Font = MedWhiteFont;
             nameField->SetBackColor(0x10);
             phoneField->SetBackColor(0x10);
-            nameField->InitBuffer(0x10, 0);
-            phoneField->InitBuffer(0x18, 0);
+            nameField->InitBuffer(0x10, MCLogInputType::Text);
+            phoneField->InitBuffer(0x18, MCLogInputType::Text);
             uint32_t size = 0x3f;
             nameField->SetStringBuffer(MyGetUserName(userName, &size) == 0 ? const_cast<char*>("Player") : userName);
             auto* modems = ScreenElement<MCLogScrollTextObject>(screen, 10);
@@ -4462,11 +4506,11 @@ auto MCLogistics::Init() -> void
             InitSplashScreen(screen, screenFile, " Unable to start modemScreen screen ");
             screenFile.Close();
             MCLogTextObject* nameField = SetUpNameField(screen, 4);
-            nameField->InitBuffer(0x10, 0);
+            nameField->InitBuffer(0x10, MCLogInputType::Text);
             uint32_t size = 0x3f;
             nameField->SetStringBuffer(MyGetUserName(userName, &size) == 0 ? const_cast<char*>("Player") : userName);
             MCLogTextObject* portField = SetUpNameField(screen, 5);
-            portField->InitBuffer(2, 1);
+            portField->InitBuffer(2, MCLogInputType::Digits);
             portField->SetEventRoutine(ComPortTextHandleEvent);
             portField->SetStringBuffer(const_cast<char*>("1"));
             SerialScreen->SetEventRoutine(SerialScreenHandleEvent);
@@ -4510,13 +4554,13 @@ auto MCLogistics::Init() -> void
     ShowLogScreen(0, 0);
 
     // Under the process ID, as aSystem::init sets it: copies of the game on one machine share the user folder.
-    std::snprintf(SaveTempPath, sizeof(SaveTempPath), "%stemp\\%u\\", SavePath, MCPort::ProcessId());
+    std::snprintf(SaveTempPath, sizeof(SaveTempPath), "%stemp\\%u\\", SavePath.c_str(), MCPort::ProcessId());
     // Port fix (OB-094): the original allocated a File here, and a FitIniFile after the sort tables, and never used or
     // freed either.
 
     char line[256];
     MCFile file;
-    std::snprintf(line, sizeof(line), "%slogart\\comp.rsp", ArtPath);
+    std::snprintf(line, sizeof(line), "%slogart\\comp.rsp", ArtPath.c_str());
     int32_t result = file.Open(line);
     Assert(result == 0, 0, " could not open componant name file ");
     NumRangeSorted = 1;
@@ -4557,16 +4601,16 @@ auto MCLogistics::Init() -> void
 
     file.Close();
 
-    InvBlockPort = NewPort("%slogart\\invblock.tga", ArtPath);
-    InvTabPorts[0] = nullptr;
-    InvTabPorts[1] = nullptr;
-    InvTabPorts[2] = nullptr;
-    InvTabPorts[3] = nullptr;
+    InvBlockPort = NewPort("%slogart\\invblock.tga", ArtPath.c_str());
+
+    for (std::unique_ptr<MCLogPort>& port : InvTabPorts)
+    {
+        port.reset();
+    }
 
     auto* nameTicker = new MCTicker;
-    nameTicker->Init();
     Ticker = nameTicker;
-    nameTicker->Init(3, 3, 0xcd, 1, CurrentScreen->Lport());
+    nameTicker->Init(3, 3, 0xcd, 1);
     nameTicker->SetScreen(CurrentScreen);
     CurrentScreen->AddChild(nameTicker);
     nameTicker->SetFont(MedWhiteFont);
@@ -4594,24 +4638,24 @@ auto MCLogistics::Init() -> void
     VfxPaneWipe(ResourceBackPort->Frame(), 0x10);
     ClockBackPort = NewPort(0x32, 0xc);
     VfxPaneWipe(ClockBackPort->Frame(), 0x10);
-    RepairBackPort = NewPort("%slogart\\lsrupm00.tga", ArtPath);
+    RepairBackPort = NewPort("%slogart\\lsrupm00.tga", ArtPath.c_str());
 
     for (int32_t i = 0; i < 0x18; ++i)
     {
-        std::snprintf(line, sizeof(line), "%smechrep%02d.shp", ArtPath, i);
+        std::snprintf(line, sizeof(line), "%smechrep%02d.shp", ArtPath.c_str(), i);
         MechRepShapes[i] = LoadShapeFile(file, line, "could not open mechrep shape file", "unexpected mechrep size");
-        std::snprintf(line, sizeof(line), "%smi%02d.shp", ArtPath, i);
+        std::snprintf(line, sizeof(line), "%smi%02d.shp", ArtPath.c_str(), i);
         MechIconShapes[i] = LoadShapeFile(file, line, "could not open mechicon shape file", "unexpected mechicon size");
     }
 
     for (int32_t i = 0; i < 0x23; ++i)
     {
-        std::snprintf(line, sizeof(line), "%svr1%02d.shp", ArtPath, i);
+        std::snprintf(line, sizeof(line), "%svr1%02d.shp", ArtPath.c_str(), i);
 
         if (file.Open(line) == 0)
         {
             VehicleRepShapes[i] = ReadShapeFile(file, "unexpected vhclrep size");
-            std::snprintf(line, sizeof(line), "%svi1%02d.shp", ArtPath, i);
+            std::snprintf(line, sizeof(line), "%svi1%02d.shp", ArtPath.c_str(), i);
 
             if (file.Open(line) == 0)
             {
@@ -4645,31 +4689,31 @@ auto MCLogistics::Init() -> void
 
     MCRenderer::RegisterData(ShapeLookaside, sizeof(ShapeLookaside), MCDataKind::Tables);
 
-    RepairPorts[0] = NewPort("%slogart\\lsrupm03.tga", ArtPath);
-    RepairPorts[1] = NewPort("%slogart\\lsrupm01.tga", ArtPath);
-    RepairPorts[2] = NewPort("%slogart\\lsrupm04.tga", ArtPath);
-    RepairPorts[3] = NewPort("%slogart\\lsrupm02.tga", ArtPath);
-    RepairPorts[4] = NewPort("%slogart\\lsrupm06.tga", ArtPath);
-    RepairPorts[5] = NewPort("%slogart\\lsrupm07.tga", ArtPath);
-    PurchasePorts[0] = NewPort("%slogart\\lspcb05.tga", ArtPath);
-    PurchasePorts[1] = NewPort("%slogart\\lspcb07.tga", ArtPath);
-    PurchasePorts[2] = NewPort("%slogart\\lspcb06.tga", ArtPath);
-    PurchasePorts[3] = NewPort("%slogart\\lspcb09.tga", ArtPath);
-    ScreenButtonPorts[0][0] = NewPort("%slogart\\lscbn00.tga", ArtPath);
-    ScreenButtonPorts[0][1] = NewPort("%slogart\\lscbh00.tga", ArtPath);
-    ScreenButtonPorts[0][2] = NewPort("%slogart\\lscbg00.tga", ArtPath);
-    ScreenButtonPorts[1][0] = NewPort("%sbn_exit.tga", ArtPath);
-    ScreenButtonPorts[1][1] = NewPort("%sbh_exit.tga", ArtPath);
-    ScreenButtonPorts[1][2] = NewPort("%sbg_exit.tga", ArtPath);
-    ScreenButtonPorts[2][0] = NewPort("%slogart\\lscbn01.tga", ArtPath);
-    ScreenButtonPorts[2][1] = NewPort("%slogart\\lscbh01.tga", ArtPath);
-    ScreenButtonPorts[2][2] = NewPort("%slogart\\lscbg01.tga", ArtPath);
-    ScreenButtonPorts[3][0] = NewPort("%slogart\\lscbn02.tga", ArtPath);
-    ScreenButtonPorts[3][1] = NewPort("%slogart\\lscbh02.tga", ArtPath);
-    ScreenButtonPorts[3][2] = NewPort("%slogart\\lscbg02.tga", ArtPath);
-    ScreenButtonPorts[4][0] = NewPort("%slogart\\lscbn03.tga", ArtPath);
-    ScreenButtonPorts[4][1] = NewPort("%slogart\\lscbh03.tga", ArtPath);
-    ScreenButtonPorts[4][2] = NewPort("%slogart\\lscbg03.tga", ArtPath);
+    RepairPorts[0] = NewPort("%slogart\\lsrupm03.tga", ArtPath.c_str());
+    RepairPorts[1] = NewPort("%slogart\\lsrupm01.tga", ArtPath.c_str());
+    RepairPorts[2] = NewPort("%slogart\\lsrupm04.tga", ArtPath.c_str());
+    RepairPorts[3] = NewPort("%slogart\\lsrupm02.tga", ArtPath.c_str());
+    RepairPorts[4] = NewPort("%slogart\\lsrupm06.tga", ArtPath.c_str());
+    RepairPorts[5] = NewPort("%slogart\\lsrupm07.tga", ArtPath.c_str());
+    PurchasePorts[0] = NewPort("%slogart\\lspcb05.tga", ArtPath.c_str());
+    PurchasePorts[1] = NewPort("%slogart\\lspcb07.tga", ArtPath.c_str());
+    PurchasePorts[2] = NewPort("%slogart\\lspcb06.tga", ArtPath.c_str());
+    PurchasePorts[3] = NewPort("%slogart\\lspcb09.tga", ArtPath.c_str());
+    ScreenButtonPorts[0][0] = NewPort("%slogart\\lscbn00.tga", ArtPath.c_str());
+    ScreenButtonPorts[0][1] = NewPort("%slogart\\lscbh00.tga", ArtPath.c_str());
+    ScreenButtonPorts[0][2] = NewPort("%slogart\\lscbg00.tga", ArtPath.c_str());
+    ScreenButtonPorts[1][0] = NewPort("%sbn_exit.tga", ArtPath.c_str());
+    ScreenButtonPorts[1][1] = NewPort("%sbh_exit.tga", ArtPath.c_str());
+    ScreenButtonPorts[1][2] = NewPort("%sbg_exit.tga", ArtPath.c_str());
+    ScreenButtonPorts[2][0] = NewPort("%slogart\\lscbn01.tga", ArtPath.c_str());
+    ScreenButtonPorts[2][1] = NewPort("%slogart\\lscbh01.tga", ArtPath.c_str());
+    ScreenButtonPorts[2][2] = NewPort("%slogart\\lscbg01.tga", ArtPath.c_str());
+    ScreenButtonPorts[3][0] = NewPort("%slogart\\lscbn02.tga", ArtPath.c_str());
+    ScreenButtonPorts[3][1] = NewPort("%slogart\\lscbh02.tga", ArtPath.c_str());
+    ScreenButtonPorts[3][2] = NewPort("%slogart\\lscbg02.tga", ArtPath.c_str());
+    ScreenButtonPorts[4][0] = NewPort("%slogart\\lscbn03.tga", ArtPath.c_str());
+    ScreenButtonPorts[4][1] = NewPort("%slogart\\lscbh03.tga", ArtPath.c_str());
+    ScreenButtonPorts[4][2] = NewPort("%slogart\\lscbg03.tga", ArtPath.c_str());
 
     std::snprintf(line, sizeof(line), "%sgamesys.fit", MissionPath);
     MCFitIniFile gameSystemFile;
@@ -4892,11 +4936,7 @@ auto MCLogistics::Destroy() -> void
 {
     MCRenderer::UnregisterData(ShapeLookaside, sizeof(ShapeLookaside));
 
-    if (PlayerLights != nullptr)
-    {
-        delete PlayerLights;
-        PlayerLights = nullptr;
-    }
+    PlayerLights.reset();
 
     if (Ticker != nullptr)
     {
@@ -5027,19 +5067,10 @@ auto MCLogistics::Destroy() -> void
         ForceVehicleList = nullptr;
     }
 
-    if (PurMechList != nullptr)
-    {
-        PurMechList->Destroy();
-        delete PurMechList;
-        PurMechList = nullptr;
-    }
-
-    if (PurVehicleList != nullptr)
-    {
-        PurVehicleList->Destroy();
-        delete PurVehicleList;
-        PurVehicleList = nullptr;
-    }
+    delete PurMechList;
+    PurMechList = nullptr;
+    delete PurVehicleList;
+    PurVehicleList = nullptr;
 
     if (PurchaseComponents != nullptr)
     {
@@ -5048,12 +5079,8 @@ auto MCLogistics::Destroy() -> void
         PurchaseComponents = nullptr;
     }
 
-    if (PurPilotList != nullptr)
-    {
-        PurPilotList->Destroy();
-        delete PurPilotList;
-        PurPilotList = nullptr;
-    }
+    delete PurPilotList;
+    PurPilotList = nullptr;
 
     if (ComponentInventory != nullptr)
     {
@@ -5096,10 +5123,10 @@ auto MCLogistics::Destroy() -> void
         ForceMechList = nullptr;
     }
 
-    DeletePort(InvTabPorts[2]);
-    DeletePort(InvTabPorts[0]);
-    DeletePort(InvTabPorts[1]);
-    DeletePort(InvTabPorts[3]);
+    InvTabPorts[2].reset();
+    InvTabPorts[0].reset();
+    InvTabPorts[1].reset();
+    InvTabPorts[3].reset();
     auto deleteScreen = [](auto*& screen)
     {
         if (screen != nullptr)
@@ -5132,11 +5159,7 @@ auto MCLogistics::Destroy() -> void
     LogisticsBlocks->Clear();
     LogisticsBlocks.reset();
 
-    if (EmptyFile != nullptr)
-    {
-        std::free(EmptyFile);
-        EmptyFile = nullptr;
-    }
+    EmptyFile.clear();
 }
 
 auto MCLogistics::ShowLogScreen(int show, int redraw) -> void
@@ -5144,7 +5167,7 @@ auto MCLogistics::ShowLogScreen(int show, int redraw) -> void
     if (redraw != 0)
     {
         char fileName[256];
-        std::snprintf(fileName, sizeof(fileName), "%slogart\\lsrupm05.tga", ArtPath);
+        std::snprintf(fileName, sizeof(fileName), "%slogart\\lsrupm05.tga", ArtPath.c_str());
         GuiSystem()->ActivatePaletteFromTga(fileName);
     }
 
@@ -5284,12 +5307,10 @@ auto MCLogistics::SetUpCampaignPurchasing(char* purchaseFileName, MCPacketFile* 
     if (purchasing->ReadIdLong("Operation", Operation) == 0)
     {
         MCBriefingScreen* briefing = BriefingScreen;
-        delete briefing->OperationPicture;
-        briefing->OperationPicture = new MCLogPort;
-        Assert(briefing->OperationPicture != nullptr, 0, " Not enough memory for opPort ");
+        briefing->OperationPicture = std::make_unique<MCLogPort>();
         std::snprintf(text, sizeof(text), CurPlanet == 0 ? "%slogart\\lsb_op%d.tga" : "%slogart\\mcxcard%d.tga",
-                      ArtPath, Operation);
-        briefing->OperationPicture->Init(text);
+                      ArtPath.c_str(), Operation);
+        briefing->OperationPicture->Load(text);
     }
     else
     {
@@ -5522,28 +5543,11 @@ namespace
     /// </summary>
     void ResetShop(MCLogistics* logistics)
     {
-        if (logistics->PurMechList != nullptr)
-        {
-            logistics->PurMechList->Destroy();
-            delete logistics->PurMechList;
-        }
-
+        delete logistics->PurMechList;
         logistics->PurMechList = new MCPurMechList;
-
-        if (logistics->PurVehicleList != nullptr)
-        {
-            logistics->PurVehicleList->Destroy();
-            delete logistics->PurVehicleList;
-        }
-
+        delete logistics->PurVehicleList;
         logistics->PurVehicleList = new MCPurVehicleList;
-
-        if (logistics->PurPilotList != nullptr)
-        {
-            logistics->PurPilotList->Destroy();
-            delete logistics->PurPilotList;
-        }
-
+        delete logistics->PurPilotList;
         logistics->PurPilotList = new MCPurPilotList;
 
         if (logistics->PurchaseComponents != nullptr)
@@ -5553,10 +5557,6 @@ namespace
         }
 
         logistics->PurchaseComponents = new MCInventoryList;
-        logistics->PurMechList->Init();
-        logistics->PurVehicleList->Init();
-        logistics->PurPilotList->First = nullptr;
-        logistics->PurPilotList->Count = 0;
     }
 
     /// <summary>
@@ -5768,7 +5768,7 @@ auto MCLogistics::SetUpOldPurchasing(char* purchaseFileName) -> void
         pilotFile.Close();
 
         // Status 4 takes a pilot for hire off the shop; status 0 puts one back.
-        for (int32_t i = 0; i < pilots->Count; ++i)
+        for (int32_t i = 0; i < pilots->GetPilotCount(); ++i)
         {
             MCPurPilotData* pilot = nullptr;
             pilots->GetPilotInfo(i, pilot);
@@ -5803,7 +5803,6 @@ namespace
         }
 
         screen->AddChild(ticker);
-        ticker->SetPort(screen->Lport());
         ticker->SetScreen(screen);
         ticker->SetPos(3, 3);
     }
@@ -5910,7 +5909,7 @@ auto MCLogistics::SetUpPurchaseScreen(int animate) -> int32_t
 
     if (MPlayer != nullptr)
     {
-        MoveLights(PlayerLights, PurchaseScreen);
+        MoveLights(PlayerLights.get(), PurchaseScreen);
     }
 
     ShowLogScreen(1, previous == RepairScreen || previous == BriefingScreen ? 0 : 1);
@@ -5931,9 +5930,8 @@ auto MCLogistics::SetUpPurchaseScreen(int animate) -> int32_t
         }
         else
         {
-            MCLogPort* look = BriefingScreen->NewLookPicture();
+            const std::unique_ptr<MCLogPort> look = BriefingScreen->NewLookPicture();
             VfxPaneCopy(look->Frame(), 0xd3, 0x10, WorkPort1->Frame(), 0, 0, -1);
-            delete look;
             direction = 0;
         }
 
@@ -5974,7 +5972,7 @@ auto MCLogistics::DrawScreenChrome(MCLogObject* screen, MCPane* target) -> void
     // The ready lights' backing, under the screen's lights (the original's lights painted it into their parent).
     if (PlayerLights != nullptr && PlayerLights->Parent == screen)
     {
-        if (MCLogPort* back = LogArtf("%slogart\\lsc_p0.tga", ArtPath))
+        if (MCLogPort* back = LogScreenArt("lsc_p0.tga"))
         {
             back->CopyTo(target, 0xd3, 0, 0);
         }
@@ -6017,12 +6015,9 @@ auto MCLogistics::DrawScreenChrome(MCLogObject* screen, MCPane* target) -> void
     // The resource points (not on the session screen) and the clock.
     if (screen != SessionScreen)
     {
-        char text[44];
-        ResourceFigureText(text, sizeof(text));
+        const std::string text = ResourceFigureText();
         VfxPaneCopy(ResourceBackPort->Frame(), 0, 0, target, 0x209, 2, -1);
-        auto* bytes = reinterpret_cast<uint8_t*>(text);
-        const int32_t textWidth = MedWhiteFont->Width(reinterpret_cast<const char*>(bytes));
-        MedWhiteFont->WriteString(target, 0x244 - textWidth, 4, reinterpret_cast<const char*>(bytes), -1);
+        MedWhiteFont->WriteString(target, 0x244 - MedWhiteFont->Width(text), 4, text);
     }
 
     char time[sizeof(TimeString)];
@@ -6082,7 +6077,7 @@ auto MCLogistics::SetUpBriefingScreen(int animate) -> int32_t
             chat->MoveTo(2, 0x65, 0);
         }
 
-        MoveLights(PlayerLights, briefing);
+        MoveLights(PlayerLights.get(), briefing);
 
         if (briefing->ChatBlinking != 0 && briefing->ChatTimerOn == 0)
         {
@@ -6102,7 +6097,7 @@ auto MCLogistics::SetUpBriefingScreen(int animate) -> int32_t
         briefing->BriefingBox = nullptr;
     }
 
-    MCScrollPane* deployPane = briefing->DeployPane;
+    MCScrollPane* deployPane = briefing->DeployPane.get();
 
     if (deployPane->NumberOfChildren() != 0)
     {
@@ -6115,9 +6110,8 @@ auto MCLogistics::SetUpBriefingScreen(int animate) -> int32_t
 
     if (animate != 0)
     {
-        MCLogPort* look = briefing->NewLookPicture();
+        const std::unique_ptr<MCLogPort> look = briefing->NewLookPicture();
         VfxPaneCopy(look->Frame(), 0xd3, 0x10, WorkPort0->Frame(), 0, 0, -1);
-        delete look;
         MCLogPort* from = WorkPort1;
         VfxPaneWipe(from->Frame(), 0x10);
         MCLogPort* scratch = NewPaneScratch(PurchaseScreen->UnitPane);
@@ -6216,7 +6210,7 @@ auto MCLogistics::SetUpRepairScreen(int animate) -> int32_t
 
     if (MPlayer != nullptr)
     {
-        MoveLights(PlayerLights, repair);
+        MoveLights(PlayerLights.get(), repair);
     }
 
     ShowLogScreen(1, previous == PurchaseScreen || previous == BriefingScreen ? 0 : 1);
@@ -6236,9 +6230,8 @@ auto MCLogistics::SetUpRepairScreen(int animate) -> int32_t
         }
         else
         {
-            MCLogPort* look = BriefingScreen->NewLookPicture();
+            const std::unique_ptr<MCLogPort> look = BriefingScreen->NewLookPicture();
             VfxPaneCopy(look->Frame(), 0xd3, 0x10, WorkPort1->Frame(), 0, 0, -1);
-            delete look;
         }
 
         RepairScreen->UnitPane->ShowGuiWindow(0);
@@ -6333,10 +6326,9 @@ auto MCLogistics::LoadQuickStart(MCFitIniFile* file) -> void
                 DeploySlots[lance][slot].Unit = 0;
                 mech->Deployed = 1;
                 warrior->Deployed = 1;
-                auto* block = new MCMechBriefBlock;
                 MCBriefingScreen* briefing = BriefingScreen;
-                mech->BriefBlock = block;
-                block->Init(mech, briefing, briefing->SlotRects[slotIndex].left, briefing->SlotRects[slotIndex].top);
+                MCMechBriefBlock::Create(mech, briefing, briefing->SlotRects[slotIndex].left,
+                                         briefing->SlotRects[slotIndex].top);
             }
         }
         else
@@ -6362,10 +6354,9 @@ auto MCLogistics::LoadQuickStart(MCFitIniFile* file) -> void
                 SendAddVehicleMessage(vehicle, lance, slot);
                 vehicle->Deployed = 1;
                 DeploySlots[lance][slot].Vehicle = 0;
-                auto* block = new MCMechBriefBlock;
                 MCBriefingScreen* briefing = BriefingScreen;
-                vehicle->BriefBlock = block;
-                block->Init(vehicle, briefing, briefing->SlotRects[slotIndex].left, briefing->SlotRects[slotIndex].top);
+                MCMechBriefBlock::Create(vehicle, briefing, briefing->SlotRects[slotIndex].left,
+                                         briefing->SlotRects[slotIndex].top);
             }
         }
     }
@@ -6386,8 +6377,7 @@ auto MCLogistics::LoadQuickStart(MCFitIniFile* file) -> void
 auto MCLogistics::SaveCampaign(char* fileName) -> int32_t
 {
     // The original called the bridge with a stack address as this (it has no fields).
-    MCMissionLogisticsBridge bridge;
-    return bridge.LogisticsSaveGame(fileName);
+    return MCMissionLogisticsBridge::LogisticsSaveGame(fileName);
 }
 
 auto MCLogistics::LoadCampaign(char* campaignFile, char* saveFile, int newCampaign, int loadForce) -> int32_t
@@ -6398,7 +6388,7 @@ auto MCLogistics::LoadCampaign(char* campaignFile, char* saveFile, int newCampai
     int quickStart = 0;
     BriefingScreen->ButtonsLocked = 0;
     char text[0x100];
-    std::snprintf(text, sizeof(text), "%slogart\\lsrupm05.tga", ArtPath);
+    std::snprintf(text, sizeof(text), "%slogart\\lsrupm05.tga", ArtPath.c_str());
     GuiSystem()->ActivatePaletteFromTga(text);
 
     // Start from empty lists and inventories.
@@ -6427,17 +6417,17 @@ auto MCLogistics::LoadCampaign(char* campaignFile, char* saveFile, int newCampai
 
     if (PurMechList != nullptr)
     {
-        PurMechList->Destroy();
+        PurMechList->Clear();
     }
 
     if (PurVehicleList != nullptr)
     {
-        PurVehicleList->Destroy();
+        PurVehicleList->Clear();
     }
 
     if (PurPilotList != nullptr)
     {
-        PurPilotList->Destroy();
+        PurPilotList->Clear();
     }
 
     for (auto& lance : DeploySlots)
@@ -6491,11 +6481,7 @@ auto MCLogistics::LoadCampaign(char* campaignFile, char* saveFile, int newCampai
         result = file.ReadIdString("purchaseFile", PurchaseFile, 0x7f);
         Assert(result == 0, 0, " cound not read purchasing file in campain file ");
 
-        if (PlayerLights != nullptr)
-        {
-            delete PlayerLights;
-            PlayerLights = nullptr;
-        }
+        PlayerLights.reset();
     }
     else
     {
@@ -6562,8 +6548,9 @@ auto MCLogistics::LoadCampaign(char* campaignFile, char* saveFile, int newCampai
 
         // The team's resource points (typed on the session screen) are shared among its players.
         const int32_t teamPlayers = MPlayer->PlayersOnHomeTeam()->Count;
-        MCLogTextObject* pointsText = MPlayer->HomeTeam == 0 ? SessionScreen->Team1RPText : SessionScreen->Team2RPText;
-        ResourcePoints = std::atoi(pointsText->Buffer) / teamPlayers;
+        MCLogTextObject* pointsText =
+            MPlayer->HomeTeam == 0 ? SessionScreen->Team1RPText.get() : SessionScreen->Team2RPText.get();
+        ResourcePoints = std::atoi(pointsText->Buffer.c_str()) / teamPlayers;
 
         if (file.SeekBlock("MPQuickStart") == 0)
         {
@@ -8040,7 +8027,7 @@ auto MCLogistics::PrepareScenario(char* scenarioName, char* startFile) -> int32_
                 ForceVehicleList->GetVehicleInfo(deploy.Vehicle + offset, vehicle);
                 result = out.WriteIdString("Profile", vehicle->Crew);
                 Assert(result > 0, 0, " Could not write Warrior Profile in Warrior Number Block ");
-                std::snprintf(text, sizeof(text), "%s%s.fit", WarriorPath, vehicle->Crew);
+                std::snprintf(text, sizeof(text), "%s%s.fit", WarriorPath.c_str(), vehicle->Crew);
                 result = crewFile.Open(text);
                 check(result == 0, " Could not open vehicle profile");
                 result = crewFile.SeekBlock("General");
@@ -8312,8 +8299,7 @@ auto MCLogistics::PrepareScenario(char* scenarioName, char* startFile) -> int32_
 
     // And the logistics state the mission reads back: start<n>.fit for the next mission.
     std::snprintf(text, sizeof(text), "start%d", CurrentMission + 1);
-    MCMissionLogisticsBridge bridge;
-    result = bridge.LogisticsStartingFitWriter(text, 0);
+    result = MCMissionLogisticsBridge::LogisticsStartingFitWriter(text, false);
     Assert(result == 0, 0, " Could not save logistics data ");
     return 0;
 }
@@ -8830,7 +8816,7 @@ auto MCLogistics::GetCurrentMission() -> void
     const int32_t paneWidth = briefing->MissionPane->Width();
     char text[0x100];
     std::snprintf(text, sizeof(text), "%s%s", MissionPath, briefingFile);
-    int32_t height = GuiSystem()->TextFormatter.Init(text, nullptr, paneWidth - 0x11);
+    int32_t height = GuiSystem()->TextFormatter.ProcessFile(text, nullptr, paneWidth - 0x11);
     auto* textPort = new MCLogPort;
 
     if (height < 0xbf)
@@ -8838,12 +8824,11 @@ auto MCLogistics::GetCurrentMission() -> void
         height = 0xbf;
     }
 
-    textPort->Init(paneWidth - 0x11, height, 1);
+    textPort->Init(paneWidth - 0x11, height);
     VfxPaneWipe(textPort->Frame(), 0xff);
-    GuiSystem()->TextFormatter.Init(text, textPort, 0);
-    delete briefing->MissionPort;
-    briefing->MissionPort = new MCLogPort;
-    briefing->MissionPort->Init(0xb3, height + 10, 1);
+    GuiSystem()->TextFormatter.ProcessFile(text, textPort, 0);
+    briefing->MissionPort = std::make_unique<MCLogPort>();
+    briefing->MissionPort->Init(0xb3, height + 10);
     VfxPaneWipe(briefing->MissionPort->Frame(), 0x10);
     VfxPaneCopy(textPort->Frame(), 0, 0, briefing->MissionPort->Frame(), 2, 2, -1);
     delete textPort;
@@ -8969,7 +8954,7 @@ auto MCLogistics::Transition(MCLogPort* from, MCLogPort* to, int direction) -> v
     // A pane over the screen's right part, redrawn each frame for a quarter of a second: direction 0 slides the new
     // picture in from the right over the old one, any other slides the old one out to the left off the new one.
     auto* wipe = new MCTransitionWipe;
-    wipe->Init(0xd3, 0x10, from->Width(), from->Height(), nullptr, nullptr);
+    wipe->Init(0xd3, 0x10, from->Width(), from->Height());
     wipe->From = from;
     wipe->To = to;
     wipe->Direction = direction;
@@ -9302,11 +9287,9 @@ auto MCLogistics::HandleDeployForceMessage(uint32_t playerID, const void* messag
         if (teammate != 0)
         {
             auto* vehicle = static_cast<MCLogVehicle*>(part);
-            auto* block = new MCMechBriefBlock;
             MCBriefingScreen* briefing = BriefingScreen;
-            vehicle->BriefBlock = block;
             const RECT& rect = briefing->SlotRects[lance * 4 + slot];
-            block->Init(vehicle, briefing, rect.left, rect.top);
+            MCMechBriefBlock::Create(vehicle, briefing, rect.left, rect.top);
         }
     }
     else
@@ -9319,11 +9302,9 @@ auto MCLogistics::HandleDeployForceMessage(uint32_t playerID, const void* messag
         {
             auto* mech = static_cast<MCLogMech*>(part);
             mech->CalcStatus();
-            auto* block = new MCMechBriefBlock;
             MCBriefingScreen* briefing = BriefingScreen;
-            mech->BriefBlock = block;
             const RECT& rect = briefing->SlotRects[lance * 4 + slot];
-            block->Init(mech, briefing, rect.left, rect.top);
+            MCMechBriefBlock::Create(mech, briefing, rect.left, rect.top);
         }
     }
 
@@ -9698,7 +9679,6 @@ auto MCLogistics::PrepareMultiplayerScenario(char* scenarioName, char* startFile
     // Each part's commander, by part number (ended by 0xff).
     int32_t partCommanders[0x40] = {};
     int32_t partNumber = 1;
-    MCMissionLogisticsBridge bridge;
 
     for (int32_t zoneBase = 0; zoneBase < 6; zoneBase += 3)
     {
@@ -9724,11 +9704,12 @@ auto MCLogistics::PrepareMultiplayerScenario(char* scenarioName, char* startFile
 
             if (partType == 1)
             {
-                bridge.LogisticsMechProfileWriter(profileName, static_cast<MCLogMech*>(part), 0);
+                MCMissionLogisticsBridge::LogisticsMechProfileWriter(profileName, static_cast<MCLogMech*>(part), false);
             }
             else
             {
-                bridge.LogisticsVehicleProfileWriter(profileName, static_cast<MCLogVehicle*>(part), 0);
+                MCMissionLogisticsBridge::LogisticsVehicleProfileWriter(profileName, static_cast<MCLogVehicle*>(part),
+                                                                        false);
             }
 
             out << "[Part" << partNumber << "]" << '\n';
@@ -9951,8 +9932,7 @@ auto MCLogistics::ProcessCheatCode(int16_t key) -> void
             CurrentMission = MissionWarpNumber;
             std::snprintf(text, sizeof(text), "start%d", CurrentMission);
             // The original called the bridge with a stack address as this (it has no fields).
-            MCMissionLogisticsBridge bridge;
-            bridge.LogisticsSaveGame(text);
+            MCMissionLogisticsBridge::LogisticsSaveGame(text);
             char extension[] = ".sav";
             LoadCampaign(text, extension, 0, 0);
             MissionWarpNumber = -1;
@@ -10391,7 +10371,7 @@ auto LostPlayerHandler(int32_t answer) -> void
     char downArt[] = "bg_okay.tga";
     GlobalLogPtr->MessageDialog->OkButton->SetUpPicture(upArt);
     GlobalLogPtr->MessageDialog->OkButton->SetDownPicture(downArt);
-    MCLogDialogButton* button = GlobalLogPtr->MessageDialog->OkButton;
+    MCLogDialogButton* button = GlobalLogPtr->MessageDialog->OkButton.get();
     button->Disabled = 0;
     dialog = GlobalLogPtr->MessageDialog;
     dialog->Timeout = 5000;

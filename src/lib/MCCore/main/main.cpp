@@ -3,9 +3,8 @@
 #include "main/honorb.h"
 #include "lib/MCFatal.h"
 #include "platform/MCStringTable.h"
-#include "logistics/logbri.h"
-#include "logistics/logmain.h"
 #include "main/logistics.h"
+#include "logistics/MCBriefingScreen.h"
 
 float ScenarioTime = 0.0f;
 int32_t Turn = 0;
@@ -14,6 +13,7 @@ float WorldUnitsPerMeter = 3.34f;
 float MetersPerWorldUnit = 0.2994f;
 char* ExceptionGameMsg = nullptr;
 uint32_t UlOldAutoRunValue = 0x95;
+void* ThisInstance = nullptr;
 
 int32_t CLoadString(void* instance, uint32_t id, char* buffer, int bufferSize)
 {

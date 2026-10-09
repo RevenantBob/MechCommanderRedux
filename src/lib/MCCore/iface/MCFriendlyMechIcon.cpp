@@ -11,7 +11,7 @@
 #include "iface/MCTacticalInterface.h"
 #include "lib/MCFatal.h"
 #include "lib/MCFile.h"
-#include "logistics/logbri.h"
+#include "main/MCGamePaths.h"
 #include "main/main.h"
 #include "network/multplyr.h"
 #include "object/MCForces.h"

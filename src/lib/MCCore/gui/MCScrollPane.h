@@ -1,6 +1,6 @@
 #pragma once
 
-#include "logistics/lport.h"
+#include "logistics/MCLogObject.h"
 
 /// <summary>
 /// A logistics-screen scrolling pane: its content is drawn into a tall port (<see cref="ContentPort"/>), of which the

@@ -1,7 +1,7 @@
 #include "stdafx.h"
 #include "terrain/MCTerrainTiles.h"
 #include "lib/MCPacketFile.h"
-#include "logistics/logmain.h"
+#include "main/MCGamePaths.h"
 #include "main/main.h"
 
 std::string TilePath = "data\\tiles\\";

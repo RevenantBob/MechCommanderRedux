@@ -5,7 +5,7 @@
 #include "iface/MCTacticalInterface.h"
 #include "lib/MCFatal.h"
 #include "lib/MCFile.h"
-#include "logistics/logbri.h"
+#include "main/MCGamePaths.h"
 #include "vfx/MCVfxFunctions.h"
 #include "platform/MCCursor.h"
 #include "platform/MCDisplay.h"

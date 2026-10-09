@@ -2,7 +2,7 @@
 #include "object/MCMiscTerrainObjectType.h"
 #include "lib/MCFile.h"
 #include "lib/MCFitIniFile.h"
-#include "logistics/logmain.h"
+#include "main/MCGamePaths.h"
 #include "network/multplyr.h"
 #include "object/MCMiscTerrainObject.h"
 #include "object/MCWeaponShotInfo.h"

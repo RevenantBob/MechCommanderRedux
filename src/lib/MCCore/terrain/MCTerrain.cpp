@@ -7,7 +7,7 @@
 #include "iface/MCTacticalInterface.h"
 #include "lib/MCFatal.h"
 #include "lib/MCFitIniFile.h"
-#include "logistics/logmain.h"
+#include "main/MCGamePaths.h"
 #include "main/MCGameContext.h"
 #include "mission/MCScenario.h"
 #include "object/MCObjectBlockManager.h"

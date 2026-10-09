@@ -5,7 +5,7 @@
 #include "gui/MCGuiFont.h"
 #include "iface/MCMechBar.h"
 #include "iface/MCTacticalInterface.h"
-#include "logistics/logmain.h"
+#include "logistics/MCConnectMenu.h"
 #include "main/main.h"
 #include "object/MCForces.h"
 #include "sound/MCSoundSystem.h"

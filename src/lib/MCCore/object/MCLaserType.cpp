@@ -2,7 +2,7 @@
 #include "object/MCLaserType.h"
 #include "lib/MCFile.h"
 #include "lib/MCFitIniFile.h"
-#include "logistics/logmain.h"
+#include "main/MCGamePaths.h"
 #include "object/MCLaser.h"
 #include "object/MCObjectSystem.h"
 #include "object/MCObjectTypeManager.h"

@@ -9,9 +9,19 @@
 #include "gui/MCGuiSystem.h"
 #include "iface/MCMechBar.h"
 #include "iface/MCTacticalInterface.h"
-#include "logistics/logmain.h"
-#include "logistics/logpur.h"
-#include "logistics/purchase.h"
+#include "logistics/MCPreferencesMenu.h"
+#include "logistics/MCLoadSaveMenu.h"
+#include "logistics/MCMainMenu.h"
+#include "logistics/MCPurchaseScreen.h"
+#include "logistics/MCPurMechList.h"
+#include "logistics/MCPurPilotList.h"
+#include "logistics/MCPurVehicleList.h"
+#include "logistics/MCMechPurchaseBlock.h"
+#include "logistics/MCPilotPurchaseBlock.h"
+#include "logistics/MCVehiclePurchaseBlock.h"
+#include "logistics/MCCompPurchaseBlock.h"
+#include "logistics/MCUnitLimits.h"
+#include "logistics/MCPurProfile.h"
 #include "main/logistics.h"
 #include "mission/MCMission.h"
 #include "mission/MCMissionResultsScreen.h"
@@ -548,9 +558,9 @@ namespace
             {"main menu after load", [] { Cancel(); }, 0x59acc997u},
             {"briefing", [] { NewCampaign(); }, 0xbcd2ec30u},
             {"purchase", [] { GlobalLogPtr->SetUpPurchaseScreen(-1); }, 0x7e077fadu},
-            {"purchase, pilots", [] { GlobalLogPtr->PurchaseScreen->SetUpPilotInv(-1, -1); }, 0x4ae27598u},
-            {"purchase, components", [] { GlobalLogPtr->PurchaseScreen->SetUpCompInv(-1, -1); }, 0x62910f9cu},
-            {"purchase, mechs", [] { GlobalLogPtr->PurchaseScreen->SetUpMechInv(-1, -1); }, 0x2ef60e5eu},
+            {"purchase, pilots", [] { GlobalLogPtr->PurchaseScreen->SetUpPilotInv(true, true); }, 0x4ae27598u},
+            {"purchase, components", [] { GlobalLogPtr->PurchaseScreen->SetUpCompInv(true, true); }, 0x62910f9cu},
+            {"purchase, mechs", [] { GlobalLogPtr->PurchaseScreen->SetUpMechInv(true, true); }, 0x2ef60e5eu},
             {"repair", [] { GlobalLogPtr->SetUpRepairScreen(-1); }, 0xd28d50c5u},
             {"briefing again", [] { GlobalLogPtr->SetUpBriefingScreen(-1); }, 0x042383bfu},
             {"briefing, mission tab", [] { Click(202, 265); }, 0xd643b44du},
@@ -569,9 +579,9 @@ namespace
                  // changed.
                  ResourcePoints = 100000;
 
-                 for (MCPurMech* mech = GlobalLogPtr->PurMechList->First; mech != nullptr; mech = mech->Next)
+                 for (const auto& mech : GlobalLogPtr->PurMechList->Mechs)
                  {
-                     for (MCPurMechData* variant : mech->Variants)
+                     for (const auto& variant : mech->Variants)
                      {
                          if (variant != nullptr)
                          {
@@ -589,8 +599,7 @@ namespace
                      item->PurchaseBlock->DrawBackground(item->PurchaseBlock->Row, item->MasterID);
                  }
 
-                 for (MCPurVehicle* vehicle = GlobalLogPtr->PurVehicleList->First; vehicle != nullptr;
-                      vehicle = vehicle->Next)
+                 for (const auto& vehicle : GlobalLogPtr->PurVehicleList->Vehicles)
                  {
                      vehicle->Data->NumAvailable = 2;
                      vehicle->Block->DrawBackground(vehicle->Block->Row);

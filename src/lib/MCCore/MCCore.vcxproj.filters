@@ -432,49 +432,166 @@
     <ClCompile Include="linkup\sessionmanager.cpp">
       <Filter>linkup</Filter>
     </ClCompile>
-    <ClCompile Include="logistics\invblock.cpp">
+    <ClCompile Include="logistics\MCBriefingBox.cpp">
       <Filter>logistics</Filter>
     </ClCompile>
-    <ClCompile Include="logistics\logbri.cpp">
+    <ClCompile Include="logistics\MCBriefingScreen.cpp">
       <Filter>logistics</Filter>
     </ClCompile>
-    <ClCompile Include="logistics\logdlg.cpp">
+    <ClCompile Include="logistics\MCCompInventoryBlock.cpp">
       <Filter>logistics</Filter>
     </ClCompile>
-    <ClCompile Include="logistics\loggen.cpp">
+    <ClCompile Include="logistics\MCCompPurchaseBlock.cpp">
       <Filter>logistics</Filter>
     </ClCompile>
-    <ClCompile Include="logistics\logmain.cpp">
+    <ClCompile Include="logistics\MCConnectMenu.cpp">
       <Filter>logistics</Filter>
     </ClCompile>
-    <ClCompile Include="logistics\logpur.cpp">
+    <ClCompile Include="logistics\MCDragIcon.cpp">
       <Filter>logistics</Filter>
     </ClCompile>
-    <ClCompile Include="logistics\logrep.cpp">
+    <ClCompile Include="logistics\MCFileScrollPane.cpp">
       <Filter>logistics</Filter>
     </ClCompile>
-    <ClCompile Include="logistics\logscrn.cpp">
+    <ClCompile Include="logistics\MCGameList.cpp">
       <Filter>logistics</Filter>
     </ClCompile>
-    <ClCompile Include="logistics\logsession.cpp">
+    <ClCompile Include="logistics\MCGenericScreen.cpp">
       <Filter>logistics</Filter>
     </ClCompile>
-    <ClCompile Include="logistics\lport.cpp">
+    <ClCompile Include="logistics\MCInventoryBlock.cpp">
       <Filter>logistics</Filter>
     </ClCompile>
-    <ClCompile Include="logistics\misslog.cpp">
+    <ClCompile Include="logistics\MCLoadSaveMenu.cpp">
       <Filter>logistics</Filter>
     </ClCompile>
-    <ClCompile Include="logistics\mrblock.cpp">
+    <ClCompile Include="logistics\MCLogButton.cpp">
       <Filter>logistics</Filter>
     </ClCompile>
-    <ClCompile Include="logistics\purchase.cpp">
+    <ClCompile Include="logistics\MCLogChatInput.cpp">
       <Filter>logistics</Filter>
     </ClCompile>
-    <ClCompile Include="logistics\smuti.cpp">
+    <ClCompile Include="logistics\MCLogChatWindow.cpp">
       <Filter>logistics</Filter>
     </ClCompile>
-    <ClCompile Include="logistics\ticker.cpp">
+    <ClCompile Include="logistics\MCLogComboBox.cpp">
+      <Filter>logistics</Filter>
+    </ClCompile>
+    <ClCompile Include="logistics\MCLogDialogBox.cpp">
+      <Filter>logistics</Filter>
+    </ClCompile>
+    <ClCompile Include="logistics\MCLogDialogButton.cpp">
+      <Filter>logistics</Filter>
+    </ClCompile>
+    <ClCompile Include="logistics\MCLogInvScreen.cpp">
+      <Filter>logistics</Filter>
+    </ClCompile>
+    <ClCompile Include="logistics\MCLogMenus.cpp">
+      <Filter>logistics</Filter>
+    </ClCompile>
+    <ClCompile Include="logistics\MCLogObject.cpp">
+      <Filter>logistics</Filter>
+    </ClCompile>
+    <ClCompile Include="logistics\MCLogPort.cpp">
+      <Filter>logistics</Filter>
+    </ClCompile>
+    <ClCompile Include="logistics\MCLogRows.cpp">
+      <Filter>logistics</Filter>
+    </ClCompile>
+    <ClCompile Include="logistics\MCLogScrollTextObject.cpp">
+      <Filter>logistics</Filter>
+    </ClCompile>
+    <ClCompile Include="logistics\MCLogSlider.cpp">
+      <Filter>logistics</Filter>
+    </ClCompile>
+    <ClCompile Include="logistics\MCLogTextObject.cpp">
+      <Filter>logistics</Filter>
+    </ClCompile>
+    <ClCompile Include="logistics\MCLogToolButton.cpp">
+      <Filter>logistics</Filter>
+    </ClCompile>
+    <ClCompile Include="logistics\MCMainMenu.cpp">
+      <Filter>logistics</Filter>
+    </ClCompile>
+    <ClCompile Include="logistics\MCMechBriefBlock.cpp">
+      <Filter>logistics</Filter>
+    </ClCompile>
+    <ClCompile Include="logistics\MCMechInventoryBlock.cpp">
+      <Filter>logistics</Filter>
+    </ClCompile>
+    <ClCompile Include="logistics\MCMechPurchaseBlock.cpp">
+      <Filter>logistics</Filter>
+    </ClCompile>
+    <ClCompile Include="logistics\MCMechRepairBlock.cpp">
+      <Filter>logistics</Filter>
+    </ClCompile>
+    <ClCompile Include="logistics\MCMissionLogisticsBridge.cpp">
+      <Filter>logistics</Filter>
+    </ClCompile>
+    <ClCompile Include="logistics\MCPilotInventoryBlock.cpp">
+      <Filter>logistics</Filter>
+    </ClCompile>
+    <ClCompile Include="logistics\MCPilotPurchaseBlock.cpp">
+      <Filter>logistics</Filter>
+    </ClCompile>
+    <ClCompile Include="logistics\MCPlayerNameObject.cpp">
+      <Filter>logistics</Filter>
+    </ClCompile>
+    <ClCompile Include="logistics\MCPreferencesMenu.cpp">
+      <Filter>logistics</Filter>
+    </ClCompile>
+    <ClCompile Include="logistics\MCPurchaseDlg.cpp">
+      <Filter>logistics</Filter>
+    </ClCompile>
+    <ClCompile Include="logistics\MCPurchaseScreen.cpp">
+      <Filter>logistics</Filter>
+    </ClCompile>
+    <ClCompile Include="logistics\MCPurMechList.cpp">
+      <Filter>logistics</Filter>
+    </ClCompile>
+    <ClCompile Include="logistics\MCPurPilotList.cpp">
+      <Filter>logistics</Filter>
+    </ClCompile>
+    <ClCompile Include="logistics\MCPurProfile.cpp">
+      <Filter>logistics</Filter>
+    </ClCompile>
+    <ClCompile Include="logistics\MCPurVehicleList.cpp">
+      <Filter>logistics</Filter>
+    </ClCompile>
+    <ClCompile Include="logistics\MCRegistrySettings.cpp">
+      <Filter>logistics</Filter>
+    </ClCompile>
+    <ClCompile Include="logistics\MCRepairScreen.cpp">
+      <Filter>logistics</Filter>
+    </ClCompile>
+    <ClCompile Include="logistics\MCReusableDialog.cpp">
+      <Filter>logistics</Filter>
+    </ClCompile>
+    <ClCompile Include="logistics\MCSessionScreen.cpp">
+      <Filter>logistics</Filter>
+    </ClCompile>
+    <ClCompile Include="logistics\MCSmuti.cpp">
+      <Filter>logistics</Filter>
+    </ClCompile>
+    <ClCompile Include="logistics\MCSplashScreen.cpp">
+      <Filter>logistics</Filter>
+    </ClCompile>
+    <ClCompile Include="logistics\MCStoreRow.cpp">
+      <Filter>logistics</Filter>
+    </ClCompile>
+    <ClCompile Include="logistics\MCTicker.cpp">
+      <Filter>logistics</Filter>
+    </ClCompile>
+    <ClCompile Include="logistics\MCUnitLimits.cpp">
+      <Filter>logistics</Filter>
+    </ClCompile>
+    <ClCompile Include="logistics\MCVehicleInventoryBlock.cpp">
+      <Filter>logistics</Filter>
+    </ClCompile>
+    <ClCompile Include="logistics\MCVehiclePurchaseBlock.cpp">
+      <Filter>logistics</Filter>
+    </ClCompile>
+    <ClCompile Include="logistics\MCVehicleRepairBlock.cpp">
       <Filter>logistics</Filter>
     </ClCompile>
     <ClCompile Include="main\honorb.cpp">
@@ -487,6 +604,9 @@
       <Filter>main</Filter>
     </ClCompile>
     <ClCompile Include="main\MCGameContext.cpp">
+      <Filter>main</Filter>
+    </ClCompile>
+    <ClCompile Include="main\MCGamePaths.cpp">
       <Filter>main</Filter>
     </ClCompile>
     <ClCompile Include="main\rmain.cpp">
@@ -1414,49 +1534,166 @@
     <ClInclude Include="linkup\sessionmanager.h">
       <Filter>linkup</Filter>
     </ClInclude>
-    <ClInclude Include="logistics\invblock.h">
+    <ClInclude Include="logistics\MCBriefingBox.h">
       <Filter>logistics</Filter>
     </ClInclude>
-    <ClInclude Include="logistics\logbri.h">
+    <ClInclude Include="logistics\MCBriefingScreen.h">
       <Filter>logistics</Filter>
     </ClInclude>
-    <ClInclude Include="logistics\logdlg.h">
+    <ClInclude Include="logistics\MCCompInventoryBlock.h">
       <Filter>logistics</Filter>
     </ClInclude>
-    <ClInclude Include="logistics\loggen.h">
+    <ClInclude Include="logistics\MCCompPurchaseBlock.h">
       <Filter>logistics</Filter>
     </ClInclude>
-    <ClInclude Include="logistics\logmain.h">
+    <ClInclude Include="logistics\MCConnectMenu.h">
       <Filter>logistics</Filter>
     </ClInclude>
-    <ClInclude Include="logistics\logpur.h">
+    <ClInclude Include="logistics\MCDragIcon.h">
       <Filter>logistics</Filter>
     </ClInclude>
-    <ClInclude Include="logistics\logrep.h">
+    <ClInclude Include="logistics\MCFileScrollPane.h">
       <Filter>logistics</Filter>
     </ClInclude>
-    <ClInclude Include="logistics\logscrn.h">
+    <ClInclude Include="logistics\MCGameList.h">
       <Filter>logistics</Filter>
     </ClInclude>
-    <ClInclude Include="logistics\logsession.h">
+    <ClInclude Include="logistics\MCGenericScreen.h">
       <Filter>logistics</Filter>
     </ClInclude>
-    <ClInclude Include="logistics\lport.h">
+    <ClInclude Include="logistics\MCInventoryBlock.h">
       <Filter>logistics</Filter>
     </ClInclude>
-    <ClInclude Include="logistics\misslog.h">
+    <ClInclude Include="logistics\MCLoadSaveMenu.h">
       <Filter>logistics</Filter>
     </ClInclude>
-    <ClInclude Include="logistics\mrblock.h">
+    <ClInclude Include="logistics\MCLogButton.h">
       <Filter>logistics</Filter>
     </ClInclude>
-    <ClInclude Include="logistics\purchase.h">
+    <ClInclude Include="logistics\MCLogChatInput.h">
       <Filter>logistics</Filter>
     </ClInclude>
-    <ClInclude Include="logistics\smuti.h">
+    <ClInclude Include="logistics\MCLogChatWindow.h">
       <Filter>logistics</Filter>
     </ClInclude>
-    <ClInclude Include="logistics\ticker.h">
+    <ClInclude Include="logistics\MCLogComboBox.h">
+      <Filter>logistics</Filter>
+    </ClInclude>
+    <ClInclude Include="logistics\MCLogDialogBox.h">
+      <Filter>logistics</Filter>
+    </ClInclude>
+    <ClInclude Include="logistics\MCLogDialogButton.h">
+      <Filter>logistics</Filter>
+    </ClInclude>
+    <ClInclude Include="logistics\MCLogInvScreen.h">
+      <Filter>logistics</Filter>
+    </ClInclude>
+    <ClInclude Include="logistics\MCLogMenus.h">
+      <Filter>logistics</Filter>
+    </ClInclude>
+    <ClInclude Include="logistics\MCLogObject.h">
+      <Filter>logistics</Filter>
+    </ClInclude>
+    <ClInclude Include="logistics\MCLogPort.h">
+      <Filter>logistics</Filter>
+    </ClInclude>
+    <ClInclude Include="logistics\MCLogRows.h">
+      <Filter>logistics</Filter>
+    </ClInclude>
+    <ClInclude Include="logistics\MCLogScrollTextObject.h">
+      <Filter>logistics</Filter>
+    </ClInclude>
+    <ClInclude Include="logistics\MCLogSlider.h">
+      <Filter>logistics</Filter>
+    </ClInclude>
+    <ClInclude Include="logistics\MCLogTextObject.h">
+      <Filter>logistics</Filter>
+    </ClInclude>
+    <ClInclude Include="logistics\MCLogToolButton.h">
+      <Filter>logistics</Filter>
+    </ClInclude>
+    <ClInclude Include="logistics\MCMainMenu.h">
+      <Filter>logistics</Filter>
+    </ClInclude>
+    <ClInclude Include="logistics\MCMechBriefBlock.h">
+      <Filter>logistics</Filter>
+    </ClInclude>
+    <ClInclude Include="logistics\MCMechInventoryBlock.h">
+      <Filter>logistics</Filter>
+    </ClInclude>
+    <ClInclude Include="logistics\MCMechPurchaseBlock.h">
+      <Filter>logistics</Filter>
+    </ClInclude>
+    <ClInclude Include="logistics\MCMechRepairBlock.h">
+      <Filter>logistics</Filter>
+    </ClInclude>
+    <ClInclude Include="logistics\MCMissionLogisticsBridge.h">
+      <Filter>logistics</Filter>
+    </ClInclude>
+    <ClInclude Include="logistics\MCPilotInventoryBlock.h">
+      <Filter>logistics</Filter>
+    </ClInclude>
+    <ClInclude Include="logistics\MCPilotPurchaseBlock.h">
+      <Filter>logistics</Filter>
+    </ClInclude>
+    <ClInclude Include="logistics\MCPlayerNameObject.h">
+      <Filter>logistics</Filter>
+    </ClInclude>
+    <ClInclude Include="logistics\MCPreferencesMenu.h">
+      <Filter>logistics</Filter>
+    </ClInclude>
+    <ClInclude Include="logistics\MCPurchaseDlg.h">
+      <Filter>logistics</Filter>
+    </ClInclude>
+    <ClInclude Include="logistics\MCPurchaseScreen.h">
+      <Filter>logistics</Filter>
+    </ClInclude>
+    <ClInclude Include="logistics\MCPurMechList.h">
+      <Filter>logistics</Filter>
+    </ClInclude>
+    <ClInclude Include="logistics\MCPurPilotList.h">
+      <Filter>logistics</Filter>
+    </ClInclude>
+    <ClInclude Include="logistics\MCPurProfile.h">
+      <Filter>logistics</Filter>
+    </ClInclude>
+    <ClInclude Include="logistics\MCPurVehicleList.h">
+      <Filter>logistics</Filter>
+    </ClInclude>
+    <ClInclude Include="logistics\MCRegistrySettings.h">
+      <Filter>logistics</Filter>
+    </ClInclude>
+    <ClInclude Include="logistics\MCRepairScreen.h">
+      <Filter>logistics</Filter>
+    </ClInclude>
+    <ClInclude Include="logistics\MCReusableDialog.h">
+      <Filter>logistics</Filter>
+    </ClInclude>
+    <ClInclude Include="logistics\MCSessionScreen.h">
+      <Filter>logistics</Filter>
+    </ClInclude>
+    <ClInclude Include="logistics\MCSmuti.h">
+      <Filter>logistics</Filter>
+    </ClInclude>
+    <ClInclude Include="logistics\MCSplashScreen.h">
+      <Filter>logistics</Filter>
+    </ClInclude>
+    <ClInclude Include="logistics\MCStoreRow.h">
+      <Filter>logistics</Filter>
+    </ClInclude>
+    <ClInclude Include="logistics\MCTicker.h">
+      <Filter>logistics</Filter>
+    </ClInclude>
+    <ClInclude Include="logistics\MCUnitLimits.h">
+      <Filter>logistics</Filter>
+    </ClInclude>
+    <ClInclude Include="logistics\MCVehicleInventoryBlock.h">
+      <Filter>logistics</Filter>
+    </ClInclude>
+    <ClInclude Include="logistics\MCVehiclePurchaseBlock.h">
+      <Filter>logistics</Filter>
+    </ClInclude>
+    <ClInclude Include="logistics\MCVehicleRepairBlock.h">
       <Filter>logistics</Filter>
     </ClInclude>
     <ClInclude Include="main\fixes.h">
@@ -1472,6 +1709,9 @@
       <Filter>main</Filter>
     </ClInclude>
     <ClInclude Include="main\MCGameContext.h">
+      <Filter>main</Filter>
+    </ClInclude>
+    <ClInclude Include="main\MCGamePaths.h">
       <Filter>main</Filter>
     </ClInclude>
     <ClInclude Include="main\rmain.h">

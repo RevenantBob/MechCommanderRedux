@@ -3,7 +3,7 @@
 #include "TestGame.h"
 #include "lib/MCIDString.h"
 #include "lib/MCFitIniFile.h"
-#include "logistics/logmain.h"
+#include "main/MCGamePaths.h"
 #include "main/logistics.h"
 #include "object/MCMasterComponent.h"
 #include "object/MCBattleMech.h"
@@ -30,7 +30,7 @@ namespace
                 InitMasterComponentListExcel(GamePath(ObjectPath, "compbas", ".csv"), 0xff, 1.0f, 0.0f);
             }
 
-            MCPort::StrCopy(ProfilePath, 80, "data\\missions\\profiles\\");
+            ProfilePath = "data\\missions\\profiles\\";
             _Logistics = std::make_unique<MCLogistics>();
             _Logistics->LogisticsBlocks = std::make_unique<MCBlockStore>();
             _Saved = GlobalLogPtr;

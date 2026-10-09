@@ -4,8 +4,12 @@
 #include "TestGame.h"
 #include "gui/MCGuiSystem.h"
 #include "linkup/sessionmanager.h"
-#include "logistics/loggen.h"
-#include "logistics/logmain.h"
+#include "logistics/MCFileScrollPane.h"
+#include "logistics/MCGameList.h"
+#include "logistics/MCLogComboBox.h"
+#include "logistics/MCLogSlider.h"
+#include "logistics/MCSplashScreen.h"
+#include "logistics/MCConnectMenu.h"
 #include "main/logistics.h"
 #include "network/multplyr.h"
 #include "platform/MCDirectPlay.h"
@@ -212,9 +216,9 @@ TEST_CASE_ISOLATED("game: the multiplayer session screen matches the pre-rendere
     lanScreen->ShowBlock(0);
     GlobalLogPtr->CurrentScreen = lanScreen;
     GlobalLogPtr->LogisticsState = 0xb;
-    static_cast<MCLogTextObject*>(lanScreen->Elements[4])->SetStringBuffer(const_cast<char*>("Commander"));
-    static_cast<MCLogTextObject*>(lanScreen->Elements[10])->SetStringBuffer(const_cast<char*>("Test game"));
-    static_cast<MCLogTextObject*>(lanScreen->Elements[11])->SetStringBuffer(const_cast<char*>("6"));
+    static_cast<MCLogTextObject*>(lanScreen->Elements[4])->SetStringBuffer("Commander");
+    static_cast<MCLogTextObject*>(lanScreen->Elements[10])->SetStringBuffer("Test game");
+    static_cast<MCLogTextObject*>(lanScreen->Elements[11])->SetStringBuffer("6");
     CreateSession();
     Settle();
     REQUIRE(manager->CurrentSession != nullptr);

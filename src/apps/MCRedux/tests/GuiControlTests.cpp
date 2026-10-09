@@ -18,8 +18,7 @@
 #include "gui/MCGuiTimerManager.h"
 #include "gui/MCScrollPane.h"
 #include "lib/MCPacketFile.h"
-#include "logistics/logbri.h"
-#include "logistics/logmain.h"
+#include "main/MCGamePaths.h"
 #include "main/MCGameContext.h"
 
 // The GUI's controls: text fields, list and combo boxes, menus, button bars, scroll bars, scrolling text, the chat
@@ -52,8 +51,8 @@ namespace
 
             if (Retail)
             {
-                std::snprintf(FontPath, sizeof(FontPath), "%s", SavedFontPath.c_str());
-                std::snprintf(ArtPath, sizeof(ArtPath), "%s", SavedArtPath.c_str());
+                FontPath = SavedFontPath;
+                ArtPath = SavedArtPath;
             }
         }
 
@@ -87,8 +86,8 @@ namespace
             Retail = true;
             SavedFontPath = FontPath;
             SavedArtPath = ArtPath;
-            std::snprintf(FontPath, sizeof(FontPath), "%s", "data\\fonts\\");
-            std::snprintf(ArtPath, sizeof(ArtPath), "%s", "data\\art\\");
+            FontPath = "data\\fonts\\";
+            ArtPath = "data\\art\\";
             Gui->ArtFile = std::make_unique<MCPacketFile>();
             REQUIRE_EQ(Gui->ArtFile->Open("data\\art\\art.pak"), 0);
             Grey = std::move(*MCGuiFont::Create("gryfnt.fnt"));
@@ -817,7 +816,7 @@ TEST_CASE_ISOLATED("game: a scroll pane's position is a percentage of its conten
     auto pane = std::make_unique<MCScrollPane>();
     pane->Init(0x80, 0x60, 100, 100, static_cast<char*>(nullptr));
     auto content = std::make_unique<MCLogPort>();
-    content->Init(0x80 - 13, 0x180, -1);
+    content->Init(0x80 - 13, 0x180);
     pane->SetDisplayPort(std::move(content), true);
 
     // A scroll unit is 1% of the content; the most it scrolls is the content less the pane: 75%.
@@ -850,7 +849,7 @@ TEST_CASE_ISOLATED("game: a scroll pane's position is a percentage of its conten
 
     // Content that fits has no slider.
     auto small = std::make_unique<MCLogPort>();
-    small->Init(0x80 - 13, 0x40, -1);
+    small->Init(0x80 - 13, 0x40);
     pane->SetDisplayPort(std::move(small), true);
     CHECK_EQ(pane->SliderHeight, 0);
     CHECK(!pane->MouseWheel(1, 0, 0));
@@ -881,7 +880,7 @@ TEST_CASE_ISOLATED(
 
     bool ownedGone = false;
     auto owned = std::make_unique<WatchedPort>(ownedGone);
-    owned->Init(0x80 - 13, 0x100, -1);
+    owned->Init(0x80 - 13, 0x100);
     WatchedPort* ownedRaw = owned.get();
     pane->SetDisplayPort(std::move(owned), true);
 
@@ -892,7 +891,7 @@ TEST_CASE_ISOLATED(
 
     bool borrowedGone = false;
     WatchedPort borrowed(borrowedGone);
-    borrowed.Init(0x80 - 13, 0x100, -1);
+    borrowed.Init(0x80 - 13, 0x100);
     pane->SetDisplayPort(&borrowed, true);
     CHECK(ownedGone);
     CHECK(pane->ContentPort == &borrowed);

@@ -5,12 +5,21 @@
 #include "gui/MCGuiSystem.h"
 #include "lib/MCFitIniFile.h"
 #include "gui/MCScrollPane.h"
-#include "logistics/logdlg.h"
-#include "logistics/loggen.h"
-#include "logistics/logmain.h"
-#include "logistics/logsession.h"
-#include "logistics/logscrn.h"
-#include "logistics/lport.h"
+#include "logistics/MCPurchaseDlg.h"
+#include "logistics/MCReusableDialog.h"
+#include "logistics/MCFileScrollPane.h"
+#include "logistics/MCGameList.h"
+#include "logistics/MCLogComboBox.h"
+#include "logistics/MCLogSlider.h"
+#include "logistics/MCSplashScreen.h"
+#include "logistics/MCPreferencesMenu.h"
+#include "logistics/MCLogToolButton.h"
+#include "logistics/MCLogChatInput.h"
+#include "logistics/MCPlayerNameObject.h"
+#include "logistics/MCSessionScreen.h"
+#include "logistics/MCLogChatWindow.h"
+#include "logistics/MCLogInvScreen.h"
+#include "logistics/MCLogObject.h"
 #include "main/logistics.h"
 #include "platform/MCFileSystem.h"
 #include "platform/MCPresenter.h"
@@ -25,10 +34,9 @@ namespace
     void AddLineAsOriginal(MCLogPort* picture, const char* line)
     {
         std::string text = line;
-        auto* bytes = reinterpret_cast<uint8_t*>(text.data());
         const int32_t width = picture->Width();
         const int32_t height = picture->Height();
-        const int32_t used = GuiSystem()->TextFormatter.Process(bytes, nullptr, width, 0);
+        const int32_t used = GuiSystem()->TextFormatter.Process(text, nullptr, width, 0);
         uint8_t* pixels = picture->Bitmap()->Buffer;
         std::memmove(pixels, pixels + width * used, static_cast<size_t>((height - used) * width));
         MCPane bottom = *picture->Frame();
@@ -37,7 +45,7 @@ namespace
         bottom.X1 = width - 1;
         bottom.Y1 = height - 1;
         VfxPaneWipe(&bottom, 0x10);
-        GuiSystem()->TextFormatter.Process(bytes, picture, 0, height - used - 1);
+        GuiSystem()->TextFormatter.Process(text, picture, 0, height - used - 1);
     }
 
     /// <summary>Draws the chat window's history view into a picture of its size (scrolled to its top).</summary>
@@ -45,7 +53,7 @@ namespace
     {
         MCLogPort* view = chat->HistoryPane->ContentPort;
         MCLogPort picture;
-        picture.Init(view->Width(), view->Height(), -1);
+        picture.Init(view->Width(), view->Height());
         VfxPaneWipe(picture.Frame(), 0xff);
         view->OpenView(picture.Bitmap(), 0, 0, MCRect{0, 0, view->Width() - 1, view->Height() - 1}, false);
         view->DrawContent(view);
@@ -76,7 +84,7 @@ TEST_CASE_ISOLATED("game: the logistics chat history draws as the original's pic
     REQUIRE(view->IsView());
 
     MCLogPort original;
-    original.Init(view->Width(), view->Height(), -1);
+    original.Init(view->Width(), view->Height());
     VfxPaneWipe(original.Frame(), 0x10);
 
     const auto same = [&]
@@ -195,7 +203,7 @@ TEST_CASE_ISOLATED("game: the preferences screen chooses the renderer and saves 
     {
         CHECK(dialog->ShowWindow != 0);
         MCScreenInput::SaveShot(shot, MCScreenInput::ScreenHash());
-        MCLogDialogButton* ok = dialog->OkButton;
+        MCLogDialogButton* ok = dialog->OkButton.get();
         MCScreenInput::Click(ok->GlobalX() + ok->Width() / 2, ok->GlobalY() + ok->Height() / 2);
         frames();
         CHECK(dialog->ShowWindow == 0);
@@ -300,7 +308,7 @@ TEST_CASE_ISOLATED("game: the preferences drop-downs work with a player's mouse 
     {
         if (dialog->ShowWindow != 0)
         {
-            MCLogDialogButton* ok = dialog->OkButton;
+            MCLogDialogButton* ok = dialog->OkButton.get();
             MCScreenInput::RealClick(ok->GlobalX() + ok->Width() / 2, ok->GlobalY() + ok->Height() / 2);
             CHECK(dialog->ShowWindow == 0);
         }
@@ -474,7 +482,7 @@ TEST_CASE_ISOLATED("game: a scroll pane's arrow lets go wherever the mouse butto
     auto* pane = new MCScrollPane;
     pane->Init(0x80, 0x60, 100, 100, static_cast<char*>(nullptr));
     auto content = std::make_unique<MCLogPort>();
-    content->Init(0x80 - 13, 0x180, -1);
+    content->Init(0x80 - 13, 0x180);
     pane->SetDisplayPort(std::move(content), true);
     REQUIRE(pane->SliderHeight > 0);
 
@@ -531,7 +539,7 @@ TEST_CASE_ISOLATED("game: a save list longer than its pane draws its slider")
 
     // The column draws: the slider's rows land at its place.
     MCLogPort picture;
-    picture.Init(13, 0x80, -1);
+    picture.Init(13, 0x80);
     VfxPaneWipe(picture.Frame(), 0);
     pane->DrawSliderColumn(picture.Frame(), 0, 0, false);
     const uint8_t* pixels = picture.Bitmap()->Buffer;

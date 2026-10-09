@@ -7,10 +7,18 @@
 #include "gui/MCGuiPort.h"
 #include "gui/MCGuiSystem.h"
 #include "gui/MCGuiSmackerWindow.h"
-#include "logistics/logbri.h"
+#include "logistics/MCMainMenu.h"
+#include "logistics/MCBriefingScreen.h"
 #include "gui/MCUpdateDisplay.h"
-#include "logistics/logmain.h"
-#include "logistics/purchase.h"
+#include "logistics/MCPurMechList.h"
+#include "logistics/MCPurPilotList.h"
+#include "logistics/MCPurVehicleList.h"
+#include "logistics/MCMechPurchaseBlock.h"
+#include "logistics/MCPilotPurchaseBlock.h"
+#include "logistics/MCVehiclePurchaseBlock.h"
+#include "logistics/MCCompPurchaseBlock.h"
+#include "logistics/MCUnitLimits.h"
+#include "logistics/MCPurProfile.h"
 #include "main/logistics.h"
 #include "object/MCMover.h"
 #include "object/MCMoverGameSystem.h"
@@ -723,7 +731,7 @@ TEST_CASE_ISOLATED("game: a movie's frames go straight to the GPU, once each")
         MCTestGame::RunFrame(1.0f / 30.0f);
     }
 
-    MCGuiSmackerWindow* window = briefing->SmackerWindow;
+    MCGuiSmackerWindow* window = briefing->SmackerWindow.get();
     REQUIRE(window != nullptr && window->Movie != nullptr);
     MCTexture* texture = window->MoviePane->Window->Texture;
     REQUIRE(texture != nullptr);

@@ -2,7 +2,7 @@
 #include "object/MCBuildingMarines.h"
 #include "lib/MCFatal.h"
 #include "lib/MCFitIniFile.h"
-#include "logistics/logmain.h"
+#include "main/MCGamePaths.h"
 #include "mission/MCScenario.h"
 #include "object/MCForces.h"
 #include "object/MCMechWarrior.h"

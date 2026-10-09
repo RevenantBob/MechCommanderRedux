@@ -4,8 +4,10 @@
 // and components, the screens that buy, repair and deploy them, campaign loading and saving, and the multiplayer
 // force exchange.
 
+#include "gui/MCGuiOwned.h"
 #include "linkup/linkedlist.h"
-#include "logistics/lport.h"
+#include "logistics/MCDragIcon.h"
+#include "logistics/MCLogObject.h"
 #include "platform/MCBlockStore.h"
 
 class MCGuiEvent;
@@ -14,7 +16,6 @@ class MCBriefingBox;
 class MCBriefingScreen;
 class MCCompInventoryBlock;
 class MCCompPurchaseBlock;
-class MCDragIcon;
 class MCFidpMessage;
 class MCFIMessageHeader;
 class MCFitIniFile;
@@ -96,6 +97,13 @@ class MCInventoryList
 {
 public:
     MCInventoryList();
+    /// <summary>Frees the items (<see cref="Destroy"/>).</summary>
+    ~MCInventoryList();
+    MCInventoryList(const MCInventoryList&) = delete;
+    MCInventoryList& operator=(const MCInventoryList&) = delete;
+
+    /// <summary>Gives <paramref name="item"/> a new inventory row (owned by the item), and returns it.</summary>
+    static MCCompInventoryBlock* MakeInventoryBlock(MCLogInventoryItem* item);
 
     /// <summary>Loads the description of item <paramref name="index"/> (or <paramref name="item"/>) from the object description file.</summary>
     void LoadDescription(int32_t index, MCLogInventoryItem* item);
@@ -878,7 +886,7 @@ public:
     /// <summary>The name ticker on the main screen.</summary>
     MCTicker* Ticker = nullptr;
     /// <summary>The multiplayer ready lights.</summary>
-    MCMPPlayerLights* PlayerLights = nullptr;
+    MCGuiOwned<MCMPPlayerLights> PlayerLights;
     /// <summary>The current mission's number in the campaign (-1 = none).</summary>
     int32_t CurrentMission = 0;
     /// <summary>The campaign's purchase file (the save's "purchaseFile"; written to starting fits as PurchaseFile).</summary>
@@ -1020,9 +1028,9 @@ public:
     MCLogPort* InvBlockPort = nullptr;
     /// <summary>
     /// The inventory pane's contents per tab (mechs, pilots, components, vehicles), made by the
-    /// <c>LogInvScreen::create*InvBlock</c> functions.
+    /// <c>MCLogInvScreen::Create*InvBlock</c> functions: views each tab's rows are drawn into.
     /// </summary>
-    MCLogPort* InvTabPorts[4]{};
+    std::array<std::unique_ptr<MCLogPort>, 4> InvTabPorts;
     /// <summary>The box behind the resource figure at the top right (<c>RepairScreen::display</c>).</summary>
     MCLogPort* ResourceBackPort = nullptr;
     /// <summary>The box behind the clock at the top right (<c>RepairScreen::display</c>).</summary>
@@ -1045,8 +1053,8 @@ public:
     int32_t PlayerColors[6]{};
     /// <summary>Each component's place in the logistics sort order (<c>objsort.rsp</c>).</summary>
     int32_t ComponentSort[256]{};
-    /// <summary>The icon following the mouse while an inventory row is dragged (made and freed by the rows' <c>handleEvent</c>).</summary>
-    MCDragIcon* DragIcon = nullptr;
+    /// <summary>The icon following the mouse while an inventory row is dragged (<see cref="MCDragIcon::Create"/>, <see cref="MCDragIcon::Remove"/>).</summary>
+    MCGuiOwned<MCDragIcon> DragIcon;
     /// <summary>The id the next <see cref="MCLogWarrior"/> gets.</summary>
     int32_t NextWarriorID = 0;
     MCPurchaseDlg* PurchaseDialog = nullptr;
@@ -1122,6 +1130,10 @@ extern char ObjectPakName[20];
 extern char MissionName[];
 /// <summary>The current planet (campaign setting).</summary>
 extern int32_t CurPlanet;
+/// <summary>The logistics screens while they exist (a view: <c>Mission()-&gt;Logistics</c> owns them).</summary>
+extern MCLogistics* GlobalLogPtr;
+/// <summary>The logistics state last left for a mission (shared with <c>mission.cpp</c>).</summary>
+extern int32_t LastLogisticsMissionState;
 extern char HoldString[256];
 /// <summary>Which logistics cheat codes are on.</summary>
 extern int LogCheatActive[];
@@ -1131,3 +1143,8 @@ extern int32_t MultiPlayerColors[];
 extern int32_t LogCurCheatChar;
 /// <summary>Nonzero in the demo version.</summary>
 extern int InDemo;
+/// <summary>
+/// A single (non-campaign) mission is being played: units sell back at full price (as in multiplayer) rather than
+/// half.
+/// </summary>
+extern bool Solo;

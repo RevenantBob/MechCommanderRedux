@@ -6,7 +6,7 @@
 #include "engine/MCElementBuffer.h"
 #include "engine/MCVfxElement.h"
 #include "lib/MCPacketFile.h"
-#include "logistics/logmain.h"
+#include "main/MCGamePaths.h"
 #include "object/MCForces.h"
 #include "platform/MCRenderer.h"
 #include "terrain/MCTerrain.h"

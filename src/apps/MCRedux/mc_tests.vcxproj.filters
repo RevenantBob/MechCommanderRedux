@@ -30,6 +30,9 @@
     <ClCompile Include="tests\BlockStoreTests.cpp">
       <Filter>tests</Filter>
     </ClCompile>
+    <ClCompile Include="tests\BriefingTests.cpp">
+      <Filter>tests</Filter>
+    </ClCompile>
     <ClCompile Include="tests\ColorTests.cpp">
       <Filter>tests</Filter>
     </ClCompile>
@@ -108,6 +111,9 @@
     <ClCompile Include="tests\LinkupTests.cpp">
       <Filter>tests</Filter>
     </ClCompile>
+    <ClCompile Include="tests\LogisticsControlTests.cpp">
+      <Filter>tests</Filter>
+    </ClCompile>
     <ClCompile Include="tests\LogisticsTests.cpp">
       <Filter>tests</Filter>
     </ClCompile>
@@ -142,6 +148,9 @@
       <Filter>tests</Filter>
     </ClCompile>
     <ClCompile Include="tests\PresenterTests.cpp">
+      <Filter>tests</Filter>
+    </ClCompile>
+    <ClCompile Include="tests\PurchaseTests.cpp">
       <Filter>tests</Filter>
     </ClCompile>
     <ClCompile Include="tests\ScenarioTests.cpp">

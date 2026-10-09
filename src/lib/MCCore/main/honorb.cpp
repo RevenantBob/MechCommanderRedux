@@ -21,8 +21,8 @@
 #include "lib/MCFitIniFile.h"
 #include "linkup/session.h"
 #include "linkup/sessionmanager.h"
-#include "logistics/logbri.h"
-#include "logistics/logmain.h"
+#include "main/MCGamePaths.h"
+#include "logistics/MCPreferencesMenu.h"
 #include "main/MCGameContext.h"
 #include "main/logistics.h"
 #include "mission/MCMission.h"
@@ -223,7 +223,7 @@ void SystemInit()
     ReadPath(systemFile, "savePath", SavePath, " Could not find save path ");
     // Copies of the game on one machine share the user folder: each keeps its temp FITs under its process ID, or a
     // multiplayer client loads the host's generated scenario (bridge.fit) or the reverse.
-    std::snprintf(SaveTempPath, sizeof(SaveTempPath), "%stemp\\%u\\", SavePath, MCPort::ProcessId());
+    std::snprintf(SaveTempPath, sizeof(SaveTempPath), "%stemp\\%u\\", SavePath.c_str(), MCPort::ProcessId());
     MCFileSystem::MakeDirectory(SaveTempPath);
     ReadPath(systemFile, "terrainPath", TerrainPath, " Could not find terrain path ");
     ReadPath(systemFile, "palettePath", PalettePath, " Could not find palette path ");
@@ -291,39 +291,38 @@ void SystemInit()
         Use90PixelSprite = 0;
     }
 
-    if (prefsFile->ReadIdBoolean("Force45Pixel", Only45Pixel) != 0)
-    {
-        Only45Pixel = 0;
-    }
+    Only45Pixel = prefsFile->Read<bool>("Force45Pixel").value_or(false);
 
     // One sprite size wins: 90-pixel sprites unless 45 is forced; without 90, 45 only.
-    if (Use90PixelSprite != 0 && Only45Pixel != 0)
+    if (Use90PixelSprite != 0 && Only45Pixel)
     {
         Use90PixelSprite = 0;
     }
 
-    if (Use90PixelSprite == 0 && Only45Pixel == 0)
+    if (Use90PixelSprite == 0 && !Only45Pixel)
     {
-        Only45Pixel = 1;
+        Only45Pixel = true;
     }
 
     // Port: the full-size (90-pixel) mech art is always loaded and used: the camera stays at scale 100 and the zoom
     // scales the world view instead (the prefs only mattered for machines short of memory).
     Use90PixelSprite = 1;
-    Only45Pixel = 0;
+    Only45Pixel = false;
+    Force32MB = prefsFile->Read<bool>("Force32Mb").value_or(false);
 
-    if (prefsFile->ReadIdBoolean("Force32Mb", Force32MB) != 0)
+    // Both forced: 16 MB wins.
+    if (const MCFitResult<bool> force16 = prefsFile->Read<bool>("Force16Mb"); force16.has_value())
     {
-        Force32MB = 0;
-    }
+        Force16MB = *force16;
 
-    if (prefsFile->ReadIdBoolean("Force16Mb", Force16MB) != 0)
-    {
-        Force16MB = 0;
+        if (Force16MB && Force32MB)
+        {
+            Force32MB = false;
+        }
     }
-    else if (Force16MB != 0 && Force32MB != 0)
+    else
     {
-        Force32MB = 0;
+        Force16MB = false;
     }
 
     int directDraw = 0;

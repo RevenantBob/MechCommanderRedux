@@ -60,10 +60,10 @@ public:
 
     int32_t Width() const { return PortWidth; }
     int32_t Height() const { return PortHeight; }
-    MCWindow* Bitmap() const { return PortWindow; }
+    MCWindow* Bitmap() const { return _Window.get(); }
     /// <summary>The bitmap's pixels, or null.</summary>
-    uint8_t* Buffer() const { return PortWindow != nullptr ? PortWindow->Buffer : nullptr; }
-    MCPane* Frame() const { return PortPane; }
+    uint8_t* Buffer() const { return _Window != nullptr ? _Window->Buffer : nullptr; }
+    MCPane* Frame() const { return _Pane.get(); }
 
     /// <summary>
     /// Port: makes the port a view of <paramref name="width"/> x <paramref name="height"/> (a window without pixels,
@@ -75,7 +75,7 @@ public:
     virtual int32_t InitView(int32_t width, int32_t height);
 
     /// <summary>Port: whether the port is a view.</summary>
-    bool IsView() const { return PortWindow != nullptr && PortWindow->View != nullptr; }
+    bool IsView() const { return _Window != nullptr && _Window->View != nullptr; }
 
     /// <summary>
     /// Port: opens the view's scissor: its pixel (0, 0) at (<paramref name="x"/>, <paramref name="y"/>) of
@@ -100,13 +100,6 @@ public:
     /// <summary>The size; -1 when there is no bitmap.</summary>
     int32_t PortWidth = -1;
     int32_t PortHeight = -1;
-    /// <summary>
-    /// The bitmap, with its pixels unless they are foreign. Not owned: it is the port's own (kept with it), or the
-    /// logistics port's (<c>MCLogPort</c> makes it from its own block store and frees it).
-    /// </summary>
-    MCWindow* PortWindow = nullptr;
-    /// <summary>The pane covering the bitmap (made and freed as <see cref="PortWindow"/>).</summary>
-    MCPane* PortPane = nullptr;
     /// <summary>Port: the view, when the port is one (its window points here).</summary>
     MCView View;
     /// <summary>
@@ -136,12 +129,10 @@ protected:
 private:
     /// <summary>Port: set by <see cref="InitScreen"/>; the bitmap's pixels are the display's.</summary>
     bool _Screen = false;
-    /// <summary>
-    /// The bitmap and pane this port made (<see cref="PortWindow"/> and <see cref="PortPane"/> point at them, or at a
-    /// derived port's own).
-    /// </summary>
-    std::unique_ptr<MCWindow> _OwnedWindow;
-    std::unique_ptr<MCPane> _OwnedPane;
+    /// <summary>The bitmap, with its pixels (the display's for the screen port, none for a view).</summary>
+    std::unique_ptr<MCWindow> _Window;
+    /// <summary>The pane covering the bitmap.</summary>
+    std::unique_ptr<MCPane> _Pane;
 };
 
 /// <summary>

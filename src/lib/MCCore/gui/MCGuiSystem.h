@@ -5,7 +5,7 @@
 #include "gui/MCGuiObject.h"
 #include "gui/MCGuiOwned.h"
 #include "gui/MCGuiTimerManager.h"
-#include "logistics/smuti.h"
+#include "logistics/MCSmuti.h"
 #include "platform/MCBlockStore.h"
 
 class MCDisplay;
