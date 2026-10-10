@@ -12,7 +12,7 @@ namespace
 std::expected<std::unique_ptr<MCSdlPresenter>, std::string> MCSdlPresenter::Create(SDL_Window* window, bool vsync,
                                                                                    const MCPresentation& presentation)
 {
-    std::unique_ptr<MCSdlPresenter> presenter(new MCSdlPresenter());
+    auto presenter = std::make_unique<MCSdlPresenter>(Key{});
     presenter->_Window = window;
     presenter->_Presentation = presentation;
     presenter->_Renderer = SDL_CreateRenderer(window, nullptr);

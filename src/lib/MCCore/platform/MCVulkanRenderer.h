@@ -25,7 +25,16 @@
 /// </remarks>
 class MCVulkanRenderer final : public MCRenderer
 {
+    /// <summary>Only <see cref="Create"/> makes one.</summary>
+    struct Key
+    {
+        explicit Key() = default;
+    };
+
 public:
+    /// <summary>A renderer with no device yet.</summary>
+    explicit MCVulkanRenderer(Key) {}
+
     /// <summary>Makes the renderer's pipelines and fixed textures on <paramref name="device"/>.</summary>
     static std::expected<std::unique_ptr<MCVulkanRenderer>, std::string> Create(SDL_GPUDevice* device);
 
@@ -157,8 +166,6 @@ protected:
     void OnFrameSurfaceRemoved(const MCWindow* window) override;
 
 private:
-    MCVulkanRenderer() = default;
-
     /// <summary>A texture and its allocated size.</summary>
     struct Texture
     {
@@ -528,7 +535,7 @@ private:
     /// <c>_FramePictures</c> during frame <c>Frame</c>. <c>Behind</c>: the copy is older than the pixels (they changed
     /// after a draw of that frame read it, and went into a picture of their own).
     /// </summary>
-    struct TextureState
+    struct TextureState : MCTextureHardware
     {
         Texture Copy;
         uint64_t Frame = ~0ull;

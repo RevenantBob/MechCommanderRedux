@@ -9,7 +9,7 @@ struct MCGuiDestroy
     template <typename T> void operator()(T* object) const
     {
         object->Destroy();
-        delete object;
+        std::default_delete<T>()(object);
     }
 };
 
@@ -19,5 +19,5 @@ template <typename T> using MCGuiOwned = std::unique_ptr<T, MCGuiDestroy>;
 /// <summary>Makes a GUI object or port owned by an <see cref="MCGuiOwned"/>.</summary>
 template <typename T, typename... Args> MCGuiOwned<T> MCMakeGui(Args&&... args)
 {
-    return MCGuiOwned<T>(new T(std::forward<Args>(args)...));
+    return MCGuiOwned<T>(std::make_unique<T>(std::forward<Args>(args)...).release());
 }

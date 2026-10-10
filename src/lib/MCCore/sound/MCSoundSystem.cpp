@@ -557,10 +557,9 @@ void MCSoundSystem::UpdateRadio()
     _Renderer.Play(PILOT_SPEECH_CHANNEL, _ChannelResource[PILOT_SPEECH_CHANNEL]);
     WholeMsgDone = false;
     MCGuiSmackerWindow* window = CurrentMessage->MovieWindow.get();
-    MCSmackTag* movie = CurrentMessage->Movie;
 
-    if (window != nullptr && movie != nullptr && tacMap->IsHidden() == 0 && tacMap->DisplayType == MCTacmapPage::Map &&
-        window->StartSmackerMovie(movie, 0) == 0)
+    if (window != nullptr && CurrentMessage->Movie != nullptr && tacMap->IsHidden() == 0 &&
+        tacMap->DisplayType == MCTacmapPage::Map && window->StartSmackerMovie(std::move(CurrentMessage->Movie), 0) == 0)
     {
         window->SetDepth(0x5a);
         ScreenWindow()->AddChild(window);
@@ -1142,7 +1141,7 @@ void MCSoundSystem::RemoveCurrentMessage()
             }
 
             CurrentMessage->MovieWindow.reset();
-            CurrentMessage->Movie = nullptr;
+            CurrentMessage->Movie.reset();
         }
 
         CurrentMessage.reset();

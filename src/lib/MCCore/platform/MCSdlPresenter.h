@@ -9,7 +9,16 @@
 /// </summary>
 class MCSdlPresenter final : public MCPresenter
 {
+    /// <summary>Only <see cref="Create"/> makes one.</summary>
+    struct Key
+    {
+        explicit Key() = default;
+    };
+
 public:
+    /// <summary>A presenter with no renderer yet.</summary>
+    explicit MCSdlPresenter(Key) {}
+
     /// <summary>Makes SDL's renderer for <paramref name="window"/>.</summary>
     static std::expected<std::unique_ptr<MCSdlPresenter>, std::string> Create(SDL_Window* window, bool vsync,
                                                                               const MCPresentation& presentation);
@@ -26,8 +35,6 @@ public:
     MCViewport Viewport(int viewWidth, int viewHeight) const override;
 
 private:
-    MCSdlPresenter() = default;
-
     /// <summary>Remakes the textures for a screen of <paramref name="width"/> x <paramref name="height"/>.</summary>
     std::expected<void, std::string> EnsureTextures(int width, int height);
     /// <summary>Uploads the frame's palette and pixels (composited by the CPU when it has underlays).</summary>

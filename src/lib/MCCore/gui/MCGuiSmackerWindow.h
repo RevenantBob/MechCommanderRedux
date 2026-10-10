@@ -1,8 +1,7 @@
 #pragma once
 
 #include "gui/MCGuiObject.h"
-
-struct MCSmackTag;
+#include "platform/MCSmacker.h"
 
 /// <summary>
 /// A window playing a Smacker movie into a pane of its own, copied to the screen each frame.
@@ -19,12 +18,12 @@ public:
     /// </summary>
     int32_t Init(const tagRECT& area, const tagPOINT* position);
     /// <summary>
-    /// Starts <paramref name="movie"/> (the window closes it): full screen (<paramref name="fullScreen"/>) puts up the
+    /// Starts <paramref name="movie"/> (the window owns it from then on): full screen (<paramref name="fullScreen"/>) puts up the
     /// movie's own palette, otherwise its colours are remapped to the game palette. The movie decodes into a pane of
     /// the window's size.
     /// </summary>
     /// <returns>0, or <see cref="NoPane"/> when the window has no area.</returns>
-    int32_t StartSmackerMovie(MCSmackTag* movie, bool fullScreen);
+    int32_t StartSmackerMovie(std::unique_ptr<MCSmackTag> movie, bool fullScreen);
     /// <summary>Closes the movie, frees the pane and takes the window off the screen.</summary>
     void Destroy() override;
     /// <summary>Closes the movie, sets <see cref="MovieOver"/> and destroys the window.</summary>
@@ -45,8 +44,8 @@ public:
     /// <summary>What <see cref="StartSmackerMovie"/> returns when the window has no area.</summary>
     static constexpr int32_t NoPane = static_cast<int32_t>(0xd4d40000);
 
-    /// <summary>The movie (closed by the window).</summary>
-    MCSmackTag* Movie = nullptr;
+    /// <summary>The movie.</summary>
+    std::unique_ptr<MCSmackTag> Movie;
     /// <summary>Set until the first frame: the display clears the pane (or the screen) before decoding it.</summary>
     bool FirstFrame = true;
     /// <summary>

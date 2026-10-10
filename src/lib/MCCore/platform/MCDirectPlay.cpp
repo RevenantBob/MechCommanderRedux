@@ -65,7 +65,7 @@ namespace
     {
         _GUID serviceProvider;
         /// <summary>The host to look for ("name" or "name:port"); empty = search the LAN.</summary>
-        char address[256];
+        std::array<char, 256> address; // Fixed layout: the connection data's host, null-terminated
     };
 
     static_assert(sizeof(ConnectionData) == MCDirectPlay::ConnectionDataSize);
@@ -1343,8 +1343,8 @@ uint32_t MCDirectPlay::CreateCompoundAddress(const DPCOMPOUNDADDRESSELEMENT* ele
         else if (MCSameGuid(element.guidDataType, DPAID_INet) && element.lpData != nullptr)
         {
             const size_t length = std::min<size_t>(
-                strnlen(static_cast<const char*>(element.lpData), element.dwDataSize), sizeof(data.address) - 1);
-            std::memcpy(data.address, element.lpData, length);
+                strnlen(static_cast<const char*>(element.lpData), element.dwDataSize), data.address.size() - 1);
+            std::memcpy(data.address.data(), element.lpData, length);
         }
     }
 
@@ -1405,14 +1405,14 @@ uint32_t MCDirectPlay::InitializeConnection(const void* connection, uint32_t)
 
     ConnectionData data;
     std::memcpy(&data, connection, sizeof(data));
-    data.address[sizeof(data.address) - 1] = '\0';
+    data.address.back() = '\0';
 
     if (!MCSameGuid(data.serviceProvider, DPSPGUID_TCPIP) && !MCSameGuid(data.serviceProvider, DPSPGUID_IPX))
     {
         return DPERR_UNSUPPORTED;
     }
 
-    const auto [host, port] = SplitAddress(data.address);
+    const auto [host, port] = SplitAddress(data.address.data());
     _Impl->HostName = host;
     _Impl->Port = port;
     _Impl->Initialized = true;

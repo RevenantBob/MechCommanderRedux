@@ -49,6 +49,12 @@ struct MCWaveData
 /// </remarks>
 class MCSoundBuffer
 {
+    /// <summary>Only <see cref="MCAudio::CreateBuffer"/> makes one.</summary>
+    struct Key
+    {
+        explicit Key() = default;
+    };
+
 public:
     /// <summary>GetStatus bit: the buffer is playing (DSBSTATUS_PLAYING).</summary>
     static constexpr uint32_t StatusPlaying = 0x1;
@@ -72,6 +78,10 @@ public:
         uint8_t* Data2 = nullptr;
         uint32_t Size2 = 0;
     };
+
+    /// <summary>A silent buffer of <paramref name="bytes"/> bytes in <paramref name="format"/>, mixed by
+    /// <paramref name="core"/>.</summary>
+    MCSoundBuffer(Key, std::shared_ptr<MCAudioCore> core, const MCSoundFormat& format, uint32_t bytes);
 
     ~MCSoundBuffer();
     MCSoundBuffer(const MCSoundBuffer&) = delete;
@@ -150,8 +160,6 @@ private:
     friend class MCAudio;
     friend struct MCAudioCore;
 
-    MCSoundBuffer(std::shared_ptr<MCAudioCore> core, const MCSoundFormat& format, uint32_t bytes);
-
     std::shared_ptr<MCAudioCore> _Core;
     MCSoundFormat _Format;
     std::vector<uint8_t> _Data;
@@ -174,7 +182,16 @@ private:
 /// <remarks>Thread-safe. Created by <see cref="MCAudio::CreateStream"/>; plays until the last reference is dropped.</remarks>
 class MCAudioStream
 {
+    /// <summary>Only <see cref="MCAudio::CreateStream"/> makes one.</summary>
+    struct Key
+    {
+        explicit Key() = default;
+    };
+
 public:
+    /// <summary>An empty stream in <paramref name="format"/>, mixed by <paramref name="core"/>.</summary>
+    MCAudioStream(Key, std::shared_ptr<MCAudioCore> core, const MCSoundFormat& format);
+
     ~MCAudioStream();
     MCAudioStream(const MCAudioStream&) = delete;
     MCAudioStream& operator=(const MCAudioStream&) = delete;
@@ -207,8 +224,6 @@ private:
     friend class MCAudio;
     friend struct MCAudioCore;
 
-    MCAudioStream(std::shared_ptr<MCAudioCore> core, const MCSoundFormat& format);
-
     std::shared_ptr<MCAudioCore> _Core;
     MCSoundFormat _Format;
 
@@ -239,6 +254,12 @@ private:
 /// </remarks>
 class MCAudio
 {
+    /// <summary>Only <see cref="Open"/> and <see cref="CreateSilent"/> make one.</summary>
+    struct Key
+    {
+        explicit Key() = default;
+    };
+
 public:
     /// <summary>The device's sample rate.</summary>
     static constexpr uint32_t OutputRate = 48000;
@@ -249,6 +270,9 @@ public:
 
     /// <summary>A mixer without a device: the same API, with <see cref="Render"/> as the only way out.</summary>
     static std::unique_ptr<MCAudio> CreateSilent();
+
+    /// <summary>A mixer with no device yet.</summary>
+    explicit MCAudio(Key);
 
     ~MCAudio();
     MCAudio(const MCAudio&) = delete;
@@ -303,8 +327,6 @@ public:
     static float GainFromHundredthsDb(int32_t hundredthsDb);
 
 private:
-    MCAudio();
-
     static void SDLCALL Feed(void* user, SDL_AudioStream* stream, int additional, int total);
 
     std::shared_ptr<MCAudioCore> _Core;

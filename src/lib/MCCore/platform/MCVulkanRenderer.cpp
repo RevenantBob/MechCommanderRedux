@@ -393,7 +393,7 @@ namespace
 
 std::expected<std::unique_ptr<MCVulkanRenderer>, std::string> MCVulkanRenderer::Create(SDL_GPUDevice* device)
 {
-    std::unique_ptr<MCVulkanRenderer> renderer(new MCVulkanRenderer());
+    auto renderer = std::make_unique<MCVulkanRenderer>(Key{});
     renderer->_Device = device;
 
     auto vertex = MCVulkanShaders::Load(device, MCVulkanShaders::DrawVertex);
@@ -522,9 +522,9 @@ MCVulkanRenderer::~MCVulkanRenderer()
         Release(picture.Texture);
     }
 
-    for (MCTexture* texture : MCRenderer::Textures())
+    for (const std::unique_ptr<MCTexture>& texture : MCRenderer::Textures())
     {
-        OnTextureReleased(texture);
+        OnTextureReleased(texture.get());
     }
 
     for (Texture& texture : _Retired)
@@ -1321,15 +1321,12 @@ std::optional<uint32_t> MCVulkanRenderer::PictureOf(MCTexture* texture)
 
 MCVulkanRenderer::TextureState& MCVulkanRenderer::StateOf(MCTexture* texture)
 {
-    auto* state = static_cast<TextureState*>(texture->Hardware);
-
-    if (state == nullptr)
+    if (texture->Hardware == nullptr)
     {
-        state = new TextureState();
-        texture->Hardware = state;
+        texture->Hardware = std::make_unique<TextureState>();
     }
 
-    return *state;
+    return static_cast<TextureState&>(*texture->Hardware);
 }
 
 std::expected<void, std::string> MCVulkanRenderer::UploadWhole(MCTexture* texture, TextureState& state)
@@ -3178,7 +3175,7 @@ std::expected<void, std::string> MCVulkanRenderer::Execute(SDL_GPUCommandBuffer*
 
 void MCVulkanRenderer::OnTextureReleased(MCTexture* texture)
 {
-    auto* state = static_cast<TextureState*>(texture->Hardware);
+    auto* state = static_cast<TextureState*>(texture->Hardware.get());
 
     if (state == nullptr)
     {
@@ -3195,8 +3192,7 @@ void MCVulkanRenderer::OnTextureReleased(MCTexture* texture)
         _RetiredTransfers.push_back(state->Stream);
     }
 
-    delete state;
-    texture->Hardware = nullptr;
+    texture->Hardware.reset();
     texture->Dirty = true;
 }
 

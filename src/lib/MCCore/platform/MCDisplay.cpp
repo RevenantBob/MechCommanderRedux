@@ -85,7 +85,7 @@ std::expected<std::unique_ptr<MCDisplay>, std::string> MCDisplay::Create(const M
         return std::unexpected(SdlError("SDL_InitSubSystem(video)"));
     }
 
-    std::unique_ptr<MCDisplay> display(new MCDisplay());
+    auto display = std::make_unique<MCDisplay>(Key{});
     display->_Width = options.Width;
     display->_Height = options.Height;
     display->_View = SDL_Rect{0, 0, options.Width, options.Height};

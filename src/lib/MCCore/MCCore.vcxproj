@@ -760,6 +760,7 @@
     <ClInclude Include="platform\MCFileSystem.h" />
     <ClInclude Include="platform\MCFrameLog.h" />
     <ClInclude Include="platform\MCInput.h" />
+    <ClInclude Include="platform\MCNeverDestroyed.h" />
     <ClInclude Include="platform\MCPresenter.h" />
     <ClInclude Include="platform\MCRegisteredBlock.h" />
     <ClInclude Include="platform\MCRegistry.h" />

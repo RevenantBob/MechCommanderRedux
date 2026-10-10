@@ -1,5 +1,6 @@
 #include "stdafx.h"
 #include "platform/MCRenderer.h"
+#include "platform/MCNeverDestroyed.h"
 #include "platform/MCSoftwareRenderer.h"
 
 namespace
@@ -35,7 +36,7 @@ namespace
     /// <summary>The frame surfaces.</summary>
     std::vector<FrameSurface>& FrameSurfaces()
     {
-        static auto* surfaces = new std::vector<FrameSurface>();
+        static MCNeverDestroyed<std::vector<FrameSurface>> surfaces;
         return *surfaces;
     }
 
@@ -61,14 +62,14 @@ namespace
     /// <summary>The underlays set (see <see cref="MCRenderer::SetUnderlay"/>).</summary>
     std::vector<MCUnderlay>& UnderlayList()
     {
-        static auto* underlays = new std::vector<MCUnderlay>();
+        static MCNeverDestroyed<std::vector<MCUnderlay>> underlays;
         return *underlays;
     }
 
     /// <summary>The windows with an op plane, and their planes.</summary>
     std::vector<std::pair<const MCWindow*, uint8_t*>>& OpPlanes()
     {
-        static auto* planes = new std::vector<std::pair<const MCWindow*, uint8_t*>>();
+        static MCNeverDestroyed<std::vector<std::pair<const MCWindow*, uint8_t*>>> planes;
         return *planes;
     }
 
@@ -99,7 +100,7 @@ namespace
 
     OpTableSet& Tables()
     {
-        static auto* tables = new OpTableSet();
+        static MCNeverDestroyed<OpTableSet> tables;
         return *tables;
     }
 }
@@ -494,9 +495,9 @@ MCRenderer& MCRenderer::For(const MCWindow* window)
 namespace
 {
     /// <summary>The textures made and not yet destroyed (each knows its slot).</summary>
-    std::vector<MCTexture*>& TextureList()
+    std::vector<std::unique_ptr<MCTexture>>& TextureList()
     {
-        static auto* textures = new std::vector<MCTexture*>();
+        static MCNeverDestroyed<std::vector<std::unique_ptr<MCTexture>>> textures;
         return *textures;
     }
 
@@ -508,14 +509,13 @@ namespace
 
 MCTexture* MCRenderer::CreateTexture(uint8_t* pixels, int32_t width, int32_t height, MCTextureUse use)
 {
-    auto* texture = new MCTexture{};
+    auto& texture = TextureList().emplace_back(std::make_unique<MCTexture>());
     texture->Pixels = pixels;
     texture->Width = width;
     texture->Height = height;
     texture->Use = use;
-    texture->Slot = TextureList().size();
-    TextureList().push_back(texture);
-    return texture;
+    texture->Slot = TextureList().size() - 1;
+    return texture.get();
 }
 
 MCTexture* MCRenderer::CreateTexture(MCWindow* window, MCTextureUse use)
@@ -563,10 +563,10 @@ void MCRenderer::DestroyTexture(MCTexture*& texture)
     }
 
     auto& textures = TextureList();
-    textures[texture->Slot] = textures.back();
-    textures[texture->Slot]->Slot = texture->Slot;
+    const size_t slot = texture->Slot;
+    std::swap(textures[slot], textures.back());
+    textures[slot]->Slot = slot;
     textures.pop_back();
-    delete texture;
     texture = nullptr;
 }
 
@@ -625,7 +625,7 @@ void MCRenderer::UnlockTexture(MCTexture* texture)
     texture->Dirty = true;
 }
 
-std::span<MCTexture* const> MCRenderer::Textures()
+std::span<const std::unique_ptr<MCTexture>> MCRenderer::Textures()
 {
     return TextureList();
 }
@@ -734,7 +734,7 @@ namespace
 {
     std::filesystem::path& DumpFolder()
     {
-        static auto* folder = new std::filesystem::path();
+        static MCNeverDestroyed<std::filesystem::path> folder;
         return *folder;
     }
 }
@@ -816,7 +816,7 @@ namespace
     /// <summary>The registered data blocks, by their first byte.</summary>
     std::map<const uint8_t*, MCDataBlock>& DataBlocks()
     {
-        static auto* blocks = new std::map<const uint8_t*, MCDataBlock>();
+        static MCNeverDestroyed<std::map<const uint8_t*, MCDataBlock>> blocks;
         return *blocks;
     }
 

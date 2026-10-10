@@ -386,12 +386,15 @@ private:
 // ---------------------------------------------------------------------------------------------------------------
 // MCSmacker
 
-MCSmacker::MCSmacker() = default;
+MCSmacker::MCSmacker(Key)
+{
+}
+
 MCSmacker::~MCSmacker() = default;
 
 std::expected<std::unique_ptr<MCSmacker>, std::string> MCSmacker::Open(const std::filesystem::path& path)
 {
-    std::unique_ptr<MCSmacker> smacker(new MCSmacker());
+    auto smacker = std::make_unique<MCSmacker>(Key{});
     smacker->_File.open(path, std::ios::binary);
 
     if (!smacker->_File)
@@ -413,7 +416,7 @@ std::expected<std::unique_ptr<MCSmacker>, std::string> MCSmacker::Open(const std
 
 std::expected<std::unique_ptr<MCSmacker>, std::string> MCSmacker::OpenMemory(std::vector<uint8_t> data)
 {
-    std::unique_ptr<MCSmacker> smacker(new MCSmacker());
+    auto smacker = std::make_unique<MCSmacker>(Key{});
     smacker->_Memory = std::move(data);
     smacker->_InMemory = true;
     smacker->_FileSize = smacker->_Memory.size();
@@ -1176,7 +1179,7 @@ std::expected<std::unique_ptr<MCSmackerPlayer>, std::string> MCSmackerPlayer::Op
         return std::unexpected(smacker.error());
     }
 
-    std::unique_ptr<MCSmackerPlayer> player(new MCSmackerPlayer());
+    auto player = std::make_unique<MCSmackerPlayer>(Key{});
     player->_Smacker = std::move(*smacker);
 
     if (audio != nullptr)
@@ -1321,11 +1324,6 @@ bool MCSmackerPlayer::Wait()
     return ElapsedMicroseconds() < NextFrameTime();
 }
 
-void SmackClose(MCSmackTag* movie)
-{
-    delete movie;
-}
-
 namespace
 {
     /// <summary>The device movie sound goes to (SmackSoundUseDirectSound).</summary>
@@ -1337,7 +1335,7 @@ void SmackSoundUseDirectSound(MCAudio* audio)
     smackerAudio = audio;
 }
 
-MCSmackTag* SmackOpen(const char* fileName, uint32_t flags, int32_t extraBuffers)
+std::unique_ptr<MCSmackTag> SmackOpen(const char* fileName, uint32_t flags, int32_t extraBuffers)
 {
     auto player = MCSmackerPlayer::Open(MCFileSystem::Resolve(fileName), smackerAudio);
 
@@ -1346,7 +1344,7 @@ MCSmackTag* SmackOpen(const char* fileName, uint32_t flags, int32_t extraBuffers
         return nullptr;
     }
 
-    MCSmackTag* movie = new MCSmackTag();
+    auto movie = std::make_unique<MCSmackTag>();
     movie->Player = std::move(*player);
     return movie;
 }

@@ -43,8 +43,8 @@ struct MCRadioMessage
     int32_t TurnQueued = 0;
     /// <summary>The pilot's video window, if the message has a movie.</summary>
     std::unique_ptr<MCGuiSmackerWindow> MovieWindow;
-    /// <summary>The open Smacker video.</summary>
-    MCSmackTag* Movie = nullptr;
+    /// <summary>The open Smacker video, until <see cref="MovieWindow"/> starts it.</summary>
+    std::unique_ptr<MCSmackTag> Movie;
     /// <summary>The message type's priority: lower plays first.</summary>
     uint8_t Priority = 0;
     /// <summary>Scenario time after which it isn't worth playing.</summary>

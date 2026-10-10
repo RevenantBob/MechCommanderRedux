@@ -43,7 +43,7 @@ namespace
 std::expected<std::unique_ptr<MCVulkanPresenter>, std::string> MCVulkanPresenter::Create(
     SDL_Window* window, bool vsync, const MCPresentation& presentation)
 {
-    std::unique_ptr<MCVulkanPresenter> presenter(new MCVulkanPresenter());
+    auto presenter = std::make_unique<MCVulkanPresenter>(Key{});
     presenter->_Window = window;
     presenter->_Presentation = presentation;
     presenter->_Device = SDL_CreateGPUDevice(SDL_GPU_SHADERFORMAT_SPIRV, false, "vulkan");

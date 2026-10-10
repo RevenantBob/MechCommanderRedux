@@ -33,7 +33,16 @@ static_assert(sizeof(MCObjData) == 11);
 /// the object system's queue owns the lists it makes.</remarks>
 class MCObjectBlockManager
 {
+    /// <summary>Only <see cref="Create"/> makes one.</summary>
+    struct Key
+    {
+        explicit Key() = default;
+    };
+
 public:
+    /// <summary>A manager with no file open.</summary>
+    explicit MCObjectBlockManager(Key);
+
     /// <summary>Takes the block lists, with their objects, out of the object lists.</summary>
     ~MCObjectBlockManager();
     MCObjectBlockManager(const MCObjectBlockManager&) = delete;
@@ -51,8 +60,6 @@ public:
     MCPacketFile* ObjectFile() const { return _ObjectFile.get(); }
 
 private:
-    MCObjectBlockManager();
-
     /// <summary>Reads every block packet and makes its object lists.</summary>
     void LoadBlocks();
     /// <summary>

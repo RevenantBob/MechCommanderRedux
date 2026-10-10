@@ -28,7 +28,7 @@ void MCRadioMessage::CloseMovie()
 
     MovieWindow->EndSmackerMovie();
     MovieWindow.reset();
-    Movie = nullptr;
+    Movie.reset();
 }
 
 bool MCRadioQueue::MayQueue(const MCMechWarrior* pilot, uint8_t priority, MCRadioMessageType type) const

@@ -55,7 +55,16 @@ struct MCDisplayOptions
 /// </remarks>
 class MCDisplay
 {
+    /// <summary>Only <see cref="Create"/> makes one.</summary>
+    struct Key
+    {
+        explicit Key() = default;
+    };
+
 public:
+    /// <summary>A display with no window yet.</summary>
+    explicit MCDisplay(Key) {}
+
     /// <summary>Opens the window and the renderer and makes the screen buffer (initialising SDL's video if needed).</summary>
     static std::expected<std::unique_ptr<MCDisplay>, std::string> Create(const MCDisplayOptions& options);
 
@@ -237,8 +246,6 @@ public:
     std::function<void()> OnPresent;
 
 private:
-    MCDisplay() = default;
-
     /// <summary>Resizes the window to the screen's size times its scale (windowed, not following the window).</summary>
     void ResizeWindowToScale();
     /// <summary>Makes the screen's buffer and op plane for its size.</summary>

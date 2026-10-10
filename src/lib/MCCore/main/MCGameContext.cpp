@@ -24,6 +24,7 @@
 #include "lib/MCFastFileSet.h"
 #include "sprite/MCSpriteManager.h"
 #include "terrain/MCTerrain.h"
+#include "platform/MCNeverDestroyed.h"
 
 namespace
 {
@@ -31,18 +32,19 @@ namespace
     /// destructors may still ask for the clock while the process ends).</summary>
     MCGameContext* RootContext()
     {
-        static MCGameContext* const root = []
-        {
-            auto* context = new MCGameContext(nullptr);
-            context->SetClock(std::make_unique<MCSystemClock>());
-            context->SetRandom(std::make_unique<MCCrtRandom>());
-            context->SetFiles(std::make_unique<MCDiskFileSource>());
-            context->SetAudio(std::make_unique<MCSdlAudioDevice>());
-            context->SetNet(std::make_unique<MCSocketTransport>());
-            context->SetFastFiles(std::make_unique<MCFastFileSet>());
-            return context;
-        }();
-        return root;
+        static MCNeverDestroyed<std::unique_ptr<MCGameContext>> root(
+            []
+            {
+                auto context = std::make_unique<MCGameContext>(nullptr);
+                context->SetClock(std::make_unique<MCSystemClock>());
+                context->SetRandom(std::make_unique<MCCrtRandom>());
+                context->SetFiles(std::make_unique<MCDiskFileSource>());
+                context->SetAudio(std::make_unique<MCSdlAudioDevice>());
+                context->SetNet(std::make_unique<MCSocketTransport>());
+                context->SetFastFiles(std::make_unique<MCFastFileSet>());
+                return context;
+            }());
+        return root->get();
     }
 
     /// <summary>The installed context, or null for the root one.</summary>
@@ -398,7 +400,8 @@ std::unique_ptr<MCCraterManager> MCGameContext::SetCraterManager(std::unique_ptr
     return std::exchange(_CraterManager, std::move(craterManager));
 }
 
-MCTestContextScope::MCTestContextScope() : _Previous(&MCGameContext::Current()), _Context(new MCGameContext(_Previous))
+MCTestContextScope::MCTestContextScope()
+    : _Previous(&MCGameContext::Current()), _Context(std::make_unique<MCGameContext>(_Previous))
 {
     MCGameContext::SetCurrent(_Context.get());
 }

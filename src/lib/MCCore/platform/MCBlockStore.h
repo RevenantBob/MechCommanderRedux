@@ -36,7 +36,7 @@ public:
     template <typename T> T* Make()
     {
         static_assert(std::is_trivially_destructible_v<T>, "a block store never runs destructors");
-        return ::new (Allocate(sizeof(T))) T{};
+        return std::construct_at(static_cast<T*>(Allocate(sizeof(T))));
     }
 
     /// <summary>A copy of <paramref name="text"/> with its terminator.</summary>

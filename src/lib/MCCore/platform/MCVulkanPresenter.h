@@ -18,7 +18,16 @@
 /// </remarks>
 class MCVulkanPresenter final : public MCPresenter
 {
+    /// <summary>Only <see cref="Create"/> makes one.</summary>
+    struct Key
+    {
+        explicit Key() = default;
+    };
+
 public:
+    /// <summary>A presenter with no device yet.</summary>
+    explicit MCVulkanPresenter(Key) {}
+
     /// <summary>Makes the device, claims <paramref name="window"/> and loads the shaders.</summary>
     static std::expected<std::unique_ptr<MCVulkanPresenter>, std::string> Create(SDL_Window* window, bool vsync,
                                                                                  const MCPresentation& presentation);
@@ -43,8 +52,6 @@ public:
     MCVulkanRenderer* Renderer() const { return _Renderer.get(); }
 
 private:
-    MCVulkanPresenter() = default;
-
     /// <summary>An R8 or RGBA texture, grown as needed (only its top-left Width x Height is in use).</summary>
     struct Texture
     {

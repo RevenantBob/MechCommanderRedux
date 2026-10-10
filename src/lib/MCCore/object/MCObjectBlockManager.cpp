@@ -68,7 +68,9 @@ namespace
     }
 }
 
-MCObjectBlockManager::MCObjectBlockManager() = default;
+MCObjectBlockManager::MCObjectBlockManager(Key)
+{
+}
 
 MCObjectBlockManager::~MCObjectBlockManager()
 {
@@ -84,7 +86,7 @@ MCObjectBlockManager::~MCObjectBlockManager()
 auto MCObjectBlockManager::Create(std::string_view fileName)
     -> std::expected<std::unique_ptr<MCObjectBlockManager>, std::string>
 {
-    std::unique_ptr<MCObjectBlockManager> manager(new MCObjectBlockManager());
+    auto manager = std::make_unique<MCObjectBlockManager>(Key{});
     manager->_ObjectFile = std::make_unique<MCPacketFile>();
     const std::string objPath = GamePath(TerrainPath, fileName, ".obj");
 

@@ -333,7 +333,7 @@ auto MCGuiSystem::Stop() -> void
 
 auto MCGuiSystem::StartSmackerMovie(std::string_view fileName) -> int32_t
 {
-    MCSmackTag* movie = SmackOpen(std::string(fileName).c_str(), 0xfe000, -1);
+    std::unique_ptr<MCSmackTag> movie = SmackOpen(std::string(fileName).c_str(), 0xfe000, -1);
 
     if (movie == nullptr)
     {
@@ -351,11 +351,10 @@ auto MCGuiSystem::StartSmackerMovie(std::string_view fileName) -> int32_t
 
     if (result != 0)
     {
-        SmackClose(movie);
         return result;
     }
 
-    result = window->StartSmackerMovie(movie, 1);
+    result = window->StartSmackerMovie(std::move(movie), 1);
 
     if (result != 0)
     {

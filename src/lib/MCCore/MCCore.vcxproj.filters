@@ -2193,6 +2193,9 @@
     <ClInclude Include="platform\MCInput.h">
       <Filter>platform</Filter>
     </ClInclude>
+    <ClInclude Include="platform\MCNeverDestroyed.h">
+      <Filter>platform</Filter>
+    </ClInclude>
     <ClInclude Include="platform\MCPresenter.h">
       <Filter>platform</Filter>
     </ClInclude>

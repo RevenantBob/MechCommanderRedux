@@ -132,9 +132,8 @@ public:
     /// The contents of a file the source holds in memory rather than on disk. <c>File::open</c> asks for one when the
     /// path isn't on disk, before it looks in the FastFiles. The disk has none.
     /// </summary>
-    virtual std::optional<std::span<const uint8_t>> FindImage(std::string_view gamePath)
+    virtual std::optional<std::span<const uint8_t>> FindImage([[maybe_unused]] std::string_view gamePath)
     {
-        (void)gamePath;
         return std::nullopt;
     }
 };
@@ -183,14 +182,10 @@ public:
     virtual std::unique_ptr<MCAudio> OpenMixer() = 0;
 
     /// <summary>A buffer of a mixer this device opened started to play.</summary>
-    virtual void BufferPlayed(const MCSoundBuffer& buffer, bool looping)
-    {
-        (void)buffer;
-        (void)looping;
-    }
+    virtual void BufferPlayed([[maybe_unused]] const MCSoundBuffer& buffer, [[maybe_unused]] bool looping) {}
 
     /// <summary>A buffer of a mixer this device opened was stopped.</summary>
-    virtual void BufferStopped(const MCSoundBuffer& buffer) { (void)buffer; }
+    virtual void BufferStopped([[maybe_unused]] const MCSoundBuffer& buffer) {}
 };
 
 /// <summary>The machine's default playback device through SDL, or a silent mixer when there is none.</summary>

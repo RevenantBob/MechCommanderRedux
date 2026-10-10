@@ -998,7 +998,8 @@ auto MCBriefingScreen::SetUpOperation() -> void
 
     if (!GlobalLogPtr->OperationCinema.empty())
     {
-        MCSmackTag* movie = SmackOpen(GamePath(MoviePath, GlobalLogPtr->OperationCinema, ".smk").c_str(), 0xfe000, -1);
+        std::unique_ptr<MCSmackTag> movie =
+            SmackOpen(GamePath(MoviePath, GlobalLogPtr->OperationCinema, ".smk").c_str(), 0xfe000, -1);
 
         // Port fix: a missing movie is skipped (the original read the null handle's size).
         if (movie == nullptr)
@@ -1006,12 +1007,11 @@ auto MCBriefingScreen::SetUpOperation() -> void
             return;
         }
 
-        // The window closes the movie.
         SmackerWindow = MCMakeGui<MCGuiSmackerWindow>();
         const RECT area{0xc, 0x6f, movie->Player->Width(), movie->Player->Height()};
         SmackerWindow->Init(area, nullptr);
         AddChild(SmackerWindow.get());
-        SmackerWindow->StartSmackerMovie(movie, false);
+        SmackerWindow->StartSmackerMovie(std::move(movie), false);
         SmackerWindow->Draw();
     }
 }

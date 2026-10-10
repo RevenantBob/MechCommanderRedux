@@ -76,29 +76,12 @@ namespace MCPort
 
     char* IToA(int32_t value, char* buffer, int radix)
     {
-        if (radix == 10)
-        {
-            std::snprintf(buffer, 12, "%d", value);
-            return buffer;
-        }
-
-        uint32_t v = static_cast<uint32_t>(value);
-        char digits[33];
-        int n = 0;
-
-        do
-        {
-            const uint32_t d = v % static_cast<uint32_t>(radix);
-            digits[n++] = static_cast<char>(d < 10 ? '0' + d : 'a' + d - 10);
-            v /= static_cast<uint32_t>(radix);
-        } while (v != 0);
-
-        for (int i = 0; i < n; ++i)
-        {
-            buffer[i] = digits[n - 1 - i];
-        }
-
-        buffer[n] = 0;
+        // As _itoa: signed in base 10, the 32 bits unsigned in any other base (lower-case digits).
+        constexpr size_t longest = 33;
+        const std::to_chars_result written =
+            radix == 10 ? std::to_chars(buffer, buffer + longest, value)
+                        : std::to_chars(buffer, buffer + longest, static_cast<uint32_t>(value), radix);
+        *written.ptr = '\0';
         return buffer;
     }
 

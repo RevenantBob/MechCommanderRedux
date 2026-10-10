@@ -28,9 +28,9 @@ namespace
     }
 
     /// <summary>Remaps a windowed movie onto the game's current palette (<c>SmackColorRemap</c>).</summary>
-    void RemapToGamePalette(MCSmackTag* movie)
+    void RemapToGamePalette(MCSmackTag& movie)
     {
-        movie->Player->ColorRemap(reinterpret_cast<const uint8_t*>(GuiSystem()->CurrentPalette.data()), 0x100);
+        movie.Player->ColorRemap(reinterpret_cast<const uint8_t*>(GuiSystem()->CurrentPalette.data()), 0x100);
     }
 }
 
@@ -48,10 +48,10 @@ auto MCGuiSmackerWindow::Init(const tagRECT& area, const tagPOINT* position) -> 
     return MCGuiObject::Init(left, top, area.right, area.bottom, nullptr);
 }
 
-auto MCGuiSmackerWindow::StartSmackerMovie(MCSmackTag* newMovie, bool fullScreen) -> int32_t
+auto MCGuiSmackerWindow::StartSmackerMovie(std::unique_ptr<MCSmackTag> newMovie, bool fullScreen) -> int32_t
 {
     FullScreen = fullScreen;
-    Movie = newMovie;
+    Movie = std::move(newMovie);
     MovieOver = 0;
     // (The original returned here for a full-screen movie: it had no pane.)
     MoviePane = std::make_unique<MCPane>(*Frame());
@@ -71,7 +71,7 @@ auto MCGuiSmackerWindow::StartSmackerMovie(MCSmackTag* newMovie, bool fullScreen
 
     if (!FullScreen)
     {
-        RemapToGamePalette(Movie);
+        RemapToGamePalette(*Movie);
     }
 
     return 0;
@@ -79,8 +79,7 @@ auto MCGuiSmackerWindow::StartSmackerMovie(MCSmackTag* newMovie, bool fullScreen
 
 auto MCGuiSmackerWindow::Destroy() -> void
 {
-    SmackClose(Movie);
-    Movie = nullptr;
+    Movie.reset();
 
     if (MovieWindow != nullptr)
     {
@@ -96,8 +95,7 @@ auto MCGuiSmackerWindow::Destroy() -> void
 
 auto MCGuiSmackerWindow::EndSmackerMovie() -> void
 {
-    SmackClose(Movie);
-    Movie = nullptr;
+    Movie.reset();
     MovieOver = 1;
     Destroy();
 }
@@ -112,7 +110,7 @@ auto MCGuiSmackerWindow::CheckSmackerPalette() -> void
 
     if (!FullScreen)
     {
-        RemapToGamePalette(Movie);
+        RemapToGamePalette(*Movie);
         return;
     }
 

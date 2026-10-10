@@ -70,6 +70,12 @@ struct MCRect
     int32_t Y1;
 };
 
+/// <summary>What a hardware renderer keeps for a texture: its own type, derived from this.</summary>
+struct MCTextureHardware
+{
+    virtual ~MCTextureHardware() = default;
+};
+
 /// <summary>
 /// A texture: a picture's pixels as the renderers hold them. The code that owns the pixels makes it
 /// (<see cref="MCRenderer::CreateTexture"/>), hands it to the window over them (<c>_window::Texture</c>) and
@@ -95,8 +101,8 @@ struct MCTexture
     /// hardware renderer.</summary>
     MCRect Locked{0, 0, -1, -1};
     bool LockedOnHardware = false;
-    /// <summary>What the hardware renderer keeps for it (its own type), or null.</summary>
-    void* Hardware = nullptr;
+    /// <summary>What the hardware renderer keeps for it, or null.</summary>
+    std::unique_ptr<MCTextureHardware> Hardware;
     /// <summary>Its place in the renderer's list of textures.</summary>
     size_t Slot = 0;
 };
@@ -562,7 +568,7 @@ public:
     static void UnlockTexture(MCTexture* texture);
 
     /// <summary>Every texture made and not yet destroyed.</summary>
-    static std::span<MCTexture* const> Textures();
+    static std::span<const std::unique_ptr<MCTexture>> Textures();
 
     // Data blocks -------------------------------------------------------------------------------------------------
 

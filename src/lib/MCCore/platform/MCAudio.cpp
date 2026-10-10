@@ -236,7 +236,7 @@ void MCAudioCore::Render(float* out, int frames)
 // ---------------------------------------------------------------------------------------------------------------
 // MCSoundBuffer
 
-MCSoundBuffer::MCSoundBuffer(std::shared_ptr<MCAudioCore> core, const MCSoundFormat& format, uint32_t bytes)
+MCSoundBuffer::MCSoundBuffer(Key, std::shared_ptr<MCAudioCore> core, const MCSoundFormat& format, uint32_t bytes)
     : _Core(std::move(core)), _Format(format)
 {
     const uint32_t blockAlign = format.BlockAlign();
@@ -274,9 +274,8 @@ MCSoundBuffer::MCLockedRegion MCSoundBuffer::Lock(uint32_t offset, uint32_t byte
     return region;
 }
 
-void MCSoundBuffer::Unlock(const MCLockedRegion& region)
+void MCSoundBuffer::Unlock([[maybe_unused]] const MCLockedRegion& region)
 {
-    (void)region;
     // The mixer reads the bytes under the core lock; taking it once orders these writes before its next read.
     std::lock_guard lock(_Core->Lock);
 }
@@ -408,7 +407,7 @@ uint32_t MCSoundBuffer::GetFrequency() const
 // ---------------------------------------------------------------------------------------------------------------
 // MCAudioStream
 
-MCAudioStream::MCAudioStream(std::shared_ptr<MCAudioCore> core, const MCSoundFormat& format)
+MCAudioStream::MCAudioStream(Key, std::shared_ptr<MCAudioCore> core, const MCSoundFormat& format)
     : _Core(std::move(core)), _Format(format)
 {
 }
@@ -475,7 +474,7 @@ void MCAudioStream::SetPan(int32_t pan)
 // ---------------------------------------------------------------------------------------------------------------
 // MCAudio
 
-MCAudio::MCAudio() : _Core(std::make_shared<MCAudioCore>())
+MCAudio::MCAudio(Key) : _Core(std::make_shared<MCAudioCore>())
 {
 }
 
@@ -491,7 +490,7 @@ MCAudio::~MCAudio()
 
 std::unique_ptr<MCAudio> MCAudio::CreateSilent()
 {
-    return std::unique_ptr<MCAudio>(new MCAudio());
+    return std::make_unique<MCAudio>(Key{});
 }
 
 void MCAudio::SetListener(MCAudioDevice* listener)
@@ -515,7 +514,7 @@ std::expected<std::unique_ptr<MCAudio>, std::string> MCAudio::Open()
         return std::unexpected(std::format("SDL_InitSubSystem(audio): {}", SDL_GetError()));
     }
 
-    std::unique_ptr<MCAudio> audio(new MCAudio());
+    auto audio = std::make_unique<MCAudio>(Key{});
     SDL_AudioSpec spec{};
     spec.format = SDL_AUDIO_F32;
     spec.channels = 2;
@@ -531,9 +530,8 @@ std::expected<std::unique_ptr<MCAudio>, std::string> MCAudio::Open()
     return audio;
 }
 
-void SDLCALL MCAudio::Feed(void* user, SDL_AudioStream* stream, int additional, int total)
+void SDLCALL MCAudio::Feed(void* user, SDL_AudioStream* stream, int additional, [[maybe_unused]] int total)
 {
-    (void)total;
     MCAudioCore* core = static_cast<MCAudioCore*>(user);
     constexpr int chunk = 1024;
 
@@ -563,7 +561,7 @@ std::expected<std::shared_ptr<MCSoundBuffer>, std::string> MCAudio::CreateBuffer
                                            format.Channels, format.Bits));
     }
 
-    std::shared_ptr<MCSoundBuffer> buffer(new MCSoundBuffer(_Core, format, bytes));
+    auto buffer = std::make_shared<MCSoundBuffer>(MCSoundBuffer::Key{}, _Core, format, bytes);
     std::lock_guard lock(_Core->Lock);
     _Core->Buffers.push_back(buffer.get());
     return buffer;
@@ -603,7 +601,7 @@ std::expected<std::shared_ptr<MCAudioStream>, std::string> MCAudio::CreateStream
                                            format.Channels, format.Bits));
     }
 
-    std::shared_ptr<MCAudioStream> stream(new MCAudioStream(_Core, format));
+    auto stream = std::make_shared<MCAudioStream>(MCAudioStream::Key{}, _Core, format);
     std::lock_guard lock(_Core->Lock);
     _Core->Streams.push_back(stream.get());
     return stream;
