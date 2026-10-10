@@ -1,7 +1,7 @@
 #include "stdafx.h"
 #include "object/MCTerrainObjectType.h"
 #include "lib/MCFitIniFile.h"
-#include "network/multplyr.h"
+#include "network/MCMultiPlayer.h"
 #include "object/MCTerrainObject.h"
 #include "object/MCWeaponShotInfo.h"
 
@@ -59,12 +59,12 @@ auto MCTerrainObjectType::Init(MCFile* objFile, uint32_t fileSize) -> int32_t
 auto MCTerrainObjectType::HandleCollision(MCGameObject* collidee, MCGameObject* collider) -> int
 {
     // A mover (not artillery) running into it deals it 10 points; the server's job in multiplayer.
-    if ((MPlayer == nullptr || MPlayer->IsServer != 0) && collider->ObjectClass < MCObjectClass::Mover &&
+    if ((MultiPlayer() == nullptr || MultiPlayer()->IsServer != 0) && collider->ObjectClass < MCObjectClass::Mover &&
         collider->ObjectClass != MCObjectClass::Artillery)
     {
         MCWeaponShotInfo shot;
         shot.Init(nullptr, -1, 10.0f, 0, 0.0f);
-        collidee->HandleWeaponHit(&shot, MPlayer != nullptr ? 1 : 0);
+        collidee->HandleWeaponHit(&shot, MultiPlayer() != nullptr ? 1 : 0);
     }
 
     return 1;

@@ -3,10 +3,11 @@
 #include "abl/MCAblDebugger.h"
 #include "abl/MCAblRuntime.h"
 #include "gui/MCGuiTextObject.h"
-#include "linkup/session.h"
-#include "linkup/sessionmanager.h"
+#include "linkup/MCFidpSession.h"
+#include "linkup/MCSessionManager.h"
 #include "mission/MCScenario.h"
-#include "network/multplyr.h"
+#include "network/MCMultiPlayer.h"
+#include "main/MCGameContext.h"
 #include "object/MCMechWarrior.h"
 
 namespace
@@ -25,6 +26,29 @@ namespace
         }
 
         return Scenario()->Warrior(index);
+    }
+
+    /// <summary>The session manager the "ns" command makes when there is no multiplayer game.</summary>
+    std::unique_ptr<MCSessionManager> ConsoleSessionManager;
+
+    /// <summary>
+    /// The session manager the network commands work on: the multiplayer game's, else the console's own (the original
+    /// had one global instance).
+    /// </summary>
+    MCSessionManager* NetSessionManager()
+    {
+        if (MCMultiPlayer* game = MultiPlayer(); game != nullptr && game->SessionManager != nullptr)
+        {
+            return game->SessionManager.get();
+        }
+
+        return ConsoleSessionManager.get();
+    }
+
+    /// <summary>Whether the session manager has a connection (the original tested it against 0, which "none" isn't).</summary>
+    bool HasConnection(const MCSessionManager& sessionManager)
+    {
+        return static_cast<int32_t>(sessionManager.CurrentConnection) != 0;
     }
 } // namespace
 
@@ -142,11 +166,9 @@ void AblDebuggerEventRoutine(MCGuiObject* object, MCGuiEvent* event)
             {
                 case 'd':
                 {
-                    if (MPlayer != nullptr)
+                    if (MultiPlayer() != nullptr)
                     {
-                        MCMultiPlayer* player = MPlayer;
-                        delete player;
-                        MPlayer = nullptr;
+                        MCGameContext::Current().SetMultiPlayer(nullptr);
                         input->SetText({});
                         return;
                     }
@@ -156,10 +178,9 @@ void AblDebuggerEventRoutine(MCGuiObject* object, MCGuiEvent* event)
 
                 case 'g':
                 {
-                    MCSessionManager* sessionManager = MCSessionManager::GetGlobalPointer(nullptr);
+                    MCSessionManager* sessionManager = NetSessionManager();
 
-                    if ((sessionManager != nullptr) && (sessionManager->CurrentConnection != 0) &&
-                        (sessionManager->IsHost != 0))
+                    if (sessionManager != nullptr && HasConnection(*sessionManager) && sessionManager->IsHost)
                     {
                         sessionManager->StartGame();
                         input->SetText({});
@@ -171,18 +192,15 @@ void AblDebuggerEventRoutine(MCGuiObject* object, MCGuiEvent* event)
 
                 case 'h':
                 {
-                    MCSessionManager* sessionManager = MCSessionManager::GetGlobalPointer(nullptr);
+                    MCSessionManager* sessionManager = NetSessionManager();
 
-                    if ((sessionManager != nullptr) && (sessionManager->CurrentConnection != 0))
+                    if (sessionManager != nullptr && HasConnection(*sessionManager))
                     {
-                        MCFidpSession session;
-                        char sessionName[] = "Trooper";
-                        char playerName[] = "Host";
-                        char message[] = "Successfully hosted session.";
-                        session.SetName(sessionName);
+                        MCFidpSession session(MultiPlayerAppGuid);
+                        session.SetName("Trooper");
                         session.SessionDesc.dwMaxPlayers = 6;
-                        sessionManager->HostSession(session, playerName);
-                        AblGetDebugger()->Print(message);
+                        sessionManager->HostSession(session, "Host");
+                        AblGetDebugger()->Print("Successfully hosted session.");
                         input->SetText({});
                         return;
                     }
@@ -192,65 +210,47 @@ void AblDebuggerEventRoutine(MCGuiObject* object, MCGuiEvent* event)
 
                 case 'i':
                 {
-                    char failed[] = "Connection Failed";
-                    char established[] = "Connection Established";
-
-                    if (MPlayer == nullptr)
+                    if (MultiPlayer() == nullptr)
                     {
-                        MPlayer = new MCMultiPlayer;
-                        MPlayer->Init(0x7d000, 0x100, 100);
+                        MCGameContext::Current().SetMultiPlayer(std::make_unique<MCMultiPlayer>());
+                        MultiPlayer()->Start();
                     }
 
-                    if (MPlayer->ConnectIpx() != 0)
-                    {
-                        AblGetDebugger()->Print(failed);
-                    }
-                    else
-                    {
-                        AblGetDebugger()->Print(established);
-                    }
-
+                    AblGetDebugger()->Print(MultiPlayer()->ConnectIpx() != 0 ? "Connection Failed"
+                                                                             : "Connection Established");
                     input->SetText({});
                     return;
                 }
 
                 case 'j':
                 {
-                    MCSessionManager* sessionManager = MCSessionManager::GetGlobalPointer(nullptr);
+                    MCSessionManager* sessionManager = NetSessionManager();
 
-                    if ((sessionManager == nullptr) || (sessionManager->CurrentConnection == 0))
+                    if (sessionManager == nullptr || !HasConnection(*sessionManager))
                     {
                         break;
                     }
 
-                    MCFLinkedList<MCFidpSession>* sessions = sessionManager->GetSessions();
+                    const std::vector<std::unique_ptr<MCFidpSession>>* sessions = sessionManager->GetSessions();
 
-                    if (sessions->Size() == 0)
+                    if (sessions == nullptr || sessions->empty())
                     {
                         break;
                     }
 
                     // Joins the first session listed.
-                    sessions->Current = sessions->HeadLink;
-                    MCFidpSession* session = sessions->HeadLink != nullptr ? sessions->HeadLink->Data : nullptr;
-                    char playerName[] = "Client";
-                    char message[] = "Successfully joined.";
-                    sessionManager->JoinSession(&session->SessionDesc.guidInstance, playerName);
-                    AblGetDebugger()->Print(message);
+                    sessionManager->JoinSession(sessions->front()->SessionDesc.guidInstance, "Client");
+                    AblGetDebugger()->Print("Successfully joined.");
                     input->SetText({});
                     return;
                 }
 
                 case 'o':
                 {
-                    MCSessionManager* sessionManager = MCSessionManager::GetGlobalPointer(nullptr);
-
-                    if (sessionManager != nullptr)
+                    if (MCSessionManager* sessionManager = NetSessionManager(); sessionManager != nullptr)
                     {
-                        char address[] = "";
-                        char message[] = "Successfully connected.";
-                        sessionManager->ConnectTcp(address);
-                        AblGetDebugger()->Print(message);
+                        sessionManager->ConnectTcp("");
+                        AblGetDebugger()->Print("Successfully connected.");
                         input->SetText({});
                         return;
                     }
@@ -260,9 +260,9 @@ void AblDebuggerEventRoutine(MCGuiObject* object, MCGuiEvent* event)
 
                 case 'p':
                 {
-                    MCSessionManager* sessionManager = MCSessionManager::GetGlobalPointer(nullptr);
+                    MCSessionManager* sessionManager = NetSessionManager();
 
-                    if ((sessionManager != nullptr) && (sessionManager->CurrentConnection != 0))
+                    if (sessionManager != nullptr && HasConnection(*sessionManager))
                     {
                         sessionManager->ProcessSystemMessages();
                     }
@@ -272,12 +272,12 @@ void AblDebuggerEventRoutine(MCGuiObject* object, MCGuiEvent* event)
 
                 case 's':
                 {
-                    if (MCSessionManager::GetGlobalPointer(nullptr) == nullptr)
+                    // Port: the session manager is the console's own; the original made the one global instance, which
+                    // a multiplayer game made later took over.
+                    if (NetSessionManager() == nullptr)
                     {
-                        char message[] = "Created SessionManager.";
-                        InitLinkUpBlocks();
-                        new MCSessionManager(MultiPlayerAppGuid);
-                        AblGetDebugger()->Print(message);
+                        ConsoleSessionManager = std::make_unique<MCSessionManager>(MultiPlayerAppGuid);
+                        AblGetDebugger()->Print("Created SessionManager.");
                         input->SetText({});
                         return;
                     }
@@ -288,7 +288,7 @@ void AblDebuggerEventRoutine(MCGuiObject* object, MCGuiEvent* event)
                 case 't':
                 {
                     // "nt text": chat to everyone.
-                    if (MPlayer == nullptr)
+                    if (MultiPlayer() == nullptr)
                     {
                         char message[] = "Not Connected";
                         AblGetDebugger()->Print(message);
@@ -296,7 +296,7 @@ void AblDebuggerEventRoutine(MCGuiObject* object, MCGuiEvent* event)
                         return;
                     }
 
-                    MPlayer->SendChat(0, text + 3);
+                    MultiPlayer()->SendChat(0, text + 3);
                     input->SetText({});
                     return;
                 }

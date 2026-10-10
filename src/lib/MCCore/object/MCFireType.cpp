@@ -2,7 +2,7 @@
 #include "object/MCFireType.h"
 #include "lib/MCDice.h"
 #include "lib/MCFitIniFile.h"
-#include "network/multplyr.h"
+#include "network/MCMultiPlayer.h"
 #include "object/MCBuilding.h"
 #include "object/MCBuildingType.h"
 #include "object/MCFire.h"
@@ -72,7 +72,7 @@ auto MCFireType::Init(MCFile* objFile, uint32_t fileSize) -> int32_t
 auto MCFireType::HandleCollision(MCGameObject*, MCGameObject* collider) -> int
 {
     // The fire spreads (one chance in ten per collision) to what it touches; the server's job in multiplayer.
-    if (MPlayer != nullptr && MPlayer->IsServer == 0)
+    if (MultiPlayer() != nullptr && MultiPlayer()->IsServer == 0)
     {
         return 0;
     }
@@ -87,9 +87,9 @@ auto MCFireType::HandleCollision(MCGameObject*, MCGameObject* collider) -> int
     {
         target->LightOnFire(timeToBurn);
 
-        if (MPlayer != nullptr)
+        if (MultiPlayer() != nullptr)
         {
-            MPlayer->AddLightOnFireChunk(collider, static_cast<int32_t>(timeToBurn));
+            MultiPlayer()->AddLightOnFireChunk(collider, static_cast<int32_t>(timeToBurn));
         }
     };
 

@@ -8,7 +8,7 @@
 #include "lib/MCFitIniFile.h"
 #include "lib/MCPacketFile.h"
 #include "main/MCMissionGlobals.h"
-#include "network/multplyr.h"
+#include "network/MCMultiPlayer.h"
 #include "object/MCForces.h"
 #include "object/MCMover.h"
 #include "object/MCMoverGameSystem.h"
@@ -233,7 +233,7 @@ auto MCMechWarrior::RadioMessage(int32_t messageId, int propogateIfMultiplayer) 
 
     if (UnderHomeCommand() == 0)
     {
-        if (MPlayer != nullptr && MPlayer->IsServer != 0 && propogateIfMultiplayer != 0)
+        if (MultiPlayer() != nullptr && MultiPlayer()->IsServer != 0 && propogateIfMultiplayer != 0)
         {
             static_cast<MCMover*>(Vehicle)->AddRadioChunk(0, static_cast<uint8_t>(messageId));
         }
@@ -347,7 +347,7 @@ auto MCMechWarrior::AddQueuedTacOrder(MCTacticalOrder tacOrder) -> int32_t
     }
 
     // The first order queued starts at once, unless a player order is waiting or one from the queue is running.
-    if ((MPlayer == nullptr || MPlayer->IsServer != 0) && QueuedOrders.Size() == 1 &&
+    if ((MultiPlayer() == nullptr || MultiPlayer()->IsServer != 0) && QueuedOrders.Size() == 1 &&
         NewTacOrderReceivedOf(MCOrderState::Player) == 0 &&
         (PlayerOrderFromQueue == 0 || CurTacOrder.Origin != MCOrderOrigin::Player))
     {

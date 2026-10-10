@@ -2,7 +2,7 @@
 #include "mission/MCMission.h"
 #include "ai/MCMoveGeometry.h"
 #include "lib/MCFatal.h"
-#include "linkup/sessionmanager.h"
+#include "linkup/MCSessionManager.h"
 #include "logistics/MCInventoryBlock.h"
 #include "logistics/MCMechInventoryBlock.h"
 #include "logistics/MCPilotInventoryBlock.h"
@@ -37,7 +37,8 @@
 #include "main/MCGameStrings.h"
 #include "mission/MCMissionResultsScreen.h"
 #include "mission/MCScenario.h"
-#include "network/multplyr.h"
+#include "network/MCMultiPlayer.h"
+#include "main/MCGameContext.h"
 #include "object/MCGameSystemReader.h"
 #include "object/MCMasterComponent.h"
 #include "object/MCObjectTypeManager.h"
@@ -371,9 +372,9 @@ auto MCMission::Load(std::string_view missionName) -> int32_t
     else
     {
         State = MCMissionState::Logistics;
-        Assert(MPlayer != nullptr, 0);
+        Assert(MultiPlayer() != nullptr, 0);
 
-        if (MPlayer->SetupLobbyGame() != 0)
+        if (MultiPlayer()->SetupLobbyGame() != 0)
         {
             std::string text = LoadGameString(0x370, 0xfe);
             MCReusableDialog* dialog = GlobalLogPtr->MessageDialog.get();
@@ -536,17 +537,17 @@ auto MCMission::Run() -> int32_t
                 }
             }
 
-            if (Logistics != nullptr && MPlayer != nullptr)
+            if (Logistics != nullptr && MultiPlayer() != nullptr)
             {
-                MPlayer->ProcessReceiveList();
+                MultiPlayer()->ProcessReceiveList();
             }
             break;
         }
         case MCMissionState::Results:
         {
-            if (MPlayer != nullptr && MPlayer->SessionManager != nullptr)
+            if (MultiPlayer() != nullptr && MultiPlayer()->SessionManager != nullptr)
             {
-                MPlayer->ProcessReceiveList();
+                MultiPlayer()->ProcessReceiveList();
             }
             break;
         }
@@ -645,7 +646,7 @@ auto MCMission::Run() -> int32_t
                     SoundSystem()->StopDigitalMusic();
                 }
 
-                const std::string scenarioName = (MPlayer == nullptr || GlobalLogPtr == nullptr)
+                const std::string scenarioName = (MultiPlayer() == nullptr || GlobalLogPtr == nullptr)
                                                      ? Scenarios[static_cast<size_t>(CurrentScenario)]
                                                      : std::string(GlobalLogPtr->MpMissionName);
                 StartScenario(scenarioName);
@@ -890,7 +891,7 @@ auto MCMission::EndScenario() -> void
 {
     TotalScenarioTime = ScenarioTime;
 
-    if (GlobalGameSegment == 0 && MPlayer == nullptr)
+    if (GlobalGameSegment == 0 && MultiPlayer() == nullptr)
     {
         std::string bridgeName = Scenario()->ScenarioScript;
 
@@ -962,7 +963,7 @@ auto MCMission::EndScenario() -> void
     {
         MCLogistics& logistics = StartLogistics();
 
-        if (MPlayer == nullptr)
+        if (MultiPlayer() == nullptr)
         {
             // The campaign: a win moves on to the next mission, anything else replays this one.
             int32_t missionId = CurrentScenario;
@@ -991,22 +992,21 @@ auto MCMission::EndScenario() -> void
         }
 
         LastLogisticsMissionState = 0;
-        MPlayer->ChatCallback = LogisticsChatCallback;
+        MultiPlayer()->ChatCallback = LogisticsChatCallback;
         State = MCMissionState::Logistics;
         logistics.CurrentScreen->ShowGuiWindow(0);
         logistics.CurrentScreen = logistics.MainScreen.get();
         logistics.LogisticsState = 1;
         logistics.ShowLogScreen(true, true);
 
-        if (MPlayer->InMission != 0)
+        if (MultiPlayer()->InMission != 0)
         {
             if (IsMPlayerGame != 0)
             {
                 KillTheGame();
             }
 
-            delete MPlayer;
-            MPlayer = nullptr;
+            MCGameContext::Current().SetMultiPlayer(nullptr);
         }
     }
     else

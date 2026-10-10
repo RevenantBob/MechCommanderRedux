@@ -22,7 +22,7 @@
 #include "mission/MCDifficultySettings.h"
 #include "mission/MCMission.h"
 #include "mission/MCScenarioReading.h"
-#include "network/multplyr.h"
+#include "network/MCMultiPlayer.h"
 #include "object/MCBattleMech.h"
 #include "object/MCCollisionSystem.h"
 #include "object/MCContactSystem.h"
@@ -201,14 +201,14 @@ auto MCScenario::Load(std::string_view scenarioName, std::string_view terrainNam
         AlliedTeam()->BuildRoster(this);
     }
 
-    if (MPlayer == nullptr)
+    if (MultiPlayer() == nullptr)
     {
         HomeCommander()->SetNetPlayerId(0);
     }
 
     HomeCommander()->AddToGui(1);
 
-    if (MPlayer != nullptr)
+    if (MultiPlayer() != nullptr)
     {
         for (int32_t i = 0; i < NumCommanders(); i++)
         {
@@ -227,9 +227,9 @@ auto MCScenario::Load(std::string_view scenarioName, std::string_view terrainNam
 
     Eye = CameraList()->ActivateAllReady();
 
-    if (MPlayer != nullptr)
+    if (MultiPlayer() != nullptr)
     {
-        Eye->ChangeTarget(MPlayer->LocalMovers[0], 1);
+        Eye->ChangeTarget(MultiPlayer()->LocalMovers[0], 1);
     }
 
     // The 'Mechs start with the damage their loadouts carried over.
@@ -251,19 +251,19 @@ auto MCScenario::Load(std::string_view scenarioName, std::string_view terrainNam
     StartUpTurns = DefaultStartUpTurns;
     MusicPending = true;
 
-    if (MPlayer != nullptr)
+    if (MultiPlayer() != nullptr)
     {
-        MPlayer->ChatCallback = ScenarioChatCallback;
+        MultiPlayer()->ChatCallback = ScenarioChatCallback;
 
-        if (MPlayer->IsServer != 0)
+        if (MultiPlayer()->IsServer != 0)
         {
-            for (int32_t& checkedIn : MPlayer->PlayerCheckedIn)
+            for (int32_t& checkedIn : MultiPlayer()->PlayerCheckedIn)
             {
                 checkedIn = 0;
             }
         }
 
-        MPlayer->SendPlayerCheckIn();
+        MultiPlayer()->SendPlayerCheckIn();
     }
 
     StartingUp = true;
@@ -320,7 +320,7 @@ auto MCScenario::LoadGameSystem() -> std::pair<int32_t, float>
 
     DifficultySettings.Load(file);
     Assert(LoadMoverGameSystem(file) == 0, 0, " could not load Mover System in GameSys ");
-    Assert(LoadMultiplayerGameSystem(&file) == 0, 0, " could not load Multiplayer System in GameSys ");
+    Assert(LoadMultiplayerGameSystem(file) == 0, 0, " could not load Multiplayer System in GameSys ");
     Assert(LoadMechGameSystem(file) == 0, 0, " could not load Mech System in GameSys ");
     MechSalvageChance = DifficultySettings.Salvage(MechSalvageChance, GameDifficulty);
     Assert(LoadGroundVehicleGameSystem(file) == 0, 0, " could not load Ground Vehicle System in GameSys ");
@@ -388,7 +388,7 @@ auto MCScenario::LoadForces(MCFitIniFile& file) -> void
     const int32_t cameraStrikes = OptionalFit<int32_t>(file, "NumCameraStrikes", 0);
     MCForces* forces = Forces();
 
-    if (MPlayer == nullptr)
+    if (MultiPlayer() == nullptr)
     {
         forces->PlayerTeam = InnerSphereTeam();
         forces->MakeCommanders(AlliedTeam() == nullptr ? 2 : 3);
@@ -406,11 +406,11 @@ auto MCScenario::LoadForces(MCFitIniFile& file) -> void
     {
         forces->MakeCommanders(MCForces::MaxCommanders);
 
-        if (MPlayer->HomeTeam == 0)
+        if (MultiPlayer()->HomeTeam == 0)
         {
             forces->PlayerTeam = InnerSphereTeam();
         }
-        else if (MPlayer->HomeTeam == 1)
+        else if (MultiPlayer()->HomeTeam == 1)
         {
             forces->PlayerTeam = ClanTeam();
         }
@@ -419,7 +419,7 @@ auto MCScenario::LoadForces(MCFitIniFile& file) -> void
             Fatal(0, " Must Be Clan or InnerSphere in Multiplayer! ");
         }
 
-        forces->PlayerCommander = CommanderById(MPlayer->CheckInId);
+        forces->PlayerCommander = CommanderById(MultiPlayer()->CheckInId);
     }
 
     UpdateDisplay(0, 1, 30, 1, 13);
@@ -907,7 +907,7 @@ auto MCScenario::LoadObjectives(MCFitIniFile& file) -> void
         RequireFit<uint32_t>(file, "NumObjectives", " Could not find numObjectives in Objective Block ");
     Assert(numObjectives < MCObjectiveList::MaxObjectives + 1, numObjectives, " Too Many Objectives ");
 
-    if (MPlayer == nullptr)
+    if (MultiPlayer() == nullptr)
     {
         InnerSphereTeam()->FirstObjective = 0;
         InnerSphereTeam()->NumObjectives = numObjectives;
@@ -987,7 +987,7 @@ auto MCScenario::LoadGroups(MCFitIniFile& file) -> void
                 }
             }
 
-            if (MPlayer == nullptr && commanderId == 1)
+            if (MultiPlayer() == nullptr && commanderId == 1)
             {
                 CommanderById(1)->GetGroup(groupId)->SetDisbandOnNoPoint(0);
             }
@@ -1120,14 +1120,14 @@ auto MCScenario::CreatePartObject(int32_t partNumber) -> void
     // The part number is kept in the object's id.
     object->IdNumber = static_cast<uint32_t>(partNumber);
 
-    if (MPlayer != nullptr)
+    if (MultiPlayer() != nullptr)
     {
-        MPlayer->AddToMoverRoster(static_cast<MCMover*>(object));
-        MPlayer->AddToPlayerMoverRoster(part.CommanderId, static_cast<MCMover*>(object));
+        MultiPlayer()->AddToMoverRoster(static_cast<MCMover*>(object));
+        MultiPlayer()->AddToPlayerMoverRoster(part.CommanderId, static_cast<MCMover*>(object));
 
-        if (part.CommanderId == MPlayer->CheckInId)
+        if (part.CommanderId == MultiPlayer()->CheckInId)
         {
-            MPlayer->AddToLocalMovers(static_cast<MCMover*>(object));
+            MultiPlayer()->AddToLocalMovers(static_cast<MCMover*>(object));
         }
     }
 

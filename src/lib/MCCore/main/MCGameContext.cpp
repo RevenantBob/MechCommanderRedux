@@ -18,6 +18,7 @@
 #include "sound/MCSoundSystem.h"
 #include "mission/MCMission.h"
 #include "mission/MCScenario.h"
+#include "network/MCMultiPlayer.h"
 #include "gui/MCGuiSystem.h"
 #include "iface/MCTacticalInterface.h"
 #include "lib/MCFastFileSet.h"
@@ -95,6 +96,7 @@ MCGameContext::~MCGameContext()
     // never deleted ones.
     _Scenario.reset();
     _Mission.reset();
+    _MultiPlayer.reset();
 
     if (_ObjectSystem != nullptr)
     {
@@ -307,6 +309,16 @@ MCMission* MCGameContext::Mission() const
 std::unique_ptr<MCMission> MCGameContext::SetMission(std::unique_ptr<MCMission> mission)
 {
     return std::exchange(_Mission, std::move(mission));
+}
+
+MCMultiPlayer* MCGameContext::MultiPlayer() const
+{
+    return FindSystem(_MultiPlayer, _Parent, &MCGameContext::MultiPlayer);
+}
+
+std::unique_ptr<MCMultiPlayer> MCGameContext::SetMultiPlayer(std::unique_ptr<MCMultiPlayer> multiPlayer)
+{
+    return std::exchange(_MultiPlayer, std::move(multiPlayer));
 }
 
 MCScenario* MCGameContext::Scenario() const

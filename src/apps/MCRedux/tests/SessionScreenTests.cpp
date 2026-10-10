@@ -3,7 +3,7 @@
 #include "ScreenInput.h"
 #include "TestGame.h"
 #include "gui/MCGuiSystem.h"
-#include "linkup/sessionmanager.h"
+#include "linkup/MCSessionManager.h"
 #include "logistics/MCFileScrollPane.h"
 #include "logistics/MCGameList.h"
 #include "logistics/MCLogComboBox.h"
@@ -11,7 +11,7 @@
 #include "logistics/MCSplashScreen.h"
 #include "logistics/MCConnectMenu.h"
 #include "main/MCLogistics.h"
-#include "network/multplyr.h"
+#include "network/MCMultiPlayer.h"
 #include "platform/MCDirectPlay.h"
 #include "platform/MCDisplay.h"
 #include "platform/MCInput.h"
@@ -79,7 +79,7 @@ namespace
             {
                 DPSESSIONDESC2 desc{};
                 desc.dwSize = sizeof(desc);
-                desc.guidApplication = ThisAppGuid;
+                desc.guidApplication = MultiPlayerAppGuid;
                 struct Context
                 {
                     DPSESSIONDESC2* Found;
@@ -207,8 +207,8 @@ TEST_CASE_ISOLATED("game: the multiplayer session screen matches the pre-rendere
     // The LAN screen as the TCP/IP button leaves it, hosting on the loopback.
     ConnectScreen();
     Settle();
-    REQUIRE(MPlayer != nullptr);
-    MCSessionManager* manager = MPlayer->SessionManager;
+    REQUIRE(MultiPlayer() != nullptr);
+    MCSessionManager* manager = MultiPlayer()->SessionManager.get();
     manager->ConnectTcp(const_cast<char*>(HostAddress));
     MCSplashScreen* lanScreen = GlobalLogPtr->LanScreen.get();
     GlobalLogPtr->MultiplayerScreen->ShowGuiWindow(0);

@@ -3,7 +3,7 @@
 #include "lib/MCFitIniFile.h"
 #include "main/MCMissionGlobals.h"
 #include "mission/MCScenario.h"
-#include "network/multplyr.h"
+#include "network/MCMultiPlayer.h"
 #include "object/MCBuilding.h"
 #include "object/MCWeaponShotInfo.h"
 
@@ -70,7 +70,7 @@ auto MCBuildingType::Init(MCFile* objFile, uint32_t fileSize) -> int32_t
 
 auto MCBuildingType::HandleCollision(MCGameObject* collidee, MCGameObject* collider) -> int
 {
-    if (MPlayer != nullptr && MPlayer->IsServer == 0)
+    if (MultiPlayer() != nullptr && MultiPlayer()->IsServer == 0)
     {
         return 1;
     }
@@ -83,7 +83,7 @@ auto MCBuildingType::HandleCollision(MCGameObject* collidee, MCGameObject* colli
 
         if (ScenarioTime <= collider->GetCollisionFreeTime())
         {
-            collidee->HandleWeaponHit(&shot, MPlayer != nullptr ? 1 : 0);
+            collidee->HandleWeaponHit(&shot, MultiPlayer() != nullptr ? 1 : 0);
         }
     }
 

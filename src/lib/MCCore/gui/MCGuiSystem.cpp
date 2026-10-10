@@ -22,7 +22,7 @@
 #include "main/MCMissionGlobals.h"
 #include "mission/MCMission.h"
 #include "mission/MCScenario.h"
-#include "network/multplyr.h"
+#include "network/MCMultiPlayer.h"
 #include "platform/MCDisplay.h"
 #include "platform/MCFileSystem.h"
 #include "platform/MCFrameLog.h"
@@ -295,10 +295,9 @@ auto MCGuiSystem::Stop() -> void
 
     Session.reset();
 
-    if (MPlayer != nullptr)
+    if (MultiPlayer() != nullptr)
     {
-        delete MPlayer;
-        MPlayer = nullptr;
+        MCGameContext::Current().SetMultiPlayer(nullptr);
     }
 
     MouseTimerKill();

@@ -13,7 +13,7 @@
 #include "lib/MCFile.h"
 #include "main/MCGamePaths.h"
 #include "main/MCMissionGlobals.h"
-#include "network/multplyr.h"
+#include "network/MCMultiPlayer.h"
 #include "object/MCForces.h"
 #include "object/MCMechWarrior.h"
 #include "object/MCMover.h"
@@ -60,7 +60,7 @@ namespace
     {
         MCOrderSink& sink = TacticalInterface()->Orders();
 
-        if (MPlayer != nullptr && MPlayer->IsServer == 0)
+        if (MultiPlayer() != nullptr && MultiPlayer()->IsServer == 0)
         {
             int32_t partId = mover->PartId;
             sink.SendToServer(order, false, std::span(&partId, 1), {}, false);

@@ -1,4 +1,5 @@
 #include "stdafx.h"
+#include "main/MCMissionGlobals.h"
 #include "iface/MCTacticalInterface.h"
 #include "ai/MCTacticalOrder.h"
 #include "camera/MCCamera.h"
@@ -7,7 +8,7 @@
 #include "iface/MCCommandParser.h"
 #include "iface/MCMechBar.h"
 #include "mission/MCScenario.h"
-#include "network/multplyr.h"
+#include "network/MCMultiPlayer.h"
 #include "object/MCBattleMech.h"
 #include "object/MCForces.h"
 #include "object/MCMover.h"
@@ -241,7 +242,7 @@ auto MCTacticalInterface::HandleKeyDown(MCGuiEvent* event) -> void
                 ShowTacticalMapPage(MCTacmapPage::Salvage);
             }
         }
-        else if (MPlayer != nullptr && is(MCKeyCommand::Chat))
+        else if (MultiPlayer() != nullptr && is(MCKeyCommand::Chat))
         {
             // The chat line.
             TacMapShown = false;

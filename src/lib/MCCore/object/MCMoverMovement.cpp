@@ -2,7 +2,7 @@
 #include "object/MCMover.h"
 #include "lib/MCFatal.h"
 #include "main/MCMissionGlobals.h"
-#include "network/multplyr.h"
+#include "network/MCMultiPlayer.h"
 #include "object/MCMechWarrior.h"
 #include "object/MCMoverGroup.h"
 #include "object/MCElemental.h"
@@ -34,7 +34,7 @@ namespace
         jumpCost = 0;
         numOffsets = 8;
 
-        if (mover->Pilot->OnHomeTeam() == 0 && MPlayer == nullptr)
+        if (mover->Pilot->OnHomeTeam() == 0 && MultiPlayer() == nullptr)
         {
             mover->GetJumpRange(&numOffsets, &jumpCost);
         }

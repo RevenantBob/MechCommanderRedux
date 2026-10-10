@@ -7,9 +7,9 @@
 #include "lib/MCFile.h"
 #include "lib/MCFitIniFile.h"
 #include "lib/MCPacketFile.h"
-#include "linkup/dpplayer.h"
-#include "linkup/fidpgroup.h"
-#include "linkup/sessionmanager.h"
+#include "linkup/MCFidpPlayer.h"
+#include "linkup/MCFidpGroup.h"
+#include "linkup/MCSessionManager.h"
 #include "logistics/MCFileScrollPane.h"
 #include "logistics/MCLogButton.h"
 #include "logistics/MCLogChatWindow.h"
@@ -26,7 +26,7 @@
 #include "logistics/MCMainMenu.h"
 #include "main/MCLogistics.h"
 #include "main/MCGameStrings.h"
-#include "network/multplyr.h"
+#include "network/MCMultiPlayer.h"
 #include "sound/MCSoundSystem.h"
 #include "vfx/MCVfxFunctions.h"
 #include "logistics/MCBriefingScreen.h"
@@ -64,15 +64,15 @@ namespace
     void SendFileName(uint16_t type, std::string_view fileName)
     {
         // The header, then the name and its NUL.
-        constexpr size_t headerSize = offsetof(MCMPFileNameMessage, FileName);
+        constexpr size_t headerSize = sizeof(MCMPFileNameMessage);
         MCMPFileNameMessage header{};
         header.Tagger.Clear();
         header.Header = type;
         std::vector<char> buffer(headerSize + fileName.size() + 1, '\0');
         std::memcpy(buffer.data(), &header, headerSize);
         std::ranges::copy(fileName, buffer.begin() + headerSize);
-        MPlayer->SessionManager->SendMessageToGroup(0, reinterpret_cast<MCFIGuaranteedMessageHeader*>(buffer.data()),
-                                                    static_cast<uint32_t>(buffer.size()));
+        MultiPlayer()->SessionManager->SendMessageToGroup(
+            0, reinterpret_cast<MCFIGuaranteedMessageHeader*>(buffer.data()), static_cast<uint32_t>(buffer.size()));
     }
 
     /// <summary>Sends a two-long guaranteed message to every player.</summary>
@@ -82,7 +82,7 @@ namespace
         message.Header = type;
         message.Value1 = value1;
         message.Value2 = value2;
-        MPlayer->SessionManager->SendMessageToGroup(0, &message, sizeof(message));
+        MultiPlayer()->SessionManager->SendMessageToGroup(0, &message, sizeof(message));
     }
 
     /// <summary>The file name part of <paramref name="path"/> without folder or extension (<c>_splitpath</c>'s fname).</summary>
@@ -112,7 +112,7 @@ namespace
         GlobalLogPtr->CurrentScreen = Screen();
         GlobalLogPtr->LogisticsState = 8;
         GlobalLogPtr->ShowLogScreen(true, true);
-        SendFileName(FIMSG_GUARANTEED | MPMSG_LOAD_MISSION, Screen()->MissionFile);
+        SendFileName(GuaranteedHeader(MCMPMessageType::LoadMission), Screen()->MissionFile);
     }
 
     /// <summary>The load-mission button: opens the load screen for a multiplayer mission.</summary>
@@ -133,9 +133,9 @@ namespace
     {
         std::string missionName = SplitFileName(Screen()->MissionFile);
         std::string extension = ".MPK";
-        SendFileName(FIMSG_GUARANTEED | MPMSG_START, missionName);
+        SendFileName(GuaranteedHeader(MCMPMessageType::Start), missionName);
         GuiSystem()->RemoveTimer(Screen(), ScreenTimer);
-        MPlayer->SessionManager->SendLatencyInfo();
+        MultiPlayer()->SessionManager->SendLatencyInfo();
         SoundSystem()->PlayBettySample(0x19);
         GlobalLogPtr->InitializeMultiplayer();
         GlobalLogPtr->LoadCampaign(missionName, extension, false, false);
@@ -155,9 +155,9 @@ namespace
         const int32_t team = button->Group;
         Screen()->SetTeamTechBase(static_cast<int8_t>(team), static_cast<int8_t>(techBase));
 
-        if (MPlayer->IsHost != 0)
+        if (MultiPlayer()->IsHost != 0)
         {
-            SendTwoLongs(FIMSG_GUARANTEED | MPMSG_TECHBASE_CHANGE, team, techBase);
+            SendTwoLongs(GuaranteedHeader(MCMPMessageType::TechbaseChange), team, techBase);
         }
     }
 
@@ -394,7 +394,7 @@ auto MCSessionScreen::Destroy() -> void
 
 auto MCSessionScreen::Draw() -> void
 {
-    if (MPlayer == nullptr || MPlayer->SessionManager->CurrentSession == nullptr)
+    if (MultiPlayer() == nullptr || MultiPlayer()->SessionManager->CurrentSession == nullptr)
     {
         return;
     }
@@ -407,19 +407,19 @@ auto MCSessionScreen::Draw() -> void
     MedWhiteFont->WriteString(frame, 0x20e, 199, MissionLabel.empty() ? LoadGameString(0x37f, 0xfe) : MissionLabel);
 
     // Each team's resource points per player.
-    if (MPlayer->ClanGroupID == 0)
+    if (MultiPlayer()->ClanGroupID == 0)
     {
         GlobalLogPtr->DrawScreenChrome(this, frame);
         return;
     }
 
     int32_t players = 1;
-    MCFidpGroup* group = MPlayer->SessionManager->GetGroup(MPlayer->InnerSphereGroupID);
+    MCFidpGroup* group = MultiPlayer()->SessionManager->GetGroup(MultiPlayer()->InnerSphereGroupID);
     int32_t divisor = players;
 
     if (group != nullptr)
     {
-        divisor = group->Players.Count;
+        divisor = static_cast<int32_t>(group->Players.size());
 
         if (divisor == 0)
         {
@@ -428,11 +428,11 @@ auto MCSessionScreen::Draw() -> void
     }
 
     LgWhiteFont->WriteString(frame, 0x157, 0x185, std::format("{}", ReadPoints(*Team1RPText) / divisor));
-    group = MPlayer->SessionManager->GetGroup(MPlayer->ClanGroupID);
+    group = MultiPlayer()->SessionManager->GetGroup(MultiPlayer()->ClanGroupID);
 
     if (group != nullptr)
     {
-        divisor = group->Players.Count;
+        divisor = static_cast<int32_t>(group->Players.size());
         players = divisor;
     }
 
@@ -451,7 +451,7 @@ auto MCSessionScreen::HandleEvent(MCGuiEvent* event) -> void
     {
         if (event->Data == ScreenTimer)
         {
-            if (MPlayer == nullptr)
+            if (MultiPlayer() == nullptr)
             {
                 GuiSystem()->RemoveTimer(this, ScreenTimer);
             }
@@ -462,9 +462,9 @@ auto MCSessionScreen::HandleEvent(MCGuiEvent* event) -> void
                 {
                     if (MCPort::Milliseconds() < _PingUntil)
                     {
-                        if (MPlayer->SessionManager->IsHost == 0)
+                        if (MultiPlayer()->SessionManager->IsHost == 0)
                         {
-                            MPlayer->SessionManager->SendPing();
+                            MultiPlayer()->SessionManager->SendPing();
                         }
                     }
                     else
@@ -478,9 +478,9 @@ auto MCSessionScreen::HandleEvent(MCGuiEvent* event) -> void
                 {
                     Team1RP = ReadPoints(*Team1RPText);
 
-                    if (MPlayer->IsHost != 0)
+                    if (MultiPlayer()->IsHost != 0)
                     {
-                        SendTwoLongs(FIMSG_GUARANTEED | MPMSG_RP_UPDATE, Team1RP, 1);
+                        SendTwoLongs(GuaranteedHeader(MCMPMessageType::RPUpdate), Team1RP, 1);
                     }
                 }
 
@@ -488,9 +488,9 @@ auto MCSessionScreen::HandleEvent(MCGuiEvent* event) -> void
                 {
                     Team2RP = ReadPoints(*Team2RPText);
 
-                    if (MPlayer->IsHost != 0)
+                    if (MultiPlayer()->IsHost != 0)
                     {
-                        SendTwoLongs(FIMSG_GUARANTEED | MPMSG_RP_UPDATE, Team2RP, 2);
+                        SendTwoLongs(GuaranteedHeader(MCMPMessageType::RPUpdate), Team2RP, 2);
                     }
                 }
             }
@@ -531,9 +531,9 @@ auto MCSessionScreen::HandleEvent(MCGuiEvent* event) -> void
 
 auto MCSessionScreen::Activate(bool refresh) -> void
 {
-    const bool isHost = MPlayer->IsHost != 0;
+    const bool isHost = MultiPlayer()->IsHost != 0;
 
-    if (MPlayer->SessionManager->GetPlayers(nullptr)->Count < 2)
+    if (MultiPlayer()->SessionManager->GetPlayers(nullptr).size() < 2)
     {
         Cancel();
         return;
@@ -570,7 +570,7 @@ auto MCSessionScreen::Activate(bool refresh) -> void
 
     if (isHost && !refresh)
     {
-        SendTwoLongs(FIMSG_GUARANTEED | MPMSG_SWITCH_SCREEN, 1, 0);
+        SendTwoLongs(GuaranteedHeader(MCMPMessageType::SwitchScreen), 1, 0);
     }
 
     Team1ISButton->Toggled = true;
@@ -582,13 +582,12 @@ auto MCSessionScreen::Activate(bool refresh) -> void
 
     // The players' ids in ascending order (the empty slots last).
     std::vector<uint32_t> sessionIds;
-    auto* players = MPlayer->SessionManager->GetPlayers(nullptr);
-    NumPlayers = players->Count;
+    const auto& players = MultiPlayer()->SessionManager->GetPlayers(nullptr);
+    NumPlayers = static_cast<int32_t>(players.size());
 
-    // The walk stops at the first link without a player, as the original's did.
-    for (auto* link = players->HeadLink; link != nullptr && link->Data != nullptr; link = link->Next)
+    for (const auto& player : players)
     {
-        sessionIds.push_back(link->Data->Id);
+        sessionIds.push_back(player->Id);
     }
 
     const std::array<uint32_t, MaxPlayers> ids = SortedPlayerIds(sessionIds);
@@ -633,9 +632,9 @@ auto MCSessionScreen::Activate(bool refresh) -> void
             MissionText->FontIndex = 2;
             MissionText->Print(LoadGameString(0xb8, 0xfe), 0x1f);
             MCFIGuaranteedMessageHeader checkIn{};
-            checkIn.Header = FIMSG_GUARANTEED | MPMSG_SESSION_CHECK_IN;
-            MPlayer->SessionManager->SendMessageToGroup(0, &checkIn, sizeof(checkIn));
-            MPlayer->PlayerSessionCheckIn[MPlayer->SessionManager->MyPlayer->PlayerNumber] = -1;
+            checkIn.Header = GuaranteedHeader(MCMPMessageType::SessionCheckIn);
+            MultiPlayer()->SessionManager->SendMessageToGroup(0, &checkIn, sizeof(checkIn));
+            MultiPlayer()->PlayerSessionCheckIn[MultiPlayer()->SessionManager->MyPlayer->PlayerNumber] = -1;
             SomeoneCheckedIn();
         }
     }
@@ -676,7 +675,7 @@ auto MCSessionScreen::Activate(bool refresh) -> void
     }
 
     GuiSystem()->AddTimer(this, ScreenTimer, 500, 0, 0, 0);
-    MPlayer->ChatCallback = LogisticsChatCallback;
+    MultiPlayer()->ChatCallback = LogisticsChatCallback;
 }
 
 auto MCSessionScreen::NameOf(uint32_t playerId) -> MCPlayerNameObject*
@@ -731,13 +730,13 @@ auto MCSessionScreen::AssignPlayer(uint32_t playerId, int8_t team, int8_t slot, 
         }
 
         int32_t index = FindSlot(Team1Players, playerId);
-        uint32_t groupID = MPlayer->InnerSphereGroupID;
+        uint32_t groupID = MultiPlayer()->InnerSphereGroupID;
         std::span<uint32_t> players = Team1Players;
 
         if (index < 0)
         {
             index = FindSlot(Team2Players, playerId);
-            groupID = MPlayer->ClanGroupID;
+            groupID = MultiPlayer()->ClanGroupID;
             players = Team2Players;
         }
 
@@ -745,7 +744,7 @@ auto MCSessionScreen::AssignPlayer(uint32_t playerId, int8_t team, int8_t slot, 
         {
             nameObject->MoveTo(0xb, NumUnassigned * UnassignedRow + UnassignedTop, false);
             players[static_cast<size_t>(index)] = NoPlayer;
-            MPlayer->SessionManager->RemovePlayerFromGroup(groupID, playerId);
+            MultiPlayer()->SessionManager->RemovePlayerFromGroup(groupID, playerId);
             NumUnassigned++;
         }
         else
@@ -768,12 +767,12 @@ auto MCSessionScreen::AssignPlayer(uint32_t playerId, int8_t team, int8_t slot, 
         if (int32_t index = FindSlot(Team1Players, playerId); index >= 0)
         {
             Team1Players[static_cast<size_t>(index)] = NoPlayer;
-            MPlayer->SessionManager->RemovePlayerFromGroup(MPlayer->InnerSphereGroupID, playerId);
+            MultiPlayer()->SessionManager->RemovePlayerFromGroup(MultiPlayer()->InnerSphereGroupID, playerId);
         }
         else if ((index = FindSlot(Team2Players, playerId)) >= 0)
         {
             Team2Players[static_cast<size_t>(index)] = NoPlayer;
-            MPlayer->SessionManager->RemovePlayerFromGroup(MPlayer->ClanGroupID, playerId);
+            MultiPlayer()->SessionManager->RemovePlayerFromGroup(MultiPlayer()->ClanGroupID, playerId);
         }
         else
         {
@@ -781,14 +780,15 @@ auto MCSessionScreen::AssignPlayer(uint32_t playerId, int8_t team, int8_t slot, 
         }
 
         teamPlayers[slotIndex] = playerId;
-        const uint32_t groupID = team == 1 ? MPlayer->InnerSphereGroupID : MPlayer->ClanGroupID;
-        MPlayer->SessionManager->AddPlayerToGroup(groupID, playerId);
+        const uint32_t groupID = team == 1 ? MultiPlayer()->InnerSphereGroupID : MultiPlayer()->ClanGroupID;
+        MultiPlayer()->SessionManager->AddPlayerToGroup(groupID, playerId);
 
-        if (MPlayer->SessionManager->MyPlayer->Id == playerId)
+        if (MultiPlayer()->SessionManager->MyPlayer->Id == playerId)
         {
-            MPlayer->HomeTeam = team == 1 ? 0 : 1;
-            MPlayer->HomeTeamGroupID = groupID;
-            MPlayer->EnemyTeamGroupID = team == 1 ? MPlayer->ClanGroupID : MPlayer->InnerSphereGroupID;
+            MultiPlayer()->HomeTeam = team == 1 ? 0 : 1;
+            MultiPlayer()->HomeTeamGroupID = groupID;
+            MultiPlayer()->EnemyTeamGroupID =
+                team == 1 ? MultiPlayer()->ClanGroupID : MultiPlayer()->InnerSphereGroupID;
         }
 
         nameObject->MoveTo(team == 1 ? 0xf8 : 0x1ba, slot * 0x16 + 0x133, false);
@@ -806,14 +806,14 @@ auto MCSessionScreen::AssignPlayer(uint32_t playerId, int8_t team, int8_t slot, 
         return;
     }
 
-    if (MPlayer->IsHost != 0)
+    if (MultiPlayer()->IsHost != 0)
     {
         MCMPJoinTeamMessage message{};
-        message.Header = FIMSG_GUARANTEED | MPMSG_JOIN_TEAM;
+        message.Header = GuaranteedHeader(MCMPMessageType::JoinTeam);
         message.PlayerID = playerId;
         message.Team = team;
         message.Slot = slot;
-        MPlayer->SessionManager->SendMessageToGroup(0, &message, sizeof(message));
+        MultiPlayer()->SessionManager->SendMessageToGroup(0, &message, sizeof(message));
     }
 
     CheckGoodToGo();
@@ -905,7 +905,7 @@ auto MCSessionScreen::SomeoneCheckedIn() -> void
         }
 
         // Original behaviour: the check-in flags are read by name slot, not by player number.
-        if (MPlayer->PlayerSessionCheckIn[index] == 0)
+        if (MultiPlayer()->PlayerSessionCheckIn[index] == 0)
         {
             allIn = false;
         }
@@ -920,7 +920,7 @@ auto MCSessionScreen::SomeoneCheckedIn() -> void
         MissionText->Clear();
         MissionText->FontIndex = 0;
 
-        if (MPlayer->IsHost != 0)
+        if (MultiPlayer()->IsHost != 0)
         {
             ControlsOn();
         }
@@ -1002,7 +1002,8 @@ auto MCSessionScreen::LoadMission(std::string_view fileName) -> void
     MCPacketFile packetFile;
     MCFitIniFile iniFile;
     MCFile textFile;
-    const std::string path = MPlayer->IsHost == 0 ? GamePath(fileName, "", "") : GamePath(SavePath, fileName, ".mpk");
+    const std::string path =
+        MultiPlayer()->IsHost == 0 ? GamePath(fileName, "", "") : GamePath(SavePath, fileName, ".mpk");
 
     // Reads st name (as the original's 0xfe-character buffer took it).
     auto readText = [&iniFile](std::string_view name, std::string& text) -> int32_t
@@ -1121,7 +1122,7 @@ auto MCSessionScreen::LoadMission(std::string_view fileName) -> void
         }
     }
 
-    if (MPlayer->IsHost != 0)
+    if (MultiPlayer()->IsHost != 0)
     {
         LockControls(iniFile.SeekBlock("Lock") == 0);
     }
@@ -1149,13 +1150,13 @@ auto MCSessionScreen::LoadMission(std::string_view fileName) -> void
 
             Assert(textFile.Eof(), 0, "Error reading MP mission description");
 
-            if (MPlayer->IsHost != 0)
+            if (MultiPlayer()->IsHost != 0)
             {
                 // Ask everyone whether they have the file, and wait for the answers.
                 MissionFile = path;
-                MPlayer->SendFileInquiry(MissionFile.data());
+                MultiPlayer()->SendFileInquiry(MissionFile.data());
                 // The server has it already.
-                const uint32_t serverId = MPlayer->SessionManager->ServerID;
+                const uint32_t serverId = MultiPlayer()->SessionManager->ServerID;
 
                 for (auto& nameObject : PlayerNames)
                 {
@@ -1209,7 +1210,7 @@ auto MCSessionScreen::CancelMission() -> void
 auto MCSessionScreen::FillDpidArray(uint32_t* ids, int32_t* count, bool myTeam) -> void
 {
     // Team 2 when the local player is on it and myTeam is set, or when it isn't and myTeam is clear.
-    const bool onTeam2 = FindSlot(Team2Players, MPlayer->SessionManager->MyPlayer->Id) >= 0;
+    const bool onTeam2 = FindSlot(Team2Players, MultiPlayer()->SessionManager->MyPlayer->Id) >= 0;
     *count = 0;
     const std::array<uint32_t, TeamSlots>& players = myTeam == onTeam2 ? Team2Players : Team1Players;
 
@@ -1227,8 +1228,8 @@ auto MCSessionScreen::CheckGoodToGo() -> void
     auto filled = [](const std::array<uint32_t, TeamSlots>& team)
     { return std::ranges::any_of(team, [](uint32_t id) { return id != NoPlayer; }); };
 
-    const bool goodToGo = NumUnassigned == 0 && !MissionFile.empty() && MPlayer->PlayersOnHomeTeam()->Count != 0 &&
-                          MPlayer->PlayersOnEnemyTeam()->Count != 0 && filled(Team1Players) && filled(Team2Players);
+    const bool goodToGo = NumUnassigned == 0 && !MissionFile.empty() && !MultiPlayer()->PlayersOnHomeTeam()->empty() &&
+                          !MultiPlayer()->PlayersOnEnemyTeam()->empty() && filled(Team1Players) && filled(Team2Players);
     StartButton->Disabled = !goodToGo;
 }
 
@@ -1358,7 +1359,7 @@ auto MCSessionScreen::LockControls(bool lock) -> void
         // A locked mission: fixed points and tech bases (team 1 Inner Sphere, team 2 Clan).
         SetTeamTechBase(1, 1);
         SetTeamTechBase(2, -1);
-        SendTwoLongs(FIMSG_GUARANTEED | MPMSG_TECHBASE_CHANGE, 1, 1);
-        SendTwoLongs(FIMSG_GUARANTEED | MPMSG_TECHBASE_CHANGE, 2, -1);
+        SendTwoLongs(GuaranteedHeader(MCMPMessageType::TechbaseChange), 1, 1);
+        SendTwoLongs(GuaranteedHeader(MCMPMessageType::TechbaseChange), 2, -1);
     }
 }

@@ -39,7 +39,7 @@
 #include "logistics/MCSplashScreen.h"
 #include "logistics/MCTicker.h"
 #include "logistics/MCUnitLimits.h"
-#include "linkup/sessionmanager.h"
+#include "linkup/MCSessionManager.h"
 #include "main/MCLogisticsShared.h"
 #include "main/MCGameSession.h"
 #include "mission/MCScenario.h"
@@ -49,7 +49,8 @@
 #include "main/MCMissionGlobals.h"
 #include "main/MCGameStrings.h"
 #include "mission/MCMission.h"
-#include "network/multplyr.h"
+#include "network/MCMultiPlayer.h"
+#include "main/MCGameContext.h"
 #include "platform/MCDisplay.h"
 #include "platform/MCInput.h"
 #include "platform/MCRegistry.h"
@@ -488,7 +489,7 @@ auto MCLogistics::Start() -> void
 
     ReadyRoomTicks = 0;
 
-    if (LaunchedFromLobby == 0 || MPlayer == nullptr || Turn != 0)
+    if (LaunchedFromLobby == 0 || MultiPlayer() == nullptr || Turn != 0)
     {
         LogisticsState = 1;
         CurrentScreen = MainScreen.get();
@@ -639,15 +640,14 @@ auto MCLogistics::SetUpMainScreen(bool fromMenu) -> int32_t
     LogisticsState = 1;
     ShowLogScreen(true, true);
 
-    if (MPlayer != nullptr)
+    if (MultiPlayer() != nullptr)
     {
         if (MultiplayerInitialized)
         {
             DestroyMultiplayer();
         }
 
-        delete MPlayer;
-        MPlayer = nullptr;
+        MCGameContext::Current().SetMultiPlayer(nullptr);
         MCBriefingScreen* briefing = BriefingScreen.get();
         briefing->ChatBlinking = 0;
 
@@ -736,7 +736,7 @@ auto MCLogistics::SetUpPurchaseScreen(bool animate) -> int32_t
     briefing->StopSmackerMovies();
     GuiSystem()->SetCurrentCursor(static_cast<MCCursorType>(0));
 
-    if (MPlayer != nullptr)
+    if (MultiPlayer() != nullptr)
     {
         if (briefing->ChatBlinking == 0)
         {
@@ -797,7 +797,7 @@ auto MCLogistics::SetUpPurchaseScreen(bool animate) -> int32_t
         }
     }
 
-    if (MPlayer != nullptr)
+    if (MultiPlayer() != nullptr)
     {
         MoveLights(PlayerLights.get(), screen);
     }
@@ -872,7 +872,7 @@ auto MCLogistics::DrawScreenChrome(MCLogObject* screen, MCPane* target) -> void
         // Button 0 is the main menu in single player, exit in multiplayer; the screen's own button is grayed, the one
         // under the mouse lit, and the briefing button blinks while the chat is unread.
         const std::array<const std::array<std::unique_ptr<MCLogPort>, 3>*, 4> ports = {
-            MPlayer == nullptr ? &ScreenButtonPorts[0] : &ScreenButtonPorts[1], &ScreenButtonPorts[2],
+            MultiPlayer() == nullptr ? &ScreenButtonPorts[0] : &ScreenButtonPorts[1], &ScreenButtonPorts[2],
             &ScreenButtonPorts[3], &ScreenButtonPorts[4]};
         const int32_t own = screen == BriefingScreen.get() ? 1 : (screen == PurchaseScreen.get() ? 2 : 3);
 
@@ -945,7 +945,7 @@ auto MCLogistics::SetUpBriefingScreen(bool animate) -> int32_t
     briefing->CalcTonnages();
     DrawScreenButtons();
 
-    if (MPlayer == nullptr)
+    if (MultiPlayer() == nullptr)
     {
         ChatWindow->ShowGuiWindow(0);
     }
@@ -1034,7 +1034,7 @@ auto MCLogistics::SetUpRepairScreen(bool animate) -> int32_t
     GuiSystem()->SetCurrentCursor(static_cast<MCCursorType>(0));
     MCRepairScreen* repair = RepairScreen.get();
 
-    if (MPlayer != nullptr)
+    if (MultiPlayer() != nullptr)
     {
         if (briefing->ChatBlinking == 0)
         {
@@ -1086,7 +1086,7 @@ auto MCLogistics::SetUpRepairScreen(bool animate) -> int32_t
         repair->SelectMech(ForceMechList->Mechs.empty() ? nullptr : ForceMechList->Mechs.front().get());
     }
 
-    if (MPlayer != nullptr)
+    if (MultiPlayer() != nullptr)
     {
         MoveLights(PlayerLights.get(), repair);
     }
@@ -1284,7 +1284,7 @@ auto MyGetUserName() -> std::optional<std::string>
 
 auto CancelBool(int32_t) -> void
 {
-    if (LaunchedFromLobby != 0 && MPlayer != nullptr)
+    if (LaunchedFromLobby != 0 && MultiPlayer() != nullptr)
     {
         KillTheGame();
     }

@@ -4,11 +4,11 @@
 #include "gui/MCGuiFont.h"
 #include "gui/MCGuiGlobals.h"
 #include "lib/MCFatal.h"
-#include "linkup/dpplayer.h"
-#include "linkup/sessionmanager.h"
+#include "linkup/MCFidpPlayer.h"
+#include "linkup/MCSessionManager.h"
 #include "logistics/MCLogChatWindow.h"
 #include "logistics/MCLogToolButton.h"
-#include "network/multplyr.h"
+#include "network/MCMultiPlayer.h"
 #include "vfx/MCVfxFunctions.h"
 
 namespace
@@ -134,23 +134,23 @@ auto MCLogChatInput::HandleEvent(MCGuiEvent* event) -> void
             }
             else if (key == '\r')
             {
-                if (MPlayer != nullptr && TextLength != 0)
+                if (MultiPlayer() != nullptr && TextLength != 0)
                 {
                     auto* chatWindow = static_cast<MCLogChatWindow*>(Parent);
                     int32_t color;
 
                     if (!TeamButton->Toggled)
                     {
-                        MPlayer->SendChat(0, Text.data());
+                        MultiPlayer()->SendChat(0, Text.data());
                         color = 6;
                     }
                     else
                     {
-                        MPlayer->SendChat(MPlayer->HomeTeamGroupID, Text.data());
+                        MultiPlayer()->SendChat(MultiPlayer()->HomeTeamGroupID, Text.data());
                         color = 4;
                     }
 
-                    chatWindow->ProcessChatString(MPlayer->SessionManager->MyPlayer->Id, Text.data(), color);
+                    chatWindow->ProcessChatString(MultiPlayer()->SessionManager->MyPlayer->Id, Text.data(), color);
                 }
 
                 std::ranges::fill(Text, '\0');

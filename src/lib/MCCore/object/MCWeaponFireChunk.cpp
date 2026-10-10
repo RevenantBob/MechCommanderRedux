@@ -2,7 +2,7 @@
 #include "object/MCWeaponFireChunk.h"
 #include "ai/MCMoveSystem.h"
 #include "lib/MCFatal.h"
-#include "network/multplyr.h"
+#include "network/MCMultiPlayer.h"
 #include "object/MCBigGameObject.h"
 #include "object/MCWeaponChunkDebug.h"
 #include "object/MCWeaponShotInfo.h"
@@ -43,7 +43,7 @@ auto MCWeaponFireChunk::BuildMoverTarget(MCBigGameObject* target, int32_t weapon
     NumMissiles = static_cast<int8_t>(missiles);
     NumAntiMissileShots = static_cast<int8_t>(antiMissileShots);
     HitLocation = static_cast<int8_t>(location);
-    Assert(rosterIndex >= 0 && rosterIndex < MPlayer->NumMovers, rosterIndex,
+    Assert(rosterIndex >= 0 && rosterIndex < MultiPlayer()->NumMovers, rosterIndex,
            " WeaponFireChunk.buildMoverTarget: bad targetId ");
     Assert(WeaponIndex < 0x20, WeaponIndex, " WeaponFireChunk.buildMoverTarget: bad weaponIndex ");
     Assert(NumMissiles >= 0 && NumMissiles <= 15, NumMissiles, " WeaponFireChunk.buildMoverTarget: bad numMissiles ");

@@ -16,7 +16,7 @@
 #include "mission/MCMissionResultsScreen.h"
 #include "mission/MCScenario.h"
 #include "logistics/MCConnectMenu.h"
-#include "network/multplyr.h"
+#include "network/MCMultiPlayer.h"
 #include "object/MCTeam.h"
 #include "sound/MCSoundSystem.h"
 #include "terrain/MCTacticalMap.h"
@@ -84,7 +84,7 @@ namespace
     /// <summary>Whether a cheat key may work: in a single-player scenario with cheats on.</summary>
     bool SinglePlayerCheats()
     {
-        return Scenario() != nullptr && CheatsOn && MPlayer == nullptr;
+        return Scenario() != nullptr && CheatsOn && MultiPlayer() == nullptr;
     }
 
     /// <summary>Whether the mouse buttons were down when <see cref="CheckMouse"/> last looked.</summary>
@@ -150,7 +150,7 @@ namespace
                 break;
             case VK_PAUSE:
             {
-                if (Scenario() != nullptr && MPlayer == nullptr && Turn > 0)
+                if (Scenario() != nullptr && MultiPlayer() == nullptr && Turn > 0)
                 {
                     GamePaused = !GamePaused;
                 }
@@ -167,7 +167,7 @@ namespace
                 if (Scenario() != nullptr && EventsToMissionResultsScreen == 0 && Scenario()->StartingUp == 0 &&
                     Scenario()->StartUpTurns < Turn)
                 {
-                    if (MPlayer == nullptr)
+                    if (MultiPlayer() == nullptr)
                     {
                         GamePaused = !GamePaused;
                     }
@@ -289,7 +289,7 @@ namespace
             AndyFramerate = !AndyFramerate;
         }
 
-        if (Scenario() == nullptr || Turn <= 0 || MPlayer != nullptr)
+        if (Scenario() == nullptr || Turn <= 0 || MultiPlayer() != nullptr)
         {
             return;
         }
@@ -888,7 +888,7 @@ auto WindowProc(uint32_t message, uint32_t wParam, int32_t lParam) -> int32_t
         {
             gui->CloseMovie();
 
-            if (MPlayer == nullptr)
+            if (MultiPlayer() == nullptr)
             {
                 ApplicationActive = wParam != 0;
             }

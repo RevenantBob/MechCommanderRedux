@@ -3,7 +3,7 @@
 #include "lib/MCFile.h"
 #include "lib/MCFitIniFile.h"
 #include "main/MCGamePaths.h"
-#include "network/multplyr.h"
+#include "network/MCMultiPlayer.h"
 #include "object/MCMiscTerrainObject.h"
 #include "object/MCWeaponShotInfo.h"
 #include "terrain/MCTerrain.h"
@@ -113,11 +113,11 @@ auto MCMiscTerrainObjectType::HandleCollision(MCGameObject* collidee, MCGameObje
         MCWeaponShotInfo shot;
         shot.Init(collider, -1, 250.0f, 0, 0.0f);
 
-        if (MPlayer == nullptr)
+        if (MultiPlayer() == nullptr)
         {
             collidee->HandleWeaponHit(&shot, 0);
         }
-        else if (MPlayer->IsServer != 0)
+        else if (MultiPlayer()->IsServer != 0)
         {
             collidee->HandleWeaponHit(&shot, 1);
         }

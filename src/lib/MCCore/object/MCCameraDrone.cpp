@@ -7,7 +7,7 @@
 #include "camera/MCCamera.h"
 #include "main/MCMissionGlobals.h"
 #include "mission/MCScenario.h"
-#include "network/multplyr.h"
+#include "network/MCMultiPlayer.h"
 #include "object/MCCameraDroneType.h"
 #include "object/MCMechGameSystem.h"
 #include "object/MCMoverMath.h"
@@ -226,7 +226,7 @@ auto MCCameraDrone::HandleWeaponHit(MCWeaponShotInfo* shotInfo, int addMultiplay
 
     if (addMultiplayChunk != 0)
     {
-        MPlayer->AddWeaponHitChunk(this, shotInfo, 0);
+        MultiPlayer()->AddWeaponHitChunk(this, shotInfo, 0);
     }
 
     if (IsDestroyed() == 0 && 0.0f < shotInfo->Damage)

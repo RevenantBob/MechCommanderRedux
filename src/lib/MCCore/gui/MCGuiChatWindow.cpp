@@ -1,16 +1,17 @@
 #include "stdafx.h"
+#include "main/MCMissionGlobals.h"
 #include "gui/MCGuiChatWindow.h"
 #include "gui/MCGuiButton.h"
 #include "gui/MCGuiFont.h"
 #include "gui/MCGuiSystem.h"
 #include "iface/MCTacticalInterface.h"
 #include "lib/MCFatal.h"
-#include "linkup/dpmessage.h"
-#include "linkup/dpplayer.h"
-#include "linkup/sessionmanager.h"
+#include "linkup/MCFidpMessage.h"
+#include "linkup/MCFidpPlayer.h"
+#include "linkup/MCSessionManager.h"
 #include "mission/MCMission.h"
 #include "mission/MCScenario.h"
-#include "network/multplyr.h"
+#include "network/MCMultiPlayer.h"
 #include "terrain/MCTacticalMap.h"
 #include "terrain/MCTerrain.h"
 #include "vfx/MCVfxFunctions.h"
@@ -36,11 +37,11 @@ namespace
     }
 }
 
-auto ScenarioChatCallback(MCFidpMessage* message, void*) -> void
+auto ScenarioChatCallback(MCFidpMessage& message) -> void
 {
     if (TacticalMap() != nullptr)
     {
-        TacticalMap()->HandleChatMessage(message->FromID, message->MessageBuffer);
+        TacticalMap()->HandleChatMessage(message.FromID, message.MessageBuffer());
     }
 }
 
@@ -185,23 +186,23 @@ auto MCGuiChatInput::HandleEvent(MCGuiEvent* event) -> void
                     break;
                 }
 
-                if (MPlayer != nullptr && !Text.empty())
+                if (MultiPlayer() != nullptr && !Text.empty())
                 {
                     auto* chatWindow = static_cast<MCGuiChatWindow*>(Parent);
                     int32_t color;
 
                     if (!TeamButton->Pushed)
                     {
-                        MPlayer->SendChat(0, Text.data());
+                        MultiPlayer()->SendChat(0, Text.data());
                         color = 6;
                     }
                     else
                     {
-                        MPlayer->SendChat(MPlayer->HomeTeamGroupID, Text.data());
+                        MultiPlayer()->SendChat(MultiPlayer()->HomeTeamGroupID, Text.data());
                         color = 4;
                     }
 
-                    chatWindow->ProcessChatString(MPlayer->SessionManager->MyPlayer->Id, Text, color);
+                    chatWindow->ProcessChatString(MultiPlayer()->SessionManager->MyPlayer->Id, Text, color);
                 }
 
                 Text.clear();
@@ -322,7 +323,7 @@ auto MCGuiChatWindow::ProcessChatString(uint32_t playerId, std::string_view text
 
     if (playerId != 0)
     {
-        const auto* player = MPlayer->SessionManager->GetPlayer(playerId);
+        const auto* player = MultiPlayer()->SessionManager->GetPlayer(playerId);
         name = player->Name;
         playerNumber = player->PlayerNumber;
     }

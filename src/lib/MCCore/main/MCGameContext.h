@@ -16,6 +16,7 @@ class MCForces;
 class MCGuiSystem;
 class MCMission;
 class MCMoveSystem;
+class MCMultiPlayer;
 class MCObjectSystem;
 class MCPalette;
 class MCScenario;
@@ -129,6 +130,9 @@ public:
 
     /// <summary>The current battle (null outside one).</summary>
     MCScenario* Scenario() const;
+
+    /// <summary>The multiplayer game (null in a single-player game).</summary>
+    MCMultiPlayer* MultiPlayer() const;
 
     /// <summary>The player's command interface (null before the GUI's start-up makes it).</summary>
     MCTacticalInterface* TacticalInterface() const;
@@ -250,6 +254,10 @@ public:
     /// <returns>The scenario this context had.</returns>
     std::unique_ptr<MCScenario> SetScenario(std::unique_ptr<MCScenario> scenario);
 
+    /// <summary>Gives this context its own multiplayer game (null: the one it was installed over, if any).</summary>
+    /// <returns>The game this context had.</returns>
+    std::unique_ptr<MCMultiPlayer> SetMultiPlayer(std::unique_ptr<MCMultiPlayer> multiPlayer);
+
     /// <summary>Gives this context its own tactical interface (null: the one it was installed over, if any).</summary>
     /// <returns>The interface this context had.</returns>
     std::unique_ptr<MCTacticalInterface> SetTacticalInterface(std::unique_ptr<MCTacticalInterface> tacticalInterface);
@@ -305,6 +313,8 @@ private:
     std::unique_ptr<MCScenario> _Scenario;
     /// <summary>Goes right after the scenario (with it gone, its results screen doesn't end it again).</summary>
     std::unique_ptr<MCMission> _Mission;
+    /// <summary>Goes after the mission (its end reaches for the game), before the systems its handlers use.</summary>
+    std::unique_ptr<MCMultiPlayer> _MultiPlayer;
     /// <summary>Goes after the objects (a mover going takes itself off the mech bar), before the other systems.</summary>
     std::unique_ptr<MCTacticalInterface> _TacticalInterface;
     /// <summary>Goes after every system holding GUI objects (they take themselves off it as they go).</summary>

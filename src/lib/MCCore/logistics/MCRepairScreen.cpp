@@ -25,7 +25,7 @@
 #include "logistics/MCPurProfile.h"
 #include "main/MCLogistics.h"
 #include "main/MCGameStrings.h"
-#include "network/multplyr.h"
+#include "network/MCMultiPlayer.h"
 #include "platform/MCInput.h"
 #include "vfx/MCVfxFunctions.h"
 #include "logistics/MCBriefingScreen.h"
@@ -375,7 +375,7 @@ auto MCRepairScreen::HandleEvent(MCGuiEvent* event) -> void
 
         if (inside(2, 0x10, 0xd1, 0x21))
         {
-            if (MPlayer != nullptr)
+            if (MultiPlayer() != nullptr)
             {
                 CheckExit();
                 return;
@@ -425,7 +425,7 @@ auto MCRepairScreen::HandleEvent(MCGuiEvent* event) -> void
     {
         const bool ctrlAlt = MCInput::GetAsyncKeyState(VK_CONTROL) != 0 && MCInput::GetAsyncKeyState(VK_MENU) != 0;
 
-        if (MPlayer == nullptr && static_cast<int32_t>(key) == ResourceCheatKey && ctrlAlt)
+        if (MultiPlayer() == nullptr && static_cast<int32_t>(key) == ResourceCheatKey && ctrlAlt)
         {
             ResourcePoints += ResourceCheatPoints;
         }

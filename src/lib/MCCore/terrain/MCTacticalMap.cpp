@@ -17,7 +17,7 @@
 #include "main/MCMissionGlobals.h"
 #include "main/MCGameStrings.h"
 #include "mission/MCScenario.h"
-#include "network/multplyr.h"
+#include "network/MCMultiPlayer.h"
 #include "object/MCBigGameObject.h"
 #include "object/MCGroundVehicle.h"
 #include "object/MCGroundVehicleType.h"
@@ -671,7 +671,7 @@ auto MCTacticalMap::Init(int32_t xPos, int32_t yPos) -> int32_t
         return result;
     }
 
-    if (MPlayer == nullptr)
+    if (MultiPlayer() == nullptr)
     {
         SalvageBackground = MissionBackground.get();
     }
@@ -698,7 +698,7 @@ auto MCTacticalMap::Init(int32_t xPos, int32_t yPos) -> int32_t
     TabStrip->SetDrawsLive();
     TabStrip->Init(Width(), 4, 0xc, 0xe7, nullptr);
 
-    if (MPlayer == nullptr)
+    if (MultiPlayer() == nullptr)
     {
         TabStrip->SetBackground(const_cast<char*>("mfdmts01.tga"));
     }
@@ -1429,7 +1429,7 @@ auto MCTacticalMap::Display() -> void
             }
             case MCTacmapPage::Salvage:
             {
-                if (MPlayer == nullptr && MCPort::Milliseconds() > LastRefreshTime + 500)
+                if (MultiPlayer() == nullptr && MCPort::Milliseconds() > LastRefreshTime + 500)
                 {
                     LastRefreshTime = MCPort::Milliseconds();
                     UpdateSalvage();
@@ -1667,7 +1667,7 @@ auto MCTacticalMap::SetDisplayType(MCTacmapPage type) -> void
     // Hide every page's parts, then show the new page's.
     SalvageText->ShowGuiWindow(0);
 
-    if (MPlayer != nullptr)
+    if (MultiPlayer() != nullptr)
     {
         ChatWindow->ShowGuiWindow(0);
 
@@ -1702,7 +1702,7 @@ auto MCTacticalMap::SetDisplayType(MCTacmapPage type) -> void
                 TabBottom->SetBackground(const_cast<char*>("mfdmts02.tga"));
             }
 
-            TabStrip->SetBackground(const_cast<char*>(MPlayer == nullptr ? "mfdmts01.tga" : "mfdmts03.tga"));
+            TabStrip->SetBackground(const_cast<char*>(MultiPlayer() == nullptr ? "mfdmts01.tga" : "mfdmts03.tga"));
             TabHighlighted = false;
             // (The original copied the page's background into the MFD's picture here; draw shows it each frame.)
 
@@ -1727,7 +1727,7 @@ auto MCTacticalMap::SetDisplayType(MCTacmapPage type) -> void
                 TabBottom->SetBackground(const_cast<char*>("mfddts02.tga"));
             }
 
-            TabStrip->SetBackground(const_cast<char*>(MPlayer == nullptr ? "mfddts01.tga" : "mfddts03.tga"));
+            TabStrip->SetBackground(const_cast<char*>(MultiPlayer() == nullptr ? "mfddts01.tga" : "mfddts03.tga"));
             TabHighlighted = false;
 
             // (The original wiped the picture without a unit, and copied the page's background; draw does both.)
@@ -1752,7 +1752,7 @@ auto MCTacticalMap::SetDisplayType(MCTacmapPage type) -> void
                 TabBottom->SetBackground(const_cast<char*>("mfdbts02.tga"));
             }
 
-            TabStrip->SetBackground(const_cast<char*>(MPlayer == nullptr ? "mfdbts01.tga" : "mfdbts03.tga"));
+            TabStrip->SetBackground(const_cast<char*>(MultiPlayer() == nullptr ? "mfdbts01.tga" : "mfdbts03.tga"));
             TabHighlighted = false;
             InfoText->MoveTo(5, 0x22, 0);
             InfoText->Resize(0x76, 0xb8);
@@ -1766,10 +1766,10 @@ auto MCTacticalMap::SetDisplayType(MCTacmapPage type) -> void
         case MCTacmapPage::Salvage:
         {
             TabBottom->SetBackground(const_cast<char*>("mfdsts02.tga"));
-            TabStrip->SetBackground(const_cast<char*>(MPlayer == nullptr ? "mfdsts01.tga" : "mfdsts03.tga"));
+            TabStrip->SetBackground(const_cast<char*>(MultiPlayer() == nullptr ? "mfdsts01.tga" : "mfdsts03.tga"));
             TabHighlighted = true;
 
-            if (MPlayer == nullptr)
+            if (MultiPlayer() == nullptr)
             {
                 SalvageText->ShowGuiWindow(true);
                 RefreshSalvageList();
@@ -1887,7 +1887,7 @@ auto MCTacticalMap::AddSalvage(MCGameObject* obj) -> int
         return -1;
     }
 
-    if (MPlayer == nullptr && obj->IsBuilding() != 0)
+    if (MultiPlayer() == nullptr && obj->IsBuilding() != 0)
     {
         SoundSystem()->PlayBettySample(2);
     }

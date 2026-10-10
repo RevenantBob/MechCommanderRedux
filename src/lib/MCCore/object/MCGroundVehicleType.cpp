@@ -10,7 +10,7 @@
 #include "lib/MCFitIniFile.h"
 #include "main/MCMissionGlobals.h"
 #include "mission/MCScenario.h"
-#include "network/multplyr.h"
+#include "network/MCMultiPlayer.h"
 #include "object/MCAIControl.h"
 #include "object/MCArtillery.h"
 #include "object/MCArtilleryType.h"
@@ -69,7 +69,7 @@ namespace
         const float entryAngle = victim->RelFacingTo(shooter->GetPosition(), -1);
         MCWeaponShotInfo shotInfo;
         shotInfo.Init(shooter, -1, damage, hitLocation, entryAngle);
-        victim->HandleWeaponHit(&shotInfo, MPlayer != nullptr);
+        victim->HandleWeaponHit(&shotInfo, MultiPlayer() != nullptr);
     }
 }
 
@@ -207,7 +207,7 @@ auto MCGroundVehicleType::Init(MCFile* objFile, uint32_t fileSize) -> int32_t
 
 auto MCGroundVehicleType::HandleCollision(MCGameObject* collidee, MCGameObject* collider) -> int
 {
-    if (MPlayer != nullptr && MPlayer->IsServer == 0)
+    if (MultiPlayer() != nullptr && MultiPlayer()->IsServer == 0)
     {
         return 0;
     }

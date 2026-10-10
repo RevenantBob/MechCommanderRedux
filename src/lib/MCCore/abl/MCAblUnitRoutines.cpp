@@ -11,7 +11,7 @@
 #include "lib/MCVector2D.h"
 #include "main/MCMissionGlobals.h"
 #include "mission/MCScenario.h"
-#include "network/multplyr.h"
+#include "network/MCMultiPlayer.h"
 #include "object/MCArtillery.h"
 #include "object/MCArtilleryType.h"
 #include "object/MCArtilleryChunk.h"

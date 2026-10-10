@@ -481,7 +481,7 @@ void BackToSessionBool(int32_t answer);
 void LostPlayerHandler(int32_t answer);
 
 /// <summary>The multiplayer chat handler while in logistics.</summary>
-void LogisticsChatCallback(MCFidpMessage* message, void* data);
+void LogisticsChatCallback(MCFidpMessage& message);
 
 /// <summary>The logistics screens while they exist (a view: <c>Mission()-&gt;Logistics</c> owns them).</summary>
 extern MCLogistics* GlobalLogPtr;

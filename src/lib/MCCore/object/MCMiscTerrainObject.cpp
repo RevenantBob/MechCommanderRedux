@@ -8,7 +8,7 @@
 #include "engine/MCPolygonElement.h"
 #include "engine/MCVfxElement.h"
 #include "lib/MCFatal.h"
-#include "network/multplyr.h"
+#include "network/MCMultiPlayer.h"
 #include "object/MCMiscTerrainObjectType.h"
 #include "object/MCObjectDrawing.h"
 #include "object/MCObjectEvent.h"
@@ -457,11 +457,11 @@ auto MCMiscTerrainObject::LightOnFire(float timeToBurn) -> void
     MCWeaponShotInfo shot;
     shot.Init(nullptr, -1, 1.0f, 0, 0.0f);
 
-    if (MPlayer == nullptr)
+    if (MultiPlayer() == nullptr)
     {
         HandleWeaponHit(&shot, 0);
     }
-    else if (MPlayer->IsServer != 0)
+    else if (MultiPlayer()->IsServer != 0)
     {
         HandleWeaponHit(&shot, 1);
     }
@@ -510,7 +510,7 @@ auto MCMiscTerrainObject::HandleWeaponHit(MCWeaponShotInfo* shotInfo, int addMul
 
     if (addMultiplayChunk != 0)
     {
-        MPlayer->AddWeaponHitChunk(this, shotInfo, 0);
+        MultiPlayer()->AddWeaponHitChunk(this, shotInfo, 0);
     }
 
     if (Destroyed)

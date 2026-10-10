@@ -19,7 +19,7 @@
 #include "lib/MCFitIniFile.h"
 #include "main/MCMissionGlobals.h"
 #include "mission/MCScenario.h"
-#include "network/multplyr.h"
+#include "network/MCMultiPlayer.h"
 #include "object/MCAIControl.h"
 #include "object/MCArtillery.h"
 #include "object/MCArtilleryType.h"

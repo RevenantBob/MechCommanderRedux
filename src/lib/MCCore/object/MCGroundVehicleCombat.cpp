@@ -8,7 +8,7 @@
 #include "lib/MCFatal.h"
 #include "main/MCMissionGlobals.h"
 #include "mission/MCScenario.h"
-#include "network/multplyr.h"
+#include "network/MCMultiPlayer.h"
 #include "object/MCAIControl.h"
 #include "object/MCArtillery.h"
 #include "object/MCArtilleryType.h"
@@ -113,7 +113,7 @@ auto MCGroundVehicle::DestroyBodyLocation(int32_t location) -> void
 
 auto MCGroundVehicle::CalcCriticalHitV(int32_t& hitLocation) -> int
 {
-    if (MPlayer != nullptr && MPlayer->IsServer == 0)
+    if (MultiPlayer() != nullptr && MultiPlayer()->IsServer == 0)
     {
         return 0;
     }
@@ -132,7 +132,7 @@ auto MCGroundVehicle::CalcCriticalHitV(int32_t& hitLocation) -> int
         hitLocation++;
     } while (hitLocation < 11);
 
-    if (MPlayer != nullptr)
+    if (MultiPlayer() != nullptr)
     {
         AddCriticalHitChunk(0, 0, hitLocation);
     }
@@ -253,14 +253,14 @@ namespace
 
 auto MCGroundVehicle::HandleWeaponHit(MCWeaponShotInfo* shotInfo, int addMultiplayChunk) -> int32_t
 {
-    if ((MPlayer == nullptr && CantHitMe != 0 && Pilot->OnHomeTeam() != 0) || shotInfo == nullptr)
+    if ((MultiPlayer() == nullptr && CantHitMe != 0 && Pilot->OnHomeTeam() != 0) || shotInfo == nullptr)
     {
         return 0;
     }
 
     if (addMultiplayChunk != 0)
     {
-        MPlayer->AddWeaponHitChunk(this, shotInfo, 0);
+        MultiPlayer()->AddWeaponHitChunk(this, shotInfo, 0);
     }
 
     if (shotInfo->Damage <= 0.0f)
@@ -622,7 +622,7 @@ auto MCGroundVehicle::FireWeapon(MCGameObject* target, float targetTime, int32_t
 
     const int32_t inRange = WeaponInRange(weaponIndex, distance);
 
-    if ((MPlayer == nullptr || MPlayer->IsServer != 0) && inRange == 0)
+    if ((MultiPlayer() == nullptr || MultiPlayer()->IsServer != 0) && inRange == 0)
     {
         return 4;
     }
@@ -779,7 +779,7 @@ auto MCGroundVehicle::FireWeapon(MCGameObject* target, float targetTime, int32_t
                 shot.Init(this, item.MasterID, fired.Damage * static_cast<float>(missilesLeft), hitLocation,
                           entryAngle);
 
-                if (MPlayer != nullptr && MPlayer->IsServer != 0)
+                if (MultiPlayer() != nullptr && MultiPlayer()->IsServer != 0)
                 {
                     SendTargetFireChunk(this, target, targetPoint, chunkWeapon, 1, entryAngle, missiles, missilesLeft,
                                         antiMissileShots, hitLocation, badChunk);
@@ -808,7 +808,7 @@ auto MCGroundVehicle::FireWeapon(MCGameObject* target, float targetTime, int32_t
             MCWeaponShotInfo shot;
             shot.Init(this, item.MasterID, fired.Damage, hitLocation, entryAngle);
 
-            if (MPlayer != nullptr && MPlayer->IsServer != 0)
+            if (MultiPlayer() != nullptr && MultiPlayer()->IsServer != 0)
             {
                 SendTargetFireChunk(this, target, targetPoint, chunkWeapon, 1, entryAngle, 0, 0, 0, hitLocation,
                                     badChunk);
@@ -857,7 +857,7 @@ auto MCGroundVehicle::FireWeapon(MCGameObject* target, float targetTime, int32_t
                 shot.Init(this, item.MasterID, fired.Damage * static_cast<float>(missiles), -1, entryAngle);
                 MCVector3D landing = MissPoint(target, targetPoint, scatter, 1);
 
-                if (MPlayer != nullptr && MPlayer->IsServer != 0)
+                if (MultiPlayer() != nullptr && MultiPlayer()->IsServer != 0)
                 {
                     SendTargetFireChunk(this, nullptr, &landing, chunkWeapon, 0, 0.0f, missiles, 0, 0, 0, badMissChunk);
                 }
@@ -872,7 +872,7 @@ auto MCGroundVehicle::FireWeapon(MCGameObject* target, float targetTime, int32_t
             std::unique_ptr<MCGameObject> fx = CreateWeaponFX(fired);
             MCVector3D landing = MissPoint(target, targetPoint, scatter, 0);
 
-            if (MPlayer != nullptr && MPlayer->IsServer != 0)
+            if (MultiPlayer() != nullptr && MultiPlayer()->IsServer != 0)
             {
                 SendTargetFireChunk(this, nullptr, &landing, chunkWeapon, 0, 0.0f, 0, 0, 0, 0, badMissChunk);
             }

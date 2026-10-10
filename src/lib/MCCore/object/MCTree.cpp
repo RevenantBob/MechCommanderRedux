@@ -7,7 +7,7 @@
 #include "engine/MCVfxElement.h"
 #include "lib/MCFatal.h"
 #include "main/MCMissionGlobals.h"
-#include "network/multplyr.h"
+#include "network/MCMultiPlayer.h"
 #include "object/MCCollisionSystem.h"
 #include "object/MCObjectDrawing.h"
 #include "object/MCObjectEvent.h"
@@ -146,11 +146,11 @@ auto MCTree::LightOnFire(float timeToBurn) -> void
     MCWeaponShotInfo shot;
     shot.Init(nullptr, -1, 25.0f, 0, 0.0f);
 
-    if (MPlayer == nullptr)
+    if (MultiPlayer() == nullptr)
     {
         HandleWeaponHit(&shot, 0);
     }
-    else if (MPlayer->IsServer != 0)
+    else if (MultiPlayer()->IsServer != 0)
     {
         HandleWeaponHit(&shot, 1);
     }
@@ -288,7 +288,7 @@ auto MCTree::HandleWeaponHit(MCWeaponShotInfo* shotInfo, int addMultiplayChunk) 
 
     if (addMultiplayChunk != 0)
     {
-        MPlayer->AddWeaponHitChunk(this, shotInfo, 0);
+        MultiPlayer()->AddWeaponHitChunk(this, shotInfo, 0);
     }
 
     // Any hit burns the tree: standing to burnt, fallen to fallen burnt.

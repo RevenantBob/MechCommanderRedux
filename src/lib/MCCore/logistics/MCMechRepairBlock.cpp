@@ -17,7 +17,7 @@
 #include "logistics/MCUnitLimits.h"
 #include "main/MCLogistics.h"
 #include "main/MCGameStrings.h"
-#include "network/multplyr.h"
+#include "network/MCMultiPlayer.h"
 #include "object/MCMasterComponent.h"
 #include "sound/MCSoundSystem.h"
 #include "vfx/MCVfxFunctions.h"
@@ -299,7 +299,7 @@ auto MCMechRepairBlock::UndeployMech() -> void
                 continue;
             }
 
-            if (MPlayer != nullptr)
+            if (MultiPlayer() != nullptr)
             {
                 GlobalLogPtr->SendRemoveForceMessage(lance, slot);
             }
@@ -581,7 +581,7 @@ auto MCMechRepairBlock::HandleEvent(MCGuiEvent* event) -> void
         return;
     }
 
-    if (MPlayer != nullptr)
+    if (MultiPlayer() != nullptr)
     {
         return;
     }
@@ -1390,7 +1390,7 @@ auto MCMechRepairBlock::StructureDamaged() const -> bool
 auto MCMechRepairBlock::ShowsInventory() const -> bool
 {
     // In multiplayer, only the player's own mechs (and the one in the briefing box) list their weapons.
-    return MPlayer == nullptr || GlobalLogPtr->ForceMechList->GetMechIndex(Mech) >= 0 ||
+    return MultiPlayer() == nullptr || GlobalLogPtr->ForceMechList->GetMechIndex(Mech) >= 0 ||
            Mech->BriefingBox.get() == GlobalLogPtr->BriefingScreen->BriefingBox;
 }
 
@@ -2188,7 +2188,7 @@ auto MCMechRepairBlock::RepairInternal(int32_t points) -> void
 
 auto MCMechRepairBlock::SetInventory(MCScrollPane* pane) -> void
 {
-    if (MPlayer != nullptr && GlobalLogPtr->ForceMechList->GetMechIndex(Mech) < 0 &&
+    if (MultiPlayer() != nullptr && GlobalLogPtr->ForceMechList->GetMechIndex(Mech) < 0 &&
         Mech->BriefingBox.get() != GlobalLogPtr->BriefingScreen->BriefingBox)
     {
         return;

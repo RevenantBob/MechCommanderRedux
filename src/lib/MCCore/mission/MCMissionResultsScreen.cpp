@@ -1,4 +1,5 @@
 #include "stdafx.h"
+#include "main/MCMissionGlobals.h"
 #include "mission/MCMissionResultsScreen.h"
 #include "lib/MCFatal.h"
 #include "logistics/MCInventoryBlock.h"
@@ -17,12 +18,12 @@
 #include "gui/MCUpdateDisplay.h"
 #include "iface/MCFriendlyMechIcon.h"
 #include "iface/MCTacticalInterface.h"
-#include "linkup/dpplayer.h"
-#include "linkup/sessionmanager.h"
+#include "linkup/MCFidpPlayer.h"
+#include "linkup/MCSessionManager.h"
 #include "main/MCGameStrings.h"
 #include "mission/MCMission.h"
 #include "mission/MCScenario.h"
-#include "network/multplyr.h"
+#include "network/MCMultiPlayer.h"
 #include "object/MCForces.h"
 #include "object/MCMechWarrior.h"
 #include "object/MCMover.h"
@@ -178,7 +179,7 @@ auto MCMissionResultsScreen::Init() -> int32_t
     int32_t result = MCGuiObject::Init(0x28, 0xf, 0x230, 0x1bc, nullptr);
     Assert(result == 0, static_cast<uint32_t>(result), " error initializing mission results screen display elements ");
     // (The original loaded the art into the window's own picture.)
-    result = SetBackground(const_cast<char*>(MPlayer == nullptr ? "mr_bkgd.tga" : "mrm_bkgd.tga"));
+    result = SetBackground(const_cast<char*>(MultiPlayer() == nullptr ? "mr_bkgd.tga" : "mrm_bkgd.tga"));
     Assert(result == 0, static_cast<uint32_t>(result), " error initializing mission results screen display elements ");
 
     // The original drops this init's result.
@@ -193,7 +194,7 @@ auto MCMissionResultsScreen::Init() -> int32_t
     _MoveOnButton->SetEventRoutine(MoveOnButtonHandleEvent);
     _MoveOnButton->SetTransparent(1);
 
-    if (MPlayer != nullptr)
+    if (MultiPlayer() != nullptr)
     {
         MCGuiOwned<MCGuiToolButton> switchButton = MCMakeGui<MCGuiToolButton>();
         switchButton->Init(0xe4, 0x1e, 0x148, 0xb, nullptr);
@@ -215,7 +216,7 @@ auto MCMissionResultsScreen::Init() -> int32_t
     Assert(result == 0, static_cast<uint32_t>(result), " error initializing mission results screen display elements ");
     _NextDrawTime = 0;
 
-    if (MPlayer == nullptr)
+    if (MultiPlayer() == nullptr)
     {
         // (The original loaded the pictures into the objects' own ports.)
         const auto makeScrollButton = [this](const char* picture, int32_t x, int32_t y)
@@ -294,7 +295,7 @@ auto MCMissionResultsScreen::Destroy() -> void
 
 auto MCMissionResultsScreen::MouseWheel(int32_t steps, int32_t xPos, int32_t yPos) -> bool
 {
-    if (MPlayer != nullptr || _TextObject == nullptr)
+    if (MultiPlayer() != nullptr || _TextObject == nullptr)
     {
         return false;
     }
@@ -310,7 +311,7 @@ auto MCMissionResultsScreen::HandleEvent(MCGuiEvent* event) -> void
     {
         case MouseDownEvent:
         {
-            if (MPlayer != nullptr)
+            if (MultiPlayer() != nullptr)
             {
                 break;
             }
@@ -422,7 +423,7 @@ auto MCMissionResultsScreen::Display() -> void
     vertices[3].Y = GuiSystem()->Height() - 1;
     VfxTranslatePolygon(ScreenPort()->Frame(), std::span(vertices, 4), hazePalette);
 
-    if (MPlayer == nullptr)
+    if (MultiPlayer() == nullptr)
     {
         while (_NextDrawTime != 0 && (_NextDrawTime <= MouseTicks || _SkipAnimation))
         {
@@ -476,7 +477,7 @@ auto MCMissionResultsScreen::Draw() -> void
         _MoveOnPort->CopyTo(Port()->Frame(), 4, 4, 1);
     }
 
-    if (MPlayer == nullptr)
+    if (MultiPlayer() == nullptr)
     {
         DrawResourcePoints();
         DrawStatistics();
@@ -558,7 +559,7 @@ auto MCMissionResultsScreen::ShowsTonnageBonus() const -> bool
 {
     const MCScenario* scenario = Scenario();
     const MCScenarioObjective& bonus = scenario->Objectives[scenario->Objectives.Count()];
-    return MPlayer == nullptr && bonus.Type == MCScenarioObjective::TonnageBonus && bonus.Points > 0 &&
+    return MultiPlayer() == nullptr && bonus.Type == MCScenarioObjective::TonnageBonus && bonus.Points > 0 &&
            ScenarioResult > 3 && Solo == 0;
 }
 
@@ -586,7 +587,7 @@ auto MCMissionResultsScreen::StepObjectives() -> void
         _StepIndex++;
     }
 
-    if (drew && MPlayer == nullptr)
+    if (drew && MultiPlayer() == nullptr)
     {
         if (!_SkipAnimation)
         {
@@ -724,7 +725,7 @@ auto MCMissionResultsScreen::DrawObjectiveList() -> void
                     const int32_t nameY = y;
                     y = nameY + 10;
 
-                    if (MPlayer == nullptr && objective.Points != 0)
+                    if (MultiPlayer() == nullptr && objective.Points != 0)
                     {
                         WriteText(font, Port()->Frame(), 0x1d, nameY + 10,
                                   std::format("{} {}", objective.Points, pointsName));
@@ -1018,7 +1019,7 @@ auto MCMissionResultsScreen::Activate() -> int32_t
     SetDepth(0x5f);
 
     // The move-on button's label: "mission failed" when the scenario (or the home side) lost.
-    if (MPlayer == nullptr)
+    if (MultiPlayer() == nullptr)
     {
         if (ScenarioResult < 3)
         {
@@ -1039,7 +1040,7 @@ auto MCMissionResultsScreen::Activate() -> int32_t
     _MoveOnButton->Draw();
     const MCScenario& scenario = *Scenario();
 
-    if (MPlayer == nullptr)
+    if (MultiPlayer() == nullptr)
     {
         _Results = GatherSinglePlayerResults(scenario, ScenarioResult);
         _PilotIcons.clear();
@@ -1091,7 +1092,7 @@ auto MCMissionResultsScreen::Activate() -> int32_t
         {
             const MCMissionCommanderScore& score = _Results.Commanders[static_cast<size_t>(i)];
             MCFidpPlayer* player =
-                score.Score < 0 ? nullptr : MPlayer->SessionManager->GetPlayerNumber(score.CommanderId);
+                score.Score < 0 ? nullptr : MultiPlayer()->SessionManager->GetPlayerNumber(score.CommanderId);
 
             if (player != nullptr)
             {
@@ -1103,10 +1104,10 @@ auto MCMissionResultsScreen::Activate() -> int32_t
         SoundSystem()->PlayBettySample(HomeSideLost(ScenarioResult, HomeTeam()->Alignment) ? 0xb : 0x12);
     }
 
-    if (MPlayer != nullptr && MPlayer->SessionManager != nullptr && Mission()->EndScenarioRequested != 0)
+    if (MultiPlayer() != nullptr && MultiPlayer()->SessionManager != nullptr && Mission()->EndScenarioRequested != 0)
     {
-        MPlayer->LeaveSession();
-        MPlayer->InMission = 1;
+        MultiPlayer()->LeaveSession();
+        MultiPlayer()->InMission = 1;
     }
 
     SomethingOnFire = 0;

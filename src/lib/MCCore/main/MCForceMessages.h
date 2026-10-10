@@ -3,7 +3,7 @@
 // Original source: mcx\logistics.cpp (the deploy and remove force messages Logistics sends and handles).
 
 /// <summary>
-/// A unit a player put in a multiplayer drop slot, as a "deploy force" message (MPMSG_DEPLOY_FORCE) carries it.
+/// A unit a player put in a multiplayer drop slot, as a "deploy force" message (MCMPMessageType::DeployForce) carries it.
 /// </summary>
 struct MCDeployForce
 {
@@ -36,7 +36,7 @@ std::vector<uint8_t> PackDeployForce(const MCDeployForce& force);
 /// <summary>The unit in deploy force message <paramref name="message"/> (as <see cref="PackDeployForce"/> lays it out).</summary>
 MCDeployForce UnpackDeployForce(const void* message);
 
-/// <summary>The bytes of a "remove force" message (MPMSG_REMOVE_FORCE): drop slot <paramref name="slot"/> of <paramref name="lance"/> emptied.</summary>
+/// <summary>The bytes of a "remove force" message (MCMPMessageType::RemoveForce): drop slot <paramref name="slot"/> of <paramref name="lance"/> emptied.</summary>
 std::vector<uint8_t> PackRemoveForce(uint8_t lance, uint8_t slot);
 
 /// <summary>The drop slot (lance * 4 + slot) a remove force message <paramref name="message"/> empties.</summary>

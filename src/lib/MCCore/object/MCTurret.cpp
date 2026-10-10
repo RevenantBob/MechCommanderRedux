@@ -16,7 +16,7 @@
 #include "main/MCMissionGlobals.h"
 #include "main/MCGameStrings.h"
 #include "mission/MCScenario.h"
-#include "network/multplyr.h"
+#include "network/MCMultiPlayer.h"
 #include "object/MCArtillery.h"
 #include "object/MCArtilleryType.h"
 #include "object/MCArtilleryChunk.h"
@@ -427,7 +427,7 @@ auto MCTurret::Update() -> int32_t
     }
 
     // The server drops a target that's out of reach or out of the fight.
-    if ((MPlayer == nullptr || MPlayer->IsServer != 0) && Target != nullptr)
+    if ((MultiPlayer() == nullptr || MultiPlayer()->IsServer != 0) && Target != nullptr)
     {
         const MCVector3D targetPosition = Target->GetPosition();
         const float dx = targetPosition.X - Position.X;
@@ -533,7 +533,7 @@ auto MCTurret::Update() -> int32_t
     }
 
     if (Destroyed == 0 && Target != nullptr && IsWeaponReady() != 0 && Awake != 0 &&
-        (MPlayer == nullptr || MPlayer->IsServer != 0))
+        (MultiPlayer() == nullptr || MultiPlayer()->IsServer != 0))
     {
         FireWeapon(Target);
     }
@@ -737,7 +737,7 @@ auto MCTurret::UpdateWeaponFireChunks(int32_t which) -> int32_t
 
                 if (chunk.TargetType == 0)
                 {
-                    chunkTarget = MPlayer->MoverRoster[chunk.TargetId];
+                    chunkTarget = MultiPlayer()->MoverRoster[chunk.TargetId];
                     missing = " Turret.updateWeaponFireChunks: NULL Mover Target (save wfchunk.dbg file) ";
                 }
                 else
@@ -899,7 +899,7 @@ auto MCTurret::FireWeapon(MCGameObject* target) -> void
                 shot.Init(this, type->WeaponType, weapon.Damage * static_cast<float>(missilesLeft), hitLocation,
                           entryAngle);
 
-                if (MPlayer != nullptr && MPlayer->IsServer != 0)
+                if (MultiPlayer() != nullptr && MultiPlayer()->IsServer != 0)
                 {
                     SendFireChunk(this, target, target, nullptr, 1, entryAngle, missiles, missilesLeft,
                                   antiMissileShots, hitLocation);
@@ -915,7 +915,7 @@ auto MCTurret::FireWeapon(MCGameObject* target) -> void
             MCWeaponShotInfo shot;
             shot.Init(this, type->WeaponType, weapon.Damage, hitLocation, entryAngle);
 
-            if (MPlayer != nullptr && MPlayer->IsServer != 0)
+            if (MultiPlayer() != nullptr && MultiPlayer()->IsServer != 0)
             {
                 SendFireChunk(this, target, target, nullptr, 1, entryAngle, 0, 0, 0, hitLocation);
             }
@@ -955,7 +955,7 @@ auto MCTurret::FireWeapon(MCGameObject* target) -> void
                 landing.Y += targetPosition.Y;
                 landing.Z += targetPosition.Z;
 
-                if (MPlayer != nullptr && MPlayer->IsServer != 0)
+                if (MultiPlayer() != nullptr && MultiPlayer()->IsServer != 0)
                 {
                     SendFireChunk(this, nullptr, target, &landing, 0, 0.0f, missiles, 0, 0, 0);
                 }
@@ -972,7 +972,7 @@ auto MCTurret::FireWeapon(MCGameObject* target) -> void
 
             // Original behaviour (OB-012): the chunk goes out before the point is scattered and moved to the target,
             // so other players see the shot land at (25, 25, 0).
-            if (MPlayer != nullptr && MPlayer->IsServer != 0)
+            if (MultiPlayer() != nullptr && MultiPlayer()->IsServer != 0)
             {
                 SendFireChunk(this, nullptr, target, &landing, 0, 0.0f, 0, 0, 0, 0);
             }
@@ -1101,11 +1101,11 @@ auto MCTurret::LightOnFire(float timeToBurn) -> void
         MCWeaponShotInfo shot;
         shot.Init(nullptr, -1, 1.0f, 0, 0.0f);
 
-        if (MPlayer == nullptr)
+        if (MultiPlayer() == nullptr)
         {
             HandleWeaponHit(&shot, 0);
         }
-        else if (MPlayer->IsServer != 0)
+        else if (MultiPlayer()->IsServer != 0)
         {
             HandleWeaponHit(&shot, 1);
         }
@@ -1399,7 +1399,7 @@ auto MCTurret::HandleWeaponHit(MCWeaponShotInfo* shotInfo, int addMultiplayChunk
 
     if (addMultiplayChunk != 0)
     {
-        MPlayer->AddWeaponHitChunk(this, shotInfo, 0);
+        MultiPlayer()->AddWeaponHitChunk(this, shotInfo, 0);
     }
 
     const float newDamage = GetDamage() + shotInfo->Damage;

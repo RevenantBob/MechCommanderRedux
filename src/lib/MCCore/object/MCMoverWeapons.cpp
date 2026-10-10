@@ -5,7 +5,7 @@
 #include "mission/MCMission.h"
 #include "mission/MCScenario.h"
 #include "mission/MCDifficultySettings.h"
-#include "network/multplyr.h"
+#include "network/MCMultiPlayer.h"
 #include "object/MCForces.h"
 #include "object/MCMasterComponent.h"
 #include "object/MCMechWarrior.h"
@@ -781,13 +781,13 @@ auto MCMover::CalcAttackChance(MCGameObject* target, int32_t aimLocation, float 
 
     float gunnery = static_cast<float>(Pilot->Skills[SkillGunnery]);
 
-    if (MPlayer == nullptr)
+    if (MultiPlayer() == nullptr)
     {
         if (GetAlignment() == HomeTeam()->Alignment)
         {
             gunnery = ApplyDifficultySkill(gunnery, 1);
         }
-        else if (MPlayer == nullptr && GetAlignment() != HomeTeam()->Alignment)
+        else if (MultiPlayer() == nullptr && GetAlignment() != HomeTeam()->Alignment)
         {
             gunnery = ApplyDifficultySkill(gunnery, 0);
         }

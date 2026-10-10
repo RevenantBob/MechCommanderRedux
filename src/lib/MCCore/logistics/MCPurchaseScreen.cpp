@@ -9,7 +9,7 @@
 #include "logistics/MCUnitLimits.h"
 #include "main/MCLogistics.h"
 #include "main/MCGameStrings.h"
-#include "network/multplyr.h"
+#include "network/MCMultiPlayer.h"
 #include "platform/MCInput.h"
 #include "logistics/MCBriefingScreen.h"
 
@@ -170,7 +170,7 @@ auto MCPurchaseScreen::Click(int32_t xPos, int32_t yPos) -> void
 
     if (inside(0x10, 0x21, 2, 0xd1))
     {
-        if (MPlayer != nullptr)
+        if (MultiPlayer() != nullptr)
         {
             CheckExit();
             return;
@@ -235,7 +235,7 @@ auto MCPurchaseScreen::HandleEvent(MCGuiEvent* event) -> void
             bool ctrlAlt = MCInput::GetAsyncKeyState(VK_CONTROL) != 0 && MCInput::GetAsyncKeyState(VK_MENU) != 0;
 
             // Original behaviour (OB-077): the zero-extended key never equals -0x45, so the cheat never fires.
-            if (MPlayer == nullptr && static_cast<int32_t>(key) == -0x45 && ctrlAlt)
+            if (MultiPlayer() == nullptr && static_cast<int32_t>(key) == -0x45 && ctrlAlt)
             {
                 ResourcePoints += 1000;
             }

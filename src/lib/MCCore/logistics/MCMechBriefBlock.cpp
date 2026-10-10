@@ -11,7 +11,7 @@
 #include "main/MCGamePaths.h"
 #include "main/MCLogistics.h"
 #include "main/MCGameStrings.h"
-#include "network/multplyr.h"
+#include "network/MCMultiPlayer.h"
 #include "object/MCMasterComponent.h"
 #include "platform/MCInput.h"
 #include "sound/MCSoundSystem.h"
@@ -765,7 +765,7 @@ auto MCMechBriefBlock::PaintBlock(MCPane* target, int32_t xPos, int32_t yPos, bo
         }
     }
 
-    if (MPlayer != nullptr)
+    if (MultiPlayer() != nullptr)
     {
         // Another player's unit is darkened.
         const int32_t index = Mech != nullptr ? GlobalLogPtr->ForceMechList->GetMechIndex(Mech)

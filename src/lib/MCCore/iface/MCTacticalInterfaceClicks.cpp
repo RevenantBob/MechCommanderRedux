@@ -8,7 +8,7 @@
 #include "iface/MCCommandParser.h"
 #include "iface/MCMechBar.h"
 #include "iface/MCOrderSink.h"
-#include "network/multplyr.h"
+#include "network/MCMultiPlayer.h"
 #include "object/MCArtillery.h"
 #include "object/MCForces.h"
 #include "object/MCMechWarrior.h"
@@ -104,7 +104,7 @@ auto MCTacticalInterface::QueueForcedOrder(MCTacticalOrder& order) -> void
     order.Pack();
     MCOrderSink& sink = Orders();
 
-    if (MPlayer != nullptr && MPlayer->IsServer == 0)
+    if (MultiPlayer() != nullptr && MultiPlayer()->IsServer == 0)
     {
         std::vector<int32_t> moverParts(SelectedMovers.size());
 
@@ -135,7 +135,7 @@ auto MCTacticalInterface::QueueForcedOrder(MCTacticalOrder& order) -> void
             continue;
         }
 
-        if (MPlayer != nullptr)
+        if (MultiPlayer() != nullptr)
         {
             order.Id = 0;
             order.SetId(member->GetPilot());
@@ -576,7 +576,7 @@ auto MCTacticalInterface::HandleClick(MCGuiEvent* event, MCGuiObject* target) ->
                         order.Reset(MCOrderOrigin::Player, MCTacticalOrderCode::PowerDown, 1);
                     }
 
-                    if (MPlayer == nullptr || MPlayer->IsServer != 0)
+                    if (MultiPlayer() == nullptr || MultiPlayer()->IsServer != 0)
                     {
                         Orders().Give(*member, order);
                         finish();

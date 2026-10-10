@@ -1,7 +1,7 @@
 #include "stdafx.h"
 #include "iface/MCOrderSink.h"
 #include "ai/MCTacticalOrder.h"
-#include "network/multplyr.h"
+#include "network/MCMultiPlayer.h"
 #include "object/MCMechWarrior.h"
 #include "object/MCMover.h"
 #include "object/MCMoverGroup.h"
@@ -28,9 +28,7 @@ namespace
         void SendToServer(MCTacticalOrder& order, bool queued, std::span<int32_t> moverParts,
                           std::span<MCMoverGroup*> groups, bool fromGroup) override
         {
-            MPlayer->SendPlayerOrder(0, &order, queued ? 1 : 0, static_cast<int32_t>(moverParts.size()),
-                                     moverParts.data(), static_cast<int32_t>(groups.size()), groups.data(),
-                                     fromGroup ? 1 : 0);
+            MultiPlayer()->SendPlayerOrder(&order, queued, moverParts, groups, fromGroup);
         }
     };
 }

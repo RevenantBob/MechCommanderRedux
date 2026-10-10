@@ -4,7 +4,7 @@
 #include "iface/MCTacticalInterface.h"
 #include "lib/MCFatal.h"
 #include "lib/MCMsvcSort.h"
-#include "network/multplyr.h"
+#include "network/MCMultiPlayer.h"
 #include "object/MCMoverGroup.h"
 #include "object/MCMover.h"
 #include "object/MCObjectSystem.h"
@@ -201,7 +201,7 @@ auto MCCommandParser::SendTacOrder(MCTacticalOrder order, bool sortMovers) -> bo
     SoundSystem()->PlayDigitalSample(0xf, 1, nullptr, 0, 0);
     MCOrderSink& sink = _Owner.Orders();
 
-    if (MPlayer != nullptr && MPlayer->IsServer == 0)
+    if (MultiPlayer() != nullptr && MultiPlayer()->IsServer == 0)
     {
         sink.SendToServer(order, sortMovers, Subjects, GroupSubjects, false);
     }

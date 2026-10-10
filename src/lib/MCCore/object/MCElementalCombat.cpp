@@ -8,7 +8,7 @@
 #include "lib/MCDice.h"
 #include "main/MCMissionGlobals.h"
 #include "mission/MCScenario.h"
-#include "network/multplyr.h"
+#include "network/MCMultiPlayer.h"
 #include "object/MCAIControl.h"
 #include "object/MCArtillery.h"
 #include "object/MCArtilleryType.h"
@@ -283,7 +283,7 @@ auto MCElemental::FireWeapon(MCGameObject* target, float targetTime, int32_t wea
 
     const int32_t inRange = WeaponInRange(weaponIndex, distance);
 
-    if ((MPlayer == nullptr || MPlayer->IsServer != 0) && inRange == 0)
+    if ((MultiPlayer() == nullptr || MultiPlayer()->IsServer != 0) && inRange == 0)
     {
         return 4;
     }

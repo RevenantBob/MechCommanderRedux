@@ -2,7 +2,7 @@
 #include "object/MCWeaponChunkDebug.h"
 #include "ai/MCMoveSystem.h"
 #include "lib/MCFile.h"
-#include "network/multplyr.h"
+#include "network/MCMultiPlayer.h"
 #include "object/MCObjectQueue.h"
 #include "object/MCObjectSystem.h"
 #include "object/MCWeaponFireChunk.h"
@@ -40,7 +40,7 @@ namespace
 
         if (targetType == 0)
         {
-            target = MPlayer->MoverRoster[targetId];
+            target = MultiPlayer()->MoverRoster[targetId];
             haveTarget = true;
         }
         else if (targetType == 1 || targetType == 2)

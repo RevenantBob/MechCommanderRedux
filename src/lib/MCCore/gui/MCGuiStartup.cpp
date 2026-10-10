@@ -5,15 +5,15 @@
 #include "lib/MCFatal.h"
 #include "lib/MCFile.h"
 #include "lib/MCFitIniFile.h"
-#include "linkup/dpmessage.h"
-#include "linkup/dpplayer.h"
-#include "linkup/ficommonnetwork.h"
-#include "linkup/sessionmanager.h"
+#include "linkup/MCFidpMessage.h"
+#include "linkup/MCFidpPlayer.h"
+#include "linkup/MCLinkupMessages.h"
+#include "linkup/MCSessionManager.h"
 #include "main/MCGamePaths.h"
 #include "logistics/MCConnectMenu.h"
 #include "main/MCGameContext.h"
 #include "mission/MCMission.h"
-#include "network/multplyr.h"
+#include "network/MCMultiPlayer.h"
 #include "platform/MCFrameLog.h"
 #include "platform/MCInput.h"
 #include "platform/MCPresenter.h"
@@ -37,19 +37,18 @@ namespace
     uint32_t NetworkFrame = 0;
 
     /// <summary>Takes a test message (looks its sender up).</summary>
-    void TestMsgCallback(MCFidpMessage* message, [[maybe_unused]] void* data)
+    void TestMsgCallback(MCFidpMessage& message)
     {
-        MPlayer->SessionManager->GetPlayer(message->FromID);
+        MultiPlayer()->SessionManager->GetPlayer(message.FromID);
     }
 
     /// <summary>The network test: sends two test messages to the group every 50 ms, forever (Escape asserts out).</summary>
     [[noreturn]] void SendAndReceiveTestMessages()
     {
-        MCSessionManager* manager = MPlayer->SessionManager;
+        MCSessionManager* manager = MultiPlayer()->SessionManager.get();
         MCTestMessage test = {};
         test.Header.Header = 0x1064;
         manager->ApplicationCallback = TestMsgCallback;
-        manager->ApplicationCallbackData = nullptr;
 
         for (;;)
         {
@@ -91,15 +90,15 @@ namespace
             return;
         }
 
-        MPlayer = new MCMultiPlayer;
-        Assert(MPlayer->Init(0x7d000, 0x100, 100) == 0, 0, "could not initialize multiplayer");
+        MCGameContext::Current().SetMultiPlayer(std::make_unique<MCMultiPlayer>());
+        Assert(MultiPlayer()->Start() == 0, 0, "could not initialize multiplayer");
 
-        if (MPlayer->Init(&gameFile) == static_cast<int32_t>(0x8877042e))
+        if (MultiPlayer()->StartScriptedGame(gameFile) == static_cast<int32_t>(0x8877042e))
         {
-            const int32_t numPlayers = MPlayer->NumPlayers();
+            const int32_t numPlayers = MultiPlayer()->NumPlayers();
             uint32_t tries = 0;
 
-            if (MPlayer->IsServer == 0)
+            if (!MultiPlayer()->IsServer)
             {
                 uint32_t result;
 
@@ -107,35 +106,35 @@ namespace
                 {
                     tries += 50;
                     Assert((MCInput::GetAsyncKeyState(VK_ESCAPE) & 0x8000) == 0, 0, "User exited");
-                    result = static_cast<uint32_t>(MPlayer->JoinSession(nullptr, nullptr));
+                    result = static_cast<uint32_t>(MultiPlayer()->JoinSession());
                     Assert(result != 0xfffffffe, result, "Error joining session!");
                 } while (result != 0);
             }
             else
             {
-                MPlayer->CreateSession(nullptr, nullptr, 6);
+                MultiPlayer()->CreateSession(6);
 
-                while (MPlayer->PlayersInSession() < numPlayers)
+                while (MultiPlayer()->PlayersInSession() < numPlayers)
                 {
                     tries++;
 
                     if (tries % 50 == 0)
                     {
-                        MPlayer->ProcessReceiveList();
+                        MultiPlayer()->ProcessReceiveList();
                         Assert((MCInput::GetAsyncKeyState(VK_ESCAPE) & 1) == 0, 0, "User exited");
                     }
                 }
 
-                Assert(MPlayer->PlayersInSession() > 1, 0, "No other players joined in time.");
+                Assert(MultiPlayer()->PlayersInSession() > 1, 0, "No other players joined in time.");
             }
         }
 
         std::this_thread::sleep_for(std::chrono::milliseconds(200));
-        MPlayer->ProcessReceiveList();
+        MultiPlayer()->ProcessReceiveList();
 
-        while (MPlayer->SessionManager->MyPlayer->PlayerNumber < 0)
+        while (MultiPlayer()->SessionManager->MyPlayer->PlayerNumber < 0)
         {
-            MPlayer->ProcessReceiveList();
+            MultiPlayer()->ProcessReceiveList();
             Assert((MCInput::GetAsyncKeyState(VK_ESCAPE) & 0x8000) == 0, 0, "User exited");
         }
 

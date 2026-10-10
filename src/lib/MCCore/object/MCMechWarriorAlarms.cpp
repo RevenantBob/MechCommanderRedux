@@ -2,7 +2,7 @@
 #include "object/MCMechWarrior.h"
 #include "abl/MCAblRuntime.h"
 #include "lib/MCFatal.h"
-#include "network/multplyr.h"
+#include "network/MCMultiPlayer.h"
 #include "object/MCMover.h"
 #include "object/MCMoverGameSystem.h"
 #include "object/MCObjectQueue.h"
@@ -68,7 +68,7 @@ auto MCMechWarrior::HandleAlarm(MCPilotAlarmType alarm, uint32_t triggerId) -> i
 
     MCAblSymbol* callback = BrainAlarmCallback[static_cast<size_t>(alarm)];
 
-    if ((MPlayer == nullptr || MPlayer->IsServer != 0) && callback != nullptr)
+    if ((MultiPlayer() == nullptr || MultiPlayer()->IsServer != 0) && callback != nullptr)
     {
         MCAblBrainScope brain(GetGroup(), Vehicle, static_cast<int32_t>(Vehicle->ObjectClass), this);
         AblRuntime()->Brain.Alarm = std::to_underlying(alarm);
@@ -159,7 +159,7 @@ auto MCMechWarrior::CheckAlarms() -> int32_t
 
         MCAblSymbol* callback = BrainAlarmCallback[static_cast<size_t>(code)];
 
-        if ((MPlayer == nullptr || MPlayer->IsServer != 0) && Brain != nullptr && callback != nullptr)
+        if ((MultiPlayer() == nullptr || MultiPlayer()->IsServer != 0) && Brain != nullptr && callback != nullptr)
         {
             AblRuntime()->Brain.Alarm = code;
             Brain->Execute({}, callback);
@@ -324,9 +324,9 @@ auto MCMechWarrior::HandleKilledTarget() -> int32_t
 
     SkillPoints[SkillGunnery] = points + SkillPoints[SkillGunnery];
 
-    if (MPlayer != nullptr && MPlayer->IsServer != 0 && killType != -1)
+    if (MultiPlayer() != nullptr && MultiPlayer()->IsServer != 0 && killType != -1)
     {
-        MPlayer->AddPilotKillStat(static_cast<MCMover*>(Vehicle), killType);
+        MultiPlayer()->AddPilotKillStat(static_cast<MCMover*>(Vehicle), killType);
     }
 
     return 0;

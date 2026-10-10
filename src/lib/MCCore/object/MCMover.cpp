@@ -6,7 +6,7 @@
 #include "main/MCGameStrings.h"
 #include "mission/MCMission.h"
 #include "mission/MCScenario.h"
-#include "network/multplyr.h"
+#include "network/MCMultiPlayer.h"
 #include "object/MCContactSystem.h"
 #include "object/MCForces.h"
 #include "object/MCMasterComponent.h"
@@ -125,7 +125,7 @@ MCMover::MCMover()
     Frame.ResetToWorldFrame();
     MoveChunk.Reset();
 
-    if (MPlayer != nullptr)
+    if (MultiPlayer() != nullptr)
     {
         NetName = LoadGameString(0xb9, 0xfe);
     }
@@ -632,7 +632,7 @@ auto MCMover::HandleTacticalOrder(MCTacticalOrder tacOrder, int32_t priority, in
     }
 
     // A client checks the order survives packing (the result isn't used).
-    if (MPlayer != nullptr && MPlayer->IsServer == 0)
+    if (MultiPlayer() != nullptr && MultiPlayer()->IsServer == 0)
     {
         tacOrder.Pack();
         MCTacticalOrder check;
@@ -770,7 +770,7 @@ auto MCMover::HandleTacticalOrder(MCTacticalOrder tacOrder, int32_t priority, in
         vehiclePilot->RadioMessage(radioMessageId, 1);
     }
 
-    if (MPlayer != nullptr)
+    if (MultiPlayer() != nullptr)
     {
         tacOrder.SetId(vehiclePilot);
     }
@@ -1019,7 +1019,7 @@ auto MCMover::UpdateWeaponFireChunks(int32_t which) -> int32_t
 
                 if (chunk.TargetType == 0)
                 {
-                    target = MPlayer->MoverRoster[chunk.TargetId];
+                    target = MultiPlayer()->MoverRoster[chunk.TargetId];
                     missing = " Mover.updateWeaponFireChunks: NULL Mover Target (save wfchunk.dbg file) ";
                 }
                 else
@@ -1310,7 +1310,7 @@ auto MCMover::Disable(uint32_t cause) -> void
     else
     {
         // An enemy mech is salvage, unless the roll (or the cause) blows it apart.
-        if (MPlayer == nullptr && ObjectClass == MCObjectClass::BattleMech)
+        if (MultiPlayer() == nullptr && ObjectClass == MCObjectClass::BattleMech)
         {
             if (SalvageRoll == -999)
             {

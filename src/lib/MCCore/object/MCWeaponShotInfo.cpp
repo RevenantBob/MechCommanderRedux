@@ -3,7 +3,7 @@
 #include "lib/MCFatal.h"
 #include "mission/MCScenario.h"
 #include "mission/MCDifficultySettings.h"
-#include "network/multplyr.h"
+#include "network/MCMultiPlayer.h"
 #include "object/MCForces.h"
 #include "object/MCGameObject.h"
 #include "object/MCTeam.h"
@@ -58,7 +58,7 @@ auto MCWeaponShotInfo::Init(MCGameObject* shooter, int32_t weaponMasterId, float
 {
     Attacker = shooter;
 
-    if (MPlayer == nullptr && shooter != nullptr)
+    if (MultiPlayer() == nullptr && shooter != nullptr)
     {
         // The difficulty scales the player's shots, and the enemy's mechs, vehicles, elementals and turrets.
         const MCObjectClass shooterClass = shooter->ObjectClass;
@@ -78,7 +78,7 @@ auto MCWeaponShotInfo::Init(MCGameObject* shooter, int32_t weaponMasterId, float
     Assert(shotDamage >= 0.0 && shotDamage <= 255.0, static_cast<int32_t>(shotDamage),
            " WeaponShotInfo.init: damage out of range ");
 
-    if (MPlayer != nullptr && MPlayer->IsServer != 0)
+    if (MultiPlayer() != nullptr && MultiPlayer()->IsServer != 0)
     {
         Damage = QuarterPoints(shotDamage);
         EntryAngle = SnapAngle(shotEntryAngle);
@@ -89,7 +89,7 @@ auto MCWeaponShotInfo::SetDamage(float shotDamage) -> void
 {
     Damage = shotDamage;
 
-    if (MPlayer != nullptr && MPlayer->IsServer != 0)
+    if (MultiPlayer() != nullptr && MultiPlayer()->IsServer != 0)
     {
         Damage = QuarterPoints(shotDamage);
     }
@@ -99,7 +99,7 @@ auto MCWeaponShotInfo::SetEntryAngle(float shotEntryAngle) -> void
 {
     EntryAngle = shotEntryAngle;
 
-    if (MPlayer != nullptr && MPlayer->IsServer != 0)
+    if (MultiPlayer() != nullptr && MultiPlayer()->IsServer != 0)
     {
         EntryAngle = SnapAngle(shotEntryAngle);
     }

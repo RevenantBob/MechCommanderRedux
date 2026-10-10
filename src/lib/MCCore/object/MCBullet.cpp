@@ -9,7 +9,7 @@
 #include "lib/MCFrameOfRef.h"
 #include "main/MCMissionGlobals.h"
 #include "mission/MCScenario.h"
-#include "network/multplyr.h"
+#include "network/MCMultiPlayer.h"
 #include "object/MCBulletType.h"
 #include "object/MCExplosion.h"
 #include "object/MCMechGameSystem.h"
@@ -195,9 +195,9 @@ auto MCBullet::Update() -> int32_t
     }
 
     // Arrived: apply the shots (in multiplayer only the server does, and sends them on).
-    if (Target != nullptr && (MPlayer == nullptr || MPlayer->IsServer != 0))
+    if (Target != nullptr && (MultiPlayer() == nullptr || MultiPlayer()->IsServer != 0))
     {
-        const int sendChunks = MPlayer != nullptr ? 1 : 0;
+        const int sendChunks = MultiPlayer() != nullptr ? 1 : 0;
 
         for (MCWeaponShotInfo& shot : Shots)
         {

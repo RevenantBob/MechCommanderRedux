@@ -17,3 +17,6 @@ extern float WorldUnitsPerMeter;
 
 /// <summary>Meters per world unit (0.2994, 1 / 3.34, until a scenario's game system file sets it).</summary>
 extern float MetersPerWorldUnit;
+
+/// <summary>Nonzero once the mission is over and the game is heading to the results screen.</summary>
+extern int EventsToMissionResultsScreen;

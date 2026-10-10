@@ -4,7 +4,7 @@
 #include "lib/MCFile.h"
 #include "lib/MCPacketFile.h"
 #include "main/MCGamePaths.h"
-#include "network/multplyr.h"
+#include "network/MCMultiPlayer.h"
 #include "object/MCObjectSystem.h"
 #include "object/MCSensorSystem.h"
 #include "object/MCBuilding.h"
@@ -331,9 +331,9 @@ auto MCObjectBlockManager::SetupObjectQueue(uint32_t blockNumber, std::span<cons
         {
             MCGameObject* placed = AddToDefaultList(std::move(object));
 
-            if (MPlayer != nullptr && objectClass == MCObjectClass::Turret)
+            if (MultiPlayer() != nullptr && objectClass == MCObjectClass::Turret)
             {
-                MPlayer->AddToTurretRoster(static_cast<MCTurret*>(placed));
+                MultiPlayer()->AddToTurretRoster(static_cast<MCTurret*>(placed));
             }
         }
         else

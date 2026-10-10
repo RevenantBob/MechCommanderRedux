@@ -1,7 +1,7 @@
 #include "stdafx.h"
 #include "object/MCExplosionType.h"
 #include "lib/MCFitIniFile.h"
-#include "network/multplyr.h"
+#include "network/MCMultiPlayer.h"
 #include "object/MCExplosion.h"
 #include "object/MCGateType.h"
 #include "object/MCTurretType.h"
@@ -71,7 +71,7 @@ auto MCExplosionType::Init(MCFile* objFile, uint32_t fileSize) -> int32_t
 auto MCExplosionType::HandleCollision(MCGameObject* collidee, MCGameObject* collider) -> int
 {
     // Only the server deals explosion damage in multiplayer.
-    if (MPlayer != nullptr && MPlayer->IsServer == 0)
+    if (MultiPlayer() != nullptr && MultiPlayer()->IsServer == 0)
     {
         return 0;
     }
@@ -86,7 +86,7 @@ auto MCExplosionType::HandleCollision(MCGameObject* collidee, MCGameObject* coll
     // Original behaviour (OB-153): every hit is a whole chunk, the last one too, so the damage dealt is rounded up to
     // a whole number of chunks.
     const float chunk = DamageChunkSize < damage ? DamageChunkSize : damage;
-    const int multiplayer = MPlayer != nullptr ? 1 : 0;
+    const int multiplayer = MultiPlayer() != nullptr ? 1 : 0;
     MCWeaponShotInfo shot;
 
     switch (collider->ObjectClass)

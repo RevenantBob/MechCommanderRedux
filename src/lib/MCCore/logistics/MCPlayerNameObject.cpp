@@ -3,9 +3,9 @@
 #include "gui/MCGuiEvent.h"
 #include "gui/MCGuiFont.h"
 #include "gui/MCGuiGlobals.h"
-#include "linkup/dpplayer.h"
-#include "linkup/sessionmanager.h"
-#include "network/multplyr.h"
+#include "linkup/MCFidpPlayer.h"
+#include "linkup/MCSessionManager.h"
+#include "network/MCMultiPlayer.h"
 #include "vfx/MCVfxFunctions.h"
 
 auto MCPlayerNameObject::Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, const char*) -> int32_t
@@ -102,10 +102,10 @@ auto MCPlayerNameObject::SetPlayerId(uint32_t newPlayerId) -> void
 {
     PlayerId = newPlayerId;
 
-    if (MPlayer != nullptr && MPlayer->SessionManager != nullptr &&
-        MPlayer->SessionManager->GetPlayer(newPlayerId) != nullptr)
+    if (MultiPlayer() != nullptr && MultiPlayer()->SessionManager != nullptr &&
+        MultiPlayer()->SessionManager->GetPlayer(newPlayerId) != nullptr)
     {
-        SetPlayerName(MPlayer->SessionManager->GetPlayer(newPlayerId)->Name);
+        SetPlayerName(MultiPlayer()->SessionManager->GetPlayer(newPlayerId)->Name);
     }
 }
 

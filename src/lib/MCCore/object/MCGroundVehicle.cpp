@@ -22,7 +22,7 @@
 #include "main/MCMissionGlobals.h"
 #include "main/MCGameStrings.h"
 #include "mission/MCScenario.h"
-#include "network/multplyr.h"
+#include "network/MCMultiPlayer.h"
 #include "object/MCAIControl.h"
 #include "object/MCArtillery.h"
 #include "object/MCArtilleryType.h"
@@ -950,7 +950,7 @@ auto MCGroundVehicle::Update() -> int32_t
             Smoke = CreateObjectAs<MCSmoke>(0x1c2);
             CollisionsOn = 0;
 
-            if (MPlayer != nullptr)
+            if (MultiPlayer() != nullptr)
             {
                 return 1;
             }
@@ -1131,7 +1131,8 @@ auto MCGroundVehicle::Update() -> int32_t
     MineCheck();
 
     // A mine layer lays one per tile: at the cell in the middle, or once it has waited MineWaitTime.
-    if ((MPlayer == nullptr || MPlayer->IsServer != 0) && MineLayer != 0 && Pilot->CurTacOrder.MoveParams.Mode == 1 &&
+    if ((MultiPlayer() == nullptr || MultiPlayer()->IsServer != 0) && MineLayer != 0 &&
+        Pilot->CurTacOrder.MoveParams.Mode == 1 &&
         (GetObjPosition()->TileC != CellColToMine || GetObjPosition()->TileR != CellRowToMine))
     {
         MineLayTime = FrameLength + MineLayTime;
@@ -1154,9 +1155,9 @@ auto MCGroundVehicle::Update() -> int32_t
                 tile.Overlay = (tile.Overlay & 0xfffff7ff) | 0x1000;
             }
 
-            if (MPlayer != nullptr)
+            if (MultiPlayer() != nullptr)
             {
-                MPlayer->AddMineChunk(tileR * 3, tileC * 3, Alignment == -1 ? 1 : 0, 2, 0);
+                MultiPlayer()->AddMineChunk(tileR * 3, tileC * 3, Alignment == -1 ? 1 : 0, 2, 0);
             }
         }
     }

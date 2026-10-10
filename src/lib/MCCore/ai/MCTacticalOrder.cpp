@@ -6,7 +6,7 @@
 #include "iface/MCCommandParser.h"
 #include "lib/MCFatal.h"
 #include "main/MCMissionGlobals.h"
-#include "network/multplyr.h"
+#include "network/MCMultiPlayer.h"
 #include "object/MCBuilding.h"
 #include "object/MCBuildingType.h"
 #include "object/MCBuildingMarines.h"
@@ -394,9 +394,9 @@ auto MCTacticalOrder::Unpack() -> void
         {
             case 0:
             {
-                if (MPlayer != nullptr)
+                if (MultiPlayer() != nullptr)
                 {
-                    Target = MPlayer->MoverRoster[objectBits & 0x1f];
+                    Target = MultiPlayer()->MoverRoster[objectBits & 0x1f];
                 }
 
                 return;
@@ -487,7 +487,7 @@ auto MCTacticalOrder::SetGroupFlag(int32_t localMoverId, bool set) -> void
 
 auto MCTacticalOrder::GetGroup(int32_t commanderId, MCMover** moverList, MCMover** point) const -> int32_t
 {
-    if (MPlayer == nullptr)
+    if (MultiPlayer() == nullptr)
     {
         return 0;
     }
@@ -498,12 +498,12 @@ auto MCTacticalOrder::GetGroup(int32_t commanderId, MCMover** moverList, MCMover
     {
         if ((GroupFlags >> i & 1) != 0)
         {
-            *moverList++ = MPlayer->PlayerMoverRoster[commanderId][i];
+            *moverList++ = MultiPlayer()->PlayerMoverRoster[commanderId][i];
             numMovers++;
         }
     }
 
-    *point = PointLocalMoverId != 0xf ? MPlayer->PlayerMoverRoster[commanderId][PointLocalMoverId] : nullptr;
+    *point = PointLocalMoverId != 0xf ? MultiPlayer()->PlayerMoverRoster[commanderId][PointLocalMoverId] : nullptr;
     return numMovers;
 }
 
@@ -1298,14 +1298,14 @@ auto MCTacticalOrder::RefitStatus(MCMechWarrior* pilot) -> bool
                 const int32_t finished = DoRefit(refitee, refitter->GetRefitPoints(), pointsUsed, truck->AmmoTruck);
                 refitter->BurnRefitPoints(pointsUsed);
 
-                if (MPlayer != nullptr)
+                if (MultiPlayer() != nullptr)
                 {
                     const int32_t shotType = -5 - (truck->AmmoTruck != 0 ? 1 : 0);
                     MCWeaponShotInfo shot;
                     shot.Init(nullptr, shotType, pointsUsed, 4, 0.0f);
-                    MPlayer->AddWeaponHitChunk(refitter, &shot, 0);
+                    MultiPlayer()->AddWeaponHitChunk(refitter, &shot, 0);
                     shot.Init(nullptr, shotType, pointsUsed, 0, 0.0f);
-                    MPlayer->AddWeaponHitChunk(refitee, &shot, 1);
+                    MultiPlayer()->AddWeaponHitChunk(refitee, &shot, 1);
                 }
 
                 Stage = static_cast<uint8_t>(Stage + finished);
@@ -1384,13 +1384,13 @@ auto MCTacticalOrder::GetFixedStatus(MCMechWarrior* pilot) -> bool
                 const int32_t finished = DoRefit(mover, bay->GetRefitPoints(), pointsUsed, 0);
                 bay->BurnRefitPoints(pointsUsed);
 
-                if (MPlayer != nullptr)
+                if (MultiPlayer() != nullptr)
                 {
                     MCWeaponShotInfo shot;
                     shot.Init(nullptr, -5, pointsUsed, -1, 0.0f);
-                    MPlayer->AddWeaponHitChunk(bay, &shot, 0);
+                    MultiPlayer()->AddWeaponHitChunk(bay, &shot, 0);
                     shot.Init(nullptr, -5, pointsUsed, 0, 0.0f);
-                    MPlayer->AddWeaponHitChunk(mover, &shot, 1);
+                    MultiPlayer()->AddWeaponHitChunk(mover, &shot, 1);
                 }
 
                 Stage = static_cast<uint8_t>(Stage + finished);

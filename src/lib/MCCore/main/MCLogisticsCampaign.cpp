@@ -28,13 +28,13 @@
 #include "main/MCSystemConfig.h"
 #include "main/MCGameStrings.h"
 #include "mission/MCMission.h"
-#include "network/multplyr.h"
+#include "network/MCMultiPlayer.h"
 #include "object/MCObjectTypeManager.h"
 #include "vfx/MCVfxFunctions.h"
 
 auto MCLogistics::LoadQuickStart(MCFitIniFile& file) -> void
 {
-    const int32_t homeTeam = MPlayer->HomeTeam;
+    const int32_t homeTeam = MultiPlayer()->HomeTeam;
     CurDeployTonnage = 0;
 
     if (file.SeekBlock("HammerDown1") == 0)
@@ -295,7 +295,7 @@ auto MCLogistics::LoadCampaign(std::string_view saveName, std::string_view exten
     result = file.SeekBlock("General");
     Assert(result == 0, 0, " could not find General Block in campaign file ");
 
-    if (MPlayer == nullptr)
+    if (MultiPlayer() == nullptr)
     {
         PurchaseFile = ReadRequiredText(file, "purchaseFile", 0x7f, " cound not read purchasing file in campain file ");
         PlayerLights.reset();
@@ -326,7 +326,7 @@ auto MCLogistics::LoadCampaign(std::string_view saveName, std::string_view exten
     RepairScreen->SelectedVehicle = nullptr;
     int32_t savedMission = 0;
 
-    if (MPlayer == nullptr)
+    if (MultiPlayer() == nullptr)
     {
         if (const MCFitResult<int32_t> number = file.Read<int32_t>("MissionNumber"); number.has_value())
         {
@@ -351,9 +351,9 @@ auto MCLogistics::LoadCampaign(std::string_view saveName, std::string_view exten
         PlanningTime = file.Read<uint32_t>("PlanningTime").value_or(DefaultPlanningTime);
 
         // The team's resource points (typed on the session screen) are shared among its players.
-        const int32_t teamPlayers = MPlayer->PlayersOnHomeTeam()->Count;
+        const int32_t teamPlayers = static_cast<int32_t>(MultiPlayer()->PlayersOnHomeTeam()->size());
         MCLogTextObject* pointsText =
-            MPlayer->HomeTeam == 0 ? SessionScreen->Team1RPText.get() : SessionScreen->Team2RPText.get();
+            MultiPlayer()->HomeTeam == 0 ? SessionScreen->Team1RPText.get() : SessionScreen->Team2RPText.get();
         ResourcePoints = std::atoi(pointsText->Buffer.c_str()) / teamPlayers;
 
         if (file.SeekBlock("MPQuickStart") == 0)
@@ -366,7 +366,7 @@ auto MCLogistics::LoadCampaign(std::string_view saveName, std::string_view exten
         }
     }
 
-    if (MPlayer == nullptr && !quickStart)
+    if (MultiPlayer() == nullptr && !quickStart)
     {
         // The force: unassigned then assigned entries of each kind, numbered on from the unassigned ones. An entry
         // names a profile or a packet of this save.
@@ -529,7 +529,7 @@ auto MCLogistics::LoadCampaign(std::string_view saveName, std::string_view exten
         WarriorList->Heal(2);
     }
 
-    if (CurrentMission == savedMission || newCampaign || MPlayer != nullptr)
+    if (CurrentMission == savedMission || newCampaign || MultiPlayer() != nullptr)
     {
         Mission()->CurrentScenario = CurrentMission;
         Mission()->CurrentMovie = CurrentMission + 1;
@@ -691,7 +691,7 @@ auto MCLogistics::LoadCampaign(std::string_view saveName, std::string_view exten
         resultFile.Close();
     }
 
-    if (MPlayer == nullptr)
+    if (MultiPlayer() == nullptr)
     {
         // The purchase options of this point in the campaign, and an automatic save when a new mission starts.
         MCFitIniFile masterFile;
@@ -764,7 +764,8 @@ auto MCLogistics::GetCurrentMission() -> void
 {
     // Port: the original allocated the FitIniFile and leaked it when the mission file would not open.
     MCFitIniFile file;
-    const std::string& fileName = MPlayer == nullptr ? Mission()->Scenarios[Mission()->CurrentScenario] : MpMissionName;
+    const std::string& fileName =
+        MultiPlayer() == nullptr ? Mission()->Scenarios[Mission()->CurrentScenario] : MpMissionName;
 
     if (file.Open(GamePath(MissionPath, fileName, ".fit")) != 0)
     {
@@ -777,7 +778,7 @@ auto MCLogistics::GetCurrentMission() -> void
         ReadRequired<int32_t>(file, "MaxTonnage", " Could not find MaxTonnage variable in mission file ");
     std::string briefingFile;
 
-    if (MPlayer == nullptr)
+    if (MultiPlayer() == nullptr)
     {
         briefingFile =
             ReadRequiredText(file, "BriefingFile", 0x7f, " Could not find BriefingFile variable in mission file ");
@@ -785,9 +786,9 @@ auto MCLogistics::GetCurrentMission() -> void
     else
     {
         // Each player on the team gets an equal share of the tonnage.
-        MaxDeployTonnage /= MPlayer->PlayersOnHomeTeam()->Count;
-        briefingFile = ReadRequiredText(file, MPlayer->HomeTeam == 0 ? "ISBriefingFile" : "ClanBriefingFile", 0x7f,
-                                        " Could not find BriefingFile variable in mission file ");
+        MaxDeployTonnage /= static_cast<int32_t>(MultiPlayer()->PlayersOnHomeTeam()->size());
+        briefingFile = ReadRequiredText(file, MultiPlayer()->HomeTeam == 0 ? "ISBriefingFile" : "ClanBriefingFile",
+                                        0x7f, " Could not find BriefingFile variable in mission file ");
     }
 
     // Format the briefing text into a port the width of the mission pane (at least 0xbf high), then copy it into
@@ -813,7 +814,7 @@ auto MCLogistics::GetCurrentMission() -> void
     const auto numDropZones =
         ReadRequired<int32_t>(file, "NumDropZones", " Could not read NumDropZones variable in mission file ");
 
-    if (MPlayer == nullptr)
+    if (MultiPlayer() == nullptr)
     {
         LocalDropSlot.fill(false);
     }
@@ -831,7 +832,7 @@ auto MCLogistics::GetCurrentMission() -> void
         // slots run on into the next lance's).
         // Port fix: the original wrote the marks of a fourth or later zone past localDropSlot, over the drop zone
         // positions already read; the port only marks the three lances.
-        if (MPlayer == nullptr && zone < NumLances)
+        if (MultiPlayer() == nullptr && zone < NumLances)
         {
             for (size_t slot = zone * LanceSlots;
                  slot < zone * LanceSlots + static_cast<size_t>(std::max(numSlots, 0)) && slot < NumDropSlots; slot++)
@@ -847,7 +848,7 @@ auto MCLogistics::GetCurrentMission() -> void
 
         for (size_t slot = 0; slot < LanceSlots; slot++)
         {
-            if (MPlayer == nullptr && (zone >= NumLances || !LocalDropSlot[zone * LanceSlots + slot]))
+            if (MultiPlayer() == nullptr && (zone >= NumLances || !LocalDropSlot[zone * LanceSlots + slot]))
             {
                 break;
             }

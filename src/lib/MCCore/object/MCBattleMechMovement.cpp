@@ -11,7 +11,7 @@
 #include "lib/MCFatal.h"
 #include "main/MCMissionGlobals.h"
 #include "mission/MCScenario.h"
-#include "network/multplyr.h"
+#include "network/MCMultiPlayer.h"
 #include "object/MCAIControl.h"
 #include "object/MCMiscTerrainObject.h"
 #include "object/MCMiscTerrainObjectType.h"
@@ -136,7 +136,7 @@ auto MCBattleMech::HandleStaticCollision() -> void
 
 auto MCBattleMech::PilotingCheck(uint32_t situation, float modifier) -> void
 {
-    if ((MPlayer != nullptr && MPlayer->IsServer == 0) || PilotingCheckPending != 0)
+    if ((MultiPlayer() != nullptr && MultiPlayer()->IsServer == 0) || PilotingCheckPending != 0)
     {
         return;
     }
@@ -200,7 +200,7 @@ auto MCBattleMech::PilotingCheck(uint32_t situation, float modifier) -> void
 
 auto MCBattleMech::MineCheck() -> void
 {
-    if ((MPlayer != nullptr && MPlayer->IsServer == 0) || IsJumping(nullptr) != 0)
+    if ((MultiPlayer() != nullptr && MultiPlayer()->IsServer == 0) || IsJumping(nullptr) != 0)
     {
         return;
     }
@@ -229,9 +229,9 @@ auto MCBattleMech::MineCheck() -> void
                 here.Overlay = (here.Overlay & 0xffffbfff) | 0x2000;
             }
 
-            if (MPlayer != nullptr)
+            if (MultiPlayer() != nullptr)
             {
-                MPlayer->AddMineChunk(tileR * 3, tileC * 3, Alignment != -1 ? 1 : 0, 1, 0);
+                MultiPlayer()->AddMineChunk(tileR * 3, tileC * 3, Alignment != -1 ? 1 : 0, 1, 0);
                 map = GameMap();
             }
         }
@@ -318,10 +318,10 @@ auto MCBattleMech::MineCheck() -> void
         here.Overlay |= 0x6000;
     }
 
-    if (MPlayer != nullptr)
+    if (MultiPlayer() != nullptr)
     {
-        MPlayer->AddMineChunk(tileR * 3 + ObjPosition->CellR, tileC * 3 + ObjPosition->CellC, Alignment != -1 ? 1 : 0,
-                              3, 2);
+        MultiPlayer()->AddMineChunk(tileR * 3 + ObjPosition->CellR, tileC * 3 + ObjPosition->CellC,
+                                    Alignment != -1 ? 1 : 0, 3, 2);
     }
 
     Pilot->PausePath();
@@ -330,7 +330,7 @@ auto MCBattleMech::MineCheck() -> void
     const int32_t hitLocation = CalcHitLocation(nullptr, -1, 3, 0);
     MCWeaponShotInfo shotInfo;
     shotInfo.Init(nullptr, -2, MineBaseDamage, hitLocation, 0.0f);
-    HandleWeaponHit(&shotInfo, MPlayer != nullptr);
+    HandleWeaponHit(&shotInfo, MultiPlayer() != nullptr);
 
     if (GetPilot() != nullptr)
     {
@@ -364,7 +364,7 @@ auto MCBattleMech::UpdateJump() -> int
 
     if (actor->Airborne == 0)
     {
-        if (MPlayer == nullptr || MPlayer->IsServer != 0)
+        if (MultiPlayer() == nullptr || MultiPlayer()->IsServer != 0)
         {
             actor->SetJumpParameters(JumpGoal);
 
@@ -420,7 +420,8 @@ auto MCBattleMech::PivotTo() -> int
     MCMovePath* path = warrior->GetMovePath();
     const MCMoveState moveStateGoal = warrior->MoveOrders.MoveStateGoal;
     const MCMoveState moveState = warrior->MoveOrders.MoveState;
-    const int32_t run = MPlayer == nullptr || MPlayer->IsServer != 0 ? warrior->MoveOrders.Run : MoveChunk.Run;
+    const int32_t run =
+        MultiPlayer() == nullptr || MultiPlayer()->IsServer != 0 ? warrior->MoveOrders.Run : MoveChunk.Run;
     int hasTarget = 0;
     MCGameObject* target = warrior->GetLastTarget();
     float targetFacing = 0.0f;
@@ -638,7 +639,8 @@ auto MCBattleMech::UpdateMoveStateGoal() -> void
         return;
     }
 
-    const int32_t run = MPlayer == nullptr || MPlayer->IsServer != 0 ? warrior->MoveOrders.Run : MoveChunk.Run;
+    const int32_t run =
+        MultiPlayer() == nullptr || MultiPlayer()->IsServer != 0 ? warrior->MoveOrders.Run : MoveChunk.Run;
 
     if (run != 0 || LegStatus == 2)
     {
@@ -1067,7 +1069,7 @@ auto MCBattleMech::SetControlSettings(char& newRotate, char& newThrottleSetting,
 
     bool startJump = false;
 
-    if (MPlayer == nullptr || MPlayer->IsServer != 0)
+    if (MultiPlayer() == nullptr || MultiPlayer()->IsServer != 0)
     {
         MCMechWarrior* warrior = Pilot;
 
@@ -1340,7 +1342,7 @@ auto MCBattleMech::GetJumpPosition(int32_t jet) -> MCVector3D
 
 auto MCBattleMech::CrashAvoidanceSystem() -> int
 {
-    if (MPlayer != nullptr && MPlayer->IsServer == 0)
+    if (MultiPlayer() != nullptr && MultiPlayer()->IsServer == 0)
     {
         return 0;
     }

@@ -12,13 +12,13 @@
 #include "lib/MCFastFileSet.h"
 #include "lib/MCFatal.h"
 #include "lib/MCFitIniFile.h"
-#include "linkup/sessionmanager.h"
+#include "linkup/MCSessionManager.h"
 #include "main/MCAblDebuggerConsole.h"
 #include "main/MCGameContext.h"
 #include "main/MCGamePaths.h"
 #include "main/MCSystemConfig.h"
 #include "mission/MCMission.h"
-#include "network/multplyr.h"
+#include "network/MCMultiPlayer.h"
 #include "object/MCMechWarrior.h"
 #include "sound/MCSoundSystem.h"
 
@@ -95,14 +95,13 @@ MCGameSession::MCGameSession()
 
     // Multiplayer is made to ask the session manager whether a lobby launched the game, and dropped when not. The
     // port has no lobby (MCDirectPlay), so it is always dropped here.
-    MPlayer = new MCMultiPlayer;
-    MPlayer->Init(0x7d000, 0x100, 100);
-    LaunchedFromLobby = MPlayer->SessionManager->WasLaunchedFromLobby() != 0 ? 1 : 0;
+    MCGameContext::Current().SetMultiPlayer(std::make_unique<MCMultiPlayer>());
+    MultiPlayer()->Start();
+    LaunchedFromLobby = MultiPlayer()->SessionManager->WasLaunchedFromLobby();
 
-    if (LaunchedFromLobby == 0)
+    if (!LaunchedFromLobby)
     {
-        delete MPlayer;
-        MPlayer = nullptr;
+        MCGameContext::Current().SetMultiPlayer(nullptr);
     }
 
     MCGameContext::Current().SetMission(std::make_unique<MCMission>());
@@ -132,10 +131,9 @@ MCGameSession::~MCGameSession()
 
     _ColorCallback.Clear();
 
-    if (MPlayer != nullptr)
+    if (MultiPlayer() != nullptr)
     {
-        delete MPlayer;
-        MPlayer = nullptr;
+        MCGameContext::Current().SetMultiPlayer(nullptr);
     }
 
     MCGameContext::Current().FastFiles().Clear();
@@ -150,14 +148,7 @@ MCGameSession::~MCGameSession()
 
 void KillTheGame()
 {
-    if (MPlayer != nullptr)
-    {
-        MCMultiPlayer* player = MPlayer;
-        player->Destroy();
-        delete player;
-        MPlayer = nullptr;
-    }
-
+    MCGameContext::Current().SetMultiPlayer(nullptr);
     MouseTimerKill();
     MCSoundRenderer::Uninstall();
     GuiSystem()->CloseDisplay();

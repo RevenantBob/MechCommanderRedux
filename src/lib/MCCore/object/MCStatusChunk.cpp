@@ -1,6 +1,6 @@
 #include "stdafx.h"
 #include "object/MCStatusChunk.h"
-#include "network/multplyr.h"
+#include "network/MCMultiPlayer.h"
 #include "object/MCMover.h"
 #include "object/MCObjectQueue.h"
 #include "object/MCObjectSystem.h"
@@ -24,11 +24,11 @@ namespace
                 const int32_t targetId = chunk->TargetId;
 
                 // The original read the roster at an id past it too.
-                if (targetId < 0 || MPlayer->NumMovers <= targetId)
+                if (targetId < 0 || MultiPlayer()->NumMovers <= targetId)
                 {
                     StatusChunkUnpackErr = 1;
                 }
-                else if (MPlayer->MoverRoster[targetId] == nullptr)
+                else if (MultiPlayer()->MoverRoster[targetId] == nullptr)
                 {
                     StatusChunkUnpackErr = 2;
                 }
@@ -68,9 +68,9 @@ namespace
         if (targetType == 1)
         {
             // An id past the roster has no mover (the original read past it).
-            if (chunk->TargetId >= 0 && chunk->TargetId < std::ssize(MPlayer->MoverRoster))
+            if (chunk->TargetId >= 0 && chunk->TargetId < std::ssize(MultiPlayer()->MoverRoster))
             {
-                target = MPlayer->MoverRoster[chunk->TargetId];
+                target = MultiPlayer()->MoverRoster[chunk->TargetId];
             }
 
             haveTarget = true;

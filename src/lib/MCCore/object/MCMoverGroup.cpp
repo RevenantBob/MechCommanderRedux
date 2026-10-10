@@ -4,7 +4,7 @@
 #include "iface/MCTacticalInterface.h"
 #include "lib/MCFatal.h"
 #include "main/MCMissionGlobals.h"
-#include "network/multplyr.h"
+#include "network/MCMultiPlayer.h"
 #include "object/MCObjectSystem.h"
 #include "object/MCSortList.h"
 #include "object/MCMover.h"
@@ -568,7 +568,7 @@ auto MCMoverGroup::HandleTacticalOrder(MCTacticalOrder tacOrder, int32_t priorit
                 tacOrder.DelayedTime = static_cast<float>(mover->SelectionIndex) * DelayedOrderTime + ScenarioTime;
             }
 
-            if (MPlayer != nullptr)
+            if (MultiPlayer() != nullptr)
             {
                 tacOrder.Id = 0;
                 tacOrder.SetId(mover->GetPilot());

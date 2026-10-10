@@ -8,7 +8,6 @@
 #include "lib/MCFitIniFile.h"
 #include "lib/MCFrameOfRef.h"
 #include "lib/MCIDString.h"
-#include "lib/MCLinkedList.h"
 #include "lib/MCLz.h"
 #include "lib/MCPacketFile.h"
 #include "lib/MCPriorityQueue.h"
@@ -587,49 +586,6 @@ TEST_CASE("pqueue: a full queue refuses an insert")
     queue.Clear();
     CHECK(queue.IsEmpty());
     CHECK(queue.Insert({0, 9, 0, 0}));
-}
-
-TEST_CASE("llist: links are added, removed and counted")
-{
-    struct Counted : MCLink
-    {
-        explicit Counted(int* deaths) : Deaths(deaths) {}
-        ~Counted() override { ++*Deaths; }
-        int* Deaths;
-    };
-
-    int deaths = 0;
-    {
-        MCLinkedList list;
-        MCLink* a = new Counted(&deaths);
-        MCLink* b = new Counted(&deaths);
-        MCLink* c = new Counted(&deaths);
-        list.AddToTail(a);
-        list.AddToTail(c);
-        list.InsertAfter(a, b);
-        list.AddToHead(new Counted(&deaths));
-        CHECK_EQ(list.Count(), 4u);
-
-        MCLink* walk = nullptr;
-        int steps = 0;
-
-        while (list.Traverse(walk))
-        {
-            ++steps;
-        }
-
-        CHECK_EQ(steps, 4);
-
-        list.Destroy(b);
-        CHECK_EQ(deaths, 1);
-        CHECK_EQ(list.Count(), 3u);
-        list.Remove(c);
-        CHECK_EQ(list.Count(), 2u);
-        delete c;
-        CHECK_EQ(deaths, 2);
-    }
-
-    CHECK_EQ(deaths, 4);
 }
 
 TEST_CASE("cident: ids keep seven characters, and game paths join")

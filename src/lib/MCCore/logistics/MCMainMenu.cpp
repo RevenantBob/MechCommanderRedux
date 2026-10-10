@@ -11,13 +11,13 @@
 #include "main/MCLogistics.h"
 #include "main/MCGameStrings.h"
 #include "mission/MCMission.h"
-#include "network/multplyr.h"
+#include "network/MCMultiPlayer.h"
 #include "platform/MCInput.h"
 #include "sound/MCSoundSystem.h"
 #include "logistics/MCSplashScreen.h"
 #include "main/MCSystemConfig.h"
 #include "main/MCGameSession.h"
-#include "linkup/sessionmanager.h"
+#include "linkup/MCSessionManager.h"
 
 namespace
 {
@@ -124,7 +124,7 @@ void Cancel()
 
 void DoExit()
 {
-    if (MPlayer != nullptr)
+    if (MultiPlayer() != nullptr)
     {
         if (LaunchedFromLobby != 0)
         {
@@ -133,7 +133,7 @@ void DoExit()
         }
 
         GlobalLogPtr->DestroyMultiplayer();
-        MPlayer->LeaveSession();
+        MultiPlayer()->LeaveSession();
     }
 
     GlobalLogPtr->SetUpMainScreen(false);

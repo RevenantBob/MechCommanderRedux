@@ -393,9 +393,6 @@
     <ClCompile Include="lib\MCFitIniFile.cpp">
       <Filter>lib</Filter>
     </ClCompile>
-    <ClCompile Include="lib\MCLinkedList.cpp">
-      <Filter>lib</Filter>
-    </ClCompile>
     <ClCompile Include="lib\MCLzCompress.cpp">
       <Filter>lib</Filter>
     </ClCompile>
@@ -408,28 +405,34 @@
     <ClCompile Include="lib\MCPriorityQueue.cpp">
       <Filter>lib</Filter>
     </ClCompile>
-    <ClCompile Include="linkup\dpdialog.cpp">
+    <ClCompile Include="linkup\MCFidpGroup.cpp">
       <Filter>linkup</Filter>
     </ClCompile>
-    <ClCompile Include="linkup\dpmessage.cpp">
+    <ClCompile Include="linkup\MCFidpMessage.cpp">
       <Filter>linkup</Filter>
     </ClCompile>
-    <ClCompile Include="linkup\dpplayer.cpp">
+    <ClCompile Include="linkup\MCFidpNetworkProtocol.cpp">
       <Filter>linkup</Filter>
     </ClCompile>
-    <ClCompile Include="linkup\fidpgroup.cpp">
+    <ClCompile Include="linkup\MCFidpPlayer.cpp">
       <Filter>linkup</Filter>
     </ClCompile>
-    <ClCompile Include="linkup\filetransferinfo.cpp">
+    <ClCompile Include="linkup\MCFidpSession.cpp">
       <Filter>linkup</Filter>
     </ClCompile>
-    <ClCompile Include="linkup\linkedlist.cpp">
+    <ClCompile Include="linkup\MCFileTransferInfo.cpp">
       <Filter>linkup</Filter>
     </ClCompile>
-    <ClCompile Include="linkup\session.cpp">
+    <ClCompile Include="linkup\MCSessionManager.cpp">
       <Filter>linkup</Filter>
     </ClCompile>
-    <ClCompile Include="linkup\sessionmanager.cpp">
+    <ClCompile Include="linkup\MCSessionManagerPlayers.cpp">
+      <Filter>linkup</Filter>
+    </ClCompile>
+    <ClCompile Include="linkup\MCSessionManagerReceive.cpp">
+      <Filter>linkup</Filter>
+    </ClCompile>
+    <ClCompile Include="linkup\MCSessionManagerSend.cpp">
       <Filter>linkup</Filter>
     </ClCompile>
     <ClCompile Include="logistics\MCBriefingBox.cpp">
@@ -694,7 +697,16 @@
     <ClCompile Include="mission\MCScenarioPart.cpp">
       <Filter>mission</Filter>
     </ClCompile>
-    <ClCompile Include="network\multplyr.cpp">
+    <ClCompile Include="network\MCMultiPlayer.cpp">
+      <Filter>network</Filter>
+    </ClCompile>
+    <ClCompile Include="network\MCMultiPlayerHandlers.cpp">
+      <Filter>network</Filter>
+    </ClCompile>
+    <ClCompile Include="network\MCMultiPlayerSend.cpp">
+      <Filter>network</Filter>
+    </ClCompile>
+    <ClCompile Include="network\MCWorldStateChunk.cpp">
       <Filter>network</Filter>
     </ClCompile>
     <ClCompile Include="object\MCAIControl.cpp">
@@ -1540,9 +1552,6 @@
     <ClInclude Include="lib\MCIDString.h">
       <Filter>lib</Filter>
     </ClInclude>
-    <ClInclude Include="lib\MCLinkedList.h">
-      <Filter>lib</Filter>
-    </ClInclude>
     <ClInclude Include="lib\MCLz.h">
       <Filter>lib</Filter>
     </ClInclude>
@@ -1561,34 +1570,28 @@
     <ClInclude Include="lib\MCVector3D.h">
       <Filter>lib</Filter>
     </ClInclude>
-    <ClInclude Include="linkup\dpdialog.h">
+    <ClInclude Include="linkup\MCFidpGroup.h">
       <Filter>linkup</Filter>
     </ClInclude>
-    <ClInclude Include="linkup\dpmessage.h">
+    <ClInclude Include="linkup\MCFidpMessage.h">
       <Filter>linkup</Filter>
     </ClInclude>
-    <ClInclude Include="linkup\dpplayer.h">
+    <ClInclude Include="linkup\MCFidpNetworkProtocol.h">
       <Filter>linkup</Filter>
     </ClInclude>
-    <ClInclude Include="linkup\ficommonnetwork.h">
+    <ClInclude Include="linkup\MCFidpPlayer.h">
       <Filter>linkup</Filter>
     </ClInclude>
-    <ClInclude Include="linkup\fidpgroup.h">
+    <ClInclude Include="linkup\MCFidpSession.h">
       <Filter>linkup</Filter>
     </ClInclude>
-    <ClInclude Include="linkup\filetransferinfo.h">
+    <ClInclude Include="linkup\MCFileTransferInfo.h">
       <Filter>linkup</Filter>
     </ClInclude>
-    <ClInclude Include="linkup\linkedlist.h">
+    <ClInclude Include="linkup\MCLinkupMessages.h">
       <Filter>linkup</Filter>
     </ClInclude>
-    <ClInclude Include="linkup\linkedlist.hpp">
-      <Filter>linkup</Filter>
-    </ClInclude>
-    <ClInclude Include="linkup\session.h">
-      <Filter>linkup</Filter>
-    </ClInclude>
-    <ClInclude Include="linkup\sessionmanager.h">
+    <ClInclude Include="linkup\MCSessionManager.h">
       <Filter>linkup</Filter>
     </ClInclude>
     <ClInclude Include="logistics\MCBriefingBox.h">
@@ -1845,7 +1848,16 @@
     <ClInclude Include="mission\MCScenarioReading.h">
       <Filter>mission</Filter>
     </ClInclude>
-    <ClInclude Include="network\multplyr.h">
+    <ClInclude Include="network\MCMultiPlayer.h">
+      <Filter>network</Filter>
+    </ClInclude>
+    <ClInclude Include="network\MCMultiPlayerHandlers.h">
+      <Filter>network</Filter>
+    </ClInclude>
+    <ClInclude Include="network\MCMultiPlayerMessages.h">
+      <Filter>network</Filter>
+    </ClInclude>
+    <ClInclude Include="network\MCWorldStateChunk.h">
       <Filter>network</Filter>
     </ClInclude>
     <ClInclude Include="object\MCAIControl.h">

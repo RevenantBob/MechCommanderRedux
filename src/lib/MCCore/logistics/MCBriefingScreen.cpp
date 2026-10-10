@@ -6,8 +6,8 @@
 #include "gui/MCUpdateDisplay.h"
 #include "lib/MCFatal.h"
 #include "lib/MCFitIniFile.h"
-#include "linkup/dpplayer.h"
-#include "linkup/sessionmanager.h"
+#include "linkup/MCFidpPlayer.h"
+#include "linkup/MCSessionManager.h"
 #include "logistics/MCBriefingBox.h"
 #include "logistics/MCLogChatWindow.h"
 #include "logistics/MCLogRows.h"
@@ -21,7 +21,7 @@
 #include "main/MCLogistics.h"
 #include "main/MCGameStrings.h"
 #include "mission/MCMission.h"
-#include "network/multplyr.h"
+#include "network/MCMultiPlayer.h"
 #include "platform/MCInput.h"
 #include "platform/MCSmacker.h"
 #include "sound/MCSoundSystem.h"
@@ -216,13 +216,13 @@ auto MCBriefingScreen::DrawBackground() -> void
     // A map picture that can't be loaded is fatal.
     MapPicture->Load(GamePath(TerrainPath, GlobalLogPtr->MissionFileName, ".log.tga"));
 
-    if (MPlayer != nullptr)
+    if (MultiPlayer() != nullptr)
     {
         // Each lance's label has a line to its drop zone on the map.
         const auto side = static_cast<double>(mapSide);
         MarkerScale = static_cast<float>(std::sqrt(side * side + side * side) * metersPerVertex *
                                          static_cast<double>(0.0017667845f));
-        MarkedZone = MPlayer->HomeTeam == 1 ? 3 : 0;
+        MarkedZone = MultiPlayer()->HomeTeam == 1 ? 3 : 0;
     }
 
     SetUpMission();
@@ -299,13 +299,13 @@ auto MCBriefingScreen::RemoveChild(MCGuiObject* child) -> void
 
 auto MCBriefingScreen::LanceTons(int32_t lance) const -> int32_t
 {
-    if (MPlayer == nullptr)
+    if (MultiPlayer() == nullptr)
     {
         return LanceTonnage(lance);
     }
 
     // Multiplayer: a lance counts once one of its slots holds a unit (the second lance always with two players).
-    bool occupied = lance == 1 && MPlayer->PlayersOnHomeTeam()->Count == 2;
+    bool occupied = lance == 1 && static_cast<int32_t>(MultiPlayer()->PlayersOnHomeTeam()->size()) == 2;
 
     for (int32_t slot = 0; slot < 4 && !occupied; slot++)
     {
@@ -352,8 +352,8 @@ auto MCBriefingScreen::PaintLook(MCPane* target) -> void
     // others' in the blue one, and wrote them all in black.)
     static constexpr std::array<int32_t, 3> labelTops = {0x18, 0x88, 0xf8};
     const std::array<bool, MCLogistics::NumDropSlots>& local = GlobalLogPtr->LocalDropSlot;
-    const std::array<bool, 3> lanceShown = {true, MPlayer != nullptr || local[4],
-                                            MPlayer != nullptr || (local[4] && local[8])};
+    const std::array<bool, 3> lanceShown = {true, MultiPlayer() != nullptr || local[4],
+                                            MultiPlayer() != nullptr || (local[4] && local[8])};
 
     for (int32_t lance = 0; lance < 3; lance++)
     {
@@ -371,7 +371,7 @@ auto MCBriefingScreen::PaintLook(MCPane* target) -> void
 
         const std::string text = std::to_string(LanceTons(lance));
         const int32_t textWidth =
-            lance == 0 && MPlayer == nullptr ? BlackFont->Width(text.c_str()) : BlueFont->Width(text.c_str());
+            lance == 0 && MultiPlayer() == nullptr ? BlackFont->Width(text.c_str()) : BlueFont->Width(text.c_str());
         BlackFont->WriteString(target, 0x13f - textWidth, top + 4, text.c_str(), -1);
     }
 
@@ -412,8 +412,8 @@ auto MCBriefingScreen::PaintLook(MCPane* target) -> void
     if (CurrentTab == OperationTab || CurrentTab == MissionTab)
     {
         const std::string_view tabName = CurrentTab == OperationTab
-                                             ? (MPlayer == nullptr ? "lsbdw00.tga" : "lsbdw02.tga")
-                                             : (MPlayer == nullptr ? "lsbdw01.tga" : "lsbdw03.tga");
+                                             ? (MultiPlayer() == nullptr ? "lsbdw00.tga" : "lsbdw02.tga")
+                                             : (MultiPlayer() == nullptr ? "lsbdw01.tga" : "lsbdw03.tga");
 
         if (MCLogPort* art = LogScreenArt(tabName))
         {
@@ -578,7 +578,7 @@ auto MCBriefingScreen::MpCalcTonnages() -> void
 
 auto MCBriefingScreen::CalcTonnages() -> void
 {
-    if (MPlayer != nullptr)
+    if (MultiPlayer() != nullptr)
     {
         MpCalcTonnages();
         return;
@@ -772,7 +772,7 @@ auto MCBriefingScreen::HandleClick(int32_t xPos, int32_t yPos) -> void
 
     if (Inside(point, 2, 0x10, 0xd1, 0x21))
     {
-        if (MPlayer == nullptr)
+        if (MultiPlayer() == nullptr)
         {
             StopSmackerMovies();
             SoundSystem()->PlayDigitalSample(0x36, 1, nullptr, 0, 0);
@@ -817,7 +817,7 @@ auto MCBriefingScreen::Launch() -> void
     LaunchPressed = true;
     UpdateDisplay(0, 0, 0, 0, 0);
 
-    if (MPlayer == nullptr)
+    if (MultiPlayer() == nullptr)
     {
         // Everything the player owns must fit the save.
         const int32_t units = GlobalLogPtr->ForceVehicleList->GetVehicleCount() +
@@ -838,11 +838,12 @@ auto MCBriefingScreen::Launch() -> void
     }
 
     ButtonsLocked = true;
-    MPlayer->SendReadyForBattle();
-    std::string text = MCFormatPrintf(LoadGameString(0x379, 199).c_str(), MPlayer->SessionManager->MyPlayer->Name);
+    MultiPlayer()->SendReadyForBattle();
+    std::string text =
+        MCFormatPrintf(LoadGameString(0x379, 199).c_str(), MultiPlayer()->SessionManager->MyPlayer->Name.c_str());
     // The original's 304-byte buffer.
     text.resize(std::min<size_t>(text.size(), 303));
-    MPlayer->SendChat(0, text.data());
+    MultiPlayer()->SendChat(0, text.data());
 }
 
 auto MCBriefingScreen::HandleEvent(MCGuiEvent* event) -> void
@@ -862,7 +863,7 @@ auto MCBriefingScreen::HandleEvent(MCGuiEvent* event) -> void
         // Ctrl+Alt+= : a thousand resource points.
         const bool ctrlAlt = MCInput::GetAsyncKeyState(VK_CONTROL) != 0 && MCInput::GetAsyncKeyState(VK_MENU) != 0;
 
-        if (MPlayer == nullptr && CheatsOn != 0 && event->Key == 0xbb && ctrlAlt)
+        if (MultiPlayer() == nullptr && CheatsOn != 0 && event->Key == 0xbb && ctrlAlt)
         {
             ResourcePoints += 1000;
         }
@@ -933,7 +934,7 @@ auto MCBriefingScreen::SetUpOperation() -> void
     GlobalLogPtr->AutoPlayMovie = 0;
     MovieOver = 0;
 
-    if (MPlayer == nullptr)
+    if (MultiPlayer() == nullptr)
     {
         OperationShown = true;
 
@@ -974,7 +975,7 @@ auto MCBriefingScreen::SetUpOperation() -> void
     StopSmackerMovies();
     CurrentTab = OperationTab;
 
-    if (!PlayMovie || MPlayer != nullptr)
+    if (!PlayMovie || MultiPlayer() != nullptr)
     {
         return;
     }
@@ -989,7 +990,7 @@ auto MCBriefingScreen::SetUpOperation() -> void
             UpdateDisplay(0, 0, 0, 0, 0);
         }
 
-        if (MPlayer != nullptr)
+        if (MultiPlayer() != nullptr)
         {
             return;
         }
@@ -1020,7 +1021,7 @@ auto MCBriefingScreen::SetUpMission() -> void
     // The tab's art is drawn from currentTab (PaintLook).
     CurrentTab = MissionTab;
 
-    if (MPlayer == nullptr)
+    if (MultiPlayer() == nullptr)
     {
         StopSmackerMovies();
     }

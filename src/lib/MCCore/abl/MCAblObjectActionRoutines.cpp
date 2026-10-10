@@ -11,7 +11,7 @@
 #include "lib/MCVector2D.h"
 #include "main/MCGameStrings.h"
 #include "mission/MCScenario.h"
-#include "network/multplyr.h"
+#include "network/MCMultiPlayer.h"
 #include "object/MCArtillery.h"
 #include "object/MCArtilleryType.h"
 #include "object/MCArtilleryChunk.h"
@@ -470,7 +470,7 @@ auto ExecHbSetCaptureable(MCAblRuntime& abl) -> void
 
     if (object)
     {
-        if (MPlayer)
+        if (MultiPlayer())
         {
             static_cast<MCGameObject*>(object)->ClearCaptured();
         }
@@ -663,7 +663,7 @@ auto ExecHbCallStrike(MCAblRuntime& abl) -> void
 {
     abl.GetCodeToken();
 
-    if (MPlayer)
+    if (MultiPlayer())
     {
         Fatal(0, " ABL: Calling ArtilleryStrike in Multiplayer game ");
     }
@@ -687,7 +687,7 @@ auto ExecHbCallStrikeEx(MCAblRuntime& abl) -> void
 {
     abl.GetCodeToken();
 
-    if (MPlayer)
+    if (MultiPlayer())
     {
         Fatal(0, " ABL: Calling ArtilleryStrike in Multiplayer game ");
     }

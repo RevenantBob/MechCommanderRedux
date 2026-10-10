@@ -138,6 +138,9 @@
     <ClCompile Include="tests\MoverTests.cpp">
       <Filter>tests</Filter>
     </ClCompile>
+    <ClCompile Include="tests\MultiPlayerTests.cpp">
+      <Filter>tests</Filter>
+    </ClCompile>
     <ClCompile Include="tests\ObjectCoreTests.cpp">
       <Filter>tests</Filter>
     </ClCompile>

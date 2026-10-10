@@ -94,7 +94,7 @@ public:
 };
 
 /// <summary>The network callback for chat messages during a scenario.</summary>
-void ScenarioChatCallback(MCFidpMessage* message, void* data);
+void ScenarioChatCallback(MCFidpMessage& message);
 
 /// <summary>The players' chat colours, by player number.</summary>
 inline constexpr std::array<int32_t, 6> PlayerColor = {1, 3, 4, 2, 6, 5};

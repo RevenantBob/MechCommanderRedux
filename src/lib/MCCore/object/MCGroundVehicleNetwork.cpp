@@ -4,7 +4,7 @@
 #include "iface/MCTacticalInterface.h"
 #include "lib/MCFatal.h"
 #include "mission/MCScenario.h"
-#include "network/multplyr.h"
+#include "network/MCMultiPlayer.h"
 #include "object/MCAIControl.h"
 #include "object/MCArtillery.h"
 #include "object/MCArtilleryType.h"
@@ -251,7 +251,7 @@ auto MCGroundVehicle::HandleStatusChunk(int32_t updateAge, uint32_t chunk) -> in
     {
         if (StatusChunk.TargetType == 1)
         {
-            targetPartId = MPlayer->MoverRoster[StatusChunk.TargetId]->PartId;
+            targetPartId = MultiPlayer()->MoverRoster[StatusChunk.TargetId]->PartId;
         }
         else if (StatusChunk.TargetType < 4)
         {

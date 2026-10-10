@@ -4,7 +4,7 @@
 #include "engine/MCByteFlag.h"
 #include "lib/MCFatal.h"
 #include "mission/MCScenario.h"
-#include "network/multplyr.h"
+#include "network/MCMultiPlayer.h"
 #include "object/MCContactSystem.h"
 #include "object/MCForces.h"
 #include "object/MCMasterComponent.h"
@@ -386,7 +386,7 @@ auto MCTeam::DestroyTargets() -> void
                 shotInfo.HitLocation = target->CalcHitLocation(nullptr, -1, 2, 0);
             }
 
-            target->HandleWeaponHit(&shotInfo, MPlayer != nullptr ? 1 : 0);
+            target->HandleWeaponHit(&shotInfo, MultiPlayer() != nullptr ? 1 : 0);
         }
     }
 }

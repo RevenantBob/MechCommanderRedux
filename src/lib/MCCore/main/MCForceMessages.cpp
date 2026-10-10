@@ -1,13 +1,13 @@
 #include "stdafx.h"
 #include "main/MCForceMessages.h"
-#include "linkup/ficommonnetwork.h"
-#include "network/multplyr.h"
+#include "linkup/MCLinkupMessages.h"
+#include "network/MCMultiPlayer.h"
 
 namespace
 {
 #pragma pack(push, 1)
     /// <summary>
-    /// A "deploy force" message (MPMSG_DEPLOY_FORCE): a mech or vehicle placed in a drop slot, with its pilot and
+    /// A "deploy force" message (MCMPMessageType::DeployForce): a mech or vehicle placed in a drop slot, with its pilot and
     /// components. Sent as <c>numItems * 2 + 0xd</c> bytes. The struct name is the port's.
     /// </summary>
     struct MCDeployForceMessage : public MCFIGuaranteedMessageHeader // Fixed layout: deploy force message
@@ -29,7 +29,7 @@ namespace
 
     static_assert(sizeof(MCDeployForceMessage) == 0xd);
 
-    /// <summary>A "remove force" message (MPMSG_REMOVE_FORCE): a drop slot emptied. 10 bytes; the name is the port's.</summary>
+    /// <summary>A "remove force" message (MCMPMessageType::RemoveForce): a drop slot emptied. 10 bytes; the name is the port's.</summary>
     struct MCRemoveForceMessage : public MCFIGuaranteedMessageHeader // Fixed layout: remove force message
     {
         uint8_t Slot = 0;
@@ -49,7 +49,7 @@ auto PackDeployForce(const MCDeployForce& force) -> std::vector<uint8_t>
     const size_t count = force.Items.size() & 0xff;
     std::vector<uint8_t> bytes(sizeof(MCDeployForceMessage) + count * 2);
     MCDeployForceMessage message;
-    message.Header = FIMSG_GUARANTEED | MPMSG_DEPLOY_FORCE;
+    message.Header = GuaranteedHeader(MCMPMessageType::DeployForce);
     message.Flags =
         static_cast<uint8_t>((force.IsMech ? FlagMech : 0) | (force.ClanSide ? FlagClan : 0) |
                              ((force.NameVariant & 3) << 2) | ((force.Lance & 3) << 4) | ((force.Slot & 3) << 6));
@@ -91,7 +91,7 @@ auto UnpackDeployForce(const void* message) -> MCDeployForce
 auto PackRemoveForce(uint8_t lance, uint8_t slot) -> std::vector<uint8_t>
 {
     MCRemoveForceMessage message;
-    message.Header = FIMSG_GUARANTEED | MPMSG_REMOVE_FORCE;
+    message.Header = GuaranteedHeader(MCMPMessageType::RemoveForce);
     message.Lance = lance;
     message.Slot = slot;
     std::vector<uint8_t> bytes(sizeof(message));

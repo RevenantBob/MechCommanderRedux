@@ -5,10 +5,10 @@
 #include "camera/MCMainWindow.h"
 #include "gui/MCFloatHelp.h"
 #include "iface/MCMechBar.h"
-#include "linkup/dpplayer.h"
-#include "linkup/sessionmanager.h"
+#include "linkup/MCFidpPlayer.h"
+#include "linkup/MCSessionManager.h"
 #include "main/MCGameStrings.h"
-#include "network/multplyr.h"
+#include "network/MCMultiPlayer.h"
 #include "object/MCBuilding.h"
 #include "object/MCForces.h"
 #include "object/MCGate.h"
@@ -39,7 +39,7 @@ namespace
     {
         for (int32_t player = 0; player < 6; player++)
         {
-            for (const MCMover* mover : MPlayer->PlayerMoverRoster[player])
+            for (const MCMover* mover : MultiPlayer()->PlayerMoverRoster[player])
             {
                 if (mover == nullptr)
                 {
@@ -48,7 +48,7 @@ namespace
 
                 if (mover == object)
                 {
-                    const auto* entry = MPlayer->SessionManager->GetPlayerNumber(player);
+                    const auto* entry = MultiPlayer()->SessionManager->GetPlayerNumber(player);
                     return entry != nullptr ? std::string(entry->Name) : std::string();
                 }
             }
@@ -208,9 +208,10 @@ auto MCTacticalInterface::UpdateMouseState(MCGuiEvent* event) -> void
                             // The player's own: pilot and mover, and the mech bar highlights its icon.
                             if (mover->GetAwake() != 0)
                             {
-                                text = MPlayer != nullptr ? std::format("{}\n{}\n{}", mover->GetPilot()->Callsign, name,
-                                                                        NetPlayerName(object))
-                                                          : std::format("{}\n{}", mover->GetPilot()->Callsign, name);
+                                text = MultiPlayer() != nullptr
+                                           ? std::format("{}\n{}\n{}", mover->GetPilot()->Callsign, name,
+                                                         NetPlayerName(object))
+                                           : std::format("{}\n{}", mover->GetPilot()->Callsign, name);
                             }
                             else
                             {
@@ -235,7 +236,7 @@ auto MCTacticalInterface::UpdateMouseState(MCGuiEvent* event) -> void
                             break;
                         }
 
-                        if (MPlayer != nullptr && mover->GetAlignment() == HomeTeam()->Alignment)
+                        if (MultiPlayer() != nullptr && mover->GetAlignment() == HomeTeam()->Alignment)
                         {
                             // A teammate's mover.
                             text = std::format("{}\n{}\n{}", mover->GetPilot()->Callsign, name, NetPlayerName(object));
@@ -265,8 +266,8 @@ auto MCTacticalInterface::UpdateMouseState(MCGuiEvent* event) -> void
                         }
                         else if (mover->GetAwake() != 0)
                         {
-                            text = MPlayer != nullptr ? std::format("{}\n{}", name, NetPlayerName(object))
-                                                      : std::string(name);
+                            text = MultiPlayer() != nullptr ? std::format("{}\n{}", name, NetPlayerName(object))
+                                                            : std::string(name);
                         }
                         else
                         {

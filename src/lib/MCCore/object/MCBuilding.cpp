@@ -10,7 +10,7 @@
 #include "main/MCMissionGlobals.h"
 #include "main/MCGameStrings.h"
 #include "mission/MCScenario.h"
-#include "network/multplyr.h"
+#include "network/MCMultiPlayer.h"
 #include "object/MCBuildingMarines.h"
 #include "object/MCBuildingType.h"
 #include "object/MCCollisionSystem.h"
@@ -231,7 +231,7 @@ auto MCBuilding::LightOnFire(float timeToBurn) -> void
 
 auto MCBuilding::IsCaptureable() -> int
 {
-    if (MPlayer == nullptr)
+    if (MultiPlayer() == nullptr)
     {
         return Captureable && IsCaptured() == 0 && IsDestroyed() == 0 ? 1 : 0;
     }
@@ -277,11 +277,11 @@ auto MCBuilding::Render() -> void
             MCWeaponShotInfo shot;
             shot.Init(nullptr, -1, type->BurnDamagePerTime, 0, 0.0f);
 
-            if (MPlayer == nullptr)
+            if (MultiPlayer() == nullptr)
             {
                 HandleWeaponHit(&shot, 0);
             }
-            else if (MPlayer->IsServer != 0)
+            else if (MultiPlayer()->IsServer != 0)
             {
                 HandleWeaponHit(&shot, 1);
             }
@@ -525,7 +525,7 @@ auto MCBuilding::HandleWeaponHit(MCWeaponShotInfo* shotInfo, int addMultiplayChu
 
     if (addMultiplayChunk != 0)
     {
-        MPlayer->AddWeaponHitChunk(this, shotInfo, 0);
+        MultiPlayer()->AddWeaponHitChunk(this, shotInfo, 0);
     }
 
     if (IsDestroyed() != 0)
@@ -587,7 +587,7 @@ auto MCBuilding::HandleWeaponHit(MCWeaponShotInfo* shotInfo, int addMultiplayChu
 
         newDamage = destroyLevel;
 
-        if (MPlayer == nullptr)
+        if (MultiPlayer() == nullptr)
         {
             CreateBuildingMarines();
         }

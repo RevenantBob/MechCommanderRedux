@@ -4,7 +4,7 @@
 #include "camera/MCCamera.h"
 #include "lib/MCFitIniFile.h"
 #include "mission/MCScenario.h"
-#include "network/multplyr.h"
+#include "network/MCMultiPlayer.h"
 #include "object/MCArtillery.h"
 #include "object/MCArtilleryType.h"
 #include "object/MCArtilleryChunk.h"
@@ -126,7 +126,7 @@ auto MCTurretType::Init(MCFile* objFile, uint32_t fileSize) -> int32_t
 auto MCTurretType::HandleCollision(MCGameObject* collidee, MCGameObject* collider) -> int
 {
     // Only the server picks targets.
-    if (MPlayer != nullptr && MPlayer->IsServer == 0)
+    if (MultiPlayer() != nullptr && MultiPlayer()->IsServer == 0)
     {
         return 1;
     }

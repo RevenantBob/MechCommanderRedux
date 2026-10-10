@@ -7,7 +7,7 @@
 #include "camera/MCCamera.h"
 #include "main/MCMissionGlobals.h"
 #include "main/MCGameStrings.h"
-#include "network/multplyr.h"
+#include "network/MCMultiPlayer.h"
 #include "object/MCGateType.h"
 #include "object/MCObjectDrawing.h"
 #include "object/MCObjectEvent.h"
@@ -281,7 +281,7 @@ auto MCGate::Update() -> int32_t
 auto MCGate::BlowAnyOffendingObject() -> void
 {
     // Whatever is caught in a gate as it shuts takes 10 hits of 250, and the gate is destroyed.
-    if (MPlayer != nullptr && MPlayer->IsServer == 0)
+    if (MultiPlayer() != nullptr && MultiPlayer()->IsServer == 0)
     {
         return;
     }
@@ -305,7 +305,7 @@ auto MCGate::BlowAnyOffendingObject() -> void
         return;
     }
 
-    const int multiplayer = MPlayer != nullptr ? 1 : 0;
+    const int multiplayer = MultiPlayer() != nullptr ? 1 : 0;
     MCWeaponShotInfo shot;
     shot.Init(nullptr, -3, 250.0f, 0, 0.0f);
 
@@ -415,11 +415,11 @@ auto MCGate::LightOnFire(float timeToBurn) -> void
         MCWeaponShotInfo shot;
         shot.Init(nullptr, -1, 1.0f, 0, 0.0f);
 
-        if (MPlayer == nullptr)
+        if (MultiPlayer() == nullptr)
         {
             HandleWeaponHit(&shot, 0);
         }
-        else if (MPlayer->IsServer != 0)
+        else if (MultiPlayer()->IsServer != 0)
         {
             HandleWeaponHit(&shot, 1);
         }
@@ -545,7 +545,7 @@ auto MCGate::HandleWeaponHit(MCWeaponShotInfo* shotInfo, int addMultiplayChunk) 
 
     if (addMultiplayChunk != 0)
     {
-        MPlayer->AddWeaponHitChunk(this, shotInfo, 0);
+        MultiPlayer()->AddWeaponHitChunk(this, shotInfo, 0);
     }
 
     const float newDamage = GetDamage() + shotInfo->Damage;

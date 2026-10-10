@@ -5,7 +5,7 @@
 #include "camera/MCCamera.h"
 #include "lib/MCFatal.h"
 #include "main/MCMissionGlobals.h"
-#include "network/multplyr.h"
+#include "network/MCMultiPlayer.h"
 #include "object/MCCollisionSystem.h"
 #include "object/MCObjectDrawing.h"
 #include "object/MCObjectEvent.h"
@@ -251,7 +251,7 @@ auto MCTerrainObject::HandleWeaponHit(MCWeaponShotInfo* shotInfo, int addMultipl
 
     if (addMultiplayChunk != 0)
     {
-        MPlayer->AddWeaponHitChunk(this, shotInfo, 0);
+        MultiPlayer()->AddWeaponHitChunk(this, shotInfo, 0);
     }
 
     double newDamage = static_cast<double>(GetDamage()) + shotInfo->Damage;

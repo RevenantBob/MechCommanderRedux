@@ -5,7 +5,7 @@
 #include "gui/MCGuiInput.h"
 #include "gui/MCGuiSystem.h"
 #include "gui/MCUpdateDisplay.h"
-#include "network/multplyr.h"
+#include "network/MCMultiPlayer.h"
 #include "platform/MCInput.h"
 
 MCAblWatchManager::~MCAblWatchManager()
@@ -782,9 +782,9 @@ auto MCAblDebugger::DebugMode() -> void
             TakeScreenShot = 0;
             PerfStopTime = MCPort::PerformanceCounter();
 
-            if (MPlayer)
+            if (MultiPlayer())
             {
-                MPlayer->ProcessReceiveList();
+                MultiPlayer()->ProcessReceiveList();
             }
 
             CheckMouse();

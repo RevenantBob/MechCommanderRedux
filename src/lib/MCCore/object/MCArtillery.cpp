@@ -13,7 +13,7 @@
 #include "lib/MCDice.h"
 #include "main/MCMissionGlobals.h"
 #include "mission/MCScenario.h"
-#include "network/multplyr.h"
+#include "network/MCMultiPlayer.h"
 #include "object/MCArtilleryType.h"
 #include "object/MCCameraDrone.h"
 #include "object/MCCollisionSystem.h"
@@ -103,9 +103,9 @@ namespace
         MCVector3D minePos = MapTileCellToWorldPos(tileR, tileC, 1, 1);
         GameMap()->Map[GameMap()->Width * tileR + tileC].Overlay |= spentBits;
 
-        if (MPlayer != nullptr)
+        if (MultiPlayer() != nullptr)
         {
-            MPlayer->AddMineChunk(tileR * 3, tileC * 3, side, 3, 2);
+            MultiPlayer()->AddMineChunk(tileR * 3, tileC * 3, side, 3, 2);
         }
 
         CreateExplosion(MineExplosion, minePos, MineSplashDamage, WorldUnitsPerMeter * MineSplashRange);
@@ -151,7 +151,7 @@ void CallArtillery(int32_t commanderId, int32_t strikeType, MCVector3D location,
 
     (*strikesLeft)--;
 
-    if (MPlayer != nullptr && 4 <= strikeType && strikeType <= 6)
+    if (MultiPlayer() != nullptr && 4 <= strikeType && strikeType <= 6)
     {
         strikeType -= 4;
     }
@@ -183,9 +183,9 @@ void CallArtillery(int32_t commanderId, int32_t strikeType, MCVector3D location,
         strike->TimeToImpact = -1.0f;
     }
 
-    if (MPlayer != nullptr && MPlayer->IsServer != 0)
+    if (MultiPlayer() != nullptr && MultiPlayer()->IsServer != 0)
     {
-        MPlayer->AddArtilleryChunk(commanderId, strikeType, location, seconds);
+        MultiPlayer()->AddArtilleryChunk(commanderId, strikeType, location, seconds);
     }
 }
 

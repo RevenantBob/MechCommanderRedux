@@ -4,7 +4,7 @@
 #include "lib/MCFitIniFile.h"
 #include "main/MCGamePaths.h"
 #include "main/MCMissionGlobals.h"
-#include "network/multplyr.h"
+#include "network/MCMultiPlayer.h"
 #include "object/MCArtillery.h"
 #include "object/MCGateType.h"
 #include "object/MCTurretType.h"
@@ -132,7 +132,7 @@ auto MCArtilleryType::HandleCollision(MCGameObject* collidee, MCGameObject* coll
 {
     const auto* strike = static_cast<MCArtillery*>(collidee);
 
-    if ((MPlayer != nullptr && MPlayer->IsServer == 0) || !strike->HasImpacted)
+    if ((MultiPlayer() != nullptr && MultiPlayer()->IsServer == 0) || !strike->HasImpacted)
     {
         return 0;
     }
@@ -172,7 +172,7 @@ auto MCArtilleryType::HandleCollision(MCGameObject* collidee, MCGameObject* coll
             shot.SetEntryAngle(collider->RelFacingTo(collidee->GetPosition(), -1));
         }
 
-        collider->HandleWeaponHit(&shot, MPlayer != nullptr ? 1 : 0);
+        collider->HandleWeaponHit(&shot, MultiPlayer() != nullptr ? 1 : 0);
     }
 
     return 0;

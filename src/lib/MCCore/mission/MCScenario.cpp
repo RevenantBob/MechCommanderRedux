@@ -14,7 +14,7 @@
 #include "main/MCMissionGlobals.h"
 #include "main/MCGameStrings.h"
 #include "mission/MCMission.h"
-#include "network/multplyr.h"
+#include "network/MCMultiPlayer.h"
 #include "object/MCCollisionSystem.h"
 #include "object/MCContactSystem.h"
 #include "object/MCForces.h"
@@ -83,7 +83,7 @@ auto MCScenario::Update() -> int32_t
 
     if (MissionStartTime == 0)
     {
-        if (MPlayer != nullptr && 10.0f < ScenarioTime)
+        if (MultiPlayer() != nullptr && 10.0f < ScenarioTime)
         {
             Fatal(0, " runningTime is not working...why? ");
         }
@@ -93,7 +93,7 @@ auto MCScenario::Update() -> int32_t
         RunningTime = static_cast<float>(static_cast<double>(MCPort::Milliseconds() - MissionStartTime) * 0.001);
     }
 
-    ActualTime = (MPlayer != nullptr) ? RunningTime : ScenarioTime;
+    ActualTime = (MultiPlayer() != nullptr) ? RunningTime : ScenarioTime;
 
     if (0 < TimeLimit)
     {
@@ -153,9 +153,9 @@ auto MCScenario::Render(MCGuiObject* window) -> int32_t
 
 auto MCScenario::Run() -> int32_t
 {
-    if (MPlayer != nullptr && MPlayer->InMission == 0)
+    if (MultiPlayer() != nullptr && MultiPlayer()->InMission == 0)
     {
-        MPlayer->ProcessReceiveList();
+        MultiPlayer()->ProcessReceiveList();
         return 0;
     }
 
@@ -192,7 +192,7 @@ auto MCScenario::Run() -> int32_t
         StartObjectiveTimers();
     }
 
-    if (MPlayer == nullptr)
+    if (MultiPlayer() == nullptr)
     {
         ScenarioBrain->Execute(std::span(&ScenarioBrainParams, 1));
         ScenarioResult = static_cast<uint32_t>(ScenarioBrain->ReturnValue());
@@ -206,9 +206,9 @@ auto MCScenario::Run() -> int32_t
         abl.MissionMessageCode = 0;
         abl.MissionMessageParam = 0;
 
-        if (MPlayer->IsServer == 0)
+        if (MultiPlayer()->IsServer == 0)
         {
-            ScenarioResult = static_cast<uint32_t>(MPlayer->ScenarioResult);
+            ScenarioResult = static_cast<uint32_t>(MultiPlayer()->ScenarioResult);
         }
         else
         {
@@ -216,19 +216,19 @@ auto MCScenario::Run() -> int32_t
 
             if (ScenarioResult != 0)
             {
-                MPlayer->SendEndScenario(0, static_cast<int32_t>(ScenarioResult));
+                MultiPlayer()->SendEndScenario(static_cast<int32_t>(ScenarioResult));
             }
         }
     }
 
-    if (MPlayer != nullptr)
+    if (MultiPlayer() != nullptr)
     {
-        if (MPlayer->IsServer != 0)
+        if (MultiPlayer()->IsServer != 0)
         {
-            MPlayer->UpdateClients();
+            MultiPlayer()->UpdateClients();
         }
 
-        MPlayer->ProcessReceiveList();
+        MultiPlayer()->ProcessReceiveList();
     }
 
     return static_cast<int32_t>(ScenarioResult);

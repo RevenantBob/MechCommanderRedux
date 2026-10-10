@@ -3,7 +3,7 @@
 #include "abl/MCScrollingTextWindow.h"
 #include "lib/MCFatal.h"
 #include "main/MCMissionGlobals.h"
-#include "network/multplyr.h"
+#include "network/MCMultiPlayer.h"
 #include "object/MCMasterComponent.h"
 #include "object/MCMover.h"
 #include "object/MCMoverGameSystem.h"
@@ -243,7 +243,7 @@ auto MCMechWarrior::UpdateActions() -> void
 auto MCMechWarrior::MainDecisionTree() -> int32_t
 {
     // The current order: when done, the next queued player order or the one underneath takes over.
-    const bool server = MPlayer == nullptr || MPlayer->IsServer != 0;
+    const bool server = MultiPlayer() == nullptr || MultiPlayer()->IsServer != 0;
 
     if (server && CurTacOrder.Code == MCTacticalOrderCode::None && TacOrderQueueExecuting && !QueuedOrders.Empty() &&
         NewTacOrderReceivedOf(MCOrderState::Player) == 0)
@@ -253,7 +253,7 @@ auto MCMechWarrior::MainDecisionTree() -> int32_t
 
     if (CurTacOrder.Code != MCTacticalOrderCode::None && CurTacOrder.Status(this) == 1)
     {
-        Assert(MPlayer == nullptr || MPlayer->IsServer != 0, 0, " MechWarrior.mainDecisionTree: client! ");
+        Assert(MultiPlayer() == nullptr || MultiPlayer()->IsServer != 0, 0, " MechWarrior.mainDecisionTree: client! ");
 
         if (OrderState == MCOrderState::Player && TacOrderQueueExecuting)
         {

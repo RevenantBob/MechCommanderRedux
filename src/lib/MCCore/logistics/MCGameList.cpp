@@ -2,10 +2,9 @@
 #include "logistics/MCGameList.h"
 #include "gui/MCGuiEvent.h"
 #include "gui/MCGuiFont.h"
-#include "linkup/linkedlist.hpp"
-#include "linkup/session.h"
-#include "linkup/sessionmanager.h"
-#include "network/multplyr.h"
+#include "linkup/MCFidpSession.h"
+#include "linkup/MCSessionManager.h"
+#include "network/MCMultiPlayer.h"
 
 namespace
 {
@@ -36,7 +35,7 @@ auto MCGameList::RebuildLines() -> void
 {
     Clear();
 
-    if (MPlayer == nullptr)
+    if (MultiPlayer() == nullptr)
     {
         return;
     }
@@ -44,7 +43,7 @@ auto MCGameList::RebuildLines() -> void
     // "name <tab> free slots", or FULL; the selection is highlighted.
     for (int32_t i = 0; i < NumSessions(); i++)
     {
-        MCFidpSession* session = MPlayer->SessionManager->FindMatchingSession(&Sessions[static_cast<size_t>(i)]);
+        MCFidpSession* session = MultiPlayer()->SessionManager->FindMatchingSession(Sessions[static_cast<size_t>(i)]);
 
         if (session == nullptr)
         {
@@ -77,7 +76,7 @@ auto MCGameList::IsSessionDeleted(const MCFidpSession* session) -> bool
 
 auto MCGameList::HandleEvent(MCGuiEvent* event) -> void
 {
-    MCMultiPlayer* multiPlayer = MPlayer;
+    MCMultiPlayer* multiPlayer = MultiPlayer();
 
     if (event->Type == MCGuiEventType::LeftButtonDown)
     {
@@ -121,18 +120,18 @@ auto MCGameList::HandleEvent(MCGuiEvent* event) -> void
         {
             // The sessions that have players (an empty one is remembered as deleted and never listed again). The scan
             // stops at the first deleted session.
-            MCFLinkedList<MCFidpSession>* list = multiPlayer->SessionManager->GetSessions();
+            const auto* list = multiPlayer->SessionManager->GetSessions();
 
-            for (MCFLink<MCFidpSession>* link = list->HeadLink; link != nullptr; link = link->Next)
+            for (size_t i = 0; list != nullptr && i < list->size(); i++)
             {
-                MCFidpSession* session = link->Data;
+                MCFidpSession* session = (*list)[i].get();
 
-                if (session == nullptr || IsSessionDeleted(session))
+                if (IsSessionDeleted(session))
                 {
                     break;
                 }
 
-                if (multiPlayer->SessionManager->GetPlayers(session)->Count < 1)
+                if (multiPlayer->SessionManager->GetPlayers(session).empty())
                 {
                     DeletedSessions.push_back(session->SessionDesc.guidInstance);
                 }

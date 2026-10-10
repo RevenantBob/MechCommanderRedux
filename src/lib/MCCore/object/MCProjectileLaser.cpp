@@ -11,7 +11,7 @@
 #include "gui/MCGuiSystem.h"
 #include "main/MCMissionGlobals.h"
 #include "mission/MCScenario.h"
-#include "network/multplyr.h"
+#include "network/MCMultiPlayer.h"
 #include "object/MCExplosion.h"
 #include "object/MCMechGameSystem.h"
 #include "object/MCObjectDrawing.h"
@@ -319,11 +319,11 @@ auto MCProjectileLaser::Update() -> int32_t
     // Arrived: apply the shot (in multiplayer only the server does, and sends it on).
     if (Target != nullptr)
     {
-        if (MPlayer == nullptr)
+        if (MultiPlayer() == nullptr)
         {
             Target->HandleWeaponHit(&ShotInfo, 0);
         }
-        else if (MPlayer->IsServer != 0)
+        else if (MultiPlayer()->IsServer != 0)
         {
             Target->HandleWeaponHit(&ShotInfo, 1);
         }

@@ -21,7 +21,7 @@
 #include "color/MCPalette.h"
 #include "mission/MCMission.h"
 #include "mission/MCScenario.h"
-#include "network/multplyr.h"
+#include "network/MCMultiPlayer.h"
 #include "platform/MCPresenter.h"
 #include "sound/MCSoundSystem.h"
 #include "sprite/MCSpriteManager.h"
@@ -277,7 +277,7 @@ TEST_CASE_ISOLATED("game: the game session holds the game's systems and the stop
     CHECK(Mission() != nullptr);
     CHECK(SoundSystem() != nullptr);
     CHECK(!MCGameContext::Current().FastFiles().Files().empty());
-    CHECK(MPlayer == nullptr);
+    CHECK(MultiPlayer() == nullptr);
     CHECK(gui->Session->DebuggerWindow() == nullptr);
     const MCGuiCallback* color = &gui->Session->ColorCallback();
     CHECK(std::ranges::find(gui->Callbacks(), color) != gui->Callbacks().end());

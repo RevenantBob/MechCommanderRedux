@@ -10,7 +10,7 @@
 #include "lib/MCFrameOfRef.h"
 #include "lib/MCVector2D.h"
 #include "mission/MCScenario.h"
-#include "network/multplyr.h"
+#include "network/MCMultiPlayer.h"
 #include "object/MCArtillery.h"
 #include "object/MCArtilleryType.h"
 #include "object/MCArtilleryChunk.h"
@@ -377,9 +377,9 @@ auto ExecHbSendMessage(MCAblRuntime& abl) -> void
     abl.Pop();
     abl.MissionMessageParam = abl.NextInteger();
 
-    if (MPlayer && MPlayer->IsServer)
+    if (MultiPlayer() && MultiPlayer()->IsServer)
     {
-        MPlayer->AddMissionScriptMessageChunk(abl.MissionMessageCode, abl.MissionMessageParam);
+        MultiPlayer()->AddMissionScriptMessageChunk(abl.MissionMessageCode, abl.MissionMessageParam);
 
         // The original's log held 1000 messages and wrote past its end after this report; the port's grows.
         if (abl.MissionScriptMessages.size() == MissionScriptMessageReport)
@@ -500,7 +500,7 @@ auto ExecHbAddStrikes(MCAblRuntime& abl) -> void
 
 auto ExecHbIsServer(MCAblRuntime& abl) -> MCAblType*
 {
-    abl.PushInteger(MPlayer && MPlayer->IsServer ? 1 : 0);
+    abl.PushInteger(MultiPlayer() && MultiPlayer()->IsServer ? 1 : 0);
     abl.GetCodeToken();
     return BooleanTypePtr;
 }

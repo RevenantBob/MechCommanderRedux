@@ -14,7 +14,7 @@
 #include "main/MCGamePaths.h"
 #include "main/MCMissionGlobals.h"
 #include "mission/MCScenario.h"
-#include "network/multplyr.h"
+#include "network/MCMultiPlayer.h"
 #include "object/MCAIControl.h"
 #include "object/MCMiscTerrainObject.h"
 #include "object/MCMiscTerrainObjectType.h"
@@ -75,7 +75,7 @@ namespace
         const double scale = friendly == 0 ? 0.1 : 0.01;
         MCWeaponShotInfo shotInfo;
         shotInfo.Init(shooter, -1, static_cast<float>(tonnageOf->GetTonnage() * scale + 0.5), hitLocation, entryAngle);
-        victim->HandleWeaponHit(&shotInfo, MPlayer != nullptr);
+        victim->HandleWeaponHit(&shotInfo, MultiPlayer() != nullptr);
     }
 }
 
@@ -273,7 +273,7 @@ auto MCBattleMechType::Init(MCFile* objFile, uint32_t fileSize) -> int32_t
 
 auto MCBattleMechType::HandleCollision(MCGameObject* collidee, MCGameObject* collider) -> int
 {
-    if (MPlayer != nullptr && MPlayer->IsServer == 0)
+    if (MultiPlayer() != nullptr && MultiPlayer()->IsServer == 0)
     {
         return 0;
     }
@@ -389,13 +389,13 @@ auto MCBattleMechType::HandleCollision(MCGameObject* collidee, MCGameObject* col
                     shotInfo.Init(collider, -1,
                                   static_cast<float>(collider->GetTonnage() * (friendly == 0 ? 0.1 : 0.01) + 0.5),
                                   hitLocation, entryAngle);
-                    collidee->HandleWeaponHit(&shotInfo, MPlayer != nullptr);
+                    collidee->HandleWeaponHit(&shotInfo, MultiPlayer() != nullptr);
                     const int32_t otherHitLocation = collider->CalcHitLocation(collidee, -1, 2, 0);
                     const float otherEntryAngle = collider->RelFacingTo(collidee->GetPosition(), -1);
                     shotInfo.Init(collidee, -1,
                                   static_cast<float>(collider->GetTonnage() * (friendly == 0 ? 0.1 : 0.01) + 0.5),
                                   otherHitLocation, otherEntryAngle);
-                    collider->HandleWeaponHit(&shotInfo, MPlayer != nullptr);
+                    collider->HandleWeaponHit(&shotInfo, MultiPlayer() != nullptr);
                     MCVector3D position = collider->GetPosition();
                     ::CreateExplosion(0x290, position, 0.0f, 0.0f);
                 }
@@ -446,7 +446,7 @@ auto MCBattleMechType::HandleCollision(MCGameObject* collidee, MCGameObject* col
             const float entryAngle = collidee->RelFacingTo(collider->GetPosition(), -1);
             MCWeaponShotInfo shotInfo;
             shotInfo.Init(collider, -1, ElmDamageOnImpact, hitLocation, entryAngle);
-            collidee->HandleWeaponHit(&shotInfo, MPlayer != nullptr);
+            collidee->HandleWeaponHit(&shotInfo, MultiPlayer() != nullptr);
             sampleId = 0x1e;
             break;
         }
@@ -477,8 +477,8 @@ auto MCBattleMechType::HandleCollision(MCGameObject* collidee, MCGameObject* col
             MCWeaponShotInfo shotInfo;
             shotInfo.Init(collider, -1, static_cast<float>(collider->GetTonnage() * 0.1 + 0.5), hitLocation,
                           entryAngle);
-            collidee->HandleWeaponHit(&shotInfo, MPlayer != nullptr);
-            collider->HandleWeaponHit(&shotInfo, MPlayer != nullptr);
+            collidee->HandleWeaponHit(&shotInfo, MultiPlayer() != nullptr);
+            collider->HandleWeaponHit(&shotInfo, MultiPlayer() != nullptr);
             break;
         }
 

@@ -12,7 +12,7 @@
 #include "main/MCMissionGlobals.h"
 #include "main/MCGameStrings.h"
 #include "mission/MCScenario.h"
-#include "network/multplyr.h"
+#include "network/MCMultiPlayer.h"
 #include "object/MCCollisionSystem.h"
 #include "object/MCExplosion.h"
 #include "object/MCForces.h"
@@ -337,7 +337,7 @@ auto MCTrainCar::HandleWeaponHit(MCWeaponShotInfo* shotInfo, int addMultiplayChu
 
     if (addMultiplayChunk != 0)
     {
-        MPlayer->AddWeaponHitChunk(this, shotInfo, 0);
+        MultiPlayer()->AddWeaponHitChunk(this, shotInfo, 0);
     }
 
     if (0.0f < shotInfo->Damage && IsDestroyed() == 0)
@@ -454,11 +454,11 @@ auto MCTrainCar::Derail(float angle) -> void
                 MCWeaponShotInfo shot;
                 shot.Init(nullptr, 0, Train->GetTotalTonnage() * 0.1f + 0.5f, 0, 0.0f);
 
-                if (MPlayer == nullptr)
+                if (MultiPlayer() == nullptr)
                 {
                     hit->HandleWeaponHit(&shot, 0);
                 }
-                else if (MPlayer->IsServer != 0)
+                else if (MultiPlayer()->IsServer != 0)
                 {
                     hit->HandleWeaponHit(&shot, 1);
                 }
@@ -472,7 +472,7 @@ auto MCTrainCar::Derail(float angle) -> void
 
 auto MCTrainCar::MineCheck() -> void
 {
-    if (MPlayer != nullptr && MPlayer->IsServer == 0)
+    if (MultiPlayer() != nullptr && MultiPlayer()->IsServer == 0)
     {
         return;
     }
@@ -496,7 +496,7 @@ auto MCTrainCar::MineCheck() -> void
     const int32_t hitLocation = CalcHitLocation(nullptr, -1, 3, 0);
     MCWeaponShotInfo shot;
     shot.Init(nullptr, -2, MineBaseDamage, hitLocation, 0.0f);
-    HandleWeaponHit(&shot, MPlayer != nullptr ? 1 : 0);
+    HandleWeaponHit(&shot, MultiPlayer() != nullptr ? 1 : 0);
     MCMapTile& tile = GameMap()->Map[GameMap()->Width * tileR + tileC];
 
     if (GetAlignment() == -1 || GetAlignment() == 0)
@@ -508,9 +508,10 @@ auto MCTrainCar::MineCheck() -> void
         tile.Overlay |= 0x6000;
     }
 
-    if (MPlayer != nullptr)
+    if (MultiPlayer() != nullptr)
     {
-        MPlayer->AddMineChunk(cellR + tileR * 3, cellC + tileC * 3, Alignment == -1 || Alignment != 0 ? 0 : 1, 3, 2);
+        MultiPlayer()->AddMineChunk(cellR + tileR * 3, cellC + tileC * 3, Alignment == -1 || Alignment != 0 ? 0 : 1, 3,
+                                    2);
     }
 }
 

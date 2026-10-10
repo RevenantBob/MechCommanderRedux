@@ -10,7 +10,7 @@
 #include "lib/MCDice.h"
 #include "main/MCMissionGlobals.h"
 #include "mission/MCMission.h"
-#include "network/multplyr.h"
+#include "network/MCMultiPlayer.h"
 #include "object/MCCollisionSystem.h"
 #include "object/MCEffectSystem.h"
 #include "object/MCFireType.h"
@@ -136,7 +136,7 @@ auto MCFire::IsVisible(size_t flameIndex) -> bool
     }
 
     // In multiplayer fires always count as visible.
-    if (MPlayer == nullptr && !onScreenNow)
+    if (MultiPlayer() == nullptr && !onScreenNow)
     {
         return false;
     }
@@ -241,7 +241,7 @@ auto MCFire::Update() -> int32_t
     {
         done = true;
 
-        if (IsRevealed() != 0 || MPlayer != nullptr)
+        if (IsRevealed() != 0 || MultiPlayer() != nullptr)
         {
             done = std::ranges::none_of(Flames, [](const MCFireFlame& flame) { return flame.LoopsLeft != 0; });
         }
@@ -268,7 +268,7 @@ auto MCFire::Update() -> int32_t
             const auto* forestType = static_cast<MCMiscTerrainObjectType*>(BurningObject->GetObjectType());
             MCWeaponShotInfo shot;
             shot.Init(nullptr, -3, static_cast<float>(static_cast<int32_t>(forestType->ForestDmgLevel)), 0, 0.0f);
-            BurningObject->HandleWeaponHit(&shot, MPlayer != nullptr ? 1 : 0);
+            BurningObject->HandleWeaponHit(&shot, MultiPlayer() != nullptr ? 1 : 0);
         }
 
         BurningObject->KillFireObject();
@@ -289,7 +289,7 @@ auto MCFire::Render() -> void
     const int32_t contactType = GetContactType(HomeTeam()->Id, tagged);
     const int revealed = BurningObject != nullptr ? BurningObject->IsRevealed() : IsRevealed();
 
-    if (revealed != 0 || MPlayer != nullptr)
+    if (revealed != 0 || MultiPlayer() != nullptr)
     {
         // Each burning flame plays its start (0), loop (1) and end (2) animations in turn.
         for (size_t i = 0; i < Flames.size(); i++)

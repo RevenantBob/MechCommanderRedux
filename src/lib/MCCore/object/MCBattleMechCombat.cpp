@@ -11,7 +11,7 @@
 #include "lib/MCFatal.h"
 #include "main/MCMissionGlobals.h"
 #include "mission/MCScenario.h"
-#include "network/multplyr.h"
+#include "network/MCMultiPlayer.h"
 #include "object/MCAIControl.h"
 #include "object/MCMiscTerrainObject.h"
 #include "object/MCMiscTerrainObjectType.h"
@@ -432,7 +432,7 @@ auto MCBattleMech::DestroyBodyLocation(int32_t location) -> void
 
 auto MCBattleMech::CalcCriticalHit(int32_t hitLocation) -> void
 {
-    if (MPlayer != nullptr && MPlayer->IsServer == 0)
+    if (MultiPlayer() != nullptr && MultiPlayer()->IsServer == 0)
     {
         return;
     }
@@ -471,7 +471,7 @@ auto MCBattleMech::CalcCriticalHit(int32_t hitLocation) -> void
         {
             DestroyBodyLocation(location);
 
-            if (MPlayer != nullptr)
+            if (MultiPlayer() != nullptr)
             {
                 AddCriticalHitChunk(0, location, 15);
             }
@@ -513,7 +513,7 @@ auto MCBattleMech::CalcCriticalHit(int32_t hitLocation) -> void
         criticalSpace.Hit = 1;
         HitInventoryItem(static_cast<int8_t>(criticalSpace.InventoryID), 0);
 
-        if (MPlayer != nullptr)
+        if (MultiPlayer() != nullptr)
         {
             AddCriticalHitChunk(0, location, space);
         }
@@ -604,11 +604,11 @@ namespace
         MCWeaponShotInfo transferInfo = *shotInfo;
         transferInfo.HitLocation = mech->TransferHitLocation(bodyLocation);
 
-        if (MPlayer == nullptr)
+        if (MultiPlayer() == nullptr)
         {
             mech->HandleWeaponHit(&transferInfo, 0);
         }
-        else if (MPlayer->IsServer != 0)
+        else if (MultiPlayer()->IsServer != 0)
         {
             mech->HandleWeaponHit(&transferInfo, 1);
         }
@@ -617,14 +617,14 @@ namespace
 
 auto MCBattleMech::HandleWeaponHit(MCWeaponShotInfo* shotInfo, int addMultiplayChunk) -> int32_t
 {
-    if ((MPlayer == nullptr && CantHitMe != 0 && Pilot->OnHomeTeam() != 0) || shotInfo == nullptr)
+    if ((MultiPlayer() == nullptr && CantHitMe != 0 && Pilot->OnHomeTeam() != 0) || shotInfo == nullptr)
     {
         return 0;
     }
 
     if (addMultiplayChunk != 0)
     {
-        MPlayer->AddWeaponHitChunk(this, shotInfo, 0);
+        MultiPlayer()->AddWeaponHitChunk(this, shotInfo, 0);
     }
 
     BadGuy = shotInfo->Attacker;
@@ -1080,7 +1080,7 @@ auto MCBattleMech::FireWeapon(MCGameObject* target, float targetTime, int32_t we
 
     const int32_t inRange = WeaponInRange(weaponIndex, distance);
 
-    if ((MPlayer == nullptr || MPlayer->IsServer != 0) && inRange == 0)
+    if ((MultiPlayer() == nullptr || MultiPlayer()->IsServer != 0) && inRange == 0)
     {
         return 4;
     }
@@ -1259,7 +1259,7 @@ auto MCBattleMech::FireWeapon(MCGameObject* target, float targetTime, int32_t we
                           entryAngle);
                 CheckDamageRound(shot);
 
-                if (MPlayer != nullptr && MPlayer->IsServer != 0)
+                if (MultiPlayer() != nullptr && MultiPlayer()->IsServer != 0)
                 {
                     SendTargetFireChunk(this, target, targetPoint, chunkWeapon, 1, entryAngle, missiles, missilesLeft,
                                         antiMissileShots, hitLocation);
@@ -1300,7 +1300,7 @@ auto MCBattleMech::FireWeapon(MCGameObject* target, float targetTime, int32_t we
             MCWeaponShotInfo shot;
             shot.Init(this, item.MasterID, fired.Damage, hitLocation, entryAngle);
 
-            if (MPlayer != nullptr && MPlayer->IsServer != 0)
+            if (MultiPlayer() != nullptr && MultiPlayer()->IsServer != 0)
             {
                 SendTargetFireChunk(this, target, targetPoint, chunkWeapon, 1, entryAngle, 0, 0, 0, hitLocation);
             }
@@ -1372,7 +1372,7 @@ auto MCBattleMech::FireWeapon(MCGameObject* target, float targetTime, int32_t we
                 CheckDamageRound(shot);
                 landing = MissPoint(target, targetPoint, scatter, 1);
 
-                if (MPlayer != nullptr && MPlayer->IsServer != 0)
+                if (MultiPlayer() != nullptr && MultiPlayer()->IsServer != 0)
                 {
                     SendTargetFireChunk(this, nullptr, &landing, chunkWeapon, 0, 0.0f, missiles, 0, 0, 0);
                 }
@@ -1387,7 +1387,7 @@ auto MCBattleMech::FireWeapon(MCGameObject* target, float targetTime, int32_t we
             shot.Init(this, item.MasterID, fired.Damage, -1, entryAngle);
             landing = MissPoint(target, targetPoint, scatter, 0);
 
-            if (MPlayer != nullptr && MPlayer->IsServer != 0)
+            if (MultiPlayer() != nullptr && MultiPlayer()->IsServer != 0)
             {
                 SendTargetFireChunk(this, nullptr, &landing, chunkWeapon, 0, 0.0f, 0, 0, 0, 0);
             }

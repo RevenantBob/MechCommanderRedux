@@ -2,12 +2,12 @@
 #include "logistics/MCLogChatWindow.h"
 #include "gui/MCGuiEvent.h"
 #include "gui/MCScrollPane.h"
-#include "linkup/dpplayer.h"
-#include "linkup/sessionmanager.h"
+#include "linkup/MCFidpPlayer.h"
+#include "linkup/MCSessionManager.h"
 #include "main/MCGamePaths.h"
 #include "logistics/MCLogChatInput.h"
 #include "main/MCLogistics.h"
-#include "network/multplyr.h"
+#include "network/MCMultiPlayer.h"
 #include "vfx/MCVfxFunctions.h"
 
 MCLogChatWindow::~MCLogChatWindow()
@@ -81,7 +81,7 @@ auto MCLogChatWindow::HandleNetworkMessage(uint32_t fromPlayerId, const void* me
 auto MCLogChatWindow::ProcessChatString(uint32_t fromPlayerId, std::string_view text, int32_t textColor) -> void
 {
     text = text.substr(0, text.find('\0'));
-    MCFidpPlayer* player = MPlayer->SessionManager->GetPlayer(fromPlayerId);
+    MCFidpPlayer* player = MultiPlayer()->SessionManager->GetPlayer(fromPlayerId);
     // OB-162 (fixed): a sender no longer in the session shows as "?" in player 0's colour (the original read its name
     // and number through null).
     const std::string_view name = fromPlayerId != 0 && player != nullptr ? std::string_view(player->Name) : "?";

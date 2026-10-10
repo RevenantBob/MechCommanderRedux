@@ -2,10 +2,9 @@
 #include "logistics/MCConnectMenu.h"
 #include "gui/MCGuiFont.h"
 #include "gui/MCGuiSystem.h"
-#include "linkup/dpplayer.h"
-#include "linkup/linkedlist.hpp"
-#include "linkup/session.h"
-#include "linkup/sessionmanager.h"
+#include "linkup/MCFidpPlayer.h"
+#include "linkup/MCFidpSession.h"
+#include "linkup/MCSessionManager.h"
 #include "logistics/MCFileScrollPane.h"
 #include "logistics/MCGameList.h"
 #include "logistics/MCGenericScreen.h"
@@ -21,7 +20,8 @@
 #include "logistics/MCSplashScreen.h"
 #include "main/MCLogistics.h"
 #include "main/MCGameStrings.h"
-#include "network/multplyr.h"
+#include "network/MCMultiPlayer.h"
+#include "main/MCGameContext.h"
 #include "lib/MCFatal.h"
 #include "main/MCGameSession.h"
 
@@ -36,6 +36,13 @@ namespace
 
     /// <summary>DirectPlay's DPERR_CONNECTING: the modem is still dialling.</summary>
     constexpr int32_t DialStillConnecting = static_cast<int32_t>(0x8877015e);
+
+    /// <summary>The listed session <paramref name="games"/> has selected, or null.</summary>
+    MCFidpSession* SelectedSession(MCGameList& games)
+    {
+        const _GUID* game = games.GetSelectedGame();
+        return game != nullptr ? MultiPlayer()->SessionManager->FindMatchingSession(*game) : nullptr;
+    }
 
     /// <summary>The player's name for the multiplayer screens: the one remembered (or the user's), if any.</summary>
     std::optional<std::string> RememberedUserName()
@@ -72,7 +79,7 @@ namespace
     /// <summary>After a session was joined: how many are in it.</summary>
     void CountLanPlayers()
     {
-        NumLanPlayers = MPlayer->SessionManager->GetPlayers(nullptr)->Count;
+        NumLanPlayers = static_cast<int32_t>(MultiPlayer()->SessionManager->GetPlayers(nullptr).size());
     }
 
     /// <summary>Shows the LAN session list (after connecting), the player entry focused.</summary>
@@ -117,11 +124,11 @@ void ConnectScreen()
     EnsureRegistryVersion();
     MCGenericScreen* screen = GlobalLogPtr->MultiplayerScreen.get();
 
-    if (MPlayer == nullptr)
+    if (MultiPlayer() == nullptr)
     {
         // The multiplayer object is network/'s (P3-net gives it an owner).
-        MPlayer = new MCMultiPlayer;
-        MPlayer->Init(0x7d000, 0x100, 100);
+        MCGameContext::Current().SetMultiPlayer(std::make_unique<MCMultiPlayer>());
+        MultiPlayer()->Start();
     }
 
     GlobalLogPtr->MainScreen->ShowGuiWindow(false);
@@ -139,9 +146,9 @@ void ConnectScreen()
     lanButton->Disabled = true;
     internetButton->Disabled = true;
 
-    if (MPlayer->SessionManager != nullptr)
+    if (MultiPlayer()->SessionManager != nullptr)
     {
-        MCSessionManager* manager = MPlayer->SessionManager;
+        MCSessionManager* manager = MultiPlayer()->SessionManager.get();
         modemButton->Disabled = manager->IsModemAvailable() == 0;
         serialButton->Disabled = (manager->AvailableProtocols & 4) == 0;
         lanButton->Disabled = manager->IsIpxAvailable() == 0 && manager->IsTcpAvailable() == 0;
@@ -172,7 +179,7 @@ void CancelToConnect()
     // Original behaviour (OB-167): the same timer is removed twice (team 2's is left).
     GuiSystem()->RemoveTimer(GlobalLogPtr->SessionScreen->Team1RPText.get(), 0);
     GuiSystem()->RemoveTimer(GlobalLogPtr->SessionScreen->Team1RPText.get(), 0);
-    MPlayer->LeaveSession();
+    MultiPlayer()->LeaveSession();
     GlobalLogPtr->PlayerLights.reset();
 }
 
@@ -207,11 +214,11 @@ void ShowModemScreen()
 {
     MCSplashScreen* screen = GlobalLogPtr->ModemScreen.get();
 
-    if (MPlayer != nullptr)
+    if (MultiPlayer() != nullptr)
     {
         auto* modems = screen->Element<MCLogScrollTextObject>(10);
         screen->Element<MCLogTextObject>(4)->SetStringBuffer(PlayerNameOrDefault());
-        MPlayer->SessionManager->FindModems();
+        MultiPlayer()->SessionManager->FindModems();
         // The list is refilled with the modems found, keeping its selection.
         const int32_t selected = modems->HighlightLine[0];
         modems->Clear();
@@ -219,7 +226,7 @@ void ShowModemScreen()
 
         for (int32_t i = 0;; i++)
         {
-            const char* modem = MPlayer->SessionManager->GetModemName(i);
+            const char* modem = MultiPlayer()->SessionManager->GetModemName(i);
 
             if (modem == nullptr)
             {
@@ -250,9 +257,9 @@ void ShowSerialScreen()
 
 void DoTheIpxThang()
 {
-    if (MPlayer != nullptr && MPlayer->SessionManager != nullptr)
+    if (MultiPlayer() != nullptr && MultiPlayer()->SessionManager != nullptr)
     {
-        MPlayer->SessionManager->ConnectIpx();
+        MultiPlayer()->SessionManager->ConnectIpx();
     }
 
     OpenLanScreen();
@@ -260,9 +267,9 @@ void DoTheIpxThang()
 
 void DoTheTcpThang()
 {
-    if (MPlayer != nullptr && MPlayer->SessionManager != nullptr)
+    if (MultiPlayer() != nullptr && MultiPlayer()->SessionManager != nullptr)
     {
-        MPlayer->SessionManager->ConnectTcp(const_cast<char*>(""));
+        MultiPlayer()->SessionManager->ConnectTcp(const_cast<char*>(""));
     }
 
     OpenLanScreen();
@@ -300,7 +307,7 @@ void ShowLanScreen()
     }
 
     // Both protocols: ask which; else say which one is used.
-    MCSessionManager* manager = MPlayer->SessionManager;
+    MCSessionManager* manager = MultiPlayer()->SessionManager.get();
 
     if (manager->IsIpxAvailable() != 0 && manager->IsTcpAvailable() != 0)
     {
@@ -382,23 +389,23 @@ void ResetReadyRoom()
 
 void JoinGame()
 {
-    if (MPlayer == nullptr || MPlayer->SessionManager == nullptr)
+    if (MultiPlayer() == nullptr || MultiPlayer()->SessionManager == nullptr)
     {
         return;
     }
 
-    MCSessionManager* manager = MPlayer->SessionManager;
+    MCSessionManager* manager = MultiPlayer()->SessionManager.get();
 
     if (_GUID* game = GlobalLogPtr->LanScreen->Element<MCGameList>(2)->GetSelectedGame(); game != nullptr)
     {
-        if (MCFidpSession* session = manager->FindMatchingSession(game); session != nullptr)
+        if (MCFidpSession* session = manager->FindMatchingSession(*game); session != nullptr)
         {
             std::string playerName = ElementText(GlobalLogPtr->LanScreen.get(), 4);
             SaveUserName(playerName);
 
             if (session->SessionDesc.dwCurrentPlayers < session->SessionDesc.dwMaxPlayers)
             {
-                const int32_t result = manager->JoinSession(&session->SessionDesc.guidInstance, playerName.data());
+                const int32_t result = manager->JoinSession(session->SessionDesc.guidInstance, playerName);
                 CountLanPlayers();
 
                 if (result == 0)
@@ -418,12 +425,12 @@ void JoinGame()
 
 void CreateSession()
 {
-    if (MPlayer != nullptr && MPlayer->SessionManager != nullptr)
+    if (MultiPlayer() != nullptr && MultiPlayer()->SessionManager != nullptr)
     {
         std::string sessionName = ElementText(GlobalLogPtr->LanScreen.get(), 10);
         const int32_t maxPlayers = TypedMaxPlayers();
         std::string playerName = ElementText(GlobalLogPtr->LanScreen.get(), 4);
-        MPlayer->CreateSession(sessionName.data(), playerName.data(), maxPlayers);
+        MultiPlayer()->CreateSession(sessionName.data(), playerName.data(), maxPlayers);
     }
 
     GlobalLogPtr->LanScreen->ShowGuiWindow(false);
@@ -436,7 +443,7 @@ void CreateSession()
 
 void CreateSerialSession()
 {
-    if (MPlayer == nullptr || MPlayer->SessionManager == nullptr)
+    if (MultiPlayer() == nullptr || MultiPlayer()->SessionManager == nullptr)
     {
         return;
     }
@@ -448,11 +455,11 @@ void CreateSerialSession()
         return;
     }
 
-    MPlayer->SessionManager->ConnectComPort(static_cast<uint32_t>(port), 0xe100, 0, 0, 4);
+    MultiPlayer()->SessionManager->ConnectComPort(static_cast<uint32_t>(port), 0xe100, 0, 0, 4);
     std::string playerName = ElementText(GlobalLogPtr->SerialScreen.get(), 4);
     SaveUserName(playerName);
 
-    if (MPlayer->CreateSession(const_cast<char*>("SerialGame"), playerName.data(), 2) == 0)
+    if (MultiPlayer()->CreateSession(const_cast<char*>("SerialGame"), playerName.data(), 2) == 0)
     {
         EnterReadyRoom(GlobalLogPtr->SerialScreen.get(), std::nullopt);
     }
@@ -460,7 +467,7 @@ void CreateSerialSession()
 
 void SerialJoinButtonPressed()
 {
-    if (MPlayer == nullptr)
+    if (MultiPlayer() == nullptr)
     {
         return;
     }
@@ -470,7 +477,7 @@ void SerialJoinButtonPressed()
     const int32_t port = ElementNumber(GlobalLogPtr->SerialScreen.get(), 5);
 
     if (port > 0 && port < 5 &&
-        MPlayer->SessionManager->ConnectComPort(static_cast<uint32_t>(port), 0xe100, 0, 0, 4) == 0)
+        MultiPlayer()->SessionManager->ConnectComPort(static_cast<uint32_t>(port), 0xe100, 0, 0, 4) == 0)
     {
         JoinSerialSession();
     }
@@ -478,14 +485,14 @@ void SerialJoinButtonPressed()
 
 void JoinSerialSession()
 {
-    if (MPlayer == nullptr)
+    if (MultiPlayer() == nullptr)
     {
         return;
     }
 
     std::string playerName = ElementText(GlobalLogPtr->SerialScreen.get(), 4);
 
-    if (MPlayer->JoinSession(const_cast<char*>("SerialGame"), playerName.data()) != 0)
+    if (MultiPlayer()->JoinSession("SerialGame", playerName) != 0)
     {
         // No game yet: try again in a second, with a way out.
         WaitWithCancel(GlobalLogPtr->SerialScreen.get(), 0, 0xb1, CancelToConnect, false);
@@ -501,7 +508,7 @@ void JoinModemSession()
 {
     std::string playerName = ElementText(GlobalLogPtr->ModemScreen.get(), 4);
 
-    if (MPlayer->JoinSession(const_cast<char*>("MC Modem Game"), playerName.data()) != 0)
+    if (MultiPlayer()->JoinSession("MC Modem Game", playerName) != 0)
     {
         GuiSystem()->AddTimer(GlobalLogPtr->ModemScreen.get(), 1, 1000, 0, 0, 0);
         WhackTimer = false;
@@ -516,13 +523,13 @@ void JoinModemSession()
 
 int32_t DialModemSession()
 {
-    if (MPlayer == nullptr)
+    if (MultiPlayer() == nullptr)
     {
         return -1;
     }
 
     SaveUserName(ElementText(GlobalLogPtr->ModemScreen.get(), 4));
-    const int32_t result = MPlayer->SessionManager->Dial();
+    const int32_t result = MultiPlayer()->SessionManager->Dial();
 
     if (result == 0)
     {
@@ -549,7 +556,7 @@ void AllGoneCallback(int32_t)
 
 void GOCallback()
 {
-    if (MPlayer == nullptr)
+    if (MultiPlayer() == nullptr)
     {
         return;
     }
@@ -560,9 +567,9 @@ void GOCallback()
     GlobalLogPtr->LogisticsState = 8;
     GlobalLogPtr->SessionScreen->Activate(false);
 
-    if (MPlayer != nullptr)
+    if (MultiPlayer() != nullptr)
     {
-        MPlayer->SessionManager->LockSession();
+        MultiPlayer()->SessionManager->LockSession();
         return;
     }
 
@@ -571,12 +578,12 @@ void GOCallback()
 
 void Go()
 {
-    if (MPlayer == nullptr || MPlayer->SessionManager == nullptr)
+    if (MultiPlayer() == nullptr || MultiPlayer()->SessionManager == nullptr)
     {
         return;
     }
 
-    MCSessionManager* manager = MPlayer->SessionManager;
+    MCSessionManager* manager = MultiPlayer()->SessionManager.get();
     MCFidpSession* session = manager->CurrentSession;
 
     if (session == nullptr)
@@ -585,16 +592,16 @@ void Go()
     }
 
     // A LAN session takes the number typed; a lobby (0x10) game six, a modem or serial game two.
-    const int32_t connection = manager->CurrentConnection;
+    const MCNetProtocol connection = manager->CurrentConnection;
     int32_t maxPlayers;
 
-    if (connection == 2 || connection == 1)
+    if (connection == MCNetProtocol::Ipx || connection == MCNetProtocol::TcpIp)
     {
         maxPlayers = TypedMaxPlayers();
     }
     else
     {
-        maxPlayers = connection == 0x10 ? MaxSessionPlayers : 2;
+        maxPlayers = connection == MCNetProtocol::Lobby ? MaxSessionPlayers : 2;
     }
 
     const uint32_t players = session->SessionDesc.dwCurrentPlayers;
@@ -608,16 +615,16 @@ void Leave()
 
 void WaitForCall()
 {
-    if (MPlayer != nullptr && MPlayer->SessionManager != nullptr)
+    if (MultiPlayer() != nullptr && MultiPlayer()->SessionManager != nullptr)
     {
         auto* modems = GlobalLogPtr->ModemScreen->Element<MCLogScrollTextObject>(10);
 
         if (std::optional<std::string> modem = modems->GetTextLine(modems->HighlightLine[0] + 1))
         {
-            MPlayer->SessionManager->ConnectModem(const_cast<char*>(""), modem->data());
+            MultiPlayer()->SessionManager->ConnectModem(const_cast<char*>(""), modem->data());
             std::string playerName = ElementText(GlobalLogPtr->ModemScreen.get(), 4);
             SaveUserName(playerName);
-            MPlayer->CreateSession(const_cast<char*>("MC Modem Game"), playerName.data(), 2);
+            MultiPlayer()->CreateSession(const_cast<char*>("MC Modem Game"), playerName.data(), 2);
         }
     }
 
@@ -641,9 +648,9 @@ void CancelDial()
 {
     WhackTimer = true;
 
-    if (MPlayer != nullptr)
+    if (MultiPlayer() != nullptr)
     {
-        MPlayer->SessionManager->CancelDialing();
+        MultiPlayer()->SessionManager->CancelDialing();
     }
 }
 
@@ -652,7 +659,7 @@ void Dial()
     MCSplashScreen* screen = GlobalLogPtr->ModemScreen.get();
     auto* modems = screen->Element<MCLogScrollTextObject>(10);
 
-    if (MPlayer == nullptr || MPlayer->SessionManager == nullptr)
+    if (MultiPlayer() == nullptr || MultiPlayer()->SessionManager == nullptr)
     {
         return;
     }
@@ -665,7 +672,7 @@ void Dial()
     }
 
     std::string number = ElementText(screen, 5);
-    MPlayer->SessionManager->ConnectModem(number.data(), modem->data());
+    MultiPlayer()->SessionManager->ConnectModem(number.data(), modem->data());
     const int32_t result = DialModemSession();
     Assert(result != 1, 0, "Not currently connected to a modem");
 
@@ -724,7 +731,7 @@ void PlayerListHandleEvent(MCGuiObject* object, MCGuiEvent* event)
     if (event->Data == 3)
     {
         // A game was picked: list its players.
-        if (object->Parent == nullptr || MPlayer == nullptr || MPlayer->SessionManager == nullptr)
+        if (object->Parent == nullptr || MultiPlayer() == nullptr || MultiPlayer()->SessionManager == nullptr)
         {
             return;
         }
@@ -737,18 +744,13 @@ void PlayerListHandleEvent(MCGuiObject* object, MCGuiEvent* event)
             return;
         }
 
-        MCFidpSession* session = MPlayer->SessionManager->FindMatchingSession(games->GetSelectedGame());
-        MCFLinkedList<MCFidpPlayer>* players =
-            session != nullptr ? MPlayer->SessionManager->GetPlayers(session) : nullptr;
+        MCFidpSession* session = SelectedSession(*games);
 
-        if (players != nullptr)
+        if (session != nullptr)
         {
-            const int32_t count = players->Count;
-            players->Current = players->HeadLink;
-
-            for (int32_t i = count; i > 0; i--)
+            for (const auto& player : MultiPlayer()->SessionManager->GetPlayers(session))
             {
-                list->Print(players->ReadAndNext()->Name, 0x1f);
+                list->Print(player->Name, 0x1f);
             }
         }
     }
@@ -760,12 +762,12 @@ void PlayerListHandleEvent(MCGuiObject* object, MCGuiEvent* event)
 
 void ReadyRoomPlayerListHandleEvent(MCGuiObject* object, MCGuiEvent* event)
 {
-    if (event->Type != 0x13 || MPlayer == nullptr)
+    if (event->Type != 0x13 || MultiPlayer() == nullptr)
     {
         return;
     }
 
-    MCSessionManager* manager = MPlayer->SessionManager;
+    MCSessionManager* manager = MultiPlayer()->SessionManager.get();
 
     if (manager == nullptr)
     {
@@ -787,18 +789,11 @@ void ReadyRoomPlayerListHandleEvent(MCGuiObject* object, MCGuiEvent* event)
     }
 
     list->Clear();
-    MCFLinkedList<MCFidpPlayer>* players = manager->GetPlayers(session);
-
-    if (players == nullptr)
-    {
-        return;
-    }
+    const auto& players = manager->GetPlayers(session);
 
     // Each player, with the ping outside a lobby launch.
-    for (MCFLink<MCFidpPlayer>* link = players->HeadLink; link != nullptr && link->Data != nullptr; link = link->Next)
+    for (const auto& player : players)
     {
-        MCFidpPlayer* player = link->Data;
-
         if (LaunchedFromLobby == 0)
         {
             list->Print(std::format("{} - {:04} ms", player->Name, player->LastLatency), 0x1f);
@@ -812,7 +807,7 @@ void ReadyRoomPlayerListHandleEvent(MCGuiObject* object, MCGuiEvent* event)
     // The host can go once someone else is in.
     if (manager->IsHost != 0)
     {
-        GlobalLogPtr->ConnectScreen->Element<MCLogButton>(2)->Disabled = players->Count < 2;
+        GlobalLogPtr->ConnectScreen->Element<MCLogButton>(2)->Disabled = players.size() < 2;
     }
 }
 
@@ -837,8 +832,7 @@ void LanScreenHandleEvent(MCGuiObject* object, MCGuiEvent* event)
     if (event->Data == 3)
     {
         // A game was picked: its players are listed, and it can be joined unless full.
-        MCFidpSession* session =
-            MPlayer->SessionManager->FindMatchingSession(screen->Element<MCGameList>(2)->GetSelectedGame());
+        MCFidpSession* session = SelectedSession(*screen->Element<MCGameList>(2));
         screen->Elements[3]->HandleEvent(event);
         joinButton->Disabled = session->SessionDesc.dwMaxPlayers <= session->SessionDesc.dwCurrentPlayers;
         return;

@@ -7,11 +7,11 @@
 #include "gui/MCGuiPort.h"
 #include "gui/MCGuiSystem.h"
 #include "iface/MCTacticalInterface.h"
-#include "linkup/sessionmanager.h"
+#include "linkup/MCSessionManager.h"
 #include "logistics/MCConnectMenu.h"
 #include "main/MCMissionGlobals.h"
 #include "mission/MCScenario.h"
-#include "network/multplyr.h"
+#include "network/MCMultiPlayer.h"
 #include "platform/MCRenderer.h"
 #include "terrain/MCTacticalMap.h"
 #include "terrain/MCTerrain.h"
@@ -242,16 +242,15 @@ auto MCViewWindow::Display() -> void
     {
         Scenario()->Render(this);
 
-        if (GetCamera()->CameraId == 1 && MPlayer != nullptr && MPlayer->SessionManager != nullptr &&
+        if (GetCamera()->CameraId == 1 && MultiPlayer() != nullptr && MultiPlayer()->SessionManager != nullptr &&
             DisplayProfileData == 2)
         {
-            char stats[256];
-
-            if (MPlayer->SessionManager->GetStats(stats) == 0)
+            if (const std::optional<std::string> stats = MultiPlayer()->SessionManager->GetStats(); stats.has_value())
             {
                 LineFont()->Scaled = 0;
                 LineFont()->Scale = 1.0f;
-                LineFont()->Print(180, 72, stats, 0xfe, GlobalPane);
+                // The original formatted the line into 256 bytes.
+                LineFont()->Print(180, 72, stats->substr(0, 0xff).c_str(), 0xfe, GlobalPane);
             }
         }
     }

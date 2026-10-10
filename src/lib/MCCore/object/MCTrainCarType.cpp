@@ -1,7 +1,7 @@
 #include "stdafx.h"
 #include "object/MCTrainCarType.h"
 #include "lib/MCFitIniFile.h"
-#include "network/multplyr.h"
+#include "network/MCMultiPlayer.h"
 #include "object/MCTrain.h"
 #include "object/MCTrainCar.h"
 #include "object/MCWeaponShotInfo.h"
@@ -55,14 +55,14 @@ auto MCTrainCarType::Init(MCFile* objFile, uint32_t fileSize) -> int32_t
 auto MCTrainCarType::HandleCollision(MCGameObject* collidee, MCGameObject* collider) -> int
 {
     // The server's job in multiplayer.
-    if (MPlayer != nullptr && MPlayer->IsServer == 0)
+    if (MultiPlayer() != nullptr && MultiPlayer()->IsServer == 0)
     {
         return 0;
     }
 
     auto* car = static_cast<MCTrainCar*>(collidee);
     MCTrain* train = car->Train;
-    const int multiplayer = MPlayer != nullptr ? 1 : 0;
+    const int multiplayer = MultiPlayer() != nullptr ? 1 : 0;
     // The car takes (collider tonnage + 1) / 2, from the collider's side.
     const auto hitCar = [&](int32_t hitLocation)
     {

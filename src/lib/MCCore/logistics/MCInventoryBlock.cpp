@@ -4,7 +4,7 @@
 #include "gui/MCScrollPane.h"
 #include "logistics/MCLogInvScreen.h"
 #include "main/MCLogistics.h"
-#include "network/multplyr.h"
+#include "network/MCMultiPlayer.h"
 #include "vfx/MCVfxFunctions.h"
 
 MCInventoryBlock::~MCInventoryBlock()
@@ -102,7 +102,7 @@ auto MCInventoryBlock::DrawDropArt(MCLogInvScreen* screen, int32_t tab) -> void
 
 auto MCInventoryBlock::SalePrice(int32_t value) -> int32_t
 {
-    if (MPlayer == nullptr && !Solo)
+    if (MultiPlayer() == nullptr && !Solo)
     {
         value /= 2;
     }

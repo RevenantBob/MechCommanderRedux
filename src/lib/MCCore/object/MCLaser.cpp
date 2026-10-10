@@ -5,7 +5,7 @@
 #include "engine/MCElementBuffer.h"
 #include "engine/MCPolygonElement.h"
 #include "main/MCMissionGlobals.h"
-#include "network/multplyr.h"
+#include "network/MCMultiPlayer.h"
 #include "object/MCLaserType.h"
 #include "object/MCObjectSystem.h"
 #include "platform/MCRenderer.h"
@@ -92,11 +92,11 @@ namespace
     {
         auto* victim = static_cast<MCGameObject*>(laser.Target.Object);
 
-        if (MPlayer == nullptr)
+        if (MultiPlayer() == nullptr)
         {
             victim->HandleWeaponHit(&laser.ShotInfo, 0);
         }
-        else if (MPlayer->IsServer != 0)
+        else if (MultiPlayer()->IsServer != 0)
         {
             victim->HandleWeaponHit(&laser.ShotInfo, 1);
         }

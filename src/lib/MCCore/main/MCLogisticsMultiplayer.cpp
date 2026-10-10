@@ -4,9 +4,9 @@
 #include "lib/MCFatal.h"
 #include "lib/MCFile.h"
 #include "lib/MCFitIniFile.h"
-#include "linkup/dpmessage.h"
-#include "linkup/dpplayer.h"
-#include "linkup/sessionmanager.h"
+#include "linkup/MCFidpMessage.h"
+#include "linkup/MCFidpPlayer.h"
+#include "linkup/MCSessionManager.h"
 #include "logistics/MCBriefingBox.h"
 #include "logistics/MCBriefingScreen.h"
 #include "logistics/MCMainMenu.h"
@@ -24,7 +24,8 @@
 #include "main/MCGameStrings.h"
 #include "mission/MCMission.h"
 #include "mission/MCScenario.h"
-#include "network/multplyr.h"
+#include "network/MCMultiPlayer.h"
+#include "network/MCMultiPlayerHandlers.h"
 #include "sound/MCSoundSystem.h"
 
 namespace
@@ -66,7 +67,7 @@ namespace
     /// <summary>The group of a deploy message's side.</summary>
     uint32_t SideGroupID(const MCDeployForce& force)
     {
-        return force.ClanSide ? MPlayer->ClanGroupID : MPlayer->InnerSphereGroupID;
+        return force.ClanSide ? MultiPlayer()->ClanGroupID : MultiPlayer()->InnerSphereGroupID;
     }
 
     /// <summary>The master id of every component copy of <paramref name="inventory"/>, as a deploy message lists them.</summary>
@@ -97,8 +98,8 @@ namespace
     /// <summary>Sends a message's bytes to every player.</summary>
     void SendToAll(std::vector<uint8_t>& bytes)
     {
-        MPlayer->SessionManager->SendMessageToGroup(0, reinterpret_cast<MCFIGuaranteedMessageHeader*>(bytes.data()),
-                                                    static_cast<uint32_t>(bytes.size()));
+        MultiPlayer()->SessionManager->SendMessageToGroup(
+            0, reinterpret_cast<MCFIGuaranteedMessageHeader*>(bytes.data()), static_cast<uint32_t>(bytes.size()));
     }
 
     /// <summary>
@@ -174,15 +175,15 @@ namespace
 
 auto MCLogistics::InitializeMultiplayer() -> void
 {
-    Assert(MPlayer != nullptr, 0, "initializeMultiplayer failed: no MPlayer object.");
+    Assert(MultiPlayer() != nullptr, 0, "initializeMultiplayer failed: no MultiPlayer() object.");
 
     if (MultiplayerInitialized)
     {
         return;
     }
 
-    std::ranges::fill(MPlayer->PlayerSessionCheckIn, 0);
-    MPlayer->InLogistics = 1;
+    std::ranges::fill(MultiPlayer()->PlayerSessionCheckIn, 0);
+    MultiPlayer()->InLogistics = 1;
     std::array<uint32_t, 6> teammates{};
     int32_t numTeammates = 0;
     std::array<uint32_t, 6> opponents{};
@@ -212,7 +213,7 @@ auto MCLogistics::InitializeMultiplayer() -> void
 
     for (int32_t i = 0; i < numTeammates; ++i)
     {
-        if (teammates[static_cast<size_t>(i)] == MPlayer->SessionManager->MyPlayer->Id)
+        if (teammates[static_cast<size_t>(i)] == MultiPlayer()->SessionManager->MyPlayer->Id)
         {
             localIndex = i;
             break;
@@ -223,7 +224,7 @@ auto MCLogistics::InitializeMultiplayer() -> void
     SetupSlotsForMultiplayer(localIndex, numTeammates);
     MpMissionName.clear();
     MpWarriorList = std::make_unique<MCLogWarriorList>();
-    MPlayer->ChatCallback = LogisticsChatCallback;
+    MultiPlayer()->ChatCallback = LogisticsChatCallback;
 
     for (size_t lance = 0; lance < NumLances; ++lance)
     {
@@ -234,7 +235,7 @@ auto MCLogistics::InitializeMultiplayer() -> void
         }
     }
 
-    const int8_t techBase = MPlayer->HomeTeam == 0 ? SessionScreen->Team1TechBase : SessionScreen->Team2TechBase;
+    const int8_t techBase = MultiPlayer()->HomeTeam == 0 ? SessionScreen->Team1TechBase : SessionScreen->Team2TechBase;
     PurchaseFile = techBase == 1 ? "ispur" : "clanpur";
     MultiplayerInitialized = true;
 }
@@ -260,9 +261,9 @@ auto MCLogistics::DestroyMultiplayer() -> void
 
     MpMissionName.clear();
 
-    if (MPlayer != nullptr)
+    if (MultiPlayer() != nullptr)
     {
-        MPlayer->ChatCallback = HandleAppChat;
+        MultiPlayer()->ChatCallback = HandleAppChat;
     }
 
     NetMechNames.clear();
@@ -291,11 +292,11 @@ auto MCLogistics::HandleDeployForceMessage(uint32_t playerID, const void* messag
         InitializeMultiplayer();
     }
 
-    Assert(playerID != MPlayer->SessionManager->MyPlayer->Id, 0, "Got a deploy message from ourselves!");
+    Assert(playerID != MultiPlayer()->SessionManager->MyPlayer->Id, 0, "Got a deploy message from ourselves!");
     // The sender is a teammate when the message's side is ours.
-    const uint32_t homeGroup = MPlayer->HomeTeamGroupID;
+    const uint32_t homeGroup = MultiPlayer()->HomeTeamGroupID;
     const bool teammate = homeGroup == SideGroupID(force);
-    Assert(homeGroup == MPlayer->InnerSphereGroupID || homeGroup == MPlayer->ClanGroupID, 0,
+    Assert(homeGroup == MultiPlayer()->InnerSphereGroupID || homeGroup == MultiPlayer()->ClanGroupID, 0,
            "Local player is not on a team!");
     const size_t slotIndex = static_cast<size_t>(force.Lance) * LanceSlots + force.Slot;
     MCBriefingScreen* briefing = BriefingScreen.get();
@@ -328,9 +329,9 @@ auto MCLogistics::HandleDeployForceMessage(uint32_t playerID, const void* messag
         }
     }
 
-    const int32_t commander = MPlayer->SessionManager->GetPlayer(playerID)->PlayerNumber;
+    const int32_t commander = MultiPlayer()->SessionManager->GetPlayer(playerID)->PlayerNumber;
     part->CommanderID = commander;
-    Assert(commander != MPlayer->CheckInId, 0, "Wrong commander!");
+    Assert(commander != MultiPlayer()->CheckInId, 0, "Wrong commander!");
     part->DropLance = force.Lance;
     part->DropSlot = force.Slot;
 
@@ -346,7 +347,7 @@ auto MCLogistics::HandleDeployForceMessage(uint32_t playerID, const void* messag
 
 auto MCLogistics::HandleRemoveForceMessage(uint32_t playerID, const void* message) -> void
 {
-    const bool teammate = MPlayer->IsMyTeammate(playerID) != 0;
+    const bool teammate = MultiPlayer()->IsMyTeammate(playerID) != 0;
     RemoveForceAtDropSlot(UnpackRemoveForce(message), playerID, teammate);
 }
 
@@ -384,7 +385,7 @@ auto MCLogistics::HandleChatMessage(uint32_t playerID, const void* message) -> v
 
 auto MCLogistics::SendRemoveForceMessage(int lance, int slot) -> void
 {
-    if (!MultiplayerInitialized || MPlayer == nullptr)
+    if (!MultiplayerInitialized || MultiPlayer() == nullptr)
     {
         return;
     }
@@ -404,19 +405,19 @@ namespace
 
 auto MCLogistics::SendAddMechMessage(MCLogMech* mech, int lance, int slot) -> void
 {
-    if (!MultiplayerInitialized || MPlayer == nullptr)
+    if (!MultiplayerInitialized || MultiPlayer() == nullptr)
     {
         return;
     }
 
-    const uint32_t homeGroup = MPlayer->HomeTeamGroupID;
-    Assert(homeGroup == MPlayer->InnerSphereGroupID || homeGroup == MPlayer->ClanGroupID, 0,
+    const uint32_t homeGroup = MultiPlayer()->HomeTeamGroupID;
+    Assert(homeGroup == MultiPlayer()->InnerSphereGroupID || homeGroup == MultiPlayer()->ClanGroupID, 0,
            "Local player is not on a team!");
     MCLogWarrior* pilot = nullptr;
     AssignedWarriorList->GetWarriorInfo(mech->PilotIndex, pilot);
     MCDeployForce force;
     force.IsMech = true;
-    force.ClanSide = homeGroup != MPlayer->InnerSphereGroupID;
+    force.ClanSide = homeGroup != MultiPlayer()->InnerSphereGroupID;
     force.NameVariant = mech->NameVariant < 4 ? static_cast<uint8_t>(mech->NameVariant & 3) : 0;
     force.Lance = SlotBits(lance);
     force.Slot = SlotBits(slot);
@@ -429,13 +430,13 @@ auto MCLogistics::SendAddMechMessage(MCLogMech* mech, int lance, int slot) -> vo
 
 auto MCLogistics::SendAddVehicleMessage(MCLogVehicle* vehicle, int lance, int slot) -> void
 {
-    if (!MultiplayerInitialized || MPlayer == nullptr)
+    if (!MultiplayerInitialized || MultiPlayer() == nullptr)
     {
         return;
     }
 
     MCDeployForce force;
-    force.ClanSide = MPlayer->HomeTeamGroupID != MPlayer->InnerSphereGroupID;
+    force.ClanSide = MultiPlayer()->HomeTeamGroupID != MultiPlayer()->InnerSphereGroupID;
     force.Lance = SlotBits(lance);
     force.Slot = SlotBits(slot);
     force.NameIndex = static_cast<uint8_t>(vehicle->NameIndex);
@@ -447,8 +448,8 @@ auto MCLogistics::SendAddVehicleMessage(MCLogVehicle* vehicle, int lance, int sl
 auto MCLogistics::HandleLostPlayer(uint32_t playerID, int) -> void
 {
     // "<player> has left the game" (or, in a lobby game, the variant that ends it).
-    const std::string text = LoadGameString(LaunchedFromLobby == 0 || MPlayer == nullptr ? 0x35f : 0x365, 0xfe);
-    HoldString = std::format("{} {}", MPlayer->SessionManager->GetPlayer(playerID)->Name, text).substr(0, 0xff);
+    const std::string text = LoadGameString(LaunchedFromLobby == 0 || MultiPlayer() == nullptr ? 0x35f : 0x365, 0xfe);
+    HoldString = std::format("{} {}", MultiPlayer()->SessionManager->GetPlayer(playerID)->Name, text).substr(0, 0xff);
     MCReusableDialog* dialog = MessageDialog.get();
 
     // A dialog already up whose button exits keeps showing; the message follows once it is answered.
@@ -472,16 +473,16 @@ auto MCLogistics::PrepareMultiplayerScenario(std::string_view scenarioName, std:
     // The original wrote the start file through an ofstream; the port builds the same text (see MCTextStream).
     using DropSlotTable = std::array<std::array<MCDropSlot, LanceSlots>, NumLances>;
     MCTextStream out;
-    const int32_t homePlayers = MPlayer->PlayersOnHomeTeam()->Count;
-    const bool clanHome = MPlayer->HomeTeamGroupID == MPlayer->ClanGroupID;
+    const int32_t homePlayers = static_cast<int32_t>(MultiPlayer()->PlayersOnHomeTeam()->size());
+    const bool clanHome = MultiPlayer()->HomeTeamGroupID == MultiPlayer()->ClanGroupID;
     // The Inner Sphere side's drop slots come first; team 0 is the Inner Sphere, 1 the Clans.
     DropSlotTable& isSlots = clanHome ? OpponentDropSlots : DropSlots;
     DropSlotTable& clanSlots = clanHome ? DropSlots : OpponentDropSlots;
     const int32_t ownTeam = clanHome ? 1 : 0;
     const int32_t otherTeam = clanHome ? 0 : 1;
     const std::string_view side = clanHome ? "Clan" : "IS";
-    const int32_t clanPlayers = clanHome ? homePlayers : MPlayer->NumPlayers() - homePlayers;
-    const int32_t isPlayers = clanHome ? MPlayer->NumPlayers() - homePlayers : homePlayers;
+    const int32_t clanPlayers = clanHome ? homePlayers : MultiPlayer()->NumPlayers() - homePlayers;
+    const int32_t isPlayers = clanHome ? MultiPlayer()->NumPlayers() - homePlayers : homePlayers;
     const std::string outName = GamePath(SaveTempPath, startFile, ".fit");
     const std::string inName = GamePath(MissionPath, scenarioName, ".fit");
 
@@ -555,12 +556,10 @@ auto MCLogistics::PrepareMultiplayerScenario(std::string_view scenarioName, std:
     cameraStrikes[1] = share(value, clanPlayers);
 
     // A commander block per player with its side's share.
-    MCFLinkedList<MCFidpPlayer>* players = MPlayer->SessionManager->GetPlayers(nullptr);
-
-    for (MCFLink<MCFidpPlayer>* link = players->HeadLink; link != nullptr && link->Data != nullptr; link = link->Next)
+    for (const auto& player : MultiPlayer()->SessionManager->GetPlayers(nullptr))
     {
-        const size_t sideIndex = link->Data->IsInGroup(MPlayer->InnerSphereGroupID) != 0 ? 0 : 1;
-        out << "[Commander:" << static_cast<int>(link->Data->PlayerNumber) << "]" << '\n';
+        const size_t sideIndex = player->IsInGroup(MultiPlayer()->InnerSphereGroupID) ? 0 : 1;
+        out << "[Commander:" << static_cast<int>(player->PlayerNumber) << "]" << '\n';
         out << "l NumSmallStrikes\t\t= " << smallStrikes[sideIndex] << '\n';
         out << "l NumLargeStrikes\t\t= " << largeStrikes[sideIndex] << '\n';
         out << "l NumSensorStrikes\t\t= " << sensorStrikes[sideIndex] << '\n';
@@ -616,13 +615,13 @@ auto MCLogistics::PrepareMultiplayerScenario(std::string_view scenarioName, std:
         }
 
         slot.Part = part;
-        part->CommanderID = MPlayer->CheckInId;
+        part->CommanderID = MultiPlayer()->CheckInId;
     }
 
     // Every drop slot's unit as a part: a profile of its own ("part<n>") and its place in the side's drop zones.
-    const int32_t controlType = MPlayer->IsServer != 0 ? 2 : 3;
-    const uint32_t numHome = static_cast<uint32_t>(MPlayer->PlayersOnHomeTeam()->Count);
-    const uint32_t numEnemy = static_cast<uint32_t>(MPlayer->PlayersOnEnemyTeam()->Count);
+    const int32_t controlType = MultiPlayer()->IsServer != 0 ? 2 : 3;
+    const uint32_t numHome = static_cast<uint32_t>(MultiPlayer()->PlayersOnHomeTeam()->size());
+    const uint32_t numEnemy = static_cast<uint32_t>(MultiPlayer()->PlayersOnEnemyTeam()->size());
     Assert(numEnemy != 0, numEnemy, " No Enemy Team ");
     Assert(numHome != 0, numHome, " No Home Team ");
     const int32_t homeSlotsPerPlayer = static_cast<int32_t>(NumDropSlots) / static_cast<int32_t>(numHome);
@@ -796,7 +795,7 @@ auto MCLogistics::FindMPMechList(uint32_t playerID, bool teammate) -> MCLogMechL
         // Write what is known about the lists to nomechlist.log for the bug report the assert asks for.
         MCTextStream log;
         log << "Deploying mech - isTeammate = " << (teammate ? 1 : 0) << '\n';
-        log << "Player is " << MPlayer->SessionManager->GetPlayer(playerID)->Name
+        log << "Player is " << MultiPlayer()->SessionManager->GetPlayer(playerID)->Name
             << "with id: " << static_cast<unsigned long>(playerID) << '\n';
 
         for (size_t i = 0; i < SidePlayers; i++)
@@ -850,8 +849,8 @@ auto MCLogistics::AddMechFromNetworkMessage(MCLogMechList& list, const MCDeployF
 {
     // netmechs.rsp lists three variants per mech name.
     const size_t nameIndex = static_cast<size_t>(force.NameIndex) * 3 + force.NameVariant;
-    MCLogMech* mech =
-        list.AddMech(NetListItem(NetMechNames, nameIndex), false, true, MPlayer->HomeTeamGroupID == SideGroupID(force));
+    MCLogMech* mech = list.AddMech(NetListItem(NetMechNames, nameIndex), false, true,
+                                   MultiPlayer()->HomeTeamGroupID == SideGroupID(force));
     // The pilot goes into the network pilot list (unsorted, so at its head).
     MpWarriorList->AddWarrior(NetListItem(NetWarriorNames, force.PilotNameIndex), false);
     MCLogWarrior* pilot = nullptr;
@@ -864,7 +863,7 @@ auto MCLogistics::AddMechFromNetworkMessage(MCLogMechList& list, const MCDeployF
 auto MCLogistics::AddVehicleFromNetworkMessage(MCLogVehicleList& list, const MCDeployForce& force) -> MCLogPart*
 {
     MCLogVehicle* vehicle = list.AddVehicle(NetListItem(NetVehicleNames, force.NameIndex), false, false,
-                                            MPlayer->HomeTeamGroupID == SideGroupID(force));
+                                            MultiPlayer()->HomeTeamGroupID == SideGroupID(force));
     ReadDeployItems(*vehicle, force);
     return vehicle;
 }
@@ -934,7 +933,7 @@ auto LostPlayerHandler(int32_t answer) -> void
     dialog->KeepCallbacks = true;
 }
 
-auto LogisticsChatCallback(MCFidpMessage* message, void*) -> void
+auto LogisticsChatCallback(MCFidpMessage& message) -> void
 {
-    GlobalLogPtr->HandleChatMessage(message->FromID, message->MessageBuffer);
+    GlobalLogPtr->HandleChatMessage(message.FromID, message.MessageBuffer());
 }

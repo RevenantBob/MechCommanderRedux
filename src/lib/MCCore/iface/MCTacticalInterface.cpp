@@ -13,7 +13,7 @@
 #include "mission/MCScenario.h"
 #include "main/MCGameContext.h"
 #include "main/MCMissionGlobals.h"
-#include "network/multplyr.h"
+#include "network/MCMultiPlayer.h"
 #include "object/MCArtillery.h"
 #include "object/MCBattleMech.h"
 #include "object/MCForces.h"
@@ -390,7 +390,7 @@ auto MCTacticalInterface::StartScenario() -> void
     DragTarget = nullptr;
     ForcingOrder = false;
     // The salvage page's key (alt+S by default) becomes alt+C, the chat page, in multiplayer.
-    BindKey(Keys[static_cast<size_t>(MCKeyCommand::SalvagePage)], MPlayer != nullptr ? 0x2e : 0x1f, 0);
+    BindKey(Keys[static_cast<size_t>(MCKeyCommand::SalvagePage)], MultiPlayer() != nullptr ? 0x2e : 0x1f, 0);
 }
 
 auto MCTacticalInterface::EndScenario() -> void
@@ -543,9 +543,9 @@ auto MCTacticalInterface::CallStrike(int32_t strikeType, MCVector3D* position, M
     }
     else if (forClans)
     {
-        if (MPlayer != nullptr)
+        if (MultiPlayer() != nullptr)
         {
-            Fatal(0, " Iface.CallStrike: Need more info than clanStrike in MPlayer ");
+            Fatal(0, " Iface.CallStrike: Need more info than clanStrike in MultiPlayer() ");
         }
 
         team = ClanTeam();
@@ -564,9 +564,9 @@ auto MCTacticalInterface::CallStrike(int32_t strikeType, MCVector3D* position, M
 
     const auto seconds = static_cast<int32_t>(delay);
 
-    if (MPlayer != nullptr && MPlayer->IsServer == 0)
+    if (MultiPlayer() != nullptr && MultiPlayer()->IsServer == 0)
     {
-        MPlayer->SendPlayerArtillery(MPlayer->ServerID, artilleryType, location, seconds);
+        MultiPlayer()->SendPlayerArtillery(artilleryType, location, seconds);
         return;
     }
 
@@ -586,9 +586,9 @@ auto MCTacticalInterface::SetUnit(int32_t groupId, std::span<MCMover*> movers, i
     const auto numMovers = static_cast<int32_t>(movers.size());
     HomeCommander()->SetGroup(groupId, numMovers, movers.data(), pointIndex);
 
-    if (MPlayer != nullptr)
+    if (MultiPlayer() != nullptr)
     {
-        MPlayer->SendPlayerMoverGroup(MPlayer->AllPlayerGroupID, groupId, numMovers, movers.data(), pointIndex);
+        MultiPlayer()->SendPlayerMoverGroup(groupId, movers, pointIndex);
     }
 
     // Relink every icon to its lance and mark the points.

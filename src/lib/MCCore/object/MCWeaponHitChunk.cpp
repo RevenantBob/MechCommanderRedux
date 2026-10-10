@@ -1,7 +1,7 @@
 #include "stdafx.h"
 #include "object/MCWeaponHitChunk.h"
 #include "lib/MCFatal.h"
-#include "network/multplyr.h"
+#include "network/MCMultiPlayer.h"
 #include "object/MCBigGameObject.h"
 #include "object/MCMasterComponent.h"
 #include "object/MCWeaponChunkDebug.h"
@@ -157,7 +157,7 @@ auto MCWeaponHitChunk::Unpack() -> void
     if (TargetType == 0)
     {
         TargetId = static_cast<int32_t>(rest & 0x1f);
-        Assert(TargetId < MPlayer->NumMovers, TargetId, " WeaponHitChunk.unpack: bad targetId ");
+        Assert(TargetId < MultiPlayer()->NumMovers, TargetId, " WeaponHitChunk.unpack: bad targetId ");
         Cause = static_cast<int8_t>(((packed >> 17) & 7) - 7);
         Assert(Cause >= -7 && Cause <= 0, Cause, " WeaponHitChunk.unpack: bad cause ");
         HitLocation = static_cast<int8_t>(((packed >> 20) & 0xf) - 2);

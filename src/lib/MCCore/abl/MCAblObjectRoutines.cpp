@@ -11,7 +11,7 @@
 #include "lib/MCVector2D.h"
 #include "main/MCMissionGlobals.h"
 #include "mission/MCScenario.h"
-#include "network/multplyr.h"
+#include "network/MCMultiPlayer.h"
 #include "object/MCArtillery.h"
 #include "object/MCArtilleryType.h"
 #include "object/MCArtilleryChunk.h"
@@ -943,13 +943,13 @@ namespace
     /// <returns>False on a multiplayer client (nothing applied).</returns>
     auto ApplyShot(MCGameObject* target, MCWeaponShotInfo* shotInfo) -> bool
     {
-        if (MPlayer == nullptr)
+        if (MultiPlayer() == nullptr)
         {
             target->HandleWeaponHit(shotInfo, 0);
             return true;
         }
 
-        if (MPlayer->IsServer == 0)
+        if (MultiPlayer()->IsServer == 0)
         {
             return false;
         }

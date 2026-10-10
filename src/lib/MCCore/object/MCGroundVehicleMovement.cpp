@@ -9,7 +9,7 @@
 #include "lib/MCFatal.h"
 #include "main/MCMissionGlobals.h"
 #include "mission/MCScenario.h"
-#include "network/multplyr.h"
+#include "network/MCMultiPlayer.h"
 #include "object/MCAIControl.h"
 #include "object/MCArtillery.h"
 #include "object/MCArtilleryType.h"
@@ -128,7 +128,7 @@ auto MCGroundVehicle::HandleStaticCollision() -> void
 
 auto MCGroundVehicle::MineCheck() -> void
 {
-    if (MPlayer != nullptr && MPlayer->IsServer == 0)
+    if (MultiPlayer() != nullptr && MultiPlayer()->IsServer == 0)
     {
         return;
     }
@@ -157,9 +157,9 @@ auto MCGroundVehicle::MineCheck() -> void
                 here.Overlay = (here.Overlay & 0xffffbfff) | 0x2000;
             }
 
-            if (MPlayer != nullptr)
+            if (MultiPlayer() != nullptr)
             {
-                MPlayer->AddMineChunk(tileR * 3, tileC * 3, Alignment != -1 ? 1 : 0, 1, 0);
+                MultiPlayer()->AddMineChunk(tileR * 3, tileC * 3, Alignment != -1 ? 1 : 0, 1, 0);
                 map = GameMap();
             }
         }
@@ -243,11 +243,11 @@ auto MCGroundVehicle::MineCheck() -> void
         CreateExplosion(MineExplosion, position, 0.0f, 0.0f);
         Armor[GroundVehicleFront].CurArmor -= 1.0f;
 
-        if (MPlayer != nullptr)
+        if (MultiPlayer() != nullptr)
         {
             MCWeaponShotInfo shotInfo;
             shotInfo.Init(nullptr, -2, 1.0f, 0, 0.0f);
-            MPlayer->AddWeaponHitChunk(this, &shotInfo, 0);
+            MultiPlayer()->AddWeaponHitChunk(this, &shotInfo, 0);
         }
 
         if (Armor[GroundVehicleFront].CurArmor == 0.0f)
@@ -272,7 +272,7 @@ auto MCGroundVehicle::MineCheck() -> void
         const int32_t hitLocation = CalcHitLocation(nullptr, -1, 3, 0);
         MCWeaponShotInfo shotInfo;
         shotInfo.Init(nullptr, -2, MineBaseDamage, hitLocation, 0.0f);
-        HandleWeaponHit(&shotInfo, MPlayer != nullptr);
+        HandleWeaponHit(&shotInfo, MultiPlayer() != nullptr);
 
         if (GetPilot() != nullptr)
         {
@@ -296,10 +296,10 @@ auto MCGroundVehicle::MineCheck() -> void
         here.Overlay |= 0x6000;
     }
 
-    if (MPlayer != nullptr)
+    if (MultiPlayer() != nullptr)
     {
-        MPlayer->AddMineChunk(tileR * 3 + ObjPosition->CellR, tileC * 3 + ObjPosition->CellC, Alignment != -1 ? 1 : 0,
-                              3, chunkResult);
+        MultiPlayer()->AddMineChunk(tileR * 3 + ObjPosition->CellR, tileC * 3 + ObjPosition->CellC,
+                                    Alignment != -1 ? 1 : 0, 3, chunkResult);
     }
 
     MineCellHandled = 1;
@@ -311,7 +311,8 @@ auto MCGroundVehicle::PivotTo() -> int
     MCMovePath* path = warrior->GetMovePath();
     const MCMoveState moveStateGoal = warrior->MoveOrders.MoveStateGoal;
     const MCMoveState moveState = warrior->MoveOrders.MoveState;
-    const int32_t run = MPlayer == nullptr || MPlayer->IsServer != 0 ? warrior->MoveOrders.Run : MoveChunk.Run;
+    const int32_t run =
+        MultiPlayer() == nullptr || MultiPlayer()->IsServer != 0 ? warrior->MoveOrders.Run : MoveChunk.Run;
     int hasTarget = 0;
     MCGameObject* target = warrior->GetLastTarget();
     float targetFacing = 0.0f;
@@ -543,7 +544,8 @@ auto MCGroundVehicle::UpdateMoveStateGoal() -> void
         return;
     }
 
-    const int32_t run = MPlayer == nullptr || MPlayer->IsServer != 0 ? warrior->MoveOrders.Run : MoveChunk.Run;
+    const int32_t run =
+        MultiPlayer() == nullptr || MultiPlayer()->IsServer != 0 ? warrior->MoveOrders.Run : MoveChunk.Run;
 
     if (run != 0)
     {
@@ -864,7 +866,8 @@ auto MCGroundVehicle::SetControlSettings(char& newRotate, char& newThrottleSetti
 {
     MCMechWarrior* warrior = Pilot;
     MCMovePath* path = warrior->GetMovePath();
-    const int32_t run = MPlayer == nullptr || MPlayer->IsServer != 0 ? warrior->MoveOrders.Run : MoveChunk.Run;
+    const int32_t run =
+        MultiPlayer() == nullptr || MultiPlayer()->IsServer != 0 ? warrior->MoveOrders.Run : MoveChunk.Run;
 
     if (path->NumSteps == 0)
     {
@@ -1017,7 +1020,7 @@ auto MCGroundVehicle::UpdateMovement() -> void
 
 auto MCGroundVehicle::CrashAvoidanceSystem() -> int
 {
-    if (MPlayer != nullptr && MPlayer->IsServer == 0)
+    if (MultiPlayer() != nullptr && MultiPlayer()->IsServer == 0)
     {
         return 0;
     }

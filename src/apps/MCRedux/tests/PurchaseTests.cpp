@@ -26,7 +26,7 @@
 #include "logistics/MCMainMenu.h"
 #include "main/MCGameContext.h"
 #include "main/MCLogistics.h"
-#include "network/multplyr.h"
+#include "network/MCMultiPlayer.h"
 #include "object/MCMasterComponent.h"
 #include "object/MCObjectTypeManager.h"
 
@@ -205,7 +205,7 @@ TEST_CASE("logistics: the session screen lists player ids in order, empty slots 
 
 TEST_CASE("logistics: a unit sells for half its value in the campaign, all of it in a single mission")
 {
-    REQUIRE(MPlayer == nullptr);
+    REQUIRE(MultiPlayer() == nullptr);
     const bool saved = Solo;
     Solo = false;
     CHECK_EQ(MCInventoryBlock::SalePrice(2500), 1250);

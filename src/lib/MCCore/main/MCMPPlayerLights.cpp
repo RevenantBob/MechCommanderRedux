@@ -1,12 +1,12 @@
 #include "stdafx.h"
 #include "main/MCMPPlayerLights.h"
 #include "gui/MCGuiSystem.h"
-#include "linkup/dpplayer.h"
-#include "linkup/sessionmanager.h"
+#include "linkup/MCFidpPlayer.h"
+#include "linkup/MCSessionManager.h"
 #include "logistics/MCTicker.h"
 #include "main/MCGamePaths.h"
 #include "main/MCLogistics.h"
-#include "network/multplyr.h"
+#include "network/MCMultiPlayer.h"
 
 MCMPPlayerLights::~MCMPPlayerLights()
 {
@@ -130,9 +130,11 @@ auto MCMPPlayerLights::HandleEvent(MCGuiEvent* event) -> void
     // Pointing at a light shows its player's name on the ticker.
     const int32_t light = (event->X - 0xd8) / LightWidth;
 
-    if (light >= 0 && light < NumPlayers && light < MaxPlayers && GlobalLogPtr->Ticker != nullptr && MPlayer != nullptr)
+    if (light >= 0 && light < NumPlayers && light < MaxPlayers && GlobalLogPtr->Ticker != nullptr &&
+        MultiPlayer() != nullptr)
     {
-        if (const MCFidpPlayer* player = MPlayer->SessionManager->GetPlayer(PlayerIDs[static_cast<size_t>(light)]))
+        if (const MCFidpPlayer* player =
+                MultiPlayer()->SessionManager->GetPlayer(PlayerIDs[static_cast<size_t>(light)]))
         {
             GlobalLogPtr->Ticker->SetString(player->Name);
         }

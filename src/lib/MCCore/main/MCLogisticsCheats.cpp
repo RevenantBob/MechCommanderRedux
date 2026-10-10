@@ -6,7 +6,7 @@
 #include "logistics/MCPurchaseScreen.h"
 #include "logistics/MCRepairScreen.h"
 #include "logistics/MCUnitLimits.h"
-#include "network/multplyr.h"
+#include "network/MCMultiPlayer.h"
 #include "sound/MCSoundSystem.h"
 
 namespace
@@ -54,7 +54,7 @@ auto MCLogistics::ProcessCheatCode(int16_t key) -> void
 {
     int32_t position = LogCurCheatChar;
 
-    if (InDemo != 0 || MPlayer != nullptr || !CheatsOn)
+    if (InDemo != 0 || MultiPlayer() != nullptr || !CheatsOn)
     {
         return;
     }

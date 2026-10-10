@@ -10,7 +10,7 @@
 #include "main/MCMissionGlobals.h"
 #include "main/MCGameStrings.h"
 #include "mission/MCScenario.h"
-#include "network/multplyr.h"
+#include "network/MCMultiPlayer.h"
 #include "object/MCBuildingMarines.h"
 #include "object/MCContactSystem.h"
 #include "object/MCForces.h"
@@ -134,7 +134,7 @@ auto MCTreeBuilding::IsVisible(MCCamera* cam) -> bool
 
 auto MCTreeBuilding::IsCaptureable() -> int
 {
-    if (MPlayer == nullptr)
+    if (MultiPlayer() == nullptr)
     {
         return Captureable && IsCaptured() == 0 && IsDestroyed() == 0 ? 1 : 0;
     }
@@ -220,11 +220,11 @@ auto MCTreeBuilding::LightOnFire(float timeToBurn) -> void
         MCWeaponShotInfo shot;
         shot.Init(nullptr, -1, 1.0f, 0, 0.0f);
 
-        if (MPlayer == nullptr)
+        if (MultiPlayer() == nullptr)
         {
             HandleWeaponHit(&shot, 0);
         }
-        else if (MPlayer->IsServer != 0)
+        else if (MultiPlayer()->IsServer != 0)
         {
             HandleWeaponHit(&shot, 1);
         }
@@ -292,11 +292,11 @@ auto MCTreeBuilding::Render() -> void
             MCWeaponShotInfo shot;
             shot.Init(nullptr, -1, type->BurnDamagePerTime, 0, 0.0f);
 
-            if (MPlayer == nullptr)
+            if (MultiPlayer() == nullptr)
             {
                 HandleWeaponHit(&shot, 0);
             }
-            else if (MPlayer->IsServer != 0)
+            else if (MultiPlayer()->IsServer != 0)
             {
                 HandleWeaponHit(&shot, 1);
             }
@@ -580,7 +580,7 @@ auto MCTreeBuilding::HandleWeaponHit(MCWeaponShotInfo* shotInfo, int addMultipla
 
     if (addMultiplayChunk != 0)
     {
-        MPlayer->AddWeaponHitChunk(this, shotInfo, 0);
+        MultiPlayer()->AddWeaponHitChunk(this, shotInfo, 0);
     }
 
     if (IsDestroyed() != 0)
@@ -613,7 +613,7 @@ auto MCTreeBuilding::HandleWeaponHit(MCWeaponShotInfo* shotInfo, int addMultipla
         attacker->GetPilot()->TriggerAlarm(MCPilotAlarmType::KilledTarget, static_cast<uint32_t>(PartId));
     }
 
-    if (MPlayer == nullptr)
+    if (MultiPlayer() == nullptr)
     {
         CreateBuildingMarines();
     }
