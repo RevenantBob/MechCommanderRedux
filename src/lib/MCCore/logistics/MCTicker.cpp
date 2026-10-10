@@ -2,7 +2,7 @@
 #include "logistics/MCTicker.h"
 #include "gui/MCGuiEvent.h"
 #include "gui/MCGuiFont.h"
-#include "main/logistics.h"
+#include "main/MCLogistics.h"
 
 MCTicker::MCTicker()
 {
@@ -14,7 +14,7 @@ MCTicker::~MCTicker()
 {
     MCTicker::Destroy();
 
-    if (GlobalLogPtr != nullptr && GlobalLogPtr->Ticker == this)
+    if (GlobalLogPtr != nullptr && GlobalLogPtr->Ticker.get() == this)
     {
         GlobalLogPtr->Ticker = nullptr;
     }

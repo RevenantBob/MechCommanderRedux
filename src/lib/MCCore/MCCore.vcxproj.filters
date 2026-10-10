@@ -597,16 +597,64 @@
     <ClCompile Include="main\honorb.cpp">
       <Filter>main</Filter>
     </ClCompile>
-    <ClCompile Include="main\logistics.cpp">
+    <ClCompile Include="main\main.cpp">
       <Filter>main</Filter>
     </ClCompile>
-    <ClCompile Include="main\main.cpp">
+    <ClCompile Include="main\MCForceMessages.cpp">
       <Filter>main</Filter>
     </ClCompile>
     <ClCompile Include="main\MCGameContext.cpp">
       <Filter>main</Filter>
     </ClCompile>
     <ClCompile Include="main\MCGamePaths.cpp">
+      <Filter>main</Filter>
+    </ClCompile>
+    <ClCompile Include="main\MCInventoryList.cpp">
+      <Filter>main</Filter>
+    </ClCompile>
+    <ClCompile Include="main\MCLogistics.cpp">
+      <Filter>main</Filter>
+    </ClCompile>
+    <ClCompile Include="main\MCLogisticsCampaign.cpp">
+      <Filter>main</Filter>
+    </ClCompile>
+    <ClCompile Include="main\MCLogisticsCheats.cpp">
+      <Filter>main</Filter>
+    </ClCompile>
+    <ClCompile Include="main\MCLogisticsForce.cpp">
+      <Filter>main</Filter>
+    </ClCompile>
+    <ClCompile Include="main\MCLogisticsMultiplayer.cpp">
+      <Filter>main</Filter>
+    </ClCompile>
+    <ClCompile Include="main\MCLogisticsPurchasing.cpp">
+      <Filter>main</Filter>
+    </ClCompile>
+    <ClCompile Include="main\MCLogisticsScenario.cpp">
+      <Filter>main</Filter>
+    </ClCompile>
+    <ClCompile Include="main\MCLogisticsShared.cpp">
+      <Filter>main</Filter>
+    </ClCompile>
+    <ClCompile Include="main\MCLogMech.cpp">
+      <Filter>main</Filter>
+    </ClCompile>
+    <ClCompile Include="main\MCLogMechList.cpp">
+      <Filter>main</Filter>
+    </ClCompile>
+    <ClCompile Include="main\MCLogVehicle.cpp">
+      <Filter>main</Filter>
+    </ClCompile>
+    <ClCompile Include="main\MCLogVehicleList.cpp">
+      <Filter>main</Filter>
+    </ClCompile>
+    <ClCompile Include="main\MCLogWarrior.cpp">
+      <Filter>main</Filter>
+    </ClCompile>
+    <ClCompile Include="main\MCLogWarriorList.cpp">
+      <Filter>main</Filter>
+    </ClCompile>
+    <ClCompile Include="main\MCMPPlayerLights.cpp">
       <Filter>main</Filter>
     </ClCompile>
     <ClCompile Include="main\rmain.cpp">
@@ -1702,16 +1750,52 @@
     <ClInclude Include="main\honorb.h">
       <Filter>main</Filter>
     </ClInclude>
-    <ClInclude Include="main\logistics.h">
+    <ClInclude Include="main\main.h">
       <Filter>main</Filter>
     </ClInclude>
-    <ClInclude Include="main\main.h">
+    <ClInclude Include="main\MCDropSlot.h">
+      <Filter>main</Filter>
+    </ClInclude>
+    <ClInclude Include="main\MCForceMessages.h">
       <Filter>main</Filter>
     </ClInclude>
     <ClInclude Include="main\MCGameContext.h">
       <Filter>main</Filter>
     </ClInclude>
     <ClInclude Include="main\MCGamePaths.h">
+      <Filter>main</Filter>
+    </ClInclude>
+    <ClInclude Include="main\MCInventoryList.h">
+      <Filter>main</Filter>
+    </ClInclude>
+    <ClInclude Include="main\MCLogistics.h">
+      <Filter>main</Filter>
+    </ClInclude>
+    <ClInclude Include="main\MCLogisticsShared.h">
+      <Filter>main</Filter>
+    </ClInclude>
+    <ClInclude Include="main\MCLogMech.h">
+      <Filter>main</Filter>
+    </ClInclude>
+    <ClInclude Include="main\MCLogMechList.h">
+      <Filter>main</Filter>
+    </ClInclude>
+    <ClInclude Include="main\MCLogPart.h">
+      <Filter>main</Filter>
+    </ClInclude>
+    <ClInclude Include="main\MCLogVehicle.h">
+      <Filter>main</Filter>
+    </ClInclude>
+    <ClInclude Include="main\MCLogVehicleList.h">
+      <Filter>main</Filter>
+    </ClInclude>
+    <ClInclude Include="main\MCLogWarrior.h">
+      <Filter>main</Filter>
+    </ClInclude>
+    <ClInclude Include="main\MCLogWarriorList.h">
+      <Filter>main</Filter>
+    </ClInclude>
+    <ClInclude Include="main\MCMPPlayerLights.h">
       <Filter>main</Filter>
     </ClInclude>
     <ClInclude Include="main\rmain.h">

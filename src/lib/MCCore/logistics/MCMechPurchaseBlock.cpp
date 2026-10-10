@@ -10,7 +10,7 @@
 #include "logistics/MCStoreRow.h"
 #include "logistics/MCTicker.h"
 #include "logistics/MCUnitLimits.h"
-#include "main/logistics.h"
+#include "main/MCLogistics.h"
 #include "main/main.h"
 #include "object/MCMasterComponent.h"
 #include "vfx/MCVfxFunctions.h"
@@ -276,19 +276,20 @@ auto MCMechPurchaseBlock::DrawBackground(int32_t) -> void
         PicturePort = std::make_unique<MCLogPort>();
         PicturePort->Init(0x4b, 100);
         VfxPaneWipe(PicturePort->Frame(), 0x10);
-        VfxShapeLookaside(GlobalLogPtr->ShapeLookaside[5]);
+        VfxShapeLookaside(GlobalLogPtr->ShapeLookaside[5].data());
 
         for (int32_t shape = 0; shape < 8; ++shape)
         {
-            VfxShapeTranslateDraw(PicturePort->Frame(), GlobalLogPtr->MechRepShapes[data->NameIndex], shape + 0xb, 0,
-                                  0);
+            VfxShapeTranslateDraw(PicturePort->Frame(), GlobalLogPtr->MechRepShapes[data->NameIndex].Data(),
+                                  shape + 0xb, 0, 0);
         }
 
-        VfxShapeLookaside(GlobalLogPtr->ShapeLookaside[0]);
+        VfxShapeLookaside(GlobalLogPtr->ShapeLookaside[0].data());
 
         for (int32_t shape = 0; shape < 8; ++shape)
         {
-            VfxShapeTranslateDraw(PicturePort->Frame(), GlobalLogPtr->MechRepShapes[data->NameIndex], shape, 0, 0);
+            VfxShapeTranslateDraw(PicturePort->Frame(), GlobalLogPtr->MechRepShapes[data->NameIndex].Data(), shape, 0,
+                                  0);
         }
     }
 
@@ -300,7 +301,7 @@ auto MCMechPurchaseBlock::DrawBackground(int32_t) -> void
 
         for (int32_t location : BodyTrans)
         {
-            AGShapeDraw(DiagramPort->Frame(), GlobalLogPtr->MechIconShapes[data->NameIndex], location, 3, 0);
+            AGShapeDraw(DiagramPort->Frame(), GlobalLogPtr->MechIconShapes[data->NameIndex].Data(), location, 3, 0);
         }
     }
 
@@ -332,7 +333,7 @@ auto MCMechPurchaseBlock::DrawBackground(int32_t) -> void
 
 auto MCMechPurchaseBlock::DrawRow(MCLogPort* port, int32_t top) -> void
 {
-    MCPurchaseScreen* screen = GlobalLogPtr->PurchaseScreen;
+    MCPurchaseScreen* screen = GlobalLogPtr->PurchaseScreen.get();
     std::unique_ptr<MCLogBlockPort> row = RowPicture(screen->MechTabPort.get(), port, top, false);
     MCPurMechData* data = PurMech->Variants[static_cast<size_t>(CurVariant)].get();
     CopyArt(row.get(), 5, 4, std::format("lspflma{:02}.tga", data->NameIndex));
@@ -354,7 +355,7 @@ auto MCMechPurchaseBlock::DrawRow(MCLogPort* port, int32_t top) -> void
     // The weapons and equipment, and the jump jets' rating.
     int32_t jumpJets = 0;
 
-    for (MCLogInventoryItem* item = data->Inventory->Items; item != nullptr; item = item->Next)
+    for (const std::unique_ptr<MCLogInventoryItem>& item : data->Inventory->Items)
     {
         if (MasterComponentList[item->MasterID].Form == MCComponentForm::JumpJet)
         {
@@ -456,7 +457,7 @@ auto MCMechPurchaseBlock::DrawRow(MCLogPort* port, int32_t top) -> void
         CopyArt(port, 5, top + 4, std::format("{}{:02}.tga", SoldOutNameArt[shownVariant], shown->NameIndex));
         WipeBox(port, 7, top + 0x22, 0x1e, 0x1e, 0x10);
         WipeBox(port, 0xed, top + 5, 0x4b, 100, 0x10);
-        AGShapeDraw(port->Frame(), GlobalLogPtr->MechRepShapes[shown->NameIndex], 0x13, 0xed, top + 6);
+        AGShapeDraw(port->Frame(), GlobalLogPtr->MechRepShapes[shown->NameIndex].Data(), 0x13, 0xed, top + 6);
     }
 
     // Stock and price.

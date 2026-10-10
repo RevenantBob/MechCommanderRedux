@@ -24,7 +24,7 @@
 #include "main/MCGamePaths.h"
 #include "logistics/MCPreferencesMenu.h"
 #include "main/MCGameContext.h"
-#include "main/logistics.h"
+#include "main/MCLogistics.h"
 #include "mission/MCMission.h"
 #include "mission/MCScenario.h"
 #include "object/MCObjectType.h"

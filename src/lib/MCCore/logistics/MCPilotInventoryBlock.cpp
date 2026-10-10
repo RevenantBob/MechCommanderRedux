@@ -13,7 +13,7 @@
 #include "logistics/MCRepairScreen.h"
 #include "logistics/MCTicker.h"
 #include "logistics/MCUnitLimits.h"
-#include "main/logistics.h"
+#include "main/MCLogistics.h"
 #include "main/main.h"
 #include "sound/MCSoundSystem.h"
 #include "vfx/MCVfxFunctions.h"
@@ -90,7 +90,7 @@ auto MCPilotInventoryBlock::DrawBackground() -> void
 
 auto MCPilotInventoryBlock::DrawRow(MCLogPort* port, int32_t top) -> void
 {
-    std::unique_ptr<MCLogBlockPort> row = RowPicture(GlobalLogPtr->InvBlockPort, port, top, true);
+    std::unique_ptr<MCLogBlockPort> row = RowPicture(GlobalLogPtr->InvBlockPort.get(), port, top, true);
     PortraitPort->CopyTo(row->Frame(), 3, 2, true);
     WriteText(YellowDropFont, row.get(), 0x26, 7, Warrior->Callsign);
     WriteText(BlueDropFont, row.get(), 0x26, 0x15,
@@ -129,8 +129,8 @@ auto MCPilotInventoryBlock::OfferSale() -> void
     MCLogPort picture;
     picture.Load(std::format("{}logart\\{}", ArtPath, Warrior->Picture));
     int32_t price = SalePrice(GlobalLogPtr->PilotCosts[Warrior->Rank]);
-    OpenPurchaseDialog(3, -price, 1, Warrior->Callsign != nullptr ? Warrior->Callsign : "", LoadGameString(0x5f, 0xfe),
-                       &picture, [this](int32_t result, int32_t) { OnSellConfirmed(result); });
+    OpenPurchaseDialog(3, -price, 1, Warrior->Callsign, LoadGameString(0x5f, 0xfe), &picture,
+                       [this](int32_t result, int32_t) { OnSellConfirmed(result); });
 }
 
 auto MCPilotInventoryBlock::OnSellConfirmed(int32_t result) -> void
@@ -159,7 +159,7 @@ auto MCPilotInventoryBlock::OnSellConfirmed(int32_t result) -> void
 
 auto MCPilotInventoryBlock::BoardMech(MCLogMech* mech, int32_t row) -> void
 {
-    MCPilotInventoryBlock* block = Warrior->InventoryBlock;
+    MCPilotInventoryBlock* block = Warrior->InventoryBlock.get();
     block->Mech = mech;
     int32_t pilotRow = block->ListIndex;
     GlobalLogPtr->SetPilot(row, pilotRow);

@@ -4,13 +4,13 @@
 #include "logistics/MCLogDialogButton.h"
 #include "logistics/MCLogTextObject.h"
 #include "logistics/MCReusableDialog.h"
-#include "main/logistics.h"
+#include "main/MCLogistics.h"
 #include "main/main.h"
 
 auto ShowMenuMessage(std::string_view text, std::function<void(int32_t)> callback, std::string_view upArt,
                      std::string_view downArt) -> void
 {
-    MCReusableDialog* dialog = GlobalLogPtr->MessageDialog;
+    MCReusableDialog* dialog = GlobalLogPtr->MessageDialog.get();
     dialog->SetText(text);
     dialog->SetTwoButton(false);
     dialog->Callback = std::move(callback);

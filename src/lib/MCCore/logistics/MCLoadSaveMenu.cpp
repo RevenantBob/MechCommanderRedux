@@ -10,7 +10,7 @@
 #include "logistics/MCReusableDialog.h"
 #include "logistics/MCSessionScreen.h"
 #include "logistics/MCSplashScreen.h"
-#include "main/logistics.h"
+#include "main/MCLogistics.h"
 #include "main/main.h"
 #include "platform/MCFileSystem.h"
 #include "sound/MCSoundSystem.h"
@@ -27,12 +27,12 @@ namespace
     {
         MCFileScrollPane* pane = nullptr;
 
-        if (GlobalLogPtr->CurrentScreen == GlobalLogPtr->LoadScreen)
+        if (GlobalLogPtr->CurrentScreen == GlobalLogPtr->LoadScreen.get())
         {
             pane = GlobalLogPtr->LoadScreen->FilePane;
         }
 
-        if (GlobalLogPtr->CurrentScreen == GlobalLogPtr->SaveScreen)
+        if (GlobalLogPtr->CurrentScreen == GlobalLogPtr->SaveScreen.get())
         {
             pane = GlobalLogPtr->SaveScreen->FilePane;
         }
@@ -95,20 +95,20 @@ void SaveScreen()
         return;
     }
 
-    OpenFileScreen(GlobalLogPtr->SaveScreen, 6);
+    OpenFileScreen(GlobalLogPtr->SaveScreen.get(), 6);
 }
 
 void LoadScreen()
 {
     EnsureRegistryVersion();
-    OpenFileScreen(GlobalLogPtr->LoadScreen, 5);
+    OpenFileScreen(GlobalLogPtr->LoadScreen.get(), 5);
 }
 
 void SoloLoadScreen()
 {
     EnsureRegistryVersion();
     LoadingSolo = true;
-    OpenFileScreen(GlobalLogPtr->LoadScreen, 5);
+    OpenFileScreen(GlobalLogPtr->LoadScreen.get(), 5);
 }
 
 void LoadGame()
@@ -128,11 +128,11 @@ void LoadGame()
     Solo = !campaign;
     LastLogisticsMissionState = 0;
 
-    if (GlobalLogPtr->LoadCampaign(fileName.data(), const_cast<char*>(campaign ? ".sav" : ".sol"), 0, 1) == 0)
+    if (GlobalLogPtr->LoadCampaign(fileName, campaign ? ".sav" : ".sol", false, true) == 0)
     {
         // Original behaviour: the save screen is the one hidden, not the load screen shown.
         GlobalLogPtr->SaveScreen->ShowGuiWindow(false);
-        GlobalLogPtr->SetUpBriefingScreen(0);
+        GlobalLogPtr->SetUpBriefingScreen(false);
         SoundSystem()->PlayDigitalMusic(0x16, true);
     }
 }
@@ -153,15 +153,15 @@ void SaveWorkedCallback(int32_t)
 
     if (GlobalLogPtr->PreviousState == 2)
     {
-        GlobalLogPtr->SetUpPurchaseScreen(0);
+        GlobalLogPtr->SetUpPurchaseScreen(false);
     }
     else if (GlobalLogPtr->PreviousState != 4)
     {
-        GlobalLogPtr->SetUpBriefingScreen(0);
+        GlobalLogPtr->SetUpBriefingScreen(false);
     }
     else
     {
-        GlobalLogPtr->SetUpRepairScreen(0);
+        GlobalLogPtr->SetUpRepairScreen(false);
     }
 
     SoundSystem()->PlayDigitalMusic(0x16, true);
@@ -189,7 +189,7 @@ void SaveGameCallback()
     if (result == 0)
     {
         // "Game saved", closing by itself after three seconds.
-        MCReusableDialog* dialog = GlobalLogPtr->MessageDialog;
+        MCReusableDialog* dialog = GlobalLogPtr->MessageDialog.get();
         dialog->SetText(LoadGameString(0x76, 0xfe));
         dialog->SetTwoButton(false);
         dialog->Callback = SaveWorkedCallback;
@@ -252,7 +252,7 @@ void SaveGame()
     }
 
     // Overwrite? (The cancel button keeps whatever action it had.)
-    MCReusableDialog* dialog = GlobalLogPtr->MessageDialog;
+    MCReusableDialog* dialog = GlobalLogPtr->MessageDialog.get();
     dialog->SetText(LoadGameString(0x75, 0xfe));
     dialog->SetTwoButton(true);
     dialog->Callback = nullptr;
@@ -308,7 +308,8 @@ void DeleteGame()
         return;
     }
 
-    AskMenuQuestion(GlobalLogPtr->MessageDialog, 0x74, DeleteCallbackTrue, DeleteCallbackFalse, "bg_cancl.tga", false);
+    AskMenuQuestion(GlobalLogPtr->MessageDialog.get(), 0x74, DeleteCallbackTrue, DeleteCallbackFalse, "bg_cancl.tga",
+                    false);
     DestroyNameEntry(pane);
 }
 
@@ -334,7 +335,7 @@ void LoadSaveScreenHandleEvent(MCGuiObject* object, MCGuiEvent* event)
         screen->LoadSaveButton->Disabled = true;
         screen->DeleteButton->Disabled = true;
     }
-    else if (message == 5 && object == GlobalLogPtr->SaveScreen)
+    else if (message == 5 && object == GlobalLogPtr->SaveScreen.get())
     {
         // Enter in the name entry: save.
         SoundSystem()->PlayDigitalSample(screen->LoadSaveButton->PressSound, 1, nullptr, 0, 0);

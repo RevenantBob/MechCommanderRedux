@@ -19,7 +19,7 @@
 #include "logistics/MCCompPurchaseBlock.h"
 #include "logistics/MCUnitLimits.h"
 #include "logistics/MCPurProfile.h"
-#include "main/logistics.h"
+#include "main/MCLogistics.h"
 #include "object/MCMover.h"
 #include "object/MCMoverGameSystem.h"
 #include "platform/MCDisplay.h"
@@ -626,7 +626,7 @@ TEST_CASE_ISOLATED("game: the GPU draws the logistics screens as the software re
     settle();
 
     // The operation movie (stream uploads, compared with the software frames).
-    MCBriefingScreen* briefing = GlobalLogPtr->BriefingScreen;
+    MCBriefingScreen* briefing = GlobalLogPtr->BriefingScreen.get();
     int32_t movieFrames = 0;
 
     for (int32_t frame = 0; frame < 300 && movieFrames < 30; frame++)
@@ -637,9 +637,9 @@ TEST_CASE_ISOLATED("game: the GPU draws the logistics screens as the software re
 
     CHECK_EQ(movieFrames, 30);
     CHECK(renderer->LastFrameUploads().Pictures == 0);
-    GlobalLogPtr->SetUpPurchaseScreen(-1);
+    GlobalLogPtr->SetUpPurchaseScreen(true);
     settle();
-    GlobalLogPtr->SetUpRepairScreen(-1);
+    GlobalLogPtr->SetUpRepairScreen(true);
     settle();
     CheckMirror(*renderer);
 }
@@ -669,8 +669,9 @@ TEST_CASE_ISOLATED("game: the GPU draws damaged mechs' diagrams as the software 
     NewCampaign();
     int32_t mechs = 0;
 
-    for (MCLogMech* mech = GlobalLogPtr->ForceMechList->Mechs; mech != nullptr; mech = mech->Next, mechs++)
+    for (const std::unique_ptr<MCLogMech>& mech : GlobalLogPtr->ForceMechList->Mechs)
     {
+        mechs++;
         // Left arm (5) gone: no armor, no internals. Right arm (4) and the torsos at the other damage states.
         mech->Armor[5].CurArmor = 0;
         mech->Internals[5].CurArmor = 0;
@@ -690,11 +691,11 @@ TEST_CASE_ISOLATED("game: the GPU draws damaged mechs' diagrams as the software 
         }
     };
 
-    GlobalLogPtr->SetUpBriefingScreen(-1);
+    GlobalLogPtr->SetUpBriefingScreen(true);
     run();
-    GlobalLogPtr->SetUpPurchaseScreen(-1);
+    GlobalLogPtr->SetUpPurchaseScreen(true);
     run();
-    GlobalLogPtr->SetUpRepairScreen(-1);
+    GlobalLogPtr->SetUpRepairScreen(true);
     run();
     CheckMirror(*renderer);
 }
@@ -723,7 +724,7 @@ TEST_CASE_ISOLATED("game: a movie's frames go straight to the GPU, once each")
 
     // The operation movie starts after a delay.
     NewCampaign();
-    MCBriefingScreen* briefing = GlobalLogPtr->BriefingScreen;
+    MCBriefingScreen* briefing = GlobalLogPtr->BriefingScreen.get();
 
     for (int32_t frame = 0;
          frame < 300 && (briefing->SmackerWindow == nullptr || briefing->SmackerWindow->Movie == nullptr); frame++)

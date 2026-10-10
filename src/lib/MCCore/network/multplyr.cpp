@@ -34,7 +34,7 @@
 #include "logistics/MCPlayerNameObject.h"
 #include "logistics/MCSessionScreen.h"
 #include "main/honorb.h"
-#include "main/logistics.h"
+#include "main/MCLogistics.h"
 #include "main/main.h"
 #include "mission/MCMission.h"
 #include "mission/MCScenario.h"
@@ -1850,8 +1850,8 @@ auto MCMultiPlayer::PlayerLeftGame(uint32_t playerID) -> void
 
     if (InLogistics == 0)
     {
-        if (GlobalLogPtr->CurrentScreen == GlobalLogPtr->SessionScreen ||
-            GlobalLogPtr->CurrentScreen == GlobalLogPtr->LoadScreen)
+        if (GlobalLogPtr->CurrentScreen == GlobalLogPtr->SessionScreen.get() ||
+            GlobalLogPtr->CurrentScreen == GlobalLogPtr->LoadScreen.get())
         {
             char reason[256];
             char text[512];
@@ -1859,7 +1859,7 @@ auto MCMultiPlayer::PlayerLeftGame(uint32_t playerID) -> void
             MCFidpPlayer* player = MPlayer->SessionManager->GetPlayer(playerID);
             // Port fix: the player is already gone when DirectPlay reports it; the original printed its freed name.
             std::snprintf(text, sizeof(text), "%s %s", player != nullptr ? player->Name : "", reason);
-            MCReusableDialog* dialog = GlobalLogPtr->MessageDialog;
+            MCReusableDialog* dialog = GlobalLogPtr->MessageDialog.get();
             dialog->SetText(text);
             dialog->SetTwoButton(0);
             dialog->Callback = CancelBool;
@@ -2045,7 +2045,7 @@ auto ShowConnectStatus() -> void
     if (GlobalLogPtr != nullptr)
     {
         GlobalLogPtr->MessageDialog->SetText(text);
-        MCReusableDialog* dialog = GlobalLogPtr->MessageDialog;
+        MCReusableDialog* dialog = GlobalLogPtr->MessageDialog.get();
 
         if (dialog->OkButton != nullptr)
         {
@@ -2068,7 +2068,7 @@ auto DestroyConnectStatusWindow() -> void
     if (GlobalLogPtr != nullptr)
     {
         GlobalLogPtr->MessageDialog->Deactivate(0);
-        MCReusableDialog* dialog = GlobalLogPtr->MessageDialog;
+        MCReusableDialog* dialog = GlobalLogPtr->MessageDialog.get();
 
         if (dialog->OkButton != nullptr)
         {
@@ -2152,7 +2152,7 @@ auto HandleAppPlayerCheckIn(uint32_t fromID, const void* msg) -> void
 {
     auto* checkIn = static_cast<const MCMPPlayerCheckInMessage*>(msg);
 
-    if (GlobalLogPtr != nullptr && GlobalLogPtr->PlayerLights != nullptr)
+    if (GlobalLogPtr != nullptr && GlobalLogPtr->PlayerLights.get() != nullptr)
     {
         GlobalLogPtr->PlayerLights->SetPlayerStatus(fromID, 2);
     }
@@ -2251,7 +2251,7 @@ auto HandleAppJoinTeam(uint32_t fromID, const void* msg) -> void
 {
     auto* join = static_cast<const MCMPJoinTeamMessage*>(msg);
 
-    if (GlobalLogPtr->SessionScreen != nullptr)
+    if (GlobalLogPtr->SessionScreen.get() != nullptr)
     {
         GlobalLogPtr->SessionScreen->AssignPlayer(join->PlayerID, join->Team, join->Slot, 0);
     }
@@ -2260,7 +2260,7 @@ auto HandleAppJoinTeam(uint32_t fromID, const void* msg) -> void
 auto HandleAppRPUpdate(uint32_t fromID, const void* msg) -> void
 {
     auto* update = static_cast<const MCMPTwoLongMessage*>(msg);
-    MCSessionScreen* sessionScreen = GlobalLogPtr->SessionScreen;
+    MCSessionScreen* sessionScreen = GlobalLogPtr->SessionScreen.get();
 
     if (sessionScreen != nullptr)
     {
@@ -2282,7 +2282,7 @@ auto HandleAppTechbaseChange(uint32_t fromID, const void* msg) -> void
 {
     auto* change = static_cast<const MCMPTwoLongMessage*>(msg);
 
-    if (GlobalLogPtr != nullptr && GlobalLogPtr->SessionScreen != nullptr)
+    if (GlobalLogPtr != nullptr && GlobalLogPtr->SessionScreen.get() != nullptr)
     {
         GlobalLogPtr->SessionScreen->SetTeamTechBase(static_cast<char>(change->Value1),
                                                      static_cast<char>(change->Value2));
@@ -2964,7 +2964,7 @@ auto HandleAppFileReport(uint32_t fromID, const void* msg) -> void
 {
     int haveFile = static_cast<const MCMPLongMessage*>(msg)->Value != 0 ? 1 : 0;
 
-    if (GlobalLogPtr->SessionScreen != nullptr)
+    if (GlobalLogPtr->SessionScreen.get() != nullptr)
     {
         GlobalLogPtr->SessionScreen->FileReport(fromID, haveFile);
     }
@@ -2972,7 +2972,7 @@ auto HandleAppFileReport(uint32_t fromID, const void* msg) -> void
 
 auto HandleAppLoadMission(uint32_t fromID, const void* msg) -> void
 {
-    if (GlobalLogPtr->SessionScreen != nullptr)
+    if (GlobalLogPtr->SessionScreen.get() != nullptr)
     {
         GlobalLogPtr->SessionScreen->LoadMission(
             const_cast<char*>(static_cast<const MCMPFileNameMessage*>(msg)->FileName));
@@ -2981,14 +2981,14 @@ auto HandleAppLoadMission(uint32_t fromID, const void* msg) -> void
 
 auto HandleAppStart(uint32_t fromID, const void* msg) -> void
 {
-    GuiSystem()->RemoveTimer(GlobalLogPtr->SessionScreen, 0);
+    GuiSystem()->RemoveTimer(GlobalLogPtr->SessionScreen.get(), 0);
     MPlayer->SessionManager->SendLatencyInfo();
     SoundSystem()->PlayBettySample(0x19);
     GlobalLogPtr->InitializeMultiplayer();
     char extension[] = ".MPK";
     GlobalLogPtr->LoadCampaign(const_cast<char*>(static_cast<const MCMPFileNameMessage*>(msg)->FileName), extension, 0,
                                0);
-    GlobalLogPtr->SetUpBriefingScreen(0);
+    GlobalLogPtr->SetUpBriefingScreen(false);
 }
 
 auto LostConnectionDialogExit() -> void
@@ -3016,15 +3016,15 @@ auto HandleLocalPlayerRemoved(uint32_t fromID, const void* msg) -> void
         MPlayer->InLogistics = 0;
         GlobalLogPtr->DestroyMultiplayer();
 
-        if (GlobalLogPtr->CurrentScreen != GlobalLogPtr->MainScreen)
+        if (GlobalLogPtr->CurrentScreen != GlobalLogPtr->MainScreen.get())
         {
             WhackTimer = 1;
         }
 
         GlobalLogPtr->CurrentScreen->ShowGuiWindow(0);
-        GlobalLogPtr->CurrentScreen = GlobalLogPtr->MainScreen;
+        GlobalLogPtr->CurrentScreen = GlobalLogPtr->MainScreen.get();
         GlobalLogPtr->LogisticsState = 1;
-        GlobalLogPtr->ShowLogScreen(1, 1);
+        GlobalLogPtr->ShowLogScreen(true, true);
         MPlayer->LeaveSession();
     }
     else
@@ -3036,7 +3036,7 @@ auto HandleLocalPlayerRemoved(uint32_t fromID, const void* msg) -> void
 
     char text[512];
     CLoadString(ThisInstance, 0x369, text, 0xfe);
-    MCReusableDialog* dialog = GlobalLogPtr->MessageDialog;
+    MCReusableDialog* dialog = GlobalLogPtr->MessageDialog.get();
     dialog->SetText(text);
     dialog->SetTwoButton(0);
     dialog->Callback = nullptr;
@@ -3338,7 +3338,7 @@ auto MultiPlayerApplicationCallback(MCFidpMessage* msg, void* data) -> void
             Assert(playerNumber >= 0 && playerNumber <= 5, 0, "PNUM BAD");
             MPlayer->PlayerSessionCheckIn[playerNumber] = 1;
 
-            if (GlobalLogPtr != nullptr && GlobalLogPtr->SessionScreen != nullptr)
+            if (GlobalLogPtr != nullptr && GlobalLogPtr->SessionScreen.get() != nullptr)
             {
                 GlobalLogPtr->SessionScreen->SomeoneCheckedIn();
             }

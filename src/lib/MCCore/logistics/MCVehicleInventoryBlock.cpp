@@ -11,7 +11,7 @@
 #include "logistics/MCRepairScreen.h"
 #include "logistics/MCTicker.h"
 #include "logistics/MCUnitLimits.h"
-#include "main/logistics.h"
+#include "main/MCLogistics.h"
 #include "main/main.h"
 #include "vfx/MCVfxFunctions.h"
 
@@ -57,7 +57,7 @@ auto MCVehicleInventoryBlock::OfferSale() -> bool
 
     PlayLogSound(0x34);
     int32_t price = SalePrice(Vehicle->VehicleResourcePoints);
-    OpenPurchaseDialog(7, -price, 1, Vehicle->FileName != nullptr ? Vehicle->FileName : "", {}, PicturePort.get(),
+    OpenPurchaseDialog(7, -price, 1, Vehicle->FileName, {}, PicturePort.get(),
                        [this](int32_t result, int32_t) { OnSellConfirmed(result); });
     return true;
 }
@@ -99,7 +99,7 @@ auto MCVehicleInventoryBlock::HandleEvent(MCGuiEvent* event) -> void
     }
 
     auto forceFull = []
-    { return GlobalLogPtr->ForceMechList->NumMechs + GlobalLogPtr->ForceVehicleList->NumVehicles > 0xf; };
+    { return GlobalLogPtr->ForceMechList->GetMechCount() + GlobalLogPtr->ForceVehicleList->GetVehicleCount() > 0xf; };
 
     auto backToInventory = [&]
     {
@@ -113,7 +113,7 @@ auto MCVehicleInventoryBlock::HandleEvent(MCGuiEvent* event) -> void
     auto joinForce = [&]
     {
         PlayLogSound(0x34);
-        GlobalLogPtr->RepairScreen->UnitPane->AddChild(Vehicle->RepairBlock);
+        GlobalLogPtr->RepairScreen->UnitPane->AddChild(Vehicle->RepairBlock.get());
         BumpDeploySlots(true);
         GlobalLogPtr->RepairScreen->AddVehicleToList(Vehicle);
         GlobalLogPtr->RepairScreen->SelectVehicle(Vehicle);

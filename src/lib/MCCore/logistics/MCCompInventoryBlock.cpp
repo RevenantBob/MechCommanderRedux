@@ -12,7 +12,7 @@
 #include "logistics/MCRepairScreen.h"
 #include "logistics/MCTicker.h"
 #include "logistics/MCUnitLimits.h"
-#include "main/logistics.h"
+#include "main/MCLogistics.h"
 #include "main/main.h"
 #include "object/MCMasterComponent.h"
 #include "vfx/MCVfxFunctions.h"
@@ -57,13 +57,12 @@ namespace
         }
 
         PlayLogSound(0x34);
-        MCLogInventoryStat* stat = mech->Inventory->CreateStat(masterID, 0, 1, 1, 0xff);
-        mech->Inventory->AddItem(masterID, stat, -1);
+        mech->Inventory->AddItem(masterID, mech->Inventory->CreateStat(masterID, 0, 1, 1, 0xff), false);
 
         if (withAmmo)
         {
-            stat = mech->Inventory->CreateStat(masterID, 0, 0, -1, 0xff);
-            mech->Inventory->AddItem(component.AmmoMasterId, stat, -1);
+            mech->Inventory->AddItem(component.AmmoMasterId, mech->Inventory->CreateStat(masterID, 0, 0, -1, 0xff),
+                                     false);
         }
 
         float added = static_cast<float>(tons);
@@ -180,7 +179,7 @@ auto MCCompInventoryBlock::CanMount(uint8_t masterID, float tonnage, const MCLog
 
     if (IsEquipment(form))
     {
-        for (MCLogInventoryItem* mounted = mech->Inventory->Items; mounted != nullptr; mounted = mounted->Next)
+        for (const std::unique_ptr<MCLogInventoryItem>& mounted : mech->Inventory->Items)
         {
             if (form == ComponentForm(mounted->MasterID))
             {
@@ -196,11 +195,10 @@ auto MCCompInventoryBlock::CanMount(uint8_t masterID, float tonnage, const MCLog
 
 auto MCCompInventoryBlock::AddSpare(uint8_t masterID) -> MCLogInventoryItem*
 {
-    MCInventoryList* spares = GlobalLogPtr->ComponentInventory;
-    MCLogInventoryStat* stat = spares->CreateStat(masterID, 0, 1, 0, 0xff);
-    spares->AddItem(masterID, stat, -1);
+    MCInventoryList* spares = GlobalLogPtr->ComponentInventory.get();
+    spares->AddItem(masterID, spares->CreateStat(masterID, 0, 1, 0, 0xff), false);
     MCLogInventoryItem* item = spares->GetItemInfo(spares->GetIndexFromMasterID(masterID));
-    MCInventoryList::MakeInventoryBlock(item)->InventoryIndex = spares->NumItems - 1;
+    MCInventoryList::MakeInventoryBlock(item)->InventoryIndex = spares->NumItems() - 1;
     return item;
 }
 
@@ -294,7 +292,7 @@ auto MCCompInventoryBlock::HandleEvent(MCGuiEvent* event) -> void
             CompDrag.Dragging = true;
             MakeDragIcon(CompDrag, event);
 
-            if (screen != GlobalLogPtr->PurchaseScreen)
+            if (screen != GlobalLogPtr->PurchaseScreen.get())
             {
                 if (--Item->Count != 0)
                 {
@@ -325,7 +323,7 @@ auto MCCompInventoryBlock::HandleEvent(MCGuiEvent* event) -> void
             GuiSystem()->Grab(this);
             MakeDragIcon(CompDrag, event);
 
-            if (screen != GlobalLogPtr->PurchaseScreen && --Item->Count != 0)
+            if (screen != GlobalLogPtr->PurchaseScreen.get() && --Item->Count != 0)
             {
                 DrawBackground();
             }
@@ -357,7 +355,7 @@ auto MCCompInventoryBlock::HandleEvent(MCGuiEvent* event) -> void
                     // Onto a mech: it must be the selected one.
                     int32_t index = (event->Y - unitPane->GlobalY() + unitPane->GetScrollOffset()) / 0x70;
 
-                    if (index < unitPane->NumberOfChildren() && index < GlobalLogPtr->ForceMechList->NumMechs)
+                    if (index < unitPane->NumberOfChildren() && index < GlobalLogPtr->ForceMechList->GetMechCount())
                     {
                         MCLogMech* target = nullptr;
                         GlobalLogPtr->ForceMechList->GetMechInfo(index, target);

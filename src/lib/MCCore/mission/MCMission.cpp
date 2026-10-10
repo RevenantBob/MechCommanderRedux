@@ -1,5 +1,6 @@
 #include "stdafx.h"
 #include "mission/MCMission.h"
+#include "ai/MCMoveGeometry.h"
 #include "lib/MCFatal.h"
 #include "linkup/sessionmanager.h"
 #include "logistics/MCInventoryBlock.h"
@@ -30,7 +31,7 @@
 #include "logistics/MCLogSlider.h"
 #include "logistics/MCSplashScreen.h"
 #include "main/honorb.h"
-#include "main/logistics.h"
+#include "main/MCLogistics.h"
 #include "main/main.h"
 #include "mission/MCMissionResultsScreen.h"
 #include "mission/MCScenario.h"
@@ -360,9 +361,8 @@ auto MCMission::Load(std::string_view missionName) -> int32_t
     }
 
     // Logistics.
-    Logistics = MCMakeGui<MCLogistics>();
-    GlobalLogPtr = Logistics.get();
-    GlobalLogPtr->Init();
+    Logistics = std::make_unique<MCLogistics>();
+    Logistics->Start();
 
     if (LaunchedFromLobby == 0)
     {
@@ -377,7 +377,7 @@ auto MCMission::Load(std::string_view missionName) -> int32_t
         if (MPlayer->SetupLobbyGame() != 0)
         {
             std::string text = LoadGameString(0x370, 0xfe);
-            MCReusableDialog* dialog = GlobalLogPtr->MessageDialog;
+            MCReusableDialog* dialog = GlobalLogPtr->MessageDialog.get();
             dialog->SetText(text.data());
             dialog->SetTwoButton(0);
             dialog->OkButton->Callback()->SetExec(CancelToMPlayer);
@@ -386,9 +386,9 @@ auto MCMission::Load(std::string_view missionName) -> int32_t
             dialog->OkButton->Disabled = 0;
             dialog->OkButton->Draw();
             dialog->Activate();
-            GlobalLogPtr->CurrentScreen = GlobalLogPtr->MainScreen;
+            GlobalLogPtr->CurrentScreen = GlobalLogPtr->MainScreen.get();
             GlobalLogPtr->LogisticsState = 1;
-            GlobalLogPtr->ShowLogScreen(0, 0);
+            GlobalLogPtr->ShowLogScreen(false, false);
         }
     }
 
@@ -462,7 +462,7 @@ auto MCMission::Shutdown() -> void
     {
         if (Logistics != nullptr)
         {
-            MCGuiDestroy()(Logistics.release());
+            Logistics.reset();
         }
 
         GlobalLogPtr = nullptr;
@@ -508,7 +508,7 @@ auto MCMission::Run() -> int32_t
         {
             if (Logistics != nullptr && Logistics->CurrentScreen->IsShowing() == 0)
             {
-                Logistics->ShowLogScreen(1, 0);
+                Logistics->ShowLogScreen(true, false);
             }
 
             EscapedSmackerMovie = 0;
@@ -522,7 +522,7 @@ auto MCMission::Run() -> int32_t
                     break;
                 }
 
-                const bool onMainScreen = Logistics->CurrentScreen == Logistics->MainScreen;
+                const bool onMainScreen = Logistics->CurrentScreen == Logistics->MainScreen.get();
 
                 if (onMainScreen && _PlayingLogisticsMusic != 1)
                 {
@@ -810,13 +810,13 @@ auto MCMission::StartScenario(std::string_view name) -> void
 
     if (GlobalGameSegment == 0)
     {
-        GlobalLogPtr->PrepareScenario(scenarioName.data(), const_cast<char*>("bridge"));
+        GlobalLogPtr->PrepareScenario(scenarioName, "bridge");
     }
 
     if (Logistics != nullptr)
     {
         // Destroyed before the pointers to it are cleared, as in the original.
-        MCGuiDestroy()(Logistics.release());
+        Logistics.reset();
         GlobalLogPtr = nullptr;
     }
 
@@ -887,9 +887,8 @@ auto MCMission::CloseResultsScreen() -> void
 auto MCMission::StartLogistics() -> MCLogistics&
 {
     MCPort::GetSystemTime(_LogisticsStart);
-    Logistics = MCMakeGui<MCLogistics>();
-    GlobalLogPtr = Logistics.get();
-    Logistics->Init();
+    Logistics = std::make_unique<MCLogistics>();
+    Logistics->Start();
     return *Logistics;
 }
 
@@ -939,9 +938,9 @@ auto MCMission::EndScenario() -> void
             LastLogisticsMissionState = 0;
             State = MCMissionState::Logistics;
             logistics.CurrentScreen->ShowGuiWindow(0);
-            logistics.CurrentScreen = logistics.MainScreen;
+            logistics.CurrentScreen = logistics.MainScreen.get();
             logistics.LogisticsState = 1;
-            logistics.ShowLogScreen(1, 1);
+            logistics.ShowLogScreen(true, true);
             Solo = 0;
             return;
         }
@@ -964,9 +963,9 @@ auto MCMission::EndScenario() -> void
         CurrentMovie = 1;
         char startName[] = "start1";
         char extension[] = ".pkk";
-        logistics.LoadCampaign(startName, extension, 1, 0);
-        logistics.SetUpBriefingScreen(0);
-        logistics.ShowLogScreen(1, 0);
+        logistics.LoadCampaign(startName, extension, true, false);
+        logistics.SetUpBriefingScreen(false);
+        logistics.ShowLogScreen(true, false);
         return;
     }
 
@@ -996,9 +995,9 @@ auto MCMission::EndScenario() -> void
             std::string startName =
                 std::format("start{}", replay ? logistics.CurrentMission + 1 : logistics.CurrentMission);
             char extension[] = ".pkk";
-            logistics.LoadCampaign(startName.data(), extension, replay ? 1 : 0, 0);
-            logistics.SetUpBriefingScreen(0);
-            logistics.ShowLogScreen(1, 0);
+            logistics.LoadCampaign(startName, extension, replay, false);
+            logistics.SetUpBriefingScreen(false);
+            logistics.ShowLogScreen(true, false);
             return;
         }
 
@@ -1006,9 +1005,9 @@ auto MCMission::EndScenario() -> void
         MPlayer->ChatCallback = LogisticsChatCallback;
         State = MCMissionState::Logistics;
         logistics.CurrentScreen->ShowGuiWindow(0);
-        logistics.CurrentScreen = logistics.MainScreen;
+        logistics.CurrentScreen = logistics.MainScreen.get();
         logistics.LogisticsState = 1;
-        logistics.ShowLogScreen(1, 1);
+        logistics.ShowLogScreen(true, true);
 
         if (MPlayer->InMission != 0)
         {

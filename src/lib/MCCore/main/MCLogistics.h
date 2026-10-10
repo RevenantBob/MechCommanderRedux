@@ -1,0 +1,504 @@
+#pragma once
+
+// Original source: mcx\logistics.cpp, the logistics (between-missions) layer: the player's mechs, vehicles, pilots
+// and components, the screens that buy, repair and deploy them, campaign loading and saving, and the multiplayer
+// force exchange.
+
+#include "gui/MCGuiOwned.h"
+#include "logistics/MCDragIcon.h"
+#include "logistics/MCLogObject.h"
+#include "main/MCDropSlot.h"
+#include "main/MCInventoryList.h"
+#include "main/MCLogMechList.h"
+#include "main/MCLogVehicleList.h"
+#include "main/MCLogWarriorList.h"
+#include "main/MCMPPlayerLights.h"
+#include "platform/MCRegisteredBlock.h"
+
+class MCBriefingScreen;
+class MCFidpMessage;
+class MCFitIniFile;
+class MCLogChatWindow;
+class MCPacketFile;
+struct MCPane;
+class MCPurchaseDlg;
+class MCPurchaseScreen;
+class MCPurMechList;
+class MCPurPilotList;
+class MCPurVehicleList;
+class MCRefitDialog;
+class MCRepairScreen;
+class MCReusableDialog;
+class MCSessionScreen;
+class MCSplashScreen;
+class MCTicker;
+struct MCDeployForce;
+
+/// <summary>
+/// The logistics layer: every screen (main menu, multiplayer, load/save, preferences, briefing, purchase, repair,
+/// session), the player's force and inventory, the art they share; it runs campaign loading/saving and the
+/// multiplayer force exchange. One instance, <see cref="GlobalLogPtr"/>, owned by the mission.
+/// </summary>
+/// <remarks>
+/// Original source: <c>logistics.cpp</c>, 0x1908 bytes (allocated in <c>mission.cpp</c>). The original's
+/// <c>init</c> is <see cref="Start"/> (the empty object is what tests build), its <c>destroy</c> the destructor.
+/// </remarks>
+class MCLogistics
+{
+public:
+    /// <summary>The drop zone's lances.</summary>
+    static constexpr size_t NumLances = 3;
+    /// <summary>The slots of a lance.</summary>
+    static constexpr size_t LanceSlots = 4;
+    /// <summary>The drop slots (three lances of four: the force size, a game rule).</summary>
+    static constexpr size_t NumDropSlots = NumLances * LanceSlots;
+    /// <summary>The drop zones a mission has at most: three for each side (asserted when read).</summary>
+    static constexpr size_t MaxDropZones = 6;
+    /// <summary>The players of one side whose units logistics keeps (six players in all, three a side).</summary>
+    static constexpr size_t SidePlayers = 3;
+
+    /// <summary>An empty logistics layer: the unit lists and inventories, no screens (tests fill what they need).</summary>
+    MCLogistics();
+
+    /// <summary>
+    /// Takes down what <see cref="Start"/> made (multiplayer state, art, dialogs, lists and screens, in the original's
+    /// order), then the rest.
+    /// </summary>
+    ~MCLogistics();
+
+    MCLogistics(const MCLogistics&) = delete;
+    MCLogistics& operator=(const MCLogistics&) = delete;
+
+    /// <summary>
+    /// Makes every screen and dialog, loads the shared art, shapes and sort tables, and shows the main screen (or the
+    /// ready room when launched from a lobby). Makes this the <see cref="GlobalLogPtr"/>.
+    /// </summary>
+    void Start();
+
+    /// <summary>Draws the damage state of location <paramref name="location"/> of a mech into <paramref name="port"/>.</summary>
+    void DrawMechBodyLoc(MCLogMech* mech, int32_t location, MCLogPort* port, int32_t xPos, int32_t yPos);
+
+    /// <summary>Draws the damage state of location <paramref name="location"/> of a vehicle into <paramref name="port"/>.</summary>
+    void DrawVehicleBodyLoc(MCLogVehicle* vehicle, int32_t location, MCLogPort* port, int32_t xPos, int32_t yPos);
+
+    /// <summary>Makes the multiplayer lists and drop slots and reads the net mech/warrior/vehicle lists.</summary>
+    void InitializeMultiplayer();
+
+    /// <summary>Frees what <see cref="InitializeMultiplayer"/> made.</summary>
+    void DestroyMultiplayer();
+
+    /// <summary>Shows or hides the current logistics screen (activating the logistics palette when <paramref name="redraw"/>).</summary>
+    void ShowLogScreen(bool show, bool redraw);
+
+    /// <summary>
+    /// Switches to the main screen; leaving a multiplayer game takes the session down. <paramref name="fromMenu"/>:
+    /// the main menu's own return, which keeps <see cref="PreviousState"/>.
+    /// </summary>
+    int32_t SetUpMainScreen(bool fromMenu);
+
+    /// <summary>
+    /// Reads the campaign's purchase file <paramref name="purchaseFile"/>: the costs, the campaign briefing, the
+    /// current mission's purchase file, cinema and operation; then sets up the shop from <paramref name="file"/>.
+    /// </summary>
+    /// <returns>The current mission's purchase file.</returns>
+    std::string SetUpCampaignPurchasing(std::string_view purchaseFile, MCPacketFile& file);
+
+    /// <summary>Sets up what can be bought in a multiplayer game.</summary>
+    void SetUpMPPurchasing(std::string_view purchaseFile);
+
+    /// <summary>Sets up what can be bought from a campaign's purchase packet (its last).</summary>
+    void SetUpPurchasing(MCPacketFile& file);
+
+    /// <summary>Changes what can be bought by an old-style purchase file (counts added to the shop's).</summary>
+    void SetUpOldPurchasing(std::string_view purchaseFile);
+
+    /// <summary>Switches to the purchase screen (with the slide when <paramref name="animate"/>).</summary>
+    int32_t SetUpPurchaseScreen(bool animate);
+
+    /// <summary>
+    /// Painted the screen switch buttons on the current screen: each normal, the current screen's grayed, none lit.
+    /// Port: the buttons are drawn each frame (<see cref="DrawScreenChrome"/>); this puts out the lit one.
+    /// </summary>
+    void DrawScreenButtons();
+
+    /// <summary>
+    /// Port: screen button <paramref name="button"/> of <paramref name="screen"/> is under the mouse and shows lit
+    /// (the original copied the lit picture over it).
+    /// </summary>
+    void HoverScreenButton(MCLogObject* screen, int32_t button);
+
+    /// <summary>
+    /// Port: draws the shared places of <paramref name="screen"/> from the state (<see cref="MCLogScreenChrome"/>): the
+    /// multiplayer lights' backing, the screen buttons, the ticker line, the resource points and the clock.
+    /// </summary>
+    void DrawScreenChrome(MCLogObject* screen, MCPane* target);
+
+    /// <summary>Switches to the briefing screen (with the slide when <paramref name="animate"/>).</summary>
+    int32_t SetUpBriefingScreen(bool animate);
+
+    /// <summary>Switches to the multiplayer session screen.</summary>
+    int32_t SetUpSessionScreen();
+
+    /// <summary>Switches to the repair screen (with the slide when <paramref name="animate"/>).</summary>
+    int32_t SetUpRepairScreen(bool animate);
+
+    /// <summary>Loads a multiplayer quick-start force (mechs, pilots, vehicles) from <paramref name="file"/>.</summary>
+    void LoadQuickStart(MCFitIniFile& file);
+
+    /// <summary>Saves the campaign as <paramref name="fileName"/>.</summary>
+    int32_t SaveCampaign(std::string_view fileName);
+
+    /// <summary>
+    /// Loads a campaign (or a saved game) and its force: save <paramref name="saveName"/> with extension
+    /// <paramref name="extension"/>; <paramref name="newCampaign"/> starts one, <paramref name="loadForce"/> reloads
+    /// the force without the time passing.
+    /// </summary>
+    int32_t LoadCampaign(std::string_view saveName, std::string_view extension, bool newCampaign, bool loadForce);
+
+    /// <summary>Writes the deployed force into the mission's start file <paramref name="startFile"/> and the profiles.</summary>
+    int32_t PrepareScenario(std::string_view scenarioName, std::string_view startFile);
+
+    /// <summary>Gives mech <paramref name="mechIndex"/> pilot <paramref name="pilotIndex"/> (a negative one takes it off).</summary>
+    void SetPilot(int32_t mechIndex, int32_t pilotIndex);
+
+    /// <summary>Moves assigned mechs into the force list and unassigned ones back, then renumbers their rows.</summary>
+    void ReorderMechs();
+
+    /// <summary>As <see cref="ReorderMechs"/> for vehicles.</summary>
+    void ReorderVehicles();
+
+    /// <summary>Moves assigned pilots into the assigned list and unassigned ones back, then renumbers their rows.</summary>
+    void ReorderWarriors();
+
+    /// <summary>Shifts the force mechs' pilot indexes from <paramref name="from"/> on by <paramref name="amount"/>.</summary>
+    void ShiftPilots(int32_t from, int32_t amount);
+
+    /// <summary>Whether every required mech and vehicle is in the drop.</summary>
+    bool RequiredAssigned();
+
+    /// <summary>Reads the current mission's tonnage, briefing, map and drop zones.</summary>
+    void GetCurrentMission();
+
+    /// <summary>Slides from <paramref name="from"/> to <paramref name="to"/> (a screen change).</summary>
+    void Transition(MCLogPort* from, MCLogPort* to, int direction);
+
+    /// <summary>Darkens <paramref name="port"/> through the fade table.</summary>
+    void Darken(int32_t amount, char* fadeTable, MCLogPort* port);
+
+    /// <summary>
+    /// Port: <see cref="Darken"/> of a <paramref name="width"/> x <paramref name="height"/> block of
+    /// <paramref name="port"/> at (<paramref name="xPos"/>, <paramref name="yPos"/>), drawn in place: the fade
+    /// table's translate polygon over the block (the original copied the block out, translated it and copied it back,
+    /// which comes out the same). On the GPU it is one blended quad.
+    /// </summary>
+    static void DarkenRect(MCLogPort* port, int32_t xPos, int32_t yPos, int32_t width, int32_t height, char* fadeTable);
+
+    /// <summary>Renumbers the component inventory's rows.</summary>
+    int32_t ReIndexInventory();
+
+    /// <summary>Handles a multiplayer "deploy force" message: adds the other player's mech or vehicle to its drop slot.</summary>
+    void HandleDeployForceMessage(uint32_t playerID, const void* message);
+
+    /// <summary>Handles a multiplayer "remove force" message: empties the other player's drop slot.</summary>
+    void HandleRemoveForceMessage(uint32_t playerID, const void* message);
+
+    /// <summary>Blinks the chat button and passes a chat message to the chat window.</summary>
+    void HandleChatMessage(uint32_t playerID, const void* message);
+
+    void SendRemoveForceMessage(int lance, int slot);
+
+    void SendAddMechMessage(MCLogMech* mech, int lance, int slot);
+
+    void SendAddVehicleMessage(MCLogVehicle* vehicle, int lance, int slot);
+
+    /// <summary>A player left: tells the player (once any exiting dialog is answered).</summary>
+    void HandleLostPlayer(uint32_t playerID, int hostLeft);
+
+    /// <summary>The host started the mission.</summary>
+    void HandlePrepareScenarioMessage();
+
+    /// <summary>Writes the multiplayer start file <paramref name="startFile"/> (every player's drop slots) and the profiles.</summary>
+    int32_t PrepareMultiplayerScenario(std::string_view scenarioName, std::string_view startFile);
+
+    /// <summary>Feeds a typed key (a scan code) to the cheat code matcher.</summary>
+    void ProcessCheatCode(int16_t key);
+
+    /// <summary>Draws the bar of the pilot's skill <paramref name="skill"/> (an index into its skills).</summary>
+    void DrawPilotSkillBar(MCLogWarrior* warrior, int32_t skill, int32_t xPos, int32_t yPos, int32_t row, int32_t width,
+                           int32_t rowHeight, MCLogPort* port);
+
+    /// <summary>
+    /// Draws a 4-pixel skill bar <paramref name="width"/> wide at (<paramref name="xPos"/>, <paramref name="yPos"/> +
+    /// <paramref name="row"/> * <paramref name="rowHeight"/>), filled in proportion to <paramref name="value"/>
+    /// between <c>MinPilotSkill</c> and <c>MaxPilotSkill</c>.
+    /// </summary>
+    void DrawPilotSkillBar(int32_t value, int32_t xPos, int32_t yPos, int32_t row, int32_t width, int32_t rowHeight,
+                           MCLogPort* port);
+
+protected:
+    /// <summary>Marks which of the 12 drop slots are the local player's.</summary>
+    void SetupSlotsForMultiplayer(int32_t playerIndex, int32_t numPlayers);
+
+    /// <summary>The mech list of player <paramref name="playerID"/> (on the local side when <paramref name="teammate"/>).</summary>
+    MCLogMechList* FindMPMechList(uint32_t playerID, bool teammate);
+
+    /// <summary>The vehicle list of player <paramref name="playerID"/>.</summary>
+    MCLogVehicleList* FindMPVehicleList(uint32_t playerID, bool teammate);
+
+    /// <summary>Builds a mech (with its pilot and inventory) from a deploy force message.</summary>
+    MCLogPart* AddMechFromNetworkMessage(MCLogMechList& list, const MCDeployForce& force);
+
+    /// <summary>Builds a vehicle (with its inventory) from a deploy force message.</summary>
+    MCLogPart* AddVehicleFromNetworkMessage(MCLogVehicleList& list, const MCDeployForce& force);
+
+    /// <summary>Empties drop slot <paramref name="slot"/> of the player's (or, without <paramref name="teamTable"/>, the opponents') table.</summary>
+    bool RemoveForceAtDropSlot(int32_t slot, uint32_t playerID, bool teamTable);
+
+public:
+    /// <summary>A world position on the map.</summary>
+    struct DropZonePosition
+    {
+        float X = 0;
+        float Y = 0;
+    };
+
+    /// <summary>A drop slot of the local player: the index of the mech or vehicle placed there (-1 = none).</summary>
+    struct DeploySlot
+    {
+        /// <summary>The mech's index in the force mech list, or -1.</summary>
+        int32_t Unit = 0;
+        /// <summary>The vehicle's index in the force vehicle list, or -1 (only read when <see cref="Unit"/> is -1).</summary>
+        int32_t Vehicle = 0;
+    };
+
+    /// <summary>A drop slot's place relative to its zone (the mission's <c>OffsetX</c>, <c>OffsetY</c> and <c>Rotation</c>).</summary>
+    struct DeploySlotInfo
+    {
+        float OffsetX = 0;
+        float OffsetY = 0;
+        float Rotation = 0;
+    };
+
+    /// <summary>The name ticker on the main screen.</summary>
+    std::unique_ptr<MCTicker> Ticker;
+    /// <summary>The multiplayer ready lights.</summary>
+    MCGuiOwned<MCMPPlayerLights> PlayerLights;
+    /// <summary>The current mission's number in the campaign (-1 = none).</summary>
+    int32_t CurrentMission = 0;
+    /// <summary>The campaign's purchase file (the save's "purchaseFile"; written to starting fits as PurchaseFile).</summary>
+    std::string PurchaseFile;
+    /// <summary>Every pilot the player has.</summary>
+    std::unique_ptr<MCLogWarriorList> WarriorList;
+    /// <summary>The pilots assigned to mechs.</summary>
+    std::unique_ptr<MCLogWarriorList> AssignedWarriorList;
+    /// <summary>Every mech the player has.</summary>
+    std::unique_ptr<MCLogMechList> MechList;
+    /// <summary>Every vehicle the player has.</summary>
+    std::unique_ptr<MCLogVehicleList> VehicleList;
+    /// <summary>The mechs in the force (repair and briefing screens).</summary>
+    std::unique_ptr<MCLogMechList> ForceMechList;
+    /// <summary>The vehicles in the force.</summary>
+    std::unique_ptr<MCLogVehicleList> ForceVehicleList;
+    /// <summary>The other multiplayer players' mechs: the local side's ([0]) and the other side's ([1]), per player.</summary>
+    std::array<std::array<std::unique_ptr<MCLogMechList>, SidePlayers>, 2> MpMechLists;
+    /// <summary>The other multiplayer players' vehicles.</summary>
+    std::array<std::array<std::unique_ptr<MCLogVehicleList>, SidePlayers>, 2> MpVehicleLists;
+    /// <summary>The pilots of mechs received over the network.</summary>
+    std::unique_ptr<MCLogWarriorList> MpWarriorList;
+    std::unique_ptr<MCPurMechList> PurMechList;
+    std::unique_ptr<MCPurVehicleList> PurVehicleList;
+    std::unique_ptr<MCPurPilotList> PurPilotList;
+    /// <summary>The player's spare components.</summary>
+    std::unique_ptr<MCInventoryList> ComponentInventory;
+    /// <summary>The components for sale.</summary>
+    std::unique_ptr<MCInventoryList> PurchaseComponents;
+    /// <summary>Component master ids in range order (<c>logart\comp.rsp</c>).</summary>
+    std::vector<uint32_t> RangeSortList;
+    /// <summary>Which screen or sub-screen logistics is on (1 main, 2.. the others, as the callbacks set it).</summary>
+    int32_t LogisticsState = 0;
+    /// <summary>
+    /// The <see cref="LogisticsState"/> before the main menu opened over it: the menu's return and a finished save
+    /// go back to the purchase (2) or repair (4) screen, else the briefing.
+    /// </summary>
+    int32_t PreviousState = 0;
+    /// <summary>
+    /// Which of the 12 drop slots (three lances of four) may be filled: the local player's in multiplayer; in single
+    /// player the briefing screen shows the lances whose slots are set.
+    /// </summary>
+    std::array<bool, NumDropSlots> LocalDropSlot{};
+    /// <summary>A world position per drop zone: three for side 0, then three for side 1 (MultiPlayer homeTeam 1).</summary>
+    std::array<DropZonePosition, MaxDropZones> DropZonePositions{};
+    /// <summary>The local player's drop zone: per lance and slot, the mech or vehicle placed there.</summary>
+    std::array<std::array<DeploySlot, LanceSlots>, NumLances> DeploySlots{};
+    /// <summary>
+    /// Per drop zone and slot, the unit's place relative to the zone (read by <see cref="GetCurrentMission"/>): the
+    /// six zones of <see cref="DropZonePositions"/>. <see cref="Start"/> clears only the first three.
+    /// </summary>
+    std::array<std::array<DeploySlotInfo, LanceSlots>, MaxDropZones> DeploySlotPlacements{};
+    /// <summary>The drop slots every force of the local side is placed in (multiplayer).</summary>
+    std::array<std::array<MCDropSlot, LanceSlots>, NumLances> DropSlots{};
+    /// <summary>The drop slots of the players not on the local player's team (multiplayer).</summary>
+    std::array<std::array<MCDropSlot, LanceSlots>, NumLances> OpponentDropSlots{};
+    /// <summary>The current mission's map file.</summary>
+    std::string MissionFileName;
+    /// <summary>The inventory tab shown: 0 mechs, 1 pilots, 2 components, 3 vehicles.</summary>
+    int32_t CurrentInvTab = 0;
+    /// <summary>The cost of an armor point (the purchase file's PurchaseCosts).</summary>
+    int32_t ArmorCost = 0;
+    /// <summary>The cost of an internal structure point.</summary>
+    int32_t InternalCost = 0;
+    /// <summary>The cost of engine work.</summary>
+    int32_t EngineCost = 0;
+    /// <summary>The cost of a green, regular, veteran and elite pilot.</summary>
+    std::array<int32_t, 4> PilotCosts{};
+    /// <summary>The price factor of clan technology.</summary>
+    float ClanCostFactor = 0;
+    /// <summary>The screen being shown (one of the screens below).</summary>
+    MCLogObject* CurrentScreen = nullptr;
+    std::unique_ptr<MCSessionScreen> SessionScreen;
+    std::unique_ptr<MCSplashScreen> SerialScreen;
+    /// <summary>The multiplayer connection screen (the one after the protocol choice).</summary>
+    std::unique_ptr<MCSplashScreen> ConnectScreen;
+    std::unique_ptr<MCSplashScreen> ModemScreen;
+    std::unique_ptr<MCSplashScreen> LanScreen;
+    std::unique_ptr<MCSplashScreen> MainScreen;
+    std::unique_ptr<MCSplashScreen> MultiplayerScreen;
+    std::unique_ptr<MCSplashScreen> LoadScreen;
+    std::unique_ptr<MCSplashScreen> SaveScreen;
+    std::unique_ptr<MCSplashScreen> PrefScreen;
+    std::unique_ptr<MCBriefingScreen> BriefingScreen;
+    std::unique_ptr<MCPurchaseScreen> PurchaseScreen;
+    std::unique_ptr<MCRepairScreen> RepairScreen;
+    /// <summary>The preferences as they were when the preferences screen opened (restored by CancelPrefs).</summary>
+    int32_t SavedPrefs0 = 0;
+    int32_t SavedPrefs1 = 0;
+    int32_t SavedPrefs2 = 0;
+    uint32_t SavedPrefs3 = 0;
+    uint32_t SavedPrefs4 = 0;
+    uint32_t SavedPrefs5 = 0;
+    int32_t SavedPrefs6 = 0;
+    /// <summary>
+    /// The current mission's operation number (the campaign's Operation; picks the briefing's operation picture),
+    /// 0 when it has none.
+    /// </summary>
+    int32_t Operation = 0;
+    MCGuiOwned<MCLogChatWindow> ChatWindow;
+    /// <summary>The mech repair screen shapes (<c>mechrep##.shp</c>, by mech name index).</summary>
+    std::array<MCRegisteredBlock, 24> MechRepShapes;
+    /// <summary>The vehicle repair screen shapes (<c>vr1_##.shp</c>; none where the file is missing).</summary>
+    std::array<MCRegisteredBlock, 35> VehicleRepShapes;
+    /// <summary>The mech icon shapes (<c>mi##.shp</c>).</summary>
+    std::array<MCRegisteredBlock, 24> MechIconShapes;
+    /// <summary>The vehicle icon shapes (<c>vi1_##.shp</c>; none where the file is missing).</summary>
+    std::array<MCRegisteredBlock, 35> VehicleIconShapes;
+    /// <summary>Colour remap tables for drawing shapes (<c>VFX_shape_lookaside</c>).</summary>
+    std::array<std::array<uint8_t, 256>, 10> ShapeLookaside{};
+    /// <summary>The repair screen's mech picture background (<c>lsrupm00.tga</c>).</summary>
+    std::unique_ptr<MCLogPort> RepairBackPort;
+    /// <summary>The inventory block background (<c>invblock.tga</c>).</summary>
+    std::unique_ptr<MCLogPort> InvBlockPort;
+    /// <summary>
+    /// The inventory pane's contents per tab (mechs, pilots, components, vehicles), made by the
+    /// <c>MCLogInvScreen::Create*InvBlock</c> functions: views each tab's rows are drawn into.
+    /// </summary>
+    std::array<std::unique_ptr<MCLogPort>, 4> InvTabPorts;
+    /// <summary>The box behind the resource figure at the top right.</summary>
+    std::unique_ptr<MCLogPort> ResourceBackPort;
+    /// <summary>The box behind the clock at the top right.</summary>
+    std::unique_ptr<MCLogPort> ClockBackPort;
+    /// <summary>The repair screen pieces (<c>lsrupm03, 01, 04, 02, 06, 07.tga</c>).</summary>
+    std::array<std::unique_ptr<MCLogPort>, 6> RepairPorts;
+    /// <summary>The purchase screen pieces (<c>lspcb05, 07, 06, 09.tga</c>).</summary>
+    std::array<std::unique_ptr<MCLogPort>, 4> PurchasePorts;
+    /// <summary>The two full-screen work ports (0x1ab x 0x1ce) the screen changes draw into.</summary>
+    std::unique_ptr<MCLogPort> WorkPort1;
+    std::unique_ptr<MCLogPort> WorkPort0;
+    /// <summary>The screen switch buttons' pictures: button 0, exit, buttons 1..3; normal, highlighted, gray.</summary>
+    std::array<std::array<std::unique_ptr<MCLogPort>, 3>, 5> ScreenButtonPorts;
+    /// <summary>The inventory tab icons: mechs, pilots, components, vehicles (<c>lscii?.tga</c>).</summary>
+    std::array<std::unique_ptr<MCLogPort>, 4> InventoryIconPorts;
+    /// <summary>
+    /// The chat text colour of each player number (1, 3, 4, 2, 6, 5), used as <c>%fc</c> codes by
+    /// <c>MCLogChatWindow::ProcessChatString</c>.
+    /// </summary>
+    std::array<int32_t, 6> PlayerColors{};
+    /// <summary>Each component's place in the logistics sort order (<c>objsort.rsp</c>; one per master id).</summary>
+    std::array<int32_t, 256> ComponentSort{};
+    /// <summary>The icon following the mouse while an inventory row is dragged (<see cref="MCDragIcon::Create"/>, <see cref="MCDragIcon::Remove"/>).</summary>
+    MCGuiOwned<MCDragIcon> DragIcon;
+    /// <summary>The id the next <see cref="MCLogWarrior"/> gets.</summary>
+    int32_t NextWarriorID = 0;
+    std::unique_ptr<MCPurchaseDlg> PurchaseDialog;
+    /// <summary>The one-button (or yes/no) message dialog.</summary>
+    MCGuiOwned<MCReusableDialog> MessageDialog;
+    /// <summary>The yes/no dialog.</summary>
+    MCGuiOwned<MCReusableDialog> QuestionDialog;
+    MCGuiOwned<MCRefitDialog> RefitDialog;
+    /// <summary>The campaign's CampaignBriefing Filename (empty when it has none).</summary>
+    std::string CampaignBriefingName;
+    /// <summary>The mission's OperationCinema: the briefing movie played in <c>data\movies\</c> (empty when it has none).</summary>
+    std::string OperationCinema;
+    /// <summary>Set when the mission file has a HammerDown1 block (or by the cheat): the drop tonnage limit is not enforced.</summary>
+    bool HammerDown = false;
+    /// <summary>The mission's AutoPlay: the briefing screen starts the operation movie when first shown.</summary>
+    bool AutoPlayMovie = false;
+    /// <summary>The mechs allowed in multiplayer (<c>netmechs.rsp</c>; three variants per name).</summary>
+    std::vector<std::string> NetMechNames;
+    /// <summary>The pilots allowed in multiplayer (<c>netwars.rsp</c>).</summary>
+    std::vector<std::string> NetWarriorNames;
+    /// <summary>The vehicles allowed in multiplayer (<c>netvhcls.rsp</c>).</summary>
+    std::vector<std::string> NetVehicleNames;
+    /// <summary>Set once <see cref="InitializeMultiplayer"/> ran.</summary>
+    bool MultiplayerInitialized = false;
+    /// <summary>The default multiplayer planning time in seconds (240).</summary>
+    uint32_t DefaultPlanningTime = 0;
+    /// <summary>The multiplayer planning time: a save's PlanningTime, else <see cref="DefaultPlanningTime"/>.</summary>
+    uint32_t PlanningTime = 0;
+    /// <summary>The multiplayer mission name.</summary>
+    std::string MpMissionName;
+
+private:
+    /// <summary>Set by <see cref="Start"/>: the destructor takes the screens and art down.</summary>
+    bool _Started = false;
+};
+
+/// <summary>
+/// The player's name for the multiplayer screens: the name last entered (the registry's "Player Name"), else the
+/// logged-in user's; none when neither is known or fits 63 characters.
+/// </summary>
+std::optional<std::string> MyGetUserName();
+
+/// <summary>A dialog's answer: cancels (and quits a game launched from a lobby).</summary>
+void CancelBool(int32_t answer);
+
+/// <summary>Returns to the multiplayer session screen.</summary>
+void BackToSession();
+
+/// <summary>A dialog's answer: returns to the session screen.</summary>
+void BackToSessionBool(int32_t answer);
+
+/// <summary>The "player left" dialog's answer.</summary>
+void LostPlayerHandler(int32_t answer);
+
+/// <summary>The multiplayer chat handler while in logistics.</summary>
+void LogisticsChatCallback(MCFidpMessage* message, void* data);
+
+/// <summary>The logistics screens while they exist (a view: <c>Mission()-&gt;Logistics</c> owns them).</summary>
+extern MCLogistics* GlobalLogPtr;
+/// <summary>The logistics state last left for a mission (shared with <c>mission.cpp</c>).</summary>
+extern int32_t LastLogisticsMissionState;
+/// <summary>The "player left" message <see cref="LostPlayerHandler"/> shows.</summary>
+extern std::string HoldString;
+/// <summary>Which logistics cheat codes still match what was typed.</summary>
+extern std::array<bool, 7> LogCheatActive;
+/// <summary>The multiplayer players' colors (gamesys.fit's mPlayerColors).</summary>
+extern std::array<int32_t, 6> MultiPlayerColors;
+/// <summary>How many characters of a cheat code have been typed.</summary>
+extern int32_t LogCurCheatChar;
+/// <summary>Nonzero in the demo version.</summary>
+extern int InDemo;
+/// <summary>
+/// A single (non-campaign) mission is being played: units sell back at full price (as in multiplayer) rather than
+/// half.
+/// </summary>
+extern bool Solo;

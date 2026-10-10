@@ -12,7 +12,7 @@
 #include "logistics/MCRepairScreen.h"
 #include "logistics/MCTicker.h"
 #include "logistics/MCVehicleInventoryBlock.h"
-#include "main/logistics.h"
+#include "main/MCLogistics.h"
 #include "main/main.h"
 #include "object/MCMasterComponent.h"
 #include "vfx/MCVfxFunctions.h"
@@ -37,7 +37,7 @@ namespace
 
     MCRepairScreen* RepairScreen()
     {
-        return GlobalLogPtr->RepairScreen;
+        return GlobalLogPtr->RepairScreen.get();
     }
 
     void DrawLine(MCPane* pane, int32_t x0, int32_t y0, int32_t x1, int32_t y1, uint8_t color)
@@ -78,7 +78,7 @@ auto MCVehicleRepairBlock::LeaveForce() -> void
             if (slot.Vehicle == vehicleSlot)
             {
                 Assert(Vehicle != nullptr, 0, "Vehicle is NULL");
-                MCMechBriefBlock* brief = Vehicle->BriefBlock;
+                MCMechBriefBlock* brief = Vehicle->BriefBlock.get();
                 Assert(brief != nullptr, 0, "vehicleBrief is NULL");
 
                 if (brief->Parent != nullptr)
@@ -107,7 +107,7 @@ auto MCVehicleRepairBlock::LeaveForce() -> void
     }
 
     GlobalLogPtr->ReorderVehicles();
-    MCVehicleRepairBlock* block = leaving->RepairBlock;
+    MCVehicleRepairBlock* block = leaving->RepairBlock.get();
 
     if (block->Parent != nullptr)
     {
@@ -121,7 +121,7 @@ auto MCVehicleRepairBlock::LeaveForce() -> void
 
 auto MCVehicleRepairBlock::HandleEvent(MCGuiEvent* event) -> void
 {
-    if (GlobalLogPtr->CurrentScreen == GlobalLogPtr->PurchaseScreen)
+    if (GlobalLogPtr->CurrentScreen == GlobalLogPtr->PurchaseScreen.get())
     {
         return;
     }
@@ -272,8 +272,8 @@ auto MCVehicleRepairBlock::DrawDamageDiagram(MCLogPort* port) -> void
         {
             if (shade[location] == pass)
             {
-                VfxShapeTranslateDraw(port->Frame(), GlobalLogPtr->VehicleRepShapes[Vehicle->NameIndex], location, 0,
-                                      0);
+                VfxShapeTranslateDraw(port->Frame(), GlobalLogPtr->VehicleRepShapes[Vehicle->NameIndex].Data(),
+                                      location, 0, 0);
             }
         }
     }
@@ -330,10 +330,10 @@ auto MCVehicleRepairBlock::PaintRow(MCLogPort* port, int32_t top, bool briefing,
 
     SetBar(&back, diagramX);
     // The equipment and weapons, one "count name" line each.
-    MCInventoryList* inventory = Vehicle->Inventory;
+    MCInventoryList* inventory = Vehicle->Inventory.get();
     int32_t line = 0;
 
-    for (int32_t index = 0; index < inventory->NumItems; ++index)
+    for (int32_t index = 0; index < inventory->NumItems(); ++index)
     {
         MCComponentForm form = MasterComponentList[inventory->GetMasterIDFromIndex(index)].Form;
 
@@ -378,22 +378,21 @@ auto MCVehicleRepairBlock::SetBar(MCLogPort* port, int32_t xPos) -> void
     double working = 0.0;
     double total = 0.0;
     double firepower = 1.0;
-    MCLogInventoryItem* item = Vehicle->Inventory->Items;
 
-    if (item != nullptr)
+    if (!Vehicle->Inventory->Items.empty())
     {
-        for (; item != nullptr; item = item->Next)
+        for (const std::unique_ptr<MCLogInventoryItem>& item : Vehicle->Inventory->Items)
         {
             const MCMasterComponent& component = MasterComponentList[item->MasterID];
 
-            if (!IsWeapon(component.Form) || item->Stats == nullptr)
+            if (!IsWeapon(component.Form) || item->Stats.empty())
             {
                 continue;
             }
 
             int16_t value = WeaponWorth(component);
 
-            for (MCLogInventoryStat* stat = item->Stats; stat != nullptr; stat = stat->Next)
+            for (const std::unique_ptr<MCLogInventoryStat>& stat : item->Stats)
             {
                 if (stat->Hits == 0)
                 {

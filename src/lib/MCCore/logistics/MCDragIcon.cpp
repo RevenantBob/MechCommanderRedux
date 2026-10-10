@@ -1,7 +1,7 @@
 #include "stdafx.h"
 #include "logistics/MCDragIcon.h"
 #include "gui/MCHardwareCursor.h"
-#include "main/logistics.h"
+#include "main/MCLogistics.h"
 #include "vfx/MCVfxFunctions.h"
 
 auto MCDragIcon::Display() -> void

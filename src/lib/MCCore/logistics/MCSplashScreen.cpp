@@ -13,7 +13,7 @@
 #include "logistics/MCLogChatInput.h"
 #include "logistics/MCPlayerNameObject.h"
 #include "logistics/MCSessionScreen.h"
-#include "main/logistics.h"
+#include "main/MCLogistics.h"
 
 namespace
 {
@@ -318,7 +318,7 @@ auto MCSplashScreen::Destroy() -> void
 auto MCSplashScreen::ShowGuiWindow(bool show) -> void
 {
     // The connection screens poll while shown: the connect screen through its element 3.
-    if (this == GlobalLogPtr->ConnectScreen)
+    if (this == GlobalLogPtr->ConnectScreen.get())
     {
         if (show)
         {
@@ -329,7 +329,7 @@ auto MCSplashScreen::ShowGuiWindow(bool show) -> void
 
         GuiSystem()->RemoveTimer(Elements[3], PollTimer);
     }
-    else if (this == GlobalLogPtr->LanScreen)
+    else if (this == GlobalLogPtr->LanScreen.get())
     {
         if (show)
         {

@@ -139,6 +139,7 @@ constexpr std::string_view MCPrintfText(const char* text)
 /// </summary>
 template <typename... Args> std::string MCFormatPrintf(const char* format, Args... args)
 {
+    static_assert((!std::is_same_v<Args, std::string> && ...), "pass a std::string's c_str() to a printf format");
     const int size = std::snprintf(nullptr, 0, format, args...);
 
     if (size <= 0)

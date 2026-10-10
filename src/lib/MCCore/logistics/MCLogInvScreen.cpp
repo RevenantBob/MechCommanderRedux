@@ -24,7 +24,7 @@
 #include "logistics/MCCompPurchaseBlock.h"
 #include "logistics/MCUnitLimits.h"
 #include "logistics/MCPurProfile.h"
-#include "main/logistics.h"
+#include "main/MCLogistics.h"
 #include "vfx/MCVfxFunctions.h"
 
 namespace
@@ -101,10 +101,9 @@ namespace
 
             case MCStoreTab::Components:
             {
-                for (MCLogInventoryItem* item = GlobalLogPtr->PurchaseComponents->Items; item != nullptr;
-                     item = item->Next)
+                for (const std::unique_ptr<MCLogInventoryItem>& item : GlobalLogPtr->PurchaseComponents->Items)
                 {
-                    drawRow(item->PurchaseBlock);
+                    drawRow(item->PurchaseBlock.get());
                 }
                 break;
             }
@@ -171,31 +170,29 @@ namespace
         {
             case 0:
             {
-                for (MCLogMech* mech = GlobalLogPtr->MechList->Mechs; mech != nullptr; mech = mech->Next)
+                for (const std::unique_ptr<MCLogMech>& mech : GlobalLogPtr->MechList->Mechs)
                 {
-                    drawRow(mech->InventoryBlock);
+                    drawRow(mech->InventoryBlock.get());
                 }
                 break;
             }
 
             case 1:
             {
-                for (MCLogWarrior* warrior = GlobalLogPtr->WarriorList->Warriors; warrior != nullptr;
-                     warrior = warrior->Next)
+                for (const std::unique_ptr<MCLogWarrior>& warrior : GlobalLogPtr->WarriorList->Warriors)
                 {
-                    drawRow(warrior->InventoryBlock);
+                    drawRow(warrior->InventoryBlock.get());
                 }
                 break;
             }
 
             case 2:
             {
-                for (MCLogInventoryItem* item = GlobalLogPtr->ComponentInventory->Items; item != nullptr;
-                     item = item->Next)
+                for (const std::unique_ptr<MCLogInventoryItem>& item : GlobalLogPtr->ComponentInventory->Items)
                 {
                     if (item->InventoryBlock->ListIndex >= 0)
                     {
-                        drawRow(item->InventoryBlock);
+                        drawRow(item->InventoryBlock.get());
                     }
                 }
                 break;
@@ -203,10 +200,9 @@ namespace
 
             default:
             {
-                for (MCLogVehicle* vehicle = GlobalLogPtr->VehicleList->Vehicles; vehicle != nullptr;
-                     vehicle = vehicle->Next)
+                for (const std::unique_ptr<MCLogVehicle>& vehicle : GlobalLogPtr->VehicleList->Vehicles)
                 {
-                    drawRow(vehicle->InventoryBlock);
+                    drawRow(vehicle->InventoryBlock.get());
                 }
                 break;
             }
@@ -298,22 +294,18 @@ namespace
     /// <summary>Numbers the store's component blocks: row n goes to the item whose block has sort order n.</summary>
     void ReIndexPass()
     {
-        MCLogInventoryItem* first = GlobalLogPtr->PurchaseComponents->Items;
+        const auto& items = GlobalLogPtr->PurchaseComponents->Items;
         int32_t row = 0;
 
         // Only sort orders 0..49 get a row, as in the original.
         for (int32_t order = 0; order < 50; ++order)
         {
-            MCLogInventoryItem* item = first;
+            const auto item = std::ranges::find_if(items, [&](const std::unique_ptr<MCLogInventoryItem>& entry)
+                                                   { return entry->PurchaseBlock->SortOrder == order; });
 
-            while (item != nullptr && item->PurchaseBlock->SortOrder != order)
+            if (item != items.end())
             {
-                item = item->Next;
-            }
-
-            if (item != nullptr)
-            {
-                item->PurchaseBlock->Row = row++;
+                (*item)->PurchaseBlock->Row = row++;
             }
         }
     }
@@ -387,20 +379,20 @@ auto MCLogInvScreen::CreateVehiclePane() -> void
         ++row;
     };
 
-    for (MCLogMech* mech = GlobalLogPtr->ForceMechList->Mechs; mech != nullptr; mech = mech->Next)
+    for (const std::unique_ptr<MCLogMech>& mech : GlobalLogPtr->ForceMechList->Mechs)
     {
-        place(mech->RepairBlock);
+        place(mech->RepairBlock.get());
     }
 
-    for (MCLogVehicle* vehicle = GlobalLogPtr->ForceVehicleList->Vehicles; vehicle != nullptr; vehicle = vehicle->Next)
+    for (const std::unique_ptr<MCLogVehicle>& vehicle : GlobalLogPtr->ForceVehicleList->Vehicles)
     {
-        place(vehicle->RepairBlock);
+        place(vehicle->RepairBlock.get());
     }
 }
 
 auto MCLogInvScreen::CreatePurVehiclePane(bool pilotsOnly) -> void
 {
-    MCPurchaseScreen* screen = GlobalLogPtr->PurchaseScreen;
+    MCPurchaseScreen* screen = GlobalLogPtr->PurchaseScreen.get();
     MCScrollPane* pane = screen->UnitPane;
     const int32_t width = pane->Width() - 0xd;
 
@@ -437,12 +429,12 @@ auto MCLogInvScreen::CreatePurVehiclePane(bool pilotsOnly) -> void
 
         // The store's components, ordered by ReIndexComponents.
         StoreView(screen->PurCompPort, MCStoreTab::Components, pane, width,
-                  GlobalLogPtr->PurchaseComponents->NumItems * UnitBlockHeight, 0x10);
+                  GlobalLogPtr->PurchaseComponents->NumItems() * UnitBlockHeight, 0x10);
         ReIndexComponents();
 
-        for (MCLogInventoryItem* item = GlobalLogPtr->PurchaseComponents->Items; item != nullptr; item = item->Next)
+        for (const std::unique_ptr<MCLogInventoryItem>& item : GlobalLogPtr->PurchaseComponents->Items)
         {
-            MCCompPurchaseBlock* block = item->PurchaseBlock;
+            MCCompPurchaseBlock* block = item->PurchaseBlock.get();
             PlaceStoreBlock(block, block->Row);
             block->DrawBackground(block->Row, item->PurchaseBlock->Item->MasterID);
         }
@@ -483,9 +475,9 @@ auto MCLogInvScreen::CreateMechInvBlock() -> void
     NewInvPort(0, GlobalLogPtr->MechList->GetMechCount());
     int32_t index = 0;
 
-    for (MCLogMech* mech = GlobalLogPtr->MechList->Mechs; mech != nullptr; mech = mech->Next)
+    for (const std::unique_ptr<MCLogMech>& mech : GlobalLogPtr->MechList->Mechs)
     {
-        MCMechInventoryBlock* block = mech->InventoryBlock;
+        MCMechInventoryBlock* block = mech->InventoryBlock.get();
         block->ListIndex = index++;
         block->DrawBackground();
     }
@@ -496,9 +488,9 @@ auto MCLogInvScreen::CreateVhclInvBlock() -> void
     NewInvPort(3, GlobalLogPtr->VehicleList->GetVehicleCount());
     int32_t index = 0;
 
-    for (MCLogVehicle* vehicle = GlobalLogPtr->VehicleList->Vehicles; vehicle != nullptr; vehicle = vehicle->Next)
+    for (const std::unique_ptr<MCLogVehicle>& vehicle : GlobalLogPtr->VehicleList->Vehicles)
     {
-        MCVehicleInventoryBlock* block = vehicle->InventoryBlock;
+        MCVehicleInventoryBlock* block = vehicle->InventoryBlock.get();
         block->ListIndex = index++;
         block->DrawBackground();
     }
@@ -506,15 +498,16 @@ auto MCLogInvScreen::CreateVhclInvBlock() -> void
 
 auto MCLogInvScreen::CreatePilotInvBlock() -> void
 {
-    MCLogWarrior* first = GlobalLogPtr->WarriorList->Warriors;
+    const auto& warriors = GlobalLogPtr->WarriorList->Warriors;
     const int32_t height =
-        first != nullptr ? first->InventoryBlock->Height() * GlobalLogPtr->WarriorList->NumWarriors : 0;
+        warriors.empty() ? 0
+                         : warriors.front()->InventoryBlock->Height() * GlobalLogPtr->WarriorList->GetWarriorCount();
     NewTabView(1, InventoryPane->Width() - 0xd, std::max(height, InventoryPane->Height()));
     int32_t index = 0;
 
-    for (MCLogWarrior* warrior = first; warrior != nullptr; warrior = warrior->Next)
+    for (const std::unique_ptr<MCLogWarrior>& warrior : warriors)
     {
-        MCPilotInventoryBlock* block = warrior->InventoryBlock;
+        MCPilotInventoryBlock* block = warrior->InventoryBlock.get();
         block->ListIndex = index++;
         block->DrawBackground();
     }
@@ -546,7 +539,7 @@ auto MCLogInvScreen::CreateCompInvBlock() -> void
 {
     NewInvPort(2, GlobalLogPtr->ReIndexInventory());
 
-    for (MCLogInventoryItem* item = GlobalLogPtr->ComponentInventory->Items; item != nullptr; item = item->Next)
+    for (const std::unique_ptr<MCLogInventoryItem>& item : GlobalLogPtr->ComponentInventory->Items)
     {
         item->InventoryBlock->DrawBackground();
     }
@@ -558,9 +551,9 @@ auto MCLogInvScreen::SetUpMechInv(bool resetScroll, bool redrawTabs) -> void
     DrawInvTabArt(this, 0, redrawTabs);
     ClearInventoryPanes();
 
-    for (MCLogMech* mech = GlobalLogPtr->MechList->Mechs; mech != nullptr; mech = mech->Next)
+    for (const std::unique_ptr<MCLogMech>& mech : GlobalLogPtr->MechList->Mechs)
     {
-        MCMechInventoryBlock* block = mech->InventoryBlock;
+        MCMechInventoryBlock* block = mech->InventoryBlock.get();
         InventoryPane->AddChild(block);
         block->ShowGuiWindow(true);
         block->BringToFront(0);
@@ -572,7 +565,7 @@ auto MCLogInvScreen::SetUpMechInv(bool resetScroll, bool redrawTabs) -> void
 
 auto MCLogInvScreen::SetUpMechPurchase() -> void
 {
-    MCPurchaseScreen* screen = GlobalLogPtr->PurchaseScreen;
+    MCPurchaseScreen* screen = GlobalLogPtr->PurchaseScreen.get();
 
     if (GlobalLogPtr->CurrentScreen != screen)
     {
@@ -622,7 +615,7 @@ auto MCLogInvScreen::SetUpPilotInv(bool resetScroll, bool redrawTabs) -> void
     ClearInventoryPanes();
     int32_t yPos = 0;
 
-    for (MCLogWarrior* warrior = GlobalLogPtr->WarriorList->Warriors; warrior != nullptr; warrior = warrior->Next)
+    for (const std::unique_ptr<MCLogWarrior>& warrior : GlobalLogPtr->WarriorList->Warriors)
     {
         // The assigned pilots come last and aren't shown.
         if (warrior->Assigned != 0)
@@ -630,7 +623,7 @@ auto MCLogInvScreen::SetUpPilotInv(bool resetScroll, bool redrawTabs) -> void
             break;
         }
 
-        MCPilotInventoryBlock* block = warrior->InventoryBlock;
+        MCPilotInventoryBlock* block = warrior->InventoryBlock.get();
         InventoryPane->AddChild(block);
         block->ShowGuiWindow(true);
         block->BringToFront(0);
@@ -653,9 +646,9 @@ auto MCLogInvScreen::SetUpCompInv(bool resetScroll, bool redrawTabs) -> void
     DrawInvTabArt(this, 2, redrawTabs);
     ClearInventoryPanes();
 
-    for (MCLogInventoryItem* item = GlobalLogPtr->ComponentInventory->Items; item != nullptr; item = item->Next)
+    for (const std::unique_ptr<MCLogInventoryItem>& item : GlobalLogPtr->ComponentInventory->Items)
     {
-        MCCompInventoryBlock* block = item->InventoryBlock;
+        MCCompInventoryBlock* block = item->InventoryBlock.get();
 
         if (block->ListIndex < 0)
         {
@@ -679,9 +672,9 @@ auto MCLogInvScreen::SetUpVhclInv(bool resetScroll, bool redrawTabs) -> void
     ClearInventoryPanes();
     int32_t yPos = 0;
 
-    for (MCLogVehicle* vehicle = GlobalLogPtr->VehicleList->Vehicles; vehicle != nullptr; vehicle = vehicle->Next)
+    for (const std::unique_ptr<MCLogVehicle>& vehicle : GlobalLogPtr->VehicleList->Vehicles)
     {
-        MCVehicleInventoryBlock* block = vehicle->InventoryBlock;
+        MCVehicleInventoryBlock* block = vehicle->InventoryBlock.get();
         InventoryPane->AddChild(block);
         block->ShowGuiWindow(true);
         block->BringToFront(0);
@@ -694,7 +687,7 @@ auto MCLogInvScreen::SetUpVhclInv(bool resetScroll, bool redrawTabs) -> void
 
 auto MCLogInvScreen::SetUpVehiclePurchase() -> void
 {
-    MCPurchaseScreen* screen = GlobalLogPtr->PurchaseScreen;
+    MCPurchaseScreen* screen = GlobalLogPtr->PurchaseScreen.get();
 
     if (GlobalLogPtr->CurrentScreen != screen)
     {
@@ -719,7 +712,7 @@ auto MCLogInvScreen::SetUpVehiclePurchase() -> void
 
 auto MCLogInvScreen::SetUpPilotPurchase() -> void
 {
-    MCPurchaseScreen* screen = GlobalLogPtr->PurchaseScreen;
+    MCPurchaseScreen* screen = GlobalLogPtr->PurchaseScreen.get();
 
     if (GlobalLogPtr->CurrentScreen != screen)
     {
@@ -756,7 +749,7 @@ auto MCLogInvScreen::ReIndexComponents() -> void
 
 auto MCLogInvScreen::SetUpCompPurchase() -> void
 {
-    MCPurchaseScreen* screen = GlobalLogPtr->PurchaseScreen;
+    MCPurchaseScreen* screen = GlobalLogPtr->PurchaseScreen.get();
 
     if (GlobalLogPtr->CurrentScreen != screen)
     {
@@ -766,9 +759,9 @@ auto MCLogInvScreen::SetUpCompPurchase() -> void
     ClearPane(screen->UnitPane);
     ReIndexComponents();
 
-    for (MCLogInventoryItem* item = GlobalLogPtr->PurchaseComponents->Items; item != nullptr; item = item->Next)
+    for (const std::unique_ptr<MCLogInventoryItem>& item : GlobalLogPtr->PurchaseComponents->Items)
     {
-        MCCompPurchaseBlock* block = item->PurchaseBlock;
+        MCCompPurchaseBlock* block = item->PurchaseBlock.get();
         UnitPane->AddChild(block);
         block->ShowGuiWindow(true);
         block->MoveTo(0, block->Height() * block->Row, false);
@@ -780,7 +773,7 @@ auto MCLogInvScreen::SetUpCompPurchase() -> void
 
 auto MCLogInvScreen::RemovePilot(int32_t pilotIndex) -> void
 {
-    MCPurchaseScreen* screen = GlobalLogPtr->PurchaseScreen;
+    MCPurchaseScreen* screen = GlobalLogPtr->PurchaseScreen.get();
     MCScrollPane* pane = screen->UnitPane;
     const int32_t count = GlobalLogPtr->PurPilotList->GetVisiblePilotCount();
     // The original copied the old rows into a new picture, closing the gap: the rows below the removed one moved up
@@ -853,7 +846,7 @@ auto MCLogInvScreen::ShowComponentInfo(MCCompInventoryBlock* block, bool repairI
     Info.RangeText = block->RangeText;
     Info.DamageText = block->DamageText;
     Info.RecycleText = block->RecycleText;
-    Info.Description = block->Item->Description != nullptr ? block->Item->Description : "";
+    Info.Description = block->Item->Description;
 }
 
 auto MCLogInvScreen::DrawInfo(MCLogPort* port) -> void

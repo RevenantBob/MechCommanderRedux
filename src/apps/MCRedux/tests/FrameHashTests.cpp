@@ -22,7 +22,7 @@
 #include "logistics/MCCompPurchaseBlock.h"
 #include "logistics/MCUnitLimits.h"
 #include "logistics/MCPurProfile.h"
-#include "main/logistics.h"
+#include "main/MCLogistics.h"
 #include "mission/MCMission.h"
 #include "mission/MCMissionResultsScreen.h"
 #include "mission/MCScenario.h"
@@ -557,12 +557,12 @@ namespace
             {"load screen", [] { LoadScreen(); }, 0xb773197eu},
             {"main menu after load", [] { Cancel(); }, 0x59acc997u},
             {"briefing", [] { NewCampaign(); }, 0xbcd2ec30u},
-            {"purchase", [] { GlobalLogPtr->SetUpPurchaseScreen(-1); }, 0x7e077fadu},
+            {"purchase", [] { GlobalLogPtr->SetUpPurchaseScreen(true); }, 0x7e077fadu},
             {"purchase, pilots", [] { GlobalLogPtr->PurchaseScreen->SetUpPilotInv(true, true); }, 0x4ae27598u},
             {"purchase, components", [] { GlobalLogPtr->PurchaseScreen->SetUpCompInv(true, true); }, 0x62910f9cu},
             {"purchase, mechs", [] { GlobalLogPtr->PurchaseScreen->SetUpMechInv(true, true); }, 0x2ef60e5eu},
-            {"repair", [] { GlobalLogPtr->SetUpRepairScreen(-1); }, 0xd28d50c5u},
-            {"briefing again", [] { GlobalLogPtr->SetUpBriefingScreen(-1); }, 0x042383bfu},
+            {"repair", [] { GlobalLogPtr->SetUpRepairScreen(true); }, 0xd28d50c5u},
+            {"briefing again", [] { GlobalLogPtr->SetUpBriefingScreen(true); }, 0x042383bfu},
             {"briefing, mission tab", [] { Click(202, 265); }, 0xd643b44du},
             {"briefing, deploy", [] { Drag(40, 385, 245, 60); }, 0x9339c191u},
             {"briefing, deploy second", [] { Drag(90, 385, 300, 60); }, 0x9a752797u},
@@ -592,8 +592,7 @@ namespace
                      mech->Block->DrawBackground(mech->Block->Row);
                  }
 
-                 for (MCLogInventoryItem* item = GlobalLogPtr->PurchaseComponents->Items; item != nullptr;
-                      item = item->Next)
+                 for (const std::unique_ptr<MCLogInventoryItem>& item : GlobalLogPtr->PurchaseComponents->Items)
                  {
                      item->Count = 2;
                      item->PurchaseBlock->DrawBackground(item->PurchaseBlock->Row, item->MasterID);
@@ -655,7 +654,7 @@ namespace
             {"repair, mech out", [] { Drag(260, 170, 100, 200); }, 0xc5511bb0u},
             {"repair, weapon list scroll", [] { Click(560, 125); }, 0xe1d91675u},
             {"repair, first mech out", [] { Drag(260, 60, 100, 200); }, 0x36d78e5cu},
-            {"briefing after repair", [] { GlobalLogPtr->SetUpBriefingScreen(-1); }, 0x0680f0e1u},
+            {"briefing after repair", [] { GlobalLogPtr->SetUpBriefingScreen(true); }, 0x0680f0e1u},
             {"briefing, unit out of slot", [] { Drag(300, 60, 60, 400); }, 0xc392dab4u},
         };
 

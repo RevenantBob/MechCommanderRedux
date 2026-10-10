@@ -3,7 +3,7 @@
 #include "gui/MCGuiEvent.h"
 #include "gui/MCScrollPane.h"
 #include "logistics/MCLogInvScreen.h"
-#include "main/logistics.h"
+#include "main/MCLogistics.h"
 #include "network/multplyr.h"
 #include "vfx/MCVfxFunctions.h"
 

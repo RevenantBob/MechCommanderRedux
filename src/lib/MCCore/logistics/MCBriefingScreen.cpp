@@ -18,7 +18,7 @@
 #include "logistics/MCTicker.h"
 #include "logistics/MCUnitLimits.h"
 #include "main/MCGamePaths.h"
-#include "main/logistics.h"
+#include "main/MCLogistics.h"
 #include "main/main.h"
 #include "mission/MCMission.h"
 #include "network/multplyr.h"
@@ -351,9 +351,9 @@ auto MCBriefingScreen::PaintLook(MCPane* target) -> void
     // gives the player their slots. (The original measured the first lance's figure in the black font and the
     // others' in the blue one, and wrote them all in black.)
     static constexpr std::array<int32_t, 3> labelTops = {0x18, 0x88, 0xf8};
-    const int32_t* local = GlobalLogPtr->LocalDropSlot;
-    const std::array<bool, 3> lanceShown = {true, MPlayer != nullptr || local[4] != 0,
-                                            MPlayer != nullptr || (local[4] != 0 && local[8] != 0)};
+    const std::array<bool, MCLogistics::NumDropSlots>& local = GlobalLogPtr->LocalDropSlot;
+    const std::array<bool, 3> lanceShown = {true, MPlayer != nullptr || local[4],
+                                            MPlayer != nullptr || (local[4] && local[8])};
 
     for (int32_t lance = 0; lance < 3; lance++)
     {
@@ -760,13 +760,13 @@ auto MCBriefingScreen::HandleClick(int32_t xPos, int32_t yPos) -> void
 
     if (!ButtonsLocked && Inside(point, 2, 0x34, 0xd1, 0x45))
     {
-        GlobalLogPtr->SetUpPurchaseScreen(-1);
+        GlobalLogPtr->SetUpPurchaseScreen(true);
         return;
     }
 
     if (!ButtonsLocked && Inside(point, 2, 0x46, 0xd1, 0x57))
     {
-        GlobalLogPtr->SetUpRepairScreen(-1);
+        GlobalLogPtr->SetUpRepairScreen(true);
         return;
     }
 
@@ -776,7 +776,7 @@ auto MCBriefingScreen::HandleClick(int32_t xPos, int32_t yPos) -> void
         {
             StopSmackerMovies();
             SoundSystem()->PlayDigitalSample(0x36, 1, nullptr, 0, 0);
-            GlobalLogPtr->SetUpMainScreen(0);
+            GlobalLogPtr->SetUpMainScreen(false);
             return;
         }
 
@@ -820,8 +820,9 @@ auto MCBriefingScreen::Launch() -> void
     if (MPlayer == nullptr)
     {
         // Everything the player owns must fit the save.
-        const int32_t units = GlobalLogPtr->ForceVehicleList->NumVehicles + GlobalLogPtr->ForceMechList->NumMechs +
-                              GlobalLogPtr->VehicleList->NumVehicles + GlobalLogPtr->MechList->NumMechs;
+        const int32_t units = GlobalLogPtr->ForceVehicleList->GetVehicleCount() +
+                              GlobalLogPtr->ForceMechList->GetMechCount() +
+                              GlobalLogPtr->VehicleList->GetVehicleCount() + GlobalLogPtr->MechList->GetMechCount();
 
         if (units <= MaxOwnedUnits)
         {
@@ -955,13 +956,13 @@ auto MCBriefingScreen::SetUpOperation() -> void
 
         if (GlobalLogPtr->PurchaseScreen->ChatBlinking)
         {
-            GuiSystem()->RemoveTimer(GlobalLogPtr->PurchaseScreen, 7);
+            GuiSystem()->RemoveTimer(GlobalLogPtr->PurchaseScreen.get(), 7);
             GlobalLogPtr->PurchaseScreen->ChatBlinking = false;
         }
 
         if (GlobalLogPtr->RepairScreen->ChatBlinking)
         {
-            GuiSystem()->RemoveTimer(GlobalLogPtr->RepairScreen, 8);
+            GuiSystem()->RemoveTimer(GlobalLogPtr->RepairScreen.get(), 8);
             GlobalLogPtr->RepairScreen->ChatBlinking = false;
         }
 
@@ -994,7 +995,7 @@ auto MCBriefingScreen::SetUpOperation() -> void
         }
     }
 
-    if (GlobalLogPtr->OperationCinema != nullptr)
+    if (!GlobalLogPtr->OperationCinema.empty())
     {
         MCSmackTag* movie = SmackOpen(GamePath(MoviePath, GlobalLogPtr->OperationCinema, ".smk").c_str(), 0xfe000, -1);
 
@@ -1058,17 +1059,19 @@ auto MCBriefingScreen::SetUpDeploy() -> void
     UndeployedMechs.clear();
     int32_t index = 0;
 
-    for (MCLogMech* mech = GlobalLogPtr->ForceMechList->Mechs; mech != nullptr; mech = mech->Next, ++index)
+    for (const std::unique_ptr<MCLogMech>& mech : GlobalLogPtr->ForceMechList->Mechs)
     {
+        const int32_t mechIndex = index++;
+
         if (mech->PilotIndex < 0)
         {
             continue;
         }
 
-        if (mech->Deployed == 0)
+        if (!mech->Deployed)
         {
             MCMechBriefBlock::Discard(mech->BriefBlock);
-            UndeployedMechs.push_back(index);
+            UndeployedMechs.push_back(mechIndex);
         }
         else
         {
@@ -1076,7 +1079,7 @@ auto MCBriefingScreen::SetUpDeploy() -> void
         }
     }
 
-    for (MCLogVehicle* vehicle = GlobalLogPtr->ForceVehicleList->Vehicles; vehicle != nullptr; vehicle = vehicle->Next)
+    for (const std::unique_ptr<MCLogVehicle>& vehicle : GlobalLogPtr->ForceVehicleList->Vehicles)
     {
         if (vehicle->Deployed == 0)
         {
@@ -1133,14 +1136,14 @@ auto MCBriefingScreen::SetUpDeploy() -> void
         MCMechBriefBlock::Create(mech, pane, blockX(), blockY());
     }
 
-    for (MCLogVehicle* vehicle = GlobalLogPtr->ForceVehicleList->Vehicles; vehicle != nullptr; vehicle = vehicle->Next)
+    for (const std::unique_ptr<MCLogVehicle>& vehicle : GlobalLogPtr->ForceVehicleList->Vehicles)
     {
         if (vehicle->Deployed != 0)
         {
             continue;
         }
 
-        MCMechBriefBlock::Create(vehicle, pane, blockX(), blockY());
+        MCMechBriefBlock::Create(vehicle.get(), pane, blockX(), blockY());
         ++block;
     }
 

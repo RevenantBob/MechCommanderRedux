@@ -4,7 +4,7 @@
 #include "lib/MCFile.h"
 #include "lib/MCFitIniFile.h"
 #include "main/MCGamePaths.h"
-#include "main/logistics.h"
+#include "main/MCLogistics.h"
 #include "mission/MCScenario.h"
 #include "object/MCMasterComponent.h"
 #include "object/MCObjectTypeManager.h"
@@ -91,8 +91,7 @@ auto ReadInventory(MCFitIniFile& file, MCInventoryList& inventory, uint8_t numOt
     // Adds the copy and its price.
     auto add = [&](uint8_t masterID, uint8_t facing, int16_t amount)
     {
-        MCLogInventoryStat* stat = inventory.CreateStat(static_cast<uint8_t>(item), 0, facing, amount, 0xff);
-        inventory.AddItem(masterID, stat, -1);
+        inventory.AddItem(masterID, inventory.CreateStat(static_cast<uint8_t>(item), 0, facing, amount, 0xff), false);
         cost += MasterComponentList[masterID].ResourcePoints;
     };
 

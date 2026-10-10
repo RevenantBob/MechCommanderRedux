@@ -4,7 +4,7 @@
 #include "logistics/MCLogRows.h"
 #include "logistics/MCMechRepairBlock.h"
 #include "logistics/MCVehicleRepairBlock.h"
-#include "main/logistics.h"
+#include "main/MCLogistics.h"
 #include "logistics/MCBriefingScreen.h"
 
 MCBriefingBox::~MCBriefingBox()
@@ -52,7 +52,7 @@ auto MCBriefingBox::PaintBox(MCPane* target, int32_t xPos, int32_t yPos) -> void
     // The block paints in the briefing screen's layout (it looks at the current screen); a screen change's wipe draws
     // the box while another screen is current.
     MCLogObject* const current = GlobalLogPtr->CurrentScreen;
-    GlobalLogPtr->CurrentScreen = GlobalLogPtr->BriefingScreen;
+    GlobalLogPtr->CurrentScreen = GlobalLogPtr->BriefingScreen.get();
     MCLogBlockPort work(target, xPos, yPos, 0x1ab, 0x6f, false);
 
     if (Mech == nullptr)

@@ -10,7 +10,7 @@
 #include "logistics/MCLogToolButton.h"
 #include "logistics/MCMainMenu.h"
 #include "logistics/MCRegistrySettings.h"
-#include "main/logistics.h"
+#include "main/MCLogistics.h"
 #include "platform/MCPresenter.h"
 #include "platform/MCRenderer.h"
 #include "sound/MCSoundSystem.h"
@@ -186,7 +186,7 @@ void ShowPreferences()
     logistics->SavedPrefs5 = SoundSystem()->DigitalMasterVolume;
     logistics->SavedPrefs6 = GameDifficulty;
     SavedRendererPreference = GRendererPreference;
-    MCGenericScreen* screen = logistics->PrefScreen;
+    MCGenericScreen* screen = logistics->PrefScreen.get();
     screen->Element<MCLogSlider>(3)->SetCurrentValue(brightness);
     screen->Element<MCLogSlider>(4)->SetCurrentValue(static_cast<int32_t>(logistics->SavedPrefs3));
     screen->Element<MCLogSlider>(5)->SetCurrentValue(static_cast<int32_t>(logistics->SavedPrefs4));
@@ -196,7 +196,7 @@ void ShowPreferences()
     DifficultyToggle(1)->Toggled = GameDifficulty == 1;
     DifficultyToggle(2)->Toggled = GameDifficulty != 0 && GameDifficulty != 1;
     logistics->MainScreen->ShowGuiWindow(false);
-    logistics->CurrentScreen = logistics->PrefScreen;
+    logistics->CurrentScreen = logistics->PrefScreen.get();
     logistics->PrefScreen->ShowGuiWindow(true);
     logistics->LogisticsState = 9;
 }

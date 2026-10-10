@@ -1,11 +1,12 @@
 #include "stdafx.h"
 #include "logistics/MCPurPilotList.h"
+#include "object/MCMoverGameSystem.h"
 #include "lib/MCFatal.h"
 #include "lib/MCFitIniFile.h"
 #include "main/MCGamePaths.h"
 #include "logistics/MCPilotPurchaseBlock.h"
 #include "logistics/MCPurProfile.h"
-#include "main/logistics.h"
+#include "main/MCLogistics.h"
 
 auto MCPurPilotList::Clear() -> void
 {

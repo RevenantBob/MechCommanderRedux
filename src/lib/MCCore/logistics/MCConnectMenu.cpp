@@ -19,7 +19,7 @@
 #include "logistics/MCReusableDialog.h"
 #include "logistics/MCSessionScreen.h"
 #include "logistics/MCSplashScreen.h"
-#include "main/logistics.h"
+#include "main/MCLogistics.h"
 #include "main/main.h"
 #include "network/multplyr.h"
 #include "lib/MCFatal.h"
@@ -40,15 +40,7 @@ namespace
     /// <summary>The player's name for the multiplayer screens: the one remembered (or the user's), if any.</summary>
     std::optional<std::string> RememberedUserName()
     {
-        std::array<char, 0x40> name = {};
-        uint32_t length = 0x3f;
-
-        if (MyGetUserName(name.data(), &length) == 0)
-        {
-            return std::nullopt;
-        }
-
-        return std::string(name.data());
+        return MyGetUserName();
     }
 
     /// <summary>The name for the player entry: the one remembered, else "Player".</summary>
@@ -60,7 +52,7 @@ namespace
     /// <summary>The players a hosted LAN session takes: the number typed in the LAN screen's entry 11, within the rule.</summary>
     int32_t TypedMaxPlayers()
     {
-        return std::clamp(ElementNumber(GlobalLogPtr->LanScreen, 11), MinSessionPlayers, MaxSessionPlayers);
+        return std::clamp(ElementNumber(GlobalLogPtr->LanScreen.get(), 11), MinSessionPlayers, MaxSessionPlayers);
     }
 
     /// <summary>Opens the ready room (session screen) after a session was joined or created from <paramref name="from"/>.</summary>
@@ -68,7 +60,7 @@ namespace
     {
         from->ShowGuiWindow(false);
         GlobalLogPtr->ConnectScreen->ShowGuiWindow(true);
-        GlobalLogPtr->CurrentScreen = GlobalLogPtr->ConnectScreen;
+        GlobalLogPtr->CurrentScreen = GlobalLogPtr->ConnectScreen.get();
         GlobalLogPtr->LogisticsState = 0xe;
 
         if (goDisabled.has_value())
@@ -89,7 +81,7 @@ namespace
         GlobalLogPtr->MultiplayerScreen->ShowGuiWindow(false);
         GlobalLogPtr->LanScreen->ShowGuiWindow(true);
         GlobalLogPtr->LanScreen->ShowBlock(0);
-        GlobalLogPtr->CurrentScreen = GlobalLogPtr->LanScreen;
+        GlobalLogPtr->CurrentScreen = GlobalLogPtr->LanScreen.get();
         GlobalLogPtr->LogisticsState = 0xb;
         GuiSystem()->SetText(GlobalLogPtr->LanScreen->Elements[4]);
     }
@@ -103,7 +95,7 @@ namespace
     {
         GuiSystem()->AddTimer(screen, timer, 1000, 0, 0, 0);
         WhackTimer = false;
-        MCReusableDialog* dialog = GlobalLogPtr->MessageDialog;
+        MCReusableDialog* dialog = GlobalLogPtr->MessageDialog.get();
         dialog->SetText(LoadGameString(stringId, 0xfe));
         dialog->SetTwoButton(false);
         dialog->Callback = nullptr;
@@ -123,7 +115,7 @@ namespace
 void ConnectScreen()
 {
     EnsureRegistryVersion();
-    MCGenericScreen* screen = GlobalLogPtr->MultiplayerScreen;
+    MCGenericScreen* screen = GlobalLogPtr->MultiplayerScreen.get();
 
     if (MPlayer == nullptr)
     {
@@ -134,7 +126,7 @@ void ConnectScreen()
 
     GlobalLogPtr->MainScreen->ShowGuiWindow(false);
     GlobalLogPtr->MultiplayerScreen->ShowGuiWindow(true);
-    GlobalLogPtr->CurrentScreen = GlobalLogPtr->MultiplayerScreen;
+    GlobalLogPtr->CurrentScreen = GlobalLogPtr->MultiplayerScreen.get();
     GlobalLogPtr->LogisticsState = 10;
 
     // The connection buttons: modem, serial, LAN, internet; each is enabled when the machine has it.
@@ -168,7 +160,7 @@ void CancelToConnect()
     WhackTimer = true;
     GlobalLogPtr->CurrentScreen->ShowGuiWindow(false);
     GlobalLogPtr->MultiplayerScreen->ShowGuiWindow(true);
-    GlobalLogPtr->CurrentScreen = GlobalLogPtr->MultiplayerScreen;
+    GlobalLogPtr->CurrentScreen = GlobalLogPtr->MultiplayerScreen.get();
     GlobalLogPtr->LogisticsState = 10;
     GlobalLogPtr->LanScreen->ShowBlock(0);
     GlobalLogPtr->ModemScreen->ShowBlock(0);
@@ -193,7 +185,7 @@ void CancelToLan()
 {
     GlobalLogPtr->CurrentScreen->ShowGuiWindow(false);
     GlobalLogPtr->LanScreen->ShowGuiWindow(true);
-    GlobalLogPtr->CurrentScreen = GlobalLogPtr->LanScreen;
+    GlobalLogPtr->CurrentScreen = GlobalLogPtr->LanScreen.get();
     GlobalLogPtr->LogisticsState = 0xb;
     GlobalLogPtr->LanScreen->ShowBlock(0);
     GlobalLogPtr->LanScreen->Element<MCGameList>(2)->ClearSelection();
@@ -201,19 +193,19 @@ void CancelToLan()
 
 void CancelToSession()
 {
-    MCSplashScreen* loadScreen = GlobalLogPtr->LoadScreen;
+    MCSplashScreen* loadScreen = GlobalLogPtr->LoadScreen.get();
     loadScreen->CancelButton->Callback()->SetExec(Cancel);
     loadScreen->LoadSaveButton->Callback()->SetExec(LoadGame);
     loadScreen->FilePane->SetMultiplayer(false);
     GlobalLogPtr->CurrentScreen->ShowGuiWindow(false);
-    GlobalLogPtr->CurrentScreen = GlobalLogPtr->SessionScreen;
+    GlobalLogPtr->CurrentScreen = GlobalLogPtr->SessionScreen.get();
     GlobalLogPtr->LogisticsState = 8;
-    GlobalLogPtr->ShowLogScreen(1, 1);
+    GlobalLogPtr->ShowLogScreen(true, true);
 }
 
 void ShowModemScreen()
 {
-    MCSplashScreen* screen = GlobalLogPtr->ModemScreen;
+    MCSplashScreen* screen = GlobalLogPtr->ModemScreen.get();
 
     if (MPlayer != nullptr)
     {
@@ -247,7 +239,7 @@ void ShowModemScreen()
 
 void ShowSerialScreen()
 {
-    MCGenericScreen* screen = GlobalLogPtr->SerialScreen;
+    MCGenericScreen* screen = GlobalLogPtr->SerialScreen.get();
     screen->Element<MCLogTextObject>(4)->SetStringBuffer(PlayerNameOrDefault());
     GlobalLogPtr->MultiplayerScreen->ShowGuiWindow(false);
     GlobalLogPtr->CurrentScreen = screen;
@@ -292,7 +284,7 @@ void TcpipxDialogCallback(int32_t result)
 
 void ShowLanScreen()
 {
-    MCSplashScreen* screen = GlobalLogPtr->LanScreen;
+    MCSplashScreen* screen = GlobalLogPtr->LanScreen.get();
     auto* gameEntry = screen->Element<MCLogTextObject>(10);
 
     if (const std::optional<std::string> name = RememberedUserName())
@@ -312,7 +304,7 @@ void ShowLanScreen()
 
     if (manager->IsIpxAvailable() != 0 && manager->IsTcpAvailable() != 0)
     {
-        MCReusableDialog* dialog = GlobalLogPtr->MessageDialog;
+        MCReusableDialog* dialog = GlobalLogPtr->MessageDialog.get();
         dialog->SetText(LoadGameString(0xa6, 0xfe));
         dialog->SetTwoButton(true);
         dialog->Callback = TcpipxDialogCallback;
@@ -349,7 +341,7 @@ void DoExitToZone1()
 
 void DoExitToZone()
 {
-    AskMenuQuestion(GlobalLogPtr->QuestionDialog, 0x4e9, DoExitToZone1, nullptr, "bh_cancl.tga", true);
+    AskMenuQuestion(GlobalLogPtr->QuestionDialog.get(), 0x4e9, DoExitToZone1, nullptr, "bh_cancl.tga", true);
 }
 
 void DoExitToMplayer()
@@ -361,12 +353,12 @@ void DoExitToMplayer()
 
 void ShowInternet()
 {
-    AskMenuQuestion(GlobalLogPtr->MessageDialog, 0x352, DoExitToMplayer, DoExitToZone, "bh_cancl.tga", true);
+    AskMenuQuestion(GlobalLogPtr->MessageDialog.get(), 0x352, DoExitToMplayer, DoExitToZone, "bh_cancl.tga", true);
 }
 
 void HostGame()
 {
-    MCSplashScreen* screen = GlobalLogPtr->LanScreen;
+    MCSplashScreen* screen = GlobalLogPtr->LanScreen.get();
     const std::string playerName = ElementText(screen, 4);
     SaveUserName(playerName);
     screen->ShowBlock(1);
@@ -401,7 +393,7 @@ void JoinGame()
     {
         if (MCFidpSession* session = manager->FindMatchingSession(game); session != nullptr)
         {
-            std::string playerName = ElementText(GlobalLogPtr->LanScreen, 4);
+            std::string playerName = ElementText(GlobalLogPtr->LanScreen.get(), 4);
             SaveUserName(playerName);
 
             if (session->SessionDesc.dwCurrentPlayers < session->SessionDesc.dwMaxPlayers)
@@ -411,7 +403,7 @@ void JoinGame()
 
                 if (result == 0)
                 {
-                    EnterReadyRoom(GlobalLogPtr->LanScreen, true);
+                    EnterReadyRoom(GlobalLogPtr->LanScreen.get(), true);
                     ReadyRoomTicks = 0;
                     ResetReadyRoom();
                     return;
@@ -428,16 +420,16 @@ void CreateSession()
 {
     if (MPlayer != nullptr && MPlayer->SessionManager != nullptr)
     {
-        std::string sessionName = ElementText(GlobalLogPtr->LanScreen, 10);
+        std::string sessionName = ElementText(GlobalLogPtr->LanScreen.get(), 10);
         const int32_t maxPlayers = TypedMaxPlayers();
-        std::string playerName = ElementText(GlobalLogPtr->LanScreen, 4);
+        std::string playerName = ElementText(GlobalLogPtr->LanScreen.get(), 4);
         MPlayer->CreateSession(sessionName.data(), playerName.data(), maxPlayers);
     }
 
     GlobalLogPtr->LanScreen->ShowGuiWindow(false);
     GlobalLogPtr->ConnectScreen->ShowGuiWindow(true);
     ReadyRoomTicks = 0;
-    GlobalLogPtr->CurrentScreen = GlobalLogPtr->ConnectScreen;
+    GlobalLogPtr->CurrentScreen = GlobalLogPtr->ConnectScreen.get();
     GlobalLogPtr->LogisticsState = 0xe;
     ResetReadyRoom();
 }
@@ -449,7 +441,7 @@ void CreateSerialSession()
         return;
     }
 
-    const int32_t port = ElementNumber(GlobalLogPtr->SerialScreen, 5);
+    const int32_t port = ElementNumber(GlobalLogPtr->SerialScreen.get(), 5);
 
     if (port < 1 || port > 4)
     {
@@ -457,12 +449,12 @@ void CreateSerialSession()
     }
 
     MPlayer->SessionManager->ConnectComPort(static_cast<uint32_t>(port), 0xe100, 0, 0, 4);
-    std::string playerName = ElementText(GlobalLogPtr->SerialScreen, 4);
+    std::string playerName = ElementText(GlobalLogPtr->SerialScreen.get(), 4);
     SaveUserName(playerName);
 
     if (MPlayer->CreateSession(const_cast<char*>("SerialGame"), playerName.data(), 2) == 0)
     {
-        EnterReadyRoom(GlobalLogPtr->SerialScreen, std::nullopt);
+        EnterReadyRoom(GlobalLogPtr->SerialScreen.get(), std::nullopt);
     }
 }
 
@@ -473,9 +465,9 @@ void SerialJoinButtonPressed()
         return;
     }
 
-    SaveUserName(ElementText(GlobalLogPtr->SerialScreen, 4));
+    SaveUserName(ElementText(GlobalLogPtr->SerialScreen.get(), 4));
     WhackTimer = true;
-    const int32_t port = ElementNumber(GlobalLogPtr->SerialScreen, 5);
+    const int32_t port = ElementNumber(GlobalLogPtr->SerialScreen.get(), 5);
 
     if (port > 0 && port < 5 &&
         MPlayer->SessionManager->ConnectComPort(static_cast<uint32_t>(port), 0xe100, 0, 0, 4) == 0)
@@ -491,33 +483,33 @@ void JoinSerialSession()
         return;
     }
 
-    std::string playerName = ElementText(GlobalLogPtr->SerialScreen, 4);
+    std::string playerName = ElementText(GlobalLogPtr->SerialScreen.get(), 4);
 
     if (MPlayer->JoinSession(const_cast<char*>("SerialGame"), playerName.data()) != 0)
     {
         // No game yet: try again in a second, with a way out.
-        WaitWithCancel(GlobalLogPtr->SerialScreen, 0, 0xb1, CancelToConnect, false);
+        WaitWithCancel(GlobalLogPtr->SerialScreen.get(), 0, 0xb1, CancelToConnect, false);
         return;
     }
 
     CountLanPlayers();
-    EnterReadyRoom(GlobalLogPtr->SerialScreen, true);
+    EnterReadyRoom(GlobalLogPtr->SerialScreen.get(), true);
     GlobalLogPtr->MessageDialog->Deactivate(0);
 }
 
 void JoinModemSession()
 {
-    std::string playerName = ElementText(GlobalLogPtr->ModemScreen, 4);
+    std::string playerName = ElementText(GlobalLogPtr->ModemScreen.get(), 4);
 
     if (MPlayer->JoinSession(const_cast<char*>("MC Modem Game"), playerName.data()) != 0)
     {
-        GuiSystem()->AddTimer(GlobalLogPtr->ModemScreen, 1, 1000, 0, 0, 0);
+        GuiSystem()->AddTimer(GlobalLogPtr->ModemScreen.get(), 1, 1000, 0, 0, 0);
         WhackTimer = false;
         return;
     }
 
     CountLanPlayers();
-    EnterReadyRoom(GlobalLogPtr->ModemScreen, true);
+    EnterReadyRoom(GlobalLogPtr->ModemScreen.get(), true);
     GlobalLogPtr->MessageDialog->Deactivate(0);
     WhackTimer = true;
 }
@@ -529,7 +521,7 @@ int32_t DialModemSession()
         return -1;
     }
 
-    SaveUserName(ElementText(GlobalLogPtr->ModemScreen, 4));
+    SaveUserName(ElementText(GlobalLogPtr->ModemScreen.get(), 4));
     const int32_t result = MPlayer->SessionManager->Dial();
 
     if (result == 0)
@@ -538,14 +530,14 @@ int32_t DialModemSession()
         return 0;
     }
 
-    GuiSystem()->AddTimer(GlobalLogPtr->ModemScreen, 0, 1000, 0, 0, 0);
+    GuiSystem()->AddTimer(GlobalLogPtr->ModemScreen.get(), 0, 1000, 0, 0, 0);
     WhackTimer = false;
     return result == DialStillConnecting ? 2 : 1;
 }
 
 void AllGoneCallback(int32_t)
 {
-    MCReusableDialog* dialog = GlobalLogPtr->MessageDialog;
+    MCReusableDialog* dialog = GlobalLogPtr->MessageDialog.get();
     dialog->SetText(LoadGameString(0xbb, 0xfe));
     dialog->SetTwoButton(false);
     dialog->Callback = nullptr;
@@ -563,8 +555,8 @@ void GOCallback()
     }
 
     GlobalLogPtr->CurrentScreen->ShowGuiWindow(false);
-    GlobalLogPtr->CurrentScreen = GlobalLogPtr->SessionScreen;
-    GlobalLogPtr->ShowLogScreen(1, 1);
+    GlobalLogPtr->CurrentScreen = GlobalLogPtr->SessionScreen.get();
+    GlobalLogPtr->ShowLogScreen(true, true);
     GlobalLogPtr->LogisticsState = 8;
     GlobalLogPtr->SessionScreen->Activate(false);
 
@@ -623,7 +615,7 @@ void WaitForCall()
         if (std::optional<std::string> modem = modems->GetTextLine(modems->HighlightLine[0] + 1))
         {
             MPlayer->SessionManager->ConnectModem(const_cast<char*>(""), modem->data());
-            std::string playerName = ElementText(GlobalLogPtr->ModemScreen, 4);
+            std::string playerName = ElementText(GlobalLogPtr->ModemScreen.get(), 4);
             SaveUserName(playerName);
             MPlayer->CreateSession(const_cast<char*>("MC Modem Game"), playerName.data(), 2);
         }
@@ -633,7 +625,7 @@ void WaitForCall()
     GlobalLogPtr->ModemScreen->ShowGuiWindow(false);
     GlobalLogPtr->ConnectScreen->Element<MCLogButton>(2)->Disabled = false;
     GlobalLogPtr->ConnectScreen->ShowGuiWindow(true);
-    GlobalLogPtr->CurrentScreen = GlobalLogPtr->ConnectScreen;
+    GlobalLogPtr->CurrentScreen = GlobalLogPtr->ConnectScreen.get();
     GlobalLogPtr->LogisticsState = 0xe;
     GuiSystem()->SetText(GlobalLogPtr->ModemScreen->Elements[4]);
     GuiSystem()->AddTimer(GlobalLogPtr->ModemScreen->Elements[4], 0, MCPort::CaretBlinkTime(), 0, 0, 0);
@@ -657,7 +649,7 @@ void CancelDial()
 
 void Dial()
 {
-    MCSplashScreen* screen = GlobalLogPtr->ModemScreen;
+    MCSplashScreen* screen = GlobalLogPtr->ModemScreen.get();
     auto* modems = screen->Element<MCLogScrollTextObject>(10);
 
     if (MPlayer == nullptr || MPlayer->SessionManager == nullptr)

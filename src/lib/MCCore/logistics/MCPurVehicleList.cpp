@@ -5,7 +5,7 @@
 #include "logistics/MCPurProfile.h"
 #include "logistics/MCVehiclePurchaseBlock.h"
 #include "main/MCGamePaths.h"
-#include "main/logistics.h"
+#include "main/MCLogistics.h"
 #include "main/main.h"
 #include "object/MCMasterComponent.h"
 
@@ -119,7 +119,7 @@ auto MCPurVehicle::CalcVehicleCost() -> void
 {
     Data->Cost = Data->BaseCost;
 
-    for (MCLogInventoryItem* item = Data->Inventory->Items; item != nullptr; item = item->Next)
+    for (const std::unique_ptr<MCLogInventoryItem>& item : Data->Inventory->Items)
     {
         Data->Cost += MasterComponentList[item->MasterID].ResourcePoints * item->Count;
     }

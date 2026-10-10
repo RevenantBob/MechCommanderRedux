@@ -12,8 +12,7 @@ class MCLogVehicle;
 /// whose number key is held).
 /// </summary>
 /// <remarks>
-/// Original source: <c>logistics\logbri.cpp</c> (<c>MechBriefBlock</c>). Its unit holds it (<c>BriefBlock</c>; the
-/// logistics records free it until P3-main-1 gives them owners).
+/// Original source: <c>logistics\logbri.cpp</c> (<c>MechBriefBlock</c>). Its unit owns it (<c>BriefBlock</c>).
 /// </remarks>
 class MCMechBriefBlock : public MCLogObject
 {
@@ -30,7 +29,7 @@ public:
     static MCMechBriefBlock* Create(MCLogVehicle* vehicle, MCLogObject* parent, int32_t xPos, int32_t yPos);
 
     /// <summary>Frees a unit's block <paramref name="block"/> (if any) and clears it.</summary>
-    static void Discard(MCMechBriefBlock*& block);
+    static void Discard(std::unique_ptr<MCMechBriefBlock>& block);
 
     void Destroy() override;
 

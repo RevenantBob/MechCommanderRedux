@@ -3,7 +3,7 @@
 #include "main/honorb.h"
 #include "lib/MCFatal.h"
 #include "platform/MCStringTable.h"
-#include "main/logistics.h"
+#include "main/MCLogistics.h"
 #include "logistics/MCBriefingScreen.h"
 
 float ScenarioTime = 0.0f;
@@ -50,7 +50,7 @@ int AssertTest(int errorCode, char* text)
 
     InAssertTest = true;
 
-    if (GlobalLogPtr != nullptr && GlobalLogPtr->BriefingScreen != nullptr &&
+    if (GlobalLogPtr != nullptr && GlobalLogPtr->BriefingScreen.get() != nullptr &&
         GlobalLogPtr->BriefingScreen->SmackerWindow != nullptr)
     {
         GlobalLogPtr->BriefingScreen->StopSmackerMovies();

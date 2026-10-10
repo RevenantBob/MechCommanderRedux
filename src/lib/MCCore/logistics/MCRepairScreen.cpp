@@ -23,7 +23,7 @@
 #include "logistics/MCCompPurchaseBlock.h"
 #include "logistics/MCUnitLimits.h"
 #include "logistics/MCPurProfile.h"
-#include "main/logistics.h"
+#include "main/MCLogistics.h"
 #include "main/main.h"
 #include "network/multplyr.h"
 #include "platform/MCInput.h"
@@ -71,15 +71,14 @@ namespace
             }
         };
 
-        for (MCLogMech* mech = GlobalLogPtr->ForceMechList->Mechs; mech != nullptr; mech = mech->Next)
+        for (const std::unique_ptr<MCLogMech>& mech : GlobalLogPtr->ForceMechList->Mechs)
         {
-            drawRow(mech->RepairBlock);
+            drawRow(mech->RepairBlock.get());
         }
 
-        for (MCLogVehicle* vehicle = GlobalLogPtr->ForceVehicleList->Vehicles; vehicle != nullptr;
-             vehicle = vehicle->Next)
+        for (const std::unique_ptr<MCLogVehicle>& vehicle : GlobalLogPtr->ForceVehicleList->Vehicles)
         {
-            drawRow(vehicle->RepairBlock);
+            drawRow(vehicle->RepairBlock.get());
         }
     }
 
@@ -98,15 +97,14 @@ namespace
             ++row;
         };
 
-        for (MCLogMech* mech = GlobalLogPtr->ForceMechList->Mechs; mech != nullptr; mech = mech->Next)
+        for (const std::unique_ptr<MCLogMech>& mech : GlobalLogPtr->ForceMechList->Mechs)
         {
-            place(mech->RepairBlock);
+            place(mech->RepairBlock.get());
         }
 
-        for (MCLogVehicle* vehicle = GlobalLogPtr->ForceVehicleList->Vehicles; vehicle != nullptr;
-             vehicle = vehicle->Next)
+        for (const std::unique_ptr<MCLogVehicle>& vehicle : GlobalLogPtr->ForceVehicleList->Vehicles)
         {
-            place(vehicle->RepairBlock);
+            place(vehicle->RepairBlock.get());
         }
     }
 
@@ -154,7 +152,7 @@ auto MCRepairScreen::SelectMech(MCLogMech* mech) -> void
 
     if (SelectedVehicle != nullptr)
     {
-        MCVehicleRepairBlock* block = SelectedVehicle->RepairBlock;
+        MCVehicleRepairBlock* block = SelectedVehicle->RepairBlock.get();
         SelectedVehicle = nullptr;
         block->DrawBackground(block->SlotIndex, nullptr);
     }
@@ -188,7 +186,7 @@ auto MCRepairScreen::SelectVehicle(MCLogVehicle* vehicle) -> void
 
     if (SelectedMech != nullptr)
     {
-        MCMechRepairBlock* block = SelectedMech->RepairBlock;
+        MCMechRepairBlock* block = SelectedMech->RepairBlock.get();
         SelectedMech = nullptr;
         block->DrawBackground(block->SlotIndex, nullptr);
     }
@@ -252,7 +250,7 @@ auto MCRepairScreen::DrawBackground() -> void
     ScreenChrome.Clear();
     Info.Clear();
 
-    if (SelectedMech != nullptr && SelectedMech->RepairBlock != nullptr)
+    if (SelectedMech != nullptr && SelectedMech->RepairBlock.get() != nullptr)
     {
         SelectedMech->RepairBlock->DrawButtons(nullptr);
     }
@@ -365,13 +363,13 @@ auto MCRepairScreen::HandleEvent(MCGuiEvent* event) -> void
 
         if (inside(2, 0x34, 0xd1, 0x45))
         {
-            GlobalLogPtr->SetUpPurchaseScreen(-1);
+            GlobalLogPtr->SetUpPurchaseScreen(true);
             return;
         }
 
         if (inside(2, 0x22, 0xd1, 0x32))
         {
-            GlobalLogPtr->SetUpBriefingScreen(-1);
+            GlobalLogPtr->SetUpBriefingScreen(true);
             return;
         }
 
@@ -384,7 +382,7 @@ auto MCRepairScreen::HandleEvent(MCGuiEvent* event) -> void
             }
 
             PlayLogSound(TabSample);
-            GlobalLogPtr->SetUpMainScreen(0);
+            GlobalLogPtr->SetUpMainScreen(false);
             return;
         }
 
@@ -456,17 +454,8 @@ auto MCRepairScreen::ShowGuiWindow(bool show) -> void
 
 auto MCRepairScreen::Display() -> void
 {
+    // The figure and the clock are drawn by the screens each frame (MCLogistics::DrawScreenChrome).
     MCLogObject::Display();
-    MCLogObject* screen = GlobalLogPtr->CurrentScreen;
-
-    if (screen != GlobalLogPtr->RepairScreen && screen != GlobalLogPtr->PurchaseScreen &&
-        screen != GlobalLogPtr->BriefingScreen && screen != GlobalLogPtr->SessionScreen)
-    {
-        return;
-    }
-
-    // The figure and the clock are drawn by the screens each frame (Logistics::DrawScreenChrome).
-    MCPort::StrTime(GlobalLogPtr->TimeString);
 }
 
 auto ResourceFigureText() -> std::string

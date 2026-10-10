@@ -12,7 +12,7 @@
 #include "logistics/MCStoreRow.h"
 #include "logistics/MCTicker.h"
 #include "logistics/MCUnitLimits.h"
-#include "main/logistics.h"
+#include "main/MCLogistics.h"
 #include "main/main.h"
 #include "sound/MCSoundSystem.h"
 #include "vfx/MCVfxFunctions.h"
@@ -47,7 +47,7 @@ auto MCPilotPurchaseBlock::OnHireConfirmed(int32_t result) -> void
         return;
     }
 
-    MCPurchaseScreen* screen = GlobalLogPtr->PurchaseScreen;
+    MCPurchaseScreen* screen = GlobalLogPtr->PurchaseScreen.get();
     MCPurPilotData* pilot = Pilot;
     float scrollPos = screen->UnitPane->ScrollPos;
     GlobalLogPtr->WarriorList->AddWarrior(pilot->FileName.data(), 1);
@@ -183,7 +183,7 @@ auto MCPilotPurchaseBlock::DrawRow(MCLogPort* port, int32_t top) -> void
         return;
     }
 
-    MCPurchaseScreen* screen = GlobalLogPtr->PurchaseScreen;
+    MCPurchaseScreen* screen = GlobalLogPtr->PurchaseScreen.get();
     std::unique_ptr<MCLogBlockPort> work = RowPicture(screen->PilotTabPort.get(), port, top, true);
     CopyArt(work.get(), 5, 4, std::format("lspflp{:02}.tga", Pilot->NameIndex));
     CopyArt(work.get(), 7, 0x26, std::format("pilot{:02}.tga", Pilot->NameIndex));

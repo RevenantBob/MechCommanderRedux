@@ -9,7 +9,7 @@
 #include "logistics/MCLogRows.h"
 #include "logistics/MCTicker.h"
 #include "main/MCGamePaths.h"
-#include "main/logistics.h"
+#include "main/MCLogistics.h"
 #include "main/main.h"
 #include "network/multplyr.h"
 #include "object/MCMasterComponent.h"
@@ -91,15 +91,13 @@ namespace
     /// </summary>
     uint32_t DropRefusal(MCLogMech* mech)
     {
-        MCLogInventoryItem* engine = mech->Inventory->Items;
-
-        while (engine != nullptr && MasterComponentList[engine->MasterID].Form != MCComponentForm::Engine)
-        {
-            engine = engine->Next;
-        }
+        const auto& items = mech->Inventory->Items;
+        const auto engine =
+            std::ranges::find_if(items, [](const std::unique_ptr<MCLogInventoryItem>& item)
+                                 { return MasterComponentList[item->MasterID].Form == MCComponentForm::Engine; });
 
         // Port fix: a mech without an engine item (the original dereferenced null) counts as undamaged.
-        if (engine != nullptr && engine->Stats->Hits != 0)
+        if (engine != items.end() && !(*engine)->Stats.empty() && (*engine)->Stats.front()->Hits != 0)
         {
             return 0x35d;
         }
@@ -118,9 +116,9 @@ namespace
 
 auto MCMechBriefBlock::Create(MCLogMech* mech, MCLogObject* parent, int32_t xPos, int32_t yPos) -> MCMechBriefBlock*
 {
-    auto* block = new MCMechBriefBlock;
+    mech->BriefBlock = std::make_unique<MCMechBriefBlock>();
+    MCMechBriefBlock* block = mech->BriefBlock.get();
     block->Mech = mech;
-    mech->BriefBlock = block;
     block->Attach(parent, xPos, yPos);
     return block;
 }
@@ -128,17 +126,16 @@ auto MCMechBriefBlock::Create(MCLogMech* mech, MCLogObject* parent, int32_t xPos
 auto MCMechBriefBlock::Create(MCLogVehicle* vehicle, MCLogObject* parent, int32_t xPos, int32_t yPos)
     -> MCMechBriefBlock*
 {
-    auto* block = new MCMechBriefBlock;
+    vehicle->BriefBlock = std::make_unique<MCMechBriefBlock>();
+    MCMechBriefBlock* block = vehicle->BriefBlock.get();
     block->Vehicle = vehicle;
-    vehicle->BriefBlock = block;
     block->Attach(parent, xPos, yPos);
     return block;
 }
 
-auto MCMechBriefBlock::Discard(MCMechBriefBlock*& block) -> void
+auto MCMechBriefBlock::Discard(std::unique_ptr<MCMechBriefBlock>& block) -> void
 {
-    delete block;
-    block = nullptr;
+    block.reset();
 }
 
 auto MCMechBriefBlock::Attach(MCLogObject* parent, int32_t xPos, int32_t yPos) -> void
@@ -256,8 +253,8 @@ auto MCMechBriefBlock::PlaceInEmptySlot(int32_t lance, int32_t slot) -> bool
         SoundSystem()->PlayDigitalSample(PlacedSound, 1, nullptr, 0, 0);
         deploy.Unit = GlobalLogPtr->ForceMechList->GetMechIndex(Mech);
         CurDeployTonnage = DeployTonnageWith(Mech, 1.0f);
-        Mech->Deployed = -1;
-        GlobalLogPtr->AssignedWarriorList->SetDeployed(Mech->PilotIndex, -1);
+        Mech->Deployed = true;
+        GlobalLogPtr->AssignedWarriorList->SetDeployed(Mech->PilotIndex, true);
         return true;
     }
 
@@ -270,13 +267,13 @@ auto MCMechBriefBlock::PlaceInEmptySlot(int32_t lance, int32_t slot) -> bool
     SoundSystem()->PlayDigitalSample(PlacedSound, 1, nullptr, 0, 0);
     deploy.Vehicle = GlobalLogPtr->ForceVehicleList->GetVehicleIndex(Vehicle);
     CurDeployTonnage = DeployTonnageWith(Vehicle, 1.0f);
-    Vehicle->Deployed = -1;
+    Vehicle->Deployed = true;
     return true;
 }
 
 auto MCMechBriefBlock::Settle(int32_t lance, int32_t slot) -> void
 {
-    MCBriefingScreen* screen = GlobalLogPtr->BriefingScreen;
+    MCBriefingScreen* screen = GlobalLogPtr->BriefingScreen.get();
 
     if (Parent != nullptr)
     {
@@ -383,7 +380,7 @@ auto MCMechBriefBlock::DropInSlotAt(POINT point, int32_t firstLance) -> bool
                         SoundSystem()->PlayDigitalSample(PlacedSound, 1, nullptr, 0, 0);
                         deploy.Unit = GlobalLogPtr->ForceMechList->GetMechIndex(Mech);
                         CurDeployTonnage = DeployTonnageWith(Mech, 1.0f);
-                        Mech->Deployed = -1;
+                        Mech->Deployed = true;
                     }
                 }
                 else
@@ -397,7 +394,7 @@ auto MCMechBriefBlock::DropInSlotAt(POINT point, int32_t firstLance) -> bool
                         deploy.Unit = -1;
                         deploy.Vehicle = GlobalLogPtr->ForceVehicleList->GetVehicleIndex(Vehicle);
                         CurDeployTonnage = DeployTonnageWith(Vehicle, 1.0f);
-                        Vehicle->Deployed = -1;
+                        Vehicle->Deployed = true;
                     }
                 }
             }
@@ -422,8 +419,8 @@ auto MCMechBriefBlock::DropInSlotAt(POINT point, int32_t firstLance) -> bool
                         deploy.Vehicle = -1;
                         deploy.Unit = GlobalLogPtr->ForceMechList->GetMechIndex(Mech);
                         CurDeployTonnage = DeployTonnageWith(Mech, 1.0f);
-                        Mech->Deployed = -1;
-                        GlobalLogPtr->AssignedWarriorList->SetDeployed(Mech->PilotIndex, -1);
+                        Mech->Deployed = true;
+                        GlobalLogPtr->AssignedWarriorList->SetDeployed(Mech->PilotIndex, true);
                     }
                 }
                 else
@@ -436,7 +433,7 @@ auto MCMechBriefBlock::DropInSlotAt(POINT point, int32_t firstLance) -> bool
                         SoundSystem()->PlayDigitalSample(PlacedSound, 1, nullptr, 0, 0);
                         deploy.Vehicle = GlobalLogPtr->ForceVehicleList->GetVehicleIndex(Vehicle);
                         CurDeployTonnage = DeployTonnageWith(Vehicle, 1.0f);
-                        Vehicle->Deployed = -1;
+                        Vehicle->Deployed = true;
                     }
                 }
             }
@@ -462,7 +459,7 @@ auto MCMechBriefBlock::DropInSlotAt(POINT point, int32_t firstLance) -> bool
 
 auto MCMechBriefBlock::Drop(MCGuiEvent* event) -> void
 {
-    MCBriefingScreen* screen = GlobalLogPtr->BriefingScreen;
+    MCBriefingScreen* screen = GlobalLogPtr->BriefingScreen.get();
     const bool rightButton = event->Type == 6;
     GuiSystem()->Release();
     Drag.Right = false;
@@ -526,7 +523,7 @@ auto MCMechBriefBlock::Drop(MCGuiEvent* event) -> void
 
 auto MCMechBriefBlock::PickUp(MCGuiEvent* event) -> void
 {
-    MCBriefingScreen* screen = GlobalLogPtr->BriefingScreen;
+    MCBriefingScreen* screen = GlobalLogPtr->BriefingScreen.get();
     auto* owner = static_cast<MCLogObject*>(Parent);
 
     // Its briefing shows.
@@ -538,7 +535,7 @@ auto MCMechBriefBlock::PickUp(MCGuiEvent* event) -> void
     }
 
     MCLogPart* part = Mech != nullptr ? static_cast<MCLogPart*>(Mech) : Vehicle;
-    MCBriefingBox* box = part->BriefingBox;
+    MCBriefingBox* box = part->BriefingBox.get();
     screen->AddChild(box);
     screen->BriefingBox = box;
     box->DrawBackground();
@@ -609,7 +606,7 @@ auto MCMechBriefBlock::PickUp(MCGuiEvent* event) -> void
         // destroyed location can't drop.
         if (Mech == nullptr)
         {
-            Vehicle->Deployed = -1;
+            Vehicle->Deployed = true;
         }
         else
         {
@@ -624,8 +621,8 @@ auto MCMechBriefBlock::PickUp(MCGuiEvent* event) -> void
                 return;
             }
 
-            Mech->Deployed = -1;
-            GlobalLogPtr->AssignedWarriorList->SetDeployed(Mech->PilotIndex, -1);
+            Mech->Deployed = true;
+            GlobalLogPtr->AssignedWarriorList->SetDeployed(Mech->PilotIndex, true);
         }
 
         screen->SetUpDeploy();
@@ -638,7 +635,7 @@ auto MCMechBriefBlock::PickUp(MCGuiEvent* event) -> void
 auto MCMechBriefBlock::DrawBackground() -> void
 {
     // Port: the block is drawn each frame by its parent (PaintBlock): the screen into its slot, or the deploy pane.
-    if (Parent != nullptr && Parent == GlobalLogPtr->BriefingScreen)
+    if (Parent != nullptr && Parent == GlobalLogPtr->BriefingScreen.get())
     {
         GlobalLogPtr->BriefingScreen->PlaceInSlot(this);
     }
@@ -647,7 +644,7 @@ auto MCMechBriefBlock::DrawBackground() -> void
 auto MCMechBriefBlock::OnBeginDrag(MCLogPort* surface) -> void
 {
     MCPane* target = surface->Frame();
-    MCBriefingScreen* screen = GlobalLogPtr->BriefingScreen;
+    MCBriefingScreen* screen = GlobalLogPtr->BriefingScreen.get();
 
     if (Parent != nullptr && Parent == screen)
     {

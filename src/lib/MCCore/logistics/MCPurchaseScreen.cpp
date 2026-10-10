@@ -7,7 +7,7 @@
 #include "logistics/MCLogRows.h"
 #include "logistics/MCTicker.h"
 #include "logistics/MCUnitLimits.h"
-#include "main/logistics.h"
+#include "main/MCLogistics.h"
 #include "main/main.h"
 #include "network/multplyr.h"
 #include "platform/MCInput.h"
@@ -158,13 +158,13 @@ auto MCPurchaseScreen::Click(int32_t xPos, int32_t yPos) -> void
 
     if (inside(0x46, 0x57, 2, 0xd1))
     {
-        GlobalLogPtr->SetUpRepairScreen(-1);
+        GlobalLogPtr->SetUpRepairScreen(true);
         return;
     }
 
     if (inside(0x22, 0x33, 2, 0xd1))
     {
-        GlobalLogPtr->SetUpBriefingScreen(-1);
+        GlobalLogPtr->SetUpBriefingScreen(true);
         return;
     }
 
@@ -177,7 +177,7 @@ auto MCPurchaseScreen::Click(int32_t xPos, int32_t yPos) -> void
         }
 
         PlayLogSound(0x36);
-        GlobalLogPtr->SetUpMainScreen(0);
+        GlobalLogPtr->SetUpMainScreen(false);
         return;
     }
 

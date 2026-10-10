@@ -6,7 +6,7 @@
 #include "linkup/sessionmanager.h"
 #include "main/MCGamePaths.h"
 #include "logistics/MCLogChatInput.h"
-#include "main/logistics.h"
+#include "main/MCLogistics.h"
 #include "network/multplyr.h"
 #include "vfx/MCVfxFunctions.h"
 

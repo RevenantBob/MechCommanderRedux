@@ -5,13 +5,13 @@
 #include "logistics/MCLogRows.h"
 #include "logistics/MCPurchaseScreen.h"
 #include "logistics/MCRepairScreen.h"
-#include "main/logistics.h"
+#include "main/MCLogistics.h"
 
 auto MCStoreRow::MakeDragIcon(const MCDragState& drag, const std::function<void(MCLogPort* surface)>& render) -> void
 {
     MCDragIcon* icon = MCDragIcon::Create();
     icon->Begin(drag.X, drag.Y, 0x20, 0x20, render);
-    icon->ShowOn(GlobalLogPtr->PurchaseScreen, drag.X, drag.Y);
+    icon->ShowOn(GlobalLogPtr->PurchaseScreen.get(), drag.X, drag.Y);
 }
 
 auto MCStoreRow::OverInventory(MCGuiEvent* event) -> bool

@@ -3,7 +3,7 @@
 #include "gui/MCGuiFont.h"
 #include "lib/MCFatal.h"
 #include "main/MCGamePaths.h"
-#include "main/logistics.h"
+#include "main/MCLogistics.h"
 #include "vfx/MCVfxFunctions.h"
 
 namespace

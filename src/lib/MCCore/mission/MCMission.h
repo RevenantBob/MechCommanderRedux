@@ -121,7 +121,7 @@ public:
     /// <summary><c>WaitTime</c> from the FIT (120 when missing).</summary>
     float WaitTime = 0.0f;
     /// <summary>The logistics phase (also <c>GlobalLogPtr</c>), while it exists.</summary>
-    MCGuiOwned<MCLogistics> Logistics;
+    std::unique_ptr<MCLogistics> Logistics;
     /// <summary>
     /// Nonzero when the scenario should end now, whatever the script says: 1 from the network, -1 when the player
     /// quits from the pause menu. <see cref="Run"/> then opens the results screen, and the objectives' points all

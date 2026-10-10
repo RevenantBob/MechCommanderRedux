@@ -1,15 +1,15 @@
 #include "stdafx.h"
 #include "logistics/MCUnitLimits.h"
 #include "logistics/MCLogRows.h"
-#include "main/logistics.h"
+#include "main/MCLogistics.h"
 #include "main/main.h"
 
 int32_t ResourcePoints = 0;
 
 auto NumUnits() -> int32_t
 {
-    return GlobalLogPtr->ForceVehicleList->NumVehicles + GlobalLogPtr->ForceMechList->NumMechs +
-           GlobalLogPtr->VehicleList->NumVehicles + GlobalLogPtr->MechList->NumMechs;
+    return GlobalLogPtr->ForceVehicleList->GetVehicleCount() + GlobalLogPtr->ForceMechList->GetMechCount() +
+           GlobalLogPtr->VehicleList->GetVehicleCount() + GlobalLogPtr->MechList->GetMechCount();
 }
 
 auto MaxPurchase(int32_t available) -> int32_t

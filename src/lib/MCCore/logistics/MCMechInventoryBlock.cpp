@@ -12,7 +12,7 @@
 #include "logistics/MCRepairScreen.h"
 #include "logistics/MCTicker.h"
 #include "logistics/MCUnitLimits.h"
-#include "main/logistics.h"
+#include "main/MCLogistics.h"
 #include "main/main.h"
 #include "object/MCMasterComponent.h"
 #include "vfx/MCVfxFunctions.h"
@@ -79,7 +79,7 @@ auto MCMechInventoryBlock::DrawRow(MCLogPort* port, int32_t top) -> void
     WriteText(YellowDropFont, port, 0x26, top + 7, Mech->FileName);
     WriteText(BlueDropFont, port, 0x26, top + 0x15,
               MCFormatPrintf(LoadGameString(0x4e, 0xfe).c_str(), static_cast<double>(Mech->CurTonnage),
-                             Mech->WeightClassName));
+                             Mech->WeightClassName.c_str()));
 
     if (DiagramPort != nullptr)
     {
@@ -130,7 +130,7 @@ auto MCMechInventoryBlock::OfferSale() -> void
     picture.Init(DiagramPort->Width(), DiagramPort->Height());
     VfxPaneWipe(picture.Frame(), 0x10);
     DiagramPort->CopyTo(picture.Frame(), 2, 0, true);
-    OpenPurchaseDialog(1, -price, 1, Mech->FileName != nullptr ? Mech->FileName : "", title, &picture,
+    OpenPurchaseDialog(1, -price, 1, Mech->FileName, title, &picture,
                        [this](int32_t result, int32_t) { OnSellConfirmed(result); });
 }
 
@@ -147,9 +147,9 @@ auto MCMechInventoryBlock::OnSellConfirmed(int32_t result) -> void
         return;
     }
 
-    MCInventoryList* spares = GlobalLogPtr->ComponentInventory;
+    MCInventoryList* spares = GlobalLogPtr->ComponentInventory.get();
 
-    for (MCLogInventoryItem* item = sold->Inventory->Items; item != nullptr; item = item->Next)
+    for (const std::unique_ptr<MCLogInventoryItem>& item : sold->Inventory->Items)
     {
         uint8_t masterID = item->MasterID;
         MCComponentForm form = MasterComponentList[masterID].Form;
@@ -160,7 +160,7 @@ auto MCMechInventoryBlock::OnSellConfirmed(int32_t result) -> void
         }
 
         // Every undamaged copy goes back to the spare components.
-        for (MCLogInventoryStat* stat = item->Stats; stat != nullptr; stat = stat->Next)
+        for (const std::unique_ptr<MCLogInventoryStat>& stat : item->Stats)
         {
             if (stat->Hits != 0)
             {
@@ -219,7 +219,7 @@ auto MCMechInventoryBlock::HandleEvent(MCGuiEvent* event) -> void
 
     // The force is full at 16 units.
     auto forceFull = []
-    { return GlobalLogPtr->ForceMechList->NumMechs + GlobalLogPtr->ForceVehicleList->NumVehicles > 0xf; };
+    { return GlobalLogPtr->ForceMechList->GetMechCount() + GlobalLogPtr->ForceVehicleList->GetVehicleCount() > 0xf; };
 
     // Back to the inventory.
     auto backToInventory = [&]
@@ -234,7 +234,7 @@ auto MCMechInventoryBlock::HandleEvent(MCGuiEvent* event) -> void
     auto joinForce = [&]
     {
         BumpDeploySlots(false);
-        GlobalLogPtr->RepairScreen->UnitPane->AddChild(Mech->RepairBlock);
+        GlobalLogPtr->RepairScreen->UnitPane->AddChild(Mech->RepairBlock.get());
         GlobalLogPtr->RepairScreen->AddMechToList(Mech);
         GlobalLogPtr->RepairScreen->SelectMech(Mech);
     };

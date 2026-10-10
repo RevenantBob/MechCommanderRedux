@@ -18,7 +18,7 @@
 #include "logistics/MCLoadSaveMenu.h"
 #include "logistics/MCConnectMenu.h"
 #include "logistics/MCMainMenu.h"
-#include "main/logistics.h"
+#include "main/MCLogistics.h"
 #include "mission/MCMission.h"
 #include "platform/MCFileSystem.h"
 
@@ -388,7 +388,7 @@ auto MCGenericScreen::ShowGuiWindow(bool show) -> void
 
     auto filesExist = [](std::string_view pattern) { return !MCFileSystem::FindFiles(pattern).empty(); };
 
-    if (this == GlobalLogPtr->MainScreen)
+    if (this == GlobalLogPtr->MainScreen.get())
     {
         // The main menu enables what the install and the campaign allow.
         const bool noMission = GlobalLogPtr->CurrentMission < 0;
@@ -410,7 +410,7 @@ auto MCGenericScreen::ShowGuiWindow(bool show) -> void
             Element<MCLogButton>(6)->Disabled = !filesExist(std::format("{}opening.smk", CDmoviePath));
         }
     }
-    else if (this == GlobalLogPtr->SaveScreen || this == GlobalLogPtr->LoadScreen)
+    else if (this == GlobalLogPtr->SaveScreen.get() || this == GlobalLogPtr->LoadScreen.get())
     {
         if (FilePane->Multiplayer)
         {
@@ -424,9 +424,9 @@ auto MCGenericScreen::ShowGuiWindow(bool show) -> void
 
     // The load and save screens (single player) and the preferences keep the current palette.
     MCLogObject* current = GlobalLogPtr->CurrentScreen;
-    const bool fileScreen = current == GlobalLogPtr->SaveScreen || current == GlobalLogPtr->LoadScreen;
+    const bool fileScreen = current == GlobalLogPtr->SaveScreen.get() || current == GlobalLogPtr->LoadScreen.get();
 
-    if ((!fileScreen || GlobalLogPtr->LoadScreen->FilePane->Multiplayer) && current != GlobalLogPtr->PrefScreen)
+    if ((!fileScreen || GlobalLogPtr->LoadScreen->FilePane->Multiplayer) && current != GlobalLogPtr->PrefScreen.get())
     {
         if (!Palette.empty())
         {

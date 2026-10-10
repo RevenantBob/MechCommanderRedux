@@ -20,7 +20,10 @@
 #include "logistics/MCReusableDialog.h"
 #include "logistics/MCSplashScreen.h"
 #include "main/MCGameContext.h"
-#include "main/logistics.h"
+#include "main/MCGamePaths.h"
+#include "main/MCLogistics.h"
+#include "logistics/MCUnitLimits.h"
+#include "mission/MCMission.h"
 #include "mission/MCScenario.h"
 #include "platform/MCFileSystem.h"
 #include "sound/MCSoundSystem.h"
@@ -97,29 +100,27 @@ TEST_CASE("logistics: a pilot's profile from logistics holds its traits, skills 
     std::string audio = "audio5";
     std::string brain = "pbrain";
     MCLogWarrior warrior;
-    warrior.Name = name.data();
-    warrior.Callsign = callsign.data();
-    warrior.Picture = picture.data();
-    warrior.PilotVideo = video.data();
-    warrior.PilotAudio = audio.data();
-    warrior.Brain = brain.data();
+    warrior.Name = name;
+    warrior.Callsign = callsign;
+    warrior.Picture = picture;
+    warrior.PilotVideo = video;
+    warrior.PilotAudio = audio;
+    warrior.Brain = brain;
     warrior.PaintScheme = 3;
     warrior.NameIndex = 7;
     warrior.DescIndex = 9;
-    warrior.Assigned = 1;
-    std::ranges::copy(std::string_view("\x0a\x14\x1e\x28"), warrior.Personality);
-    std::ranges::copy(std::string_view("\x32\x33\x34\x35"), warrior.Skills);
-    std::ranges::copy(std::string_view("\x28\x29\x2a\x2b"), warrior.OriginalSkills);
-    std::ranges::copy(std::string_view("\x2d\x2e\x2f\x30"), warrior.StartingSkills);
+    warrior.Assigned = true;
+    warrior.Personality = {0x0a, 0x14, 0x1e, 0x28};
+    warrior.Skills = {0x32, 0x33, 0x34, 0x35};
+    warrior.OriginalSkills = {0x28, 0x29, 0x2a, 0x2b};
+    warrior.StartingSkills = {0x2d, 0x2e, 0x2f, 0x30};
     warrior.SkillPoints[2] = 1.5f;
     warrior.Wounds = 2.0f;
-    // A longer name was there: the profile's name takes the first 9 bytes, as strncpy wrote them.
-    std::ranges::copy(std::string_view("oldprofile1"), warrior.FileName);
+    // A longer name was there: the profile's name replaces it.
+    warrior.FileName = "oldprofile1";
 
     REQUIRE_EQ(MCMissionLogisticsBridge::LogisticsWarriorProfileWriter("tpak3", &warrior), 0);
-    CHECK_EQ(std::string_view(warrior.FileName), std::string_view("tpak3"));
-    CHECK_EQ(warrior.FileName[9], 'e');
-    CHECK_EQ(warrior.FileName[10], '1');
+    CHECK_EQ(warrior.FileName, std::string("tpak3"));
 
     MCFitIniFile file;
     REQUIRE_EQ(file.Open(GamePath(SaveTempPath, "tpak3", ".fit")), 0);
@@ -189,26 +190,26 @@ TEST_CASE_ISOLATED("game: the main menu opens its screens in their states, and c
     REQUIRE(MCTestGame::StartLogistics());
     Settle();
     MCLogistics* logistics = GlobalLogPtr;
-    REQUIRE(logistics->CurrentScreen == logistics->MainScreen);
+    REQUIRE(logistics->CurrentScreen == logistics->MainScreen.get());
 
     // The load screen: campaign saves, then single missions.
     LoadScreen();
     Settle();
-    CHECK(logistics->CurrentScreen == logistics->LoadScreen);
+    CHECK(logistics->CurrentScreen == logistics->LoadScreen.get());
     CHECK_EQ(logistics->LogisticsState, 5);
     CHECK(!LoadingSolo);
     CHECK(logistics->LoadScreen->FilePane->SelectedFile == -1);
     Cancel();
     Settle();
-    CHECK(logistics->CurrentScreen == logistics->MainScreen);
+    CHECK(logistics->CurrentScreen == logistics->MainScreen.get());
     CHECK(WhackTimer);
     SoloLoadScreen();
     Settle();
-    CHECK(logistics->CurrentScreen == logistics->LoadScreen);
+    CHECK(logistics->CurrentScreen == logistics->LoadScreen.get());
     CHECK(LoadingSolo);
     Cancel();
     Settle();
-    CHECK(logistics->CurrentScreen == logistics->MainScreen);
+    CHECK(logistics->CurrentScreen == logistics->MainScreen.get());
     CHECK(!LoadingSolo);
 
     // No campaign yet: nothing to save.
@@ -216,7 +217,7 @@ TEST_CASE_ISOLATED("game: the main menu opens its screens in their states, and c
     {
         SaveScreen();
         Settle();
-        CHECK(logistics->CurrentScreen == logistics->MainScreen);
+        CHECK(logistics->CurrentScreen == logistics->MainScreen.get());
     }
 
     // The preferences: cancel brings back the settings they opened with.
@@ -224,7 +225,7 @@ TEST_CASE_ISOLATED("game: the main menu opens its screens in their states, and c
     const uint8_t music = SoundSystem()->MusicLevel;
     ShowPreferences();
     Settle();
-    CHECK(logistics->CurrentScreen == logistics->PrefScreen);
+    CHECK(logistics->CurrentScreen == logistics->PrefScreen.get());
     CHECK_EQ(logistics->LogisticsState, 9);
     GameDifficulty = difficulty == 2 ? 0 : 2;
     SoundSystem()->MusicLevel = static_cast<uint8_t>(music == 10 ? 20 : 10);
@@ -234,24 +235,24 @@ TEST_CASE_ISOLATED("game: the main menu opens its screens in their states, and c
     CHECK_EQ(GameDifficulty, 0);
     CancelPrefs();
     Settle();
-    CHECK(logistics->CurrentScreen == logistics->MainScreen);
+    CHECK(logistics->CurrentScreen == logistics->MainScreen.get());
     CHECK_EQ(GameDifficulty, difficulty);
     CHECK_EQ(SoundSystem()->MusicLevel, music);
 
     // The multiplayer menu.
     ShowMultiPlayer();
     Settle();
-    CHECK(logistics->CurrentScreen == logistics->MultiplayerScreen);
+    CHECK(logistics->CurrentScreen == logistics->MultiplayerScreen.get());
     CHECK_EQ(logistics->LogisticsState, 10);
     CHECK(!Solo);
     Cancel();
     Settle();
-    CHECK(logistics->CurrentScreen == logistics->MainScreen);
+    CHECK(logistics->CurrentScreen == logistics->MainScreen.get());
 
     // A new campaign opens on the briefing screen, and the menu's return goes back there.
     NewCampaign();
     Settle();
-    CHECK(logistics->CurrentScreen == logistics->BriefingScreen);
+    CHECK(logistics->CurrentScreen == logistics->BriefingScreen.get());
     CHECK(logistics->CurrentMission != -1);
 }
 
@@ -267,7 +268,7 @@ namespace
     /// <summary>Drags <paramref name="mech"/>'s block (wherever it is) to (<paramref name="x"/>, <paramref name="y"/>).</summary>
     void DragMech(MCLogMech* mech, int32_t x, int32_t y)
     {
-        MCMechBriefBlock* block = mech->BriefBlock;
+        MCMechBriefBlock* block = mech->BriefBlock.get();
         REQUIRE(block != nullptr);
         Drag(block->GlobalX() + block->Width() / 2, block->GlobalY() + block->Height() / 2, x, y);
         Settle();
@@ -286,10 +287,10 @@ TEST_CASE_ISOLATED("game: units dragged into the drop slots count against the dr
     NewCampaign();
     Settle();
     MCLogistics* logistics = GlobalLogPtr;
-    MCBriefingScreen* briefing = logistics->BriefingScreen;
+    MCBriefingScreen* briefing = logistics->BriefingScreen.get();
     REQUIRE(logistics->CurrentScreen == briefing);
-    REQUIRE(logistics->LocalDropSlot[0] != 0);
-    REQUIRE_EQ(logistics->HammerDown, 0);
+    REQUIRE(logistics->LocalDropSlot[0]);
+    REQUIRE(!logistics->HammerDown);
     MCScrollPane* pane = briefing->DeployPane.get();
     REQUIRE(pane->NumberOfChildren() > 0);
     MCLogMech* mech = static_cast<MCMechBriefBlock*>(pane->Child(0))->Mech;
@@ -308,7 +309,7 @@ TEST_CASE_ISOLATED("game: units dragged into the drop slots count against the dr
     CHECK(mech->Deployed != 0);
     CHECK_EQ(slot0.Unit, logistics->ForceMechList->GetMechIndex(mech));
     CHECK_EQ(CurDeployTonnage, startTons + tons);
-    CHECK(briefing->SlotBlocks[0] == mech->BriefBlock);
+    CHECK(briefing->SlotBlocks[0] == mech->BriefBlock.get());
     CHECK(mech->BriefBlock->Parent == briefing);
     CHECK(std::ranges::find(briefing->UndeployedMechs, logistics->ForceMechList->GetMechIndex(mech)) ==
           briefing->UndeployedMechs.end());
@@ -342,7 +343,7 @@ TEST_CASE_ISOLATED("game: the operation tab starts the briefing movie half a sec
     Settle();
     NewCampaign();
     Settle();
-    MCBriefingScreen* briefing = GlobalLogPtr->BriefingScreen;
+    MCBriefingScreen* briefing = GlobalLogPtr->BriefingScreen.get();
     REQUIRE(GlobalLogPtr->CurrentScreen == briefing);
     briefing->SetUpMission();
     CHECK_EQ(briefing->CurrentTab, MCBriefingScreen::MissionTab);
@@ -359,7 +360,7 @@ TEST_CASE_ISOLATED("game: the operation tab starts the briefing movie half a sec
     RunFor(0.4f);
     CHECK(briefing->PlayMovie);
 
-    if (GlobalLogPtr->OperationCinema != nullptr)
+    if (!GlobalLogPtr->OperationCinema.empty())
     {
         CHECK(briefing->SmackerWindow != nullptr);
 
@@ -368,4 +369,170 @@ TEST_CASE_ISOLATED("game: the operation tab starts the briefing movie half a sec
         CHECK(briefing->SmackerWindow == nullptr);
         CHECK(!briefing->PlayMovie);
     }
+}
+
+namespace
+{
+    /// <summary>What a campaign save holds that a load brings back: the units, pilots, spare parts and points.</summary>
+    struct CampaignState
+    {
+        std::vector<std::string> Mechs;
+        std::vector<std::string> ForceMechs;
+        std::vector<int32_t> ForcePilots;
+        std::vector<std::string> Pilots;
+        std::vector<std::string> AssignedPilots;
+        std::vector<std::string> Vehicles;
+        std::vector<std::pair<int32_t, int32_t>> Components;
+        int32_t Points = 0;
+        int32_t Mission = 0;
+
+        bool operator==(const CampaignState&) const = default;
+    };
+
+    /// <summary>The current campaign's <see cref="CampaignState"/>.</summary>
+    CampaignState TakeState(const MCLogistics& logistics)
+    {
+        CampaignState state;
+
+        for (const std::unique_ptr<MCLogMech>& mech : logistics.MechList->Mechs)
+        {
+            state.Mechs.push_back(mech->FileName);
+        }
+
+        for (const std::unique_ptr<MCLogMech>& mech : logistics.ForceMechList->Mechs)
+        {
+            state.ForceMechs.push_back(mech->FileName);
+            state.ForcePilots.push_back(mech->PilotIndex);
+        }
+
+        for (const std::unique_ptr<MCLogWarrior>& warrior : logistics.WarriorList->Warriors)
+        {
+            state.Pilots.push_back(warrior->Callsign);
+        }
+
+        for (const std::unique_ptr<MCLogWarrior>& warrior : logistics.AssignedWarriorList->Warriors)
+        {
+            state.AssignedPilots.push_back(warrior->Callsign);
+        }
+
+        for (const auto* list : {logistics.VehicleList.get(), logistics.ForceVehicleList.get()})
+        {
+            for (const std::unique_ptr<MCLogVehicle>& vehicle : list->Vehicles)
+            {
+                state.Vehicles.push_back(vehicle->FileName);
+            }
+        }
+
+        for (const std::unique_ptr<MCLogInventoryItem>& item : logistics.ComponentInventory->Items)
+        {
+            state.Components.emplace_back(item->MasterID, item->Count);
+        }
+
+        state.Points = ResourcePoints;
+        state.Mission = logistics.CurrentMission;
+        return state;
+    }
+}
+
+TEST_CASE_ISOLATED("game: a saved campaign loads back with its units, pilots, spare parts and points")
+{
+    if (!MCTestGame::Available())
+    {
+        return;
+    }
+
+    REQUIRE(MCTestGame::StartLogistics());
+    Settle();
+    NewCampaign();
+    Settle();
+    MCLogistics* logistics = GlobalLogPtr;
+    REQUIRE(!logistics->ForceMechList->Mechs.empty());
+    REQUIRE(!logistics->ComponentInventory->Items.empty());
+    // A spare part and some points of the player's own, so the save holds more than the campaign's start.
+    logistics->ComponentInventory->Items.front()->Count += 3;
+    ResourcePoints += 1234;
+    const CampaignState saved = TakeState(*logistics);
+    REQUIRE_EQ(logistics->SaveCampaign("p3roundtrip"), 0);
+
+    // Spent and sold since: the load puts it all back (a reload of the force: no time passes, nobody heals).
+    ResourcePoints = 1;
+    logistics->MechList->Clear();
+    REQUIRE_EQ(logistics->LoadCampaign("p3roundtrip", ".sav", false, true), 0);
+    const CampaignState loaded = TakeState(*logistics);
+    CHECK(loaded.Mechs == saved.Mechs);
+    CHECK(loaded.ForceMechs == saved.ForceMechs);
+    CHECK(loaded.ForcePilots == saved.ForcePilots);
+    CHECK(loaded.Pilots == saved.Pilots);
+    CHECK(loaded.AssignedPilots == saved.AssignedPilots);
+    CHECK(loaded.Vehicles == saved.Vehicles);
+    CHECK(loaded.Components == saved.Components);
+    CHECK_EQ(loaded.Points, saved.Points);
+    CHECK_EQ(loaded.Mission, saved.Mission);
+    MCFileSystem::RemoveFile(GamePath(SavePath, "p3roundtrip", ".sav"));
+    MCFileSystem::RemoveFile(GamePath(SavePath, "p3roundtrip", ".pur"));
+}
+
+TEST_CASE_ISOLATED("game: the mission's start file puts the deployed mech and its pilot at the drop zone")
+{
+    if (!MCTestGame::Available())
+    {
+        return;
+    }
+
+    REQUIRE(MCTestGame::StartLogistics());
+    Settle();
+    NewCampaign();
+    Settle();
+    MCLogistics* logistics = GlobalLogPtr;
+    MCLogMech* mech = nullptr;
+    REQUIRE_EQ(logistics->ForceMechList->GetMechInfo(0, mech), 0);
+    REQUIRE(mech->PilotIndex >= 0);
+    MCLogWarrior* pilot = nullptr;
+    REQUIRE_EQ(logistics->AssignedWarriorList->GetWarriorInfo(mech->PilotIndex, pilot), 0);
+    REQUIRE(logistics->LocalDropSlot[0]);
+
+    // The force's first mech in the first lance's first slot.
+    logistics->DeploySlots[0][0].Unit = 0;
+    mech->Deployed = true;
+    const std::string scenario = Mission()->Scenarios[static_cast<size_t>(Mission()->CurrentScenario)];
+    REQUIRE_EQ(logistics->PrepareScenario(scenario, "p3start"), 0);
+
+    MCFitIniFile start;
+    REQUIRE_EQ(start.Open(GamePath(SaveTempPath, "p3start", ".fit")), 0);
+    REQUIRE_EQ(start.SeekBlock("Parts"), 0);
+    const auto numParts = start.Read<uint32_t>("NumParts");
+    REQUIRE(numParts.has_value());
+    REQUIRE_EQ(start.SeekBlock("Warriors"), 0);
+    const auto numWarriors = start.Read<uint32_t>("NumWarriors");
+    REQUIRE(numWarriors.has_value());
+
+    // The mech is the last part: player controlled, a mech, from the profile written for the first deployed unit
+    // (mech0000; its pilot's is warr0000), at the zone plus the slot's offset.
+    const uint32_t part = *numParts;
+    REQUIRE_EQ(start.SeekBlock(std::format("Part{}", part)), 0);
+    CHECK_EQ(start.Read<uint32_t>("ControlType").value_or(0), 2u);
+    CHECK_EQ(start.Read<uint32_t>("ControlDataType").value_or(0), 1u);
+    CHECK_EQ(start.Read<uint32_t>("ObjectNumber").value_or(0), mech->Chassis);
+    CHECK_EQ(start.Read<std::string>("ObjectProfile").value_or(""), std::string("mech0000"));
+    CHECK_EQ(start.Read<float>("PositionX").value_or(0.0f),
+             logistics->DeploySlotPlacements[0][0].OffsetX + logistics->DropZonePositions[0].X);
+    CHECK_EQ(start.Read<float>("PositionY").value_or(0.0f),
+             logistics->DeploySlotPlacements[0][0].OffsetY + logistics->DropZonePositions[0].Y);
+    CHECK_EQ(start.Read<int32_t>("Active").value_or(0), 1);
+    CHECK_EQ(mech->PartNumber, static_cast<int32_t>(part));
+
+    // Its pilot is the last warrior, with the profile written for it and the pilot's brain.
+    CHECK_EQ(start.Read<uint32_t>("Pilot").value_or(0), *numWarriors);
+    REQUIRE_EQ(start.SeekBlock(std::format("Warrior{}", *numWarriors)), 0);
+    CHECK_EQ(start.Read<std::string>("Profile").value_or(""), std::string("warr0000"));
+    CHECK_EQ(start.Read<std::string>("Brain").value_or(""), pilot->Brain);
+
+    // The player's commander has one group: that mech.
+    REQUIRE_EQ(start.SeekBlock("Commander0Group:0"), 0);
+    const auto mates = start.ReadArray<int32_t>("Mates");
+    REQUIRE(mates.has_value());
+    REQUIRE_EQ(mates->size(), 12u);
+    CHECK_EQ((*mates)[0], static_cast<int32_t>(part));
+    CHECK_EQ((*mates)[1], 0);
+    CHECK_EQ(start.SeekBlock("Commander0Group:1"), BLOCK_NOT_FOUND);
 }

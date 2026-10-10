@@ -20,7 +20,7 @@
 #include "logistics/MCLogChatWindow.h"
 #include "logistics/MCLogInvScreen.h"
 #include "logistics/MCLogObject.h"
-#include "main/logistics.h"
+#include "main/MCLogistics.h"
 #include "platform/MCFileSystem.h"
 #include "platform/MCPresenter.h"
 #include "vfx/MCVfxFunctions.h"
@@ -78,7 +78,7 @@ TEST_CASE_ISOLATED("game: the logistics chat history draws as the original's pic
     }
 
     REQUIRE(MCTestGame::StartLogistics());
-    MCLogChatWindow* chat = GlobalLogPtr->ChatWindow;
+    MCLogChatWindow* chat = GlobalLogPtr->ChatWindow.get();
     REQUIRE(chat != nullptr);
     MCLogPort* view = chat->HistoryPane->ContentPort;
     REQUIRE(view->IsView());
@@ -154,7 +154,7 @@ namespace
     /// <summary>The preferences screen's drop-down whose field lies at <paramref name="dropDown"/>.</summary>
     MCLogComboBox* FindDropDown(const PrefsDropDown& dropDown)
     {
-        MCGenericScreen* screen = GlobalLogPtr->PrefScreen;
+        MCGenericScreen* screen = GlobalLogPtr->PrefScreen.get();
 
         for (int32_t i = 0; i < screen->NumberOfChildren(); i++)
         {
@@ -198,7 +198,7 @@ TEST_CASE_ISOLATED("game: the preferences screen chooses the renderer and saves 
     };
 
     // Choosing another renderer than the running one says it needs a restart; OK closes the message.
-    MCReusableDialog* dialog = GlobalLogPtr->MessageDialog;
+    MCReusableDialog* dialog = GlobalLogPtr->MessageDialog.get();
     const auto closeRestartNotice = [&](const char* shot)
     {
         CHECK(dialog->ShowWindow != 0);
@@ -286,8 +286,8 @@ TEST_CASE_ISOLATED("game: the preferences drop-downs work with a player's mouse 
     REQUIRE(MCTestGame::StartLogistics());
     REQUIRE_EQ(GRendererPreference, static_cast<int32_t>(MCRendererKind::Vulkan));
     REQUIRE(GRenderer != static_cast<int32_t>(MCRendererKind::Software));
-    MCReusableDialog* dialog = GlobalLogPtr->MessageDialog;
-    MCGenericScreen* screen = GlobalLogPtr->PrefScreen;
+    MCReusableDialog* dialog = GlobalLogPtr->MessageDialog.get();
+    MCGenericScreen* screen = GlobalLogPtr->PrefScreen.get();
     ShowPreferences();
     MCScreenInput::RealMove(320, 400);
     MCLogComboBox* renderer = FindDropDown(RendererDropDown);

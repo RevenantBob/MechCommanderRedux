@@ -114,6 +114,9 @@
     <ClCompile Include="tests\LogisticsControlTests.cpp">
       <Filter>tests</Filter>
     </ClCompile>
+    <ClCompile Include="tests\LogisticsListTests.cpp">
+      <Filter>tests</Filter>
+    </ClCompile>
     <ClCompile Include="tests\LogisticsTests.cpp">
       <Filter>tests</Filter>
     </ClCompile>

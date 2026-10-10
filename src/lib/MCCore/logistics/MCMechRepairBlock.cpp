@@ -15,7 +15,7 @@
 #include "logistics/MCReusableDialog.h"
 #include "logistics/MCTicker.h"
 #include "logistics/MCUnitLimits.h"
-#include "main/logistics.h"
+#include "main/MCLogistics.h"
 #include "main/main.h"
 #include "network/multplyr.h"
 #include "object/MCMasterComponent.h"
@@ -69,7 +69,7 @@ namespace
 
     MCRepairScreen* RepairScreen()
     {
-        return GlobalLogPtr->RepairScreen;
+        return GlobalLogPtr->RepairScreen.get();
     }
 
     /// <summary>
@@ -78,14 +78,14 @@ namespace
     /// </summary>
     void DrawItemInfo(MCLogInventoryItem* item, MCInventoryList* inventory)
     {
-        if (item->InventoryBlock == nullptr)
+        if (item->InventoryBlock.get() == nullptr)
         {
             MCInventoryList::MakeInventoryBlock(item);
             inventory->LoadDescription(0, item);
         }
 
         PrepareInfoDescription(item->Description);
-        RepairScreen()->ShowComponentInfo(item->InventoryBlock, true);
+        RepairScreen()->ShowComponentInfo(item->InventoryBlock.get(), true);
     }
 
     /// <summary>Takes a mech's brief block off the briefing screen.</summary>
@@ -128,56 +128,81 @@ MCMechRepairBlock::~MCMechRepairBlock()
 auto MCMechRepairBlock::StripUnrepaired() -> void
 {
     MCLogMech* mech = Mech;
-    bool finished = false;
+    MCInventoryList& inventory = *mech->Inventory;
 
-    for (MCLogInventoryItem* item = mech->Inventory->Items; item != nullptr && !finished; item = item->Next)
+    // The position of item (-1 when it is no longer in the inventory).
+    auto positionOf = [&](const MCLogInventoryItem* item)
+    {
+        const auto found = std::ranges::find_if(inventory.Items, [&](const std::unique_ptr<MCLogInventoryItem>& entry)
+                                                { return entry.get() == item; });
+        return found != inventory.Items.end() ? static_cast<int32_t>(found - inventory.Items.begin()) : -1;
+    };
+
+    // The item after item in the inventory, or null.
+    auto following = [&](const MCLogInventoryItem* item) -> MCLogInventoryItem*
+    {
+        const int32_t position = positionOf(item);
+        return position >= 0 ? inventory.GetItemInfo(position + 1) : nullptr;
+    };
+
+    for (MCLogInventoryItem* item = inventory.GetItemInfo(0); item != nullptr; item = following(item))
     {
         const MCComponentForm form = ComponentForm(item->MasterID);
 
-        if (IsWeapon(form) || IsEquipment(form))
+        if (!IsWeapon(form) && !IsEquipment(form))
         {
-            // Every damaged copy the player could not replace leaves the mech.
-            MCLogInventoryStat* stat = item->Stats;
+            continue;
+        }
 
-            while (stat != nullptr)
+        // Every damaged copy the player could not replace leaves the mech.
+        size_t copy = 0;
+
+        while (copy < item->Stats.size())
+        {
+            const MCLogInventoryStat& stat = *item->Stats[copy];
+
+            if (stat.Hits == 0)
             {
-                if (stat->Hits == 0)
-                {
-                    stat = stat->Next;
-                    continue;
-                }
-
-                uint8_t masterID = item->MasterID;
-
-                // Original behaviour (OB-081): the loop moves on to the next item before the removal and walks its
-                // stats whatever its form.
-                if (item->Count == 1)
-                {
-                    item = item->Next;
-                }
-
-                float tonnage = MasterComponentList[masterID].Tonnage;
-
-                if (UsesAmmo(masterID))
-                {
-                    uint8_t ammo = MasterComponentList[masterID].AmmoMasterId;
-                    tonnage = MasterComponentList[ammo].Tonnage + tonnage;
-                    mech->Inventory->RemoveItem(ammo, -1);
-                }
-
-                uint8_t statID = stat->StatID;
-                mech->UsedTonnage -= tonnage;
-                mech->WeaponTonnage -= tonnage;
-                mech->Inventory->RemoveItem(masterID, statID);
-
-                if (item == nullptr)
-                {
-                    finished = true;
-                    break;
-                }
-
-                stat = item->Stats;
+                ++copy;
+                continue;
             }
+
+            const uint8_t masterID = item->MasterID;
+            const uint8_t statID = stat.StatID;
+
+            // Original behaviour (OB-081): the loop moves on to the next item before the removal and walks its
+            // stats whatever its form.
+            if (item->Count == 1)
+            {
+                item = following(item);
+            }
+
+            float tonnage = MasterComponentList[masterID].Tonnage;
+
+            if (UsesAmmo(masterID))
+            {
+                uint8_t ammo = MasterComponentList[masterID].AmmoMasterId;
+                tonnage = MasterComponentList[ammo].Tonnage + tonnage;
+                inventory.RemoveItem(ammo, -1);
+            }
+
+            mech->UsedTonnage -= tonnage;
+            mech->WeaponTonnage -= tonnage;
+            inventory.RemoveItem(masterID, statID);
+
+            // Port fix (OB-081): when the ammunition removed was the item the walk moved on to, the original went on
+            // reading it after it was freed; the walk ends there.
+            if (item != nullptr && positionOf(item) < 0)
+            {
+                item = nullptr;
+            }
+
+            if (item == nullptr)
+            {
+                break;
+            }
+
+            copy = 0;
         }
 
         if (item == nullptr)
@@ -233,14 +258,9 @@ auto MCMechRepairBlock::Init(MCLogMech* logMech) -> void
     SetArmorSlider(-1);
     SetInternalSlider(-1);
 
-    MCLogInventoryItem* item = Mech->Inventory->Items;
-
-    while (ComponentForm(item->MasterID) != MCComponentForm::Engine)
-    {
-        item = item->Next;
-    }
-
-    EngineStat = item->Stats;
+    const auto engine = std::ranges::find_if(Mech->Inventory->Items, [](const std::unique_ptr<MCLogInventoryItem>& item)
+                                             { return ComponentForm(item->MasterID) == MCComponentForm::Engine; });
+    EngineStat = (*engine)->Stats.front().get();
     ArmorSliderStart = ArmorSliderPos;
     InternalSliderStart = InternalSliderPos;
     EngineSliderStart = EngineSliderPos;
@@ -284,7 +304,7 @@ auto MCMechRepairBlock::UndeployMech() -> void
                 GlobalLogPtr->SendRemoveForceMessage(lance, slot);
             }
 
-            HideBriefBlock(logMech->BriefBlock);
+            HideBriefBlock(logMech->BriefBlock.get());
             unit = -1;
             logMech->Deployed = 0;
             return;
@@ -414,7 +434,7 @@ auto MCMechRepairBlock::HandleEvent(MCGuiEvent* event) -> void
                     if (item != nullptr)
                     {
                         RepairScreen()->DrawBlankInvInfoBlock(2);
-                        DrawItemInfo(item, Mech->Inventory);
+                        DrawItemInfo(item, Mech->Inventory.get());
                         return;
                     }
                 }
@@ -719,7 +739,7 @@ auto MCMechRepairBlock::HandleDrop(MCGuiEvent* event, int32_t eventType) -> void
             RepairScreen()->SetUpPilotInv(true, true);
         }
 
-        MCMechBriefBlock* brief = leaving->BriefBlock;
+        MCMechBriefBlock* brief = leaving->BriefBlock.get();
 
         if (brief != nullptr && brief->Parent != nullptr)
         {
@@ -756,7 +776,7 @@ auto MCMechRepairBlock::HandleDrop(MCGuiEvent* event, int32_t eventType) -> void
         }
 
         GlobalLogPtr->ReorderMechs();
-        MCMechRepairBlock* block = leaving->RepairBlock;
+        MCMechRepairBlock* block = leaving->RepairBlock.get();
 
         if (block != nullptr && block->Parent != nullptr)
         {
@@ -786,7 +806,7 @@ auto MCMechRepairBlock::HandleDrop(MCGuiEvent* event, int32_t eventType) -> void
 
         if (Drag.ItemHits == 0)
         {
-            MCInventoryList* components = GlobalLogPtr->ComponentInventory;
+            MCInventoryList* components = GlobalLogPtr->ComponentInventory.get();
             MCLogInventoryItem* item = components->GetItemInfo(components->GetIndexFromMasterID(Drag.MasterID));
 
             if (item == nullptr)
@@ -813,16 +833,15 @@ auto MCMechRepairBlock::HandleDrop(MCGuiEvent* event, int32_t eventType) -> void
         MCLogMech* target = RepairScreen()->SelectedMech;
         bool withAmmo = UsesAmmo(Drag.MasterID);
         PlayLogSound(0x34);
-        MCInventoryList* inventory = target->Inventory;
-        MCLogInventoryStat* stat = inventory->CreateStat(Drag.ItemNum, static_cast<uint8_t>(Drag.ItemHits), 0, 1, 0xff);
-        inventory->AddItem(Drag.MasterID, stat, -1);
+        MCInventoryList* inventory = target->Inventory.get();
+        inventory->AddItem(Drag.MasterID,
+                           inventory->CreateStat(Drag.ItemNum, static_cast<uint8_t>(Drag.ItemHits), 0, 1, 0xff), false);
         float tonnage = MasterComponentList[Drag.MasterID].Tonnage;
 
         if (withAmmo)
         {
             uint8_t ammo = MasterComponentList[Drag.MasterID].AmmoMasterId;
-            stat = inventory->CreateStat(inventory->NextStatID, 0, 0, -1, 0xff);
-            inventory->AddItem(ammo, stat, -1);
+            inventory->AddItem(ammo, inventory->CreateStat(inventory->NextStatID, 0, 0, -1, 0xff), false);
             tonnage = MasterComponentList[ammo].Tonnage + tonnage;
         }
 
@@ -976,7 +995,7 @@ auto MCMechRepairBlock::DragSlider(int32_t localX) -> void
                         continue;
                     }
 
-                    HideBriefBlock(Mech->BriefBlock);
+                    HideBriefBlock(Mech->BriefBlock.get());
                     slot = 5;
                     lance = 5;
                     unit = -1;
@@ -1074,11 +1093,11 @@ auto MCMechRepairBlock::RepairItems() -> void
     _PressedButton = 1;
     UpdateDisplay(false, false, 0, false, 0);
 
-    for (MCLogInventoryItem* item = Mech->Inventory->Items; item != nullptr; item = item->Next)
+    for (const std::unique_ptr<MCLogInventoryItem>& item : Mech->Inventory->Items)
     {
         MCComponentForm form = ComponentForm(item->MasterID);
 
-        for (MCLogInventoryStat* stat = item->Stats; stat != nullptr; stat = stat->Next)
+        for (const std::unique_ptr<MCLogInventoryStat>& stat : item->Stats)
         {
             if (!IsWeapon(form) && !IsEquipment(form))
             {
@@ -1095,14 +1114,14 @@ auto MCMechRepairBlock::RepairItems() -> void
                 continue;
             }
 
-            MCInventoryList* components = GlobalLogPtr->ComponentInventory;
+            MCInventoryList* components = GlobalLogPtr->ComponentInventory.get();
             MCLogInventoryItem* stockItem = components->GetItemInfo(components->GetIndexFromMasterID(item->MasterID));
 
             if (stockItem == nullptr || stockItem->Count == 0)
             {
                 // Port fix: the name comes from the mech's own item when the inventory has none (the original read
                 // the name through the null item).
-                const char* name = stockItem != nullptr ? stockItem->Name : item->Name;
+                const std::string& name = stockItem != nullptr ? stockItem->Name : item->Name;
                 missing += missing.empty() ? name : std::format(",{}", name);
                 continue;
             }
@@ -1120,7 +1139,7 @@ auto MCMechRepairBlock::RepairItems() -> void
         // Ask whether to strip the damaged items that have no replacement (StripUnrepaired).
         GuiSystem()->Release();
         Drag.LeftDrag = false;
-        MCRefitDialog* dialog = GlobalLogPtr->RefitDialog;
+        MCRefitDialog* dialog = GlobalLogPtr->RefitDialog.get();
         dialog->SetText(missing);
         dialog->Callback = nullptr;
         dialog->SetTwoButton(true);
@@ -1224,7 +1243,7 @@ auto MCMechRepairBlock::RepairStructure() -> void
 auto MCMechRepairBlock::DrawBackground(int32_t row, MCLogPort* port) -> void
 {
     const bool framed =
-        GlobalLogPtr->CurrentScreen == GlobalLogPtr->RepairScreen && RepairScreen()->SelectedMech == Mech;
+        GlobalLogPtr->CurrentScreen == GlobalLogPtr->RepairScreen.get() && RepairScreen()->SelectedMech == Mech;
     const bool hasPilot = Mech->PilotIndex >= 0 || Mech->NetworkPilot != nullptr;
 
     if (port == nullptr)
@@ -1270,7 +1289,7 @@ auto MCMechRepairBlock::DrawBackground(int32_t row, MCLogPort* port) -> void
 
 auto MCMechRepairBlock::PaintBase(MCLogPort* port, int32_t top, bool briefing, bool framed) -> void
 {
-    MCLogPort* rowArt = briefing ? LogScreenArt("lsbbkm00.tga") : GlobalLogPtr->RepairBackPort;
+    MCLogPort* rowArt = briefing ? LogScreenArt("lsbbkm00.tga") : GlobalLogPtr->RepairBackPort.get();
 
     if (rowArt == nullptr)
     {
@@ -1307,7 +1326,7 @@ auto MCMechRepairBlock::PaintBase(MCLogPort* port, int32_t top, bool briefing, b
 
     WriteLine(BlueDropFont, back.Frame(), 6, 0x12,
               MCFormatPrintf(LoadGameString(0x4e, 0xfe).c_str(), static_cast<double>(logMech->CurTonnage),
-                             logMech->WeightClassName));
+                             logMech->WeightClassName.c_str()));
 
     if (framed)
     {
@@ -1340,7 +1359,7 @@ auto MCMechRepairBlock::DrawButtons(MCLogPort* port) -> void
 auto MCMechRepairBlock::ItemsDamaged() const -> bool
 {
     // Any weapon or equipment copy damaged.
-    for (MCLogInventoryItem* item = Mech->Inventory->Items; item != nullptr; item = item->Next)
+    for (const std::unique_ptr<MCLogInventoryItem>& item : Mech->Inventory->Items)
     {
         MCComponentForm form = ComponentForm(item->MasterID);
 
@@ -1349,7 +1368,7 @@ auto MCMechRepairBlock::ItemsDamaged() const -> bool
             continue;
         }
 
-        for (MCLogInventoryStat* stat = item->Stats; stat != nullptr; stat = stat->Next)
+        for (const std::unique_ptr<MCLogInventoryStat>& stat : item->Stats)
         {
             if (stat->Hits != 0)
             {
@@ -1372,7 +1391,7 @@ auto MCMechRepairBlock::ShowsInventory() const -> bool
 {
     // In multiplayer, only the player's own mechs (and the one in the briefing box) list their weapons.
     return MPlayer == nullptr || GlobalLogPtr->ForceMechList->GetMechIndex(Mech) >= 0 ||
-           Mech->BriefingBox == GlobalLogPtr->BriefingScreen->BriefingBox;
+           Mech->BriefingBox.get() == GlobalLogPtr->BriefingScreen->BriefingBox;
 }
 
 auto MCMechRepairBlock::PaintButtons(MCLogPort* port, int32_t top, bool onRows, bool items, bool structure) -> void
@@ -1429,8 +1448,8 @@ auto MCMechRepairBlock::PaintDiagram(MCLogPort* port, int32_t top, int32_t xPos)
         {
             if (shade[static_cast<size_t>(location)] == table)
             {
-                VfxShapeTranslateDraw(port->Frame(), GlobalLogPtr->MechRepShapes[Mech->NameIndex], location + 0xb, xPos,
-                                      top + 8);
+                VfxShapeTranslateDraw(port->Frame(), GlobalLogPtr->MechRepShapes[Mech->NameIndex].Data(),
+                                      location + 0xb, xPos, top + 8);
             }
         }
     }
@@ -1448,8 +1467,8 @@ auto MCMechRepairBlock::PaintDiagram(MCLogPort* port, int32_t top, int32_t xPos)
         {
             if (shade[static_cast<size_t>(location)] == table)
             {
-                VfxShapeTranslateDraw(port->Frame(), GlobalLogPtr->MechRepShapes[Mech->NameIndex], location, xPos,
-                                      top + 8);
+                VfxShapeTranslateDraw(port->Frame(), GlobalLogPtr->MechRepShapes[Mech->NameIndex].Data(), location,
+                                      xPos, top + 8);
             }
         }
     }
@@ -1771,7 +1790,7 @@ auto MCMechRepairBlock::MouseWheel(int32_t steps, int32_t xPos, int32_t yPos) ->
 auto MCMechRepairBlock::DrawStatusBar(MCLogPort* port) -> void
 {
     float status = Mech->CalcStatus();
-    bool repairLayout = GlobalLogPtr->CurrentScreen != GlobalLogPtr->BriefingScreen;
+    bool repairLayout = GlobalLogPtr->CurrentScreen != GlobalLogPtr->BriefingScreen.get();
 
     // The rows draw their status bar each frame (DrawRow).
     if (port != nullptr)
@@ -1821,14 +1840,10 @@ auto MCMechRepairBlock::SetEngineSlider(int32_t value) -> void
         return;
     }
 
-    MCLogInventoryItem* item = Mech->Inventory->GetItemInfo(0);
-
-    while (ComponentForm(item->MasterID) != MCComponentForm::Engine)
-    {
-        item = item->Next;
-    }
-
-    MCLogInventoryStat* engine = item->Stats;
+    const auto engineItem =
+        std::ranges::find_if(Mech->Inventory->Items, [](const std::unique_ptr<MCLogInventoryItem>& item)
+                             { return ComponentForm(item->MasterID) == MCComponentForm::Engine; });
+    MCLogInventoryStat* engine = (*engineItem)->Stats.front().get();
 
     if (engine->Hits > 3)
     {
@@ -1878,7 +1893,7 @@ auto MCMechRepairBlock::SetPilotStats(MCLogPort* port) -> void
     }
 
     float status = Mech->CalcStatus();
-    bool repairLayout = GlobalLogPtr->CurrentScreen != GlobalLogPtr->BriefingScreen;
+    bool repairLayout = GlobalLogPtr->CurrentScreen != GlobalLogPtr->BriefingScreen.get();
 
     // The rows draw their pilot each frame (DrawRow).
     if (port != nullptr)
@@ -1967,8 +1982,9 @@ auto MCMechRepairBlock::SetWeaponLists() -> void
     std::array<std::vector<int32_t>, 4> hits;
     int32_t index = 0;
 
-    for (MCLogInventoryItem* item = Mech->Inventory->Items; item != nullptr; item = item->Next, ++index)
+    for (const std::unique_ptr<MCLogInventoryItem>& item : Mech->Inventory->Items)
     {
+        const int32_t position = index++;
         const MCMasterComponent& component = MasterComponentList[item->MasterID];
         size_t list = 0;
 
@@ -1987,20 +2003,20 @@ auto MCMechRepairBlock::SetWeaponLists() -> void
 
         std::vector<int32_t>& entries =
             std::array{&ShortRangeWeapons, &MediumRangeWeapons, &LongRangeWeapons, &Equipment}[list][0];
-        MCLogInventoryStat* stat = item->Stats;
 
+        // Port fix: a count above the copies (AddCountToItem) read past them; the missing copies count as undamaged.
         for (int32_t copy = 0; copy < item->Count; ++copy)
         {
-            entries.push_back(index);
-            hits[list].push_back(stat->Hits);
-            stat = stat->Next;
+            entries.push_back(position);
+            hits[list].push_back(
+                static_cast<size_t>(copy) < item->Stats.size() ? item->Stats[static_cast<size_t>(copy)]->Hits : 0);
         }
     }
 
     for (size_t list = 0; list < 3; ++list)
     {
         std::vector<int32_t>& entries = std::array{&ShortRangeWeapons, &MediumRangeWeapons, &LongRangeWeapons}[list][0];
-        SortByDamage(entries, hits[list], *Mech->Inventory);
+        SortByDamage(entries, hits[list], *Mech->Inventory.get());
     }
 
     ItemHits.clear();
@@ -2043,14 +2059,7 @@ auto MCMechRepairBlock::GetInvItem(const std::vector<int32_t>& list, int32_t ind
 
     int32_t copy = index - earlier - 1;
     MCLogInventoryItem* item = Mech->Inventory->GetItemInfo(list[static_cast<size_t>(index)]);
-    MCLogInventoryStat* stat = item->Stats;
-
-    for (; copy > 0; --copy)
-    {
-        stat = stat->Next;
-    }
-
-    itemNum = static_cast<uint8_t>(stat->ItemNum);
+    itemNum = static_cast<uint8_t>(item->Stats[static_cast<size_t>(copy)]->ItemNum);
     return item;
 }
 
@@ -2180,7 +2189,7 @@ auto MCMechRepairBlock::RepairInternal(int32_t points) -> void
 auto MCMechRepairBlock::SetInventory(MCScrollPane* pane) -> void
 {
     if (MPlayer != nullptr && GlobalLogPtr->ForceMechList->GetMechIndex(Mech) < 0 &&
-        Mech->BriefingBox != GlobalLogPtr->BriefingScreen->BriefingBox)
+        Mech->BriefingBox.get() != GlobalLogPtr->BriefingScreen->BriefingBox)
     {
         return;
     }
@@ -2193,7 +2202,7 @@ auto MCMechRepairBlock::SetInventory(MCScrollPane* pane) -> void
     auto content = std::make_unique<MCLogPort>();
     int32_t lines = 0;
 
-    for (MCLogInventoryItem* item = Mech->Inventory->Items; item != nullptr; item = item->Next)
+    for (const std::unique_ptr<MCLogInventoryItem>& item : Mech->Inventory->Items)
     {
         MCComponentForm form = ComponentForm(item->MasterID);
 
@@ -2259,7 +2268,7 @@ auto MCMechRepairBlock::DrawWeaponList(MCLogPort* content) -> void
     heading(lineHeight * (weapons + 3) + 3, 0x14, false, 0x6f, lineHeight * (weapons + 3) + 5);
 
     // The entries: a range glyph (clan technology has its own) and the name, grey when damaged.
-    MCInventoryList* inventory = Mech->Inventory;
+    MCInventoryList* inventory = Mech->Inventory.get();
     auto weaponLine = [&](int32_t entry, size_t hitsIndex, char glyph, int32_t line, int32_t gap)
     {
         const MCMasterComponent& component = MasterComponentList[inventory->GetMasterIDFromIndex(entry)];
@@ -2364,14 +2373,13 @@ auto MCMechRepairBlock::SetUpItemDragIcon(MCLogInventoryItem* item, uint8_t item
         Mech->Inventory->RemoveItem(ammo, -1);
     }
 
-    MCInventoryList* inventory = Mech->Inventory;
+    MCInventoryList* inventory = Mech->Inventory.get();
     int32_t index = inventory->GetIndexFromMasterID(masterID);
     Drag.ItemIndex = index;
-    MCLogInventoryStat* stat = inventory->GetItemInfo(index)->Stats;
     Mech->UsedTonnage -= tonnage;
     Mech->WeaponTonnage -= tonnage;
 
-    for (; stat != nullptr; stat = stat->Next)
+    for (const std::unique_ptr<MCLogInventoryStat>& stat : inventory->GetItemInfo(index)->Stats)
     {
         if (static_cast<uint32_t>(stat->ItemNum) != itemNum)
         {
@@ -2385,7 +2393,7 @@ auto MCMechRepairBlock::SetUpItemDragIcon(MCLogInventoryItem* item, uint8_t item
             GlobalLogPtr->Darken(0, LogisticFadetable, icon->Lport());
         }
 
-        DrawItemInfo(item, Mech->Inventory);
+        DrawItemInfo(item, Mech->Inventory.get());
         inventory->RemoveItem(masterID, stat->StatID);
         RepairScreen()->SetUpCompInv(false, false);
         SetInventory(nullptr);

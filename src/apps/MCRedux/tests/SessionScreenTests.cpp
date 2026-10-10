@@ -10,7 +10,7 @@
 #include "logistics/MCLogSlider.h"
 #include "logistics/MCSplashScreen.h"
 #include "logistics/MCConnectMenu.h"
-#include "main/logistics.h"
+#include "main/MCLogistics.h"
 #include "network/multplyr.h"
 #include "platform/MCDirectPlay.h"
 #include "platform/MCDisplay.h"
@@ -210,7 +210,7 @@ TEST_CASE_ISOLATED("game: the multiplayer session screen matches the pre-rendere
     REQUIRE(MPlayer != nullptr);
     MCSessionManager* manager = MPlayer->SessionManager;
     manager->ConnectTcp(const_cast<char*>(HostAddress));
-    MCSplashScreen* lanScreen = GlobalLogPtr->LanScreen;
+    MCSplashScreen* lanScreen = GlobalLogPtr->LanScreen.get();
     GlobalLogPtr->MultiplayerScreen->ShowGuiWindow(0);
     lanScreen->ShowGuiWindow(1);
     lanScreen->ShowBlock(0);

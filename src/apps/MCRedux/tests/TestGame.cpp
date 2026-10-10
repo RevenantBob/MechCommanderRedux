@@ -13,7 +13,7 @@
 #include "logistics/MCLogSlider.h"
 #include "logistics/MCSplashScreen.h"
 #include "main/honorb.h"
-#include "main/logistics.h"
+#include "main/MCLogistics.h"
 #include "main/MCGameContext.h"
 #include "main/main.h"
 #include "mission/MCMission.h"
@@ -302,7 +302,7 @@ namespace MCTestGame
             RunFrame(1.0f / 15.0f);
 
             if (Mission()->State == MCMissionState::Logistics && GlobalLogPtr != nullptr &&
-                GlobalLogPtr->CurrentScreen == GlobalLogPtr->MainScreen && GuiSystem()->SmackerWindow == nullptr)
+                GlobalLogPtr->CurrentScreen == GlobalLogPtr->MainScreen.get() && GuiSystem()->SmackerWindow == nullptr)
             {
                 return true;
             }

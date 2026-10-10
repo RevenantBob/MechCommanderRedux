@@ -11,7 +11,7 @@
 #include "logistics/MCStoreRow.h"
 #include "logistics/MCTicker.h"
 #include "logistics/MCUnitLimits.h"
-#include "main/logistics.h"
+#include "main/MCLogistics.h"
 #include "main/main.h"
 #include "object/MCMasterComponent.h"
 #include "vfx/MCVfxFunctions.h"
@@ -99,22 +99,16 @@ auto MCCompPurchaseBlock::OnBuyConfirmed(int32_t result, int32_t quantity) -> vo
     MCLogInventoryItem* bought = Item;
     bought->Count -= quantity;
     DrawBackground(Row, bought->MasterID);
-    MCInventoryList* spares = GlobalLogPtr->ComponentInventory;
-    MCLogInventoryItem* stockItem = spares->Items;
-
-    while (stockItem != nullptr && stockItem->MasterID != bought->MasterID)
-    {
-        stockItem = stockItem->Next;
-    }
+    MCInventoryList* spares = GlobalLogPtr->ComponentInventory.get();
+    MCLogInventoryItem* stockItem = spares->GetItemInfo(spares->GetIndexFromMasterID(bought->MasterID));
 
     if (stockItem == nullptr)
     {
         // A new spare component: its first copy and its inventory row.
-        MCLogInventoryStat* stat = spares->CreateStat(spares->NextStatID, 0, 0, 1, 0xff);
-        spares->AddItem(bought->MasterID, stat, -1);
+        spares->AddItem(bought->MasterID, spares->CreateStat(spares->NextStatID, 0, 0, 1, 0xff), false);
         stockItem = spares->GetItemInfo(spares->GetIndexFromMasterID(bought->MasterID));
         stockItem->Count = quantity;
-        MCInventoryList::MakeInventoryBlock(stockItem)->InventoryIndex = spares->NumItems - 1;
+        MCInventoryList::MakeInventoryBlock(stockItem)->InventoryIndex = spares->NumItems() - 1;
         GlobalLogPtr->PurchaseScreen->CreateCompInvBlock();
         GlobalLogPtr->PurchaseScreen->SetUpCompInv(false, true);
     }
@@ -253,7 +247,7 @@ auto MCCompPurchaseBlock::DrawBackground(int32_t, int32_t) -> void
 
 auto MCCompPurchaseBlock::DrawRow(MCLogPort* port, int32_t top) -> void
 {
-    MCPurchaseScreen* screen = GlobalLogPtr->PurchaseScreen;
+    MCPurchaseScreen* screen = GlobalLogPtr->PurchaseScreen.get();
     std::unique_ptr<MCLogBlockPort> work = RowPicture(screen->CompTabPort.get(), port, top, true);
     const std::string stock = Item->Count < 0 ? MCFormatPrintf(LoadGameString(0x385, 0xfe).c_str(), Item->Count)
                                               : std::format("{}", Item->Count);

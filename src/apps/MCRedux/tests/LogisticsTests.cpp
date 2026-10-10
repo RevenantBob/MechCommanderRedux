@@ -4,7 +4,7 @@
 #include "lib/MCIDString.h"
 #include "lib/MCFitIniFile.h"
 #include "main/MCGamePaths.h"
-#include "main/logistics.h"
+#include "main/MCLogistics.h"
 #include "object/MCMasterComponent.h"
 #include "object/MCBattleMech.h"
 #include "object/MCBattleMechType.h"
@@ -32,7 +32,6 @@ namespace
 
             ProfilePath = "data\\missions\\profiles\\";
             _Logistics = std::make_unique<MCLogistics>();
-            _Logistics->LogisticsBlocks = std::make_unique<MCBlockStore>();
             _Saved = GlobalLogPtr;
             GlobalLogPtr = _Logistics.get();
         }
@@ -97,12 +96,12 @@ TEST_CASE("game: logistics reads a mech profile into its list")
     LogisticsFixture fixture;
 
     MCLogMechList mechs;
-    MCLogMech* mech = mechs.AddMech(const_cast<char*>("PM100100"), 0, 1, 0);
+    MCLogMech* mech = mechs.AddMech("PM100100", false, true, false);
     REQUIRE(mech != nullptr);
     CHECK_EQ(mechs.GetMechCount(), 1);
     CHECK_EQ(mech->PartType, 1);
-    CHECK_EQ(std::string(mech->ProfileName), std::string("PM100100"));
-    CHECK_EQ(std::string(mech->MechName), std::string("COM-A"));
+    CHECK_EQ(mech->ProfileName, std::string("PM100100"));
+    CHECK_EQ(mech->MechName, std::string("COM-A"));
     CHECK_EQ(mech->CurTonnage, 25.0f);
     CHECK_EQ(mech->NameIndex, 4);
     CHECK_EQ(mech->SortKey, MechSort[4] * 3);
@@ -111,8 +110,8 @@ TEST_CASE("game: logistics reads a mech profile into its list")
     CHECK(mech->ResourcePoints > mech->BaseResourcePoints);
     CHECK_EQ(mech->PilotIndex, -1);
     CHECK(mech->Internals[0].MaxArmor > 0);
-    CHECK(mech->WeightClassName != nullptr && mech->WeightClassName[0] != 0);
-    CHECK(mech->FileName != nullptr && mech->FileName[0] != 0);
+    CHECK(!mech->WeightClassName.empty());
+    CHECK(!mech->FileName.empty());
 
     // 13 other items, 5 weapons and 4 ammo bins, as copies of their components.
     CHECK_EQ(mech->NumOther, 13);
@@ -120,17 +119,16 @@ TEST_CASE("game: logistics reads a mech profile into its list")
     CHECK_EQ(mech->NumAmmo, 4);
     int32_t copies = 0;
 
-    for (MCLogInventoryItem* item = mech->Inventory->Items; item != nullptr; item = item->Next)
+    const auto& items = mech->Inventory->Items;
+
+    for (size_t index = 0; index < items.size(); ++index)
     {
-        if (item->Next != nullptr)
+        if (index + 1 < items.size())
         {
-            CHECK(item->MasterID > item->Next->MasterID);
+            CHECK(items[index]->MasterID > items[index + 1]->MasterID);
         }
 
-        for (MCLogInventoryStat* stat = item->Stats; stat != nullptr; stat = stat->Next)
-        {
-            ++copies;
-        }
+        copies += static_cast<int32_t>(items[index]->Stats.size());
     }
 
     CHECK_EQ(copies, 22);
@@ -142,7 +140,7 @@ TEST_CASE("game: logistics reads a mech profile into its list")
     CHECK_EQ(mechs.GetMechInfo(0, found), 0);
     CHECK(found == mech);
     CHECK_EQ(mechs.GetMechIndex(mech), 0);
-    mechs.Destroy();
+    mechs.Clear();
     CHECK_EQ(mechs.GetMechCount(), 0);
 }
 
@@ -160,11 +158,11 @@ TEST_CASE("game: logistics reads a vehicle profile into its list")
     path = GamePath(ProfilePath, "PV20000", ".fit");
     REQUIRE_EQ(file.Open(path), 0);
     MCLogVehicleList vehicles;
-    MCLogVehicle* vehicle = vehicles.AddVehicle(&file, 0, 1, 0);
+    MCLogVehicle* vehicle = vehicles.AddVehicle(file, false, true, false);
     REQUIRE(vehicle != nullptr);
     CHECK_EQ(vehicles.GetVehicleCount(), 1);
     CHECK_EQ(vehicle->PartType, 2);
-    CHECK_EQ(std::string(vehicle->Crew), std::string("PCREWA"));
+    CHECK_EQ(vehicle->Crew, std::string("PCREWA"));
     CHECK_EQ(vehicle->CurTonnage, 5.0f);
     CHECK_EQ(vehicle->NameIndex, 20);
     CHECK_EQ(vehicle->BaseVehicleResourcePoints, 500);
@@ -172,11 +170,11 @@ TEST_CASE("game: logistics reads a vehicle profile into its list")
     CHECK_EQ(vehicle->MaxMoveSpeed, 21);
     CHECK_EQ(vehicle->MaxArmorPoints[0], 6);
     CHECK_EQ(vehicle->CurArmorPoints[1], 5);
-    vehicles.Destroy();
+    vehicles.Clear();
     CHECK_EQ(vehicles.GetVehicleCount(), 0);
 }
 
-TEST_CASE("game: logistics inventory lists add, count, remove and measure copies")
+TEST_CASE("game: logistics inventory lists add, count and remove copies")
 {
     if (!MCTestGame::Available())
     {
@@ -186,10 +184,10 @@ TEST_CASE("game: logistics inventory lists add, count, remove and measure copies
     LogisticsFixture fixture;
 
     MCInventoryList list;
-    list.AddItem(4, list.CreateStat(0, 0, 0, 1, 0xff), -1);
-    list.AddItem(1, list.CreateStat(1, 0, 0, 1, 0xff), -1);
-    list.AddItem(4, list.CreateStat(2, 3, 0, 1, 0xff), -1);
-    CHECK_EQ(list.NumItems, 2);
+    list.AddItem(4, list.CreateStat(0, 0, 0, 1, 0xff), false);
+    list.AddItem(1, list.CreateStat(1, 0, 0, 1, 0xff), false);
+    list.AddItem(4, list.CreateStat(2, 3, 0, 1, 0xff), false);
+    CHECK_EQ(list.NumItems(), 2);
     CHECK_EQ(list.GetMasterIDFromIndex(0), 4);
     CHECK_EQ(list.GetMasterIDFromIndex(1), 1);
     CHECK_EQ(list.GetIndexFromMasterID(1), 1);
@@ -202,35 +200,21 @@ TEST_CASE("game: logistics inventory lists add, count, remove and measure copies
     CHECK_EQ(list.SetStatLoc(2, 3), 0);
     CHECK_EQ(list.GetMasterID(2), 4);
     CHECK_EQ(list.HitItem(9, 1), -1);
-    CHECK_EQ(list.GetBinaryData(nullptr), 4 + (5 + 2 * 0x1c) + (5 + 0x1c));
-
-    // The saved image: the item count, then per item its master id, its copy count and each copy's 0x1c-byte record.
-    // The bytes no field covers are zero whatever the buffer held.
-    std::vector<uint8_t> image(static_cast<size_t>(list.GetBinaryData(nullptr)), 0xaa);
-    list.GetBinaryData(image.data());
-    CHECK_EQ(image[0], 2);
-    CHECK_EQ(image[4], 4);
-    CHECK_EQ(image[5], 2);
-    const uint8_t* copy = image.data() + 9;
-    CHECK_EQ(copy[0x0], 2);  // statID
-    CHECK_EQ(copy[0x10], 1); // amount
-    CHECK_EQ(copy[0x12], 3); // location
-    CHECK_EQ(copy[0x14], 2); // itemNum
-
-    for (const size_t gap : {0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8, 0x9, 0xa, 0xb, 0xd, 0xe, 0xf, 0x13, 0x18})
-    {
-        MCTest::Scope scope("stat image byte " + std::to_string(gap));
-        CHECK_EQ(copy[gap], 0);
-    }
+    const MCLogInventoryStat& hit = *list.GetItemInfo(0)->Stats.front();
+    CHECK_EQ(hit.StatID, 2);
+    CHECK_EQ(hit.Hits, 5);
+    CHECK_EQ(hit.Amount, 1);
+    CHECK_EQ(hit.Location, 3);
+    CHECK_EQ(hit.ItemNum, 2);
 
     // A copy goes (reported as -1); the last copy takes the item with it (0).
     CHECK_EQ(list.RemoveItem(4, -1), -1);
     CHECK_EQ(list.GetItemCount(4), 1);
     CHECK_EQ(list.GetItemStatID(4, 0), 0);
     CHECK_EQ(list.RemoveItem(4, 0), 0);
-    CHECK_EQ(list.NumItems, 1);
-    list.Destroy();
-    CHECK_EQ(list.NumItems, 0);
+    CHECK_EQ(list.NumItems(), 1);
+    list.Clear();
+    CHECK_EQ(list.NumItems(), 0);
 }
 
 TEST_CASE("game: logistics spreads weapons over the arms and side torsos")
@@ -243,18 +227,18 @@ TEST_CASE("game: logistics spreads weapons over the arms and side torsos")
     LogisticsFixture fixture;
 
     MCLogMechList mechs;
-    MCLogMech* mech = mechs.AddMech(const_cast<char*>("PM100100"), 0, 1, 0);
+    MCLogMech* mech = mechs.AddMech("PM100100", false, true, false);
     REQUIRE(mech != nullptr);
 
     // A large weapon (master id 100) and the first small energy weapon.
     const auto largeID = static_cast<uint8_t>(100);
-    REQUIRE(mech->GetWeaponLarge(largeID) != 0);
+    REQUIRE(MCLogMech::GetWeaponLarge(largeID));
     int32_t smallID = -1;
 
     for (int32_t id = 100; id < NumMasterComponents() && smallID < 0; ++id)
     {
         if (MasterComponentList[id].Form == MCComponentForm::WeaponEnergy &&
-            mech->GetWeaponLarge(static_cast<uint8_t>(id)) == 0)
+            !MCLogMech::GetWeaponLarge(static_cast<uint8_t>(id)))
         {
             smallID = id;
         }
@@ -333,7 +317,7 @@ TEST_CASE("game: logistics spreads weapons over the arms and side torsos")
     }
 
     CHECK_EQ(mech->ItemSlots[MechLeftLeg][0].Row, 0xff);
-    mechs.Destroy();
+    mechs.Clear();
 }
 
 TEST_CASE("game: logistics puts each jump jet in one slot of the leg with fewer")
@@ -346,7 +330,7 @@ TEST_CASE("game: logistics puts each jump jet in one slot of the leg with fewer"
     LogisticsFixture fixture;
 
     MCLogMechList mechs;
-    MCLogMech* mech = mechs.AddMech(const_cast<char*>("PM100100"), 0, 1, 0);
+    MCLogMech* mech = mechs.AddMech("PM100100", false, true, false);
     REQUIRE(mech != nullptr);
     const int32_t jetID = FindComponent(MCComponentForm::JumpJet, 0, 99);
     REQUIRE(jetID >= 0);
@@ -378,5 +362,5 @@ TEST_CASE("game: logistics puts each jump jet in one slot of the leg with fewer"
 
     CHECK_EQ(CountHeld(*mech, MechLeftLeg, jet), 2);
     CHECK_EQ(CountHeld(*mech, MechRightLeg, jet), 1);
-    mechs.Destroy();
+    mechs.Clear();
 }

@@ -8,7 +8,7 @@
 #include "logistics/MCCompInventoryBlock.h"
 #include "logistics/MCDragIcon.h"
 #include "logistics/MCLogRows.h"
-#include "main/logistics.h"
+#include "main/MCLogistics.h"
 #include "color/MCPalette.h"
 #include "gui/MCGuiButton.h"
 #include "gui/MCGuiFont.h"

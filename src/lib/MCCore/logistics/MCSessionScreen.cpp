@@ -24,7 +24,7 @@
 #include "logistics/MCLoadSaveMenu.h"
 #include "logistics/MCConnectMenu.h"
 #include "logistics/MCMainMenu.h"
-#include "main/logistics.h"
+#include "main/MCLogistics.h"
 #include "main/main.h"
 #include "network/multplyr.h"
 #include "sound/MCSoundSystem.h"
@@ -41,7 +41,7 @@ namespace
 
     MCSessionScreen* Screen()
     {
-        return GlobalLogPtr->SessionScreen;
+        return GlobalLogPtr->SessionScreen.get();
     }
 
     /// <summary>The slot of <paramref name="playerId"/> on <paramref name="team"/>, or -1.</summary>
@@ -104,28 +104,28 @@ namespace
     /// <summary>After a multiplayer save: returns to the session screen and tells the others which file to load.</summary>
     void MPLoadWorked(int32_t)
     {
-        MCSplashScreen* loadScreen = GlobalLogPtr->LoadScreen;
+        MCSplashScreen* loadScreen = GlobalLogPtr->LoadScreen.get();
         loadScreen->CancelButton->Callback()->SetExec(Cancel);
         loadScreen->LoadSaveButton->Callback()->SetExec(LoadGame);
         loadScreen->FilePane->SetMultiplayer(false);
         GlobalLogPtr->CurrentScreen->ShowGuiWindow(false);
         GlobalLogPtr->CurrentScreen = Screen();
         GlobalLogPtr->LogisticsState = 8;
-        GlobalLogPtr->ShowLogScreen(-1, -1);
+        GlobalLogPtr->ShowLogScreen(true, true);
         SendFileName(FIMSG_GUARANTEED | MPMSG_LOAD_MISSION, Screen()->MissionFile);
     }
 
     /// <summary>The load-mission button: opens the load screen for a multiplayer mission.</summary>
     void OpenMissionLoad()
     {
-        MCSplashScreen* loadScreen = GlobalLogPtr->LoadScreen;
+        MCSplashScreen* loadScreen = GlobalLogPtr->LoadScreen.get();
         loadScreen->LoadSaveButton->Callback()->SetExec(LoadMPGame);
         loadScreen->CancelButton->Callback()->SetExec(CancelToSession);
         loadScreen->FilePane->SetMultiplayer(true);
         GlobalLogPtr->CurrentScreen->ShowGuiWindow(false);
         GlobalLogPtr->CurrentScreen = loadScreen;
         GlobalLogPtr->LogisticsState = 5;
-        GlobalLogPtr->ShowLogScreen(-1, 0);
+        GlobalLogPtr->ShowLogScreen(true, false);
     }
 
     /// <summary>The start button: tells every player to start the loaded mission.</summary>
@@ -138,8 +138,8 @@ namespace
         MPlayer->SessionManager->SendLatencyInfo();
         SoundSystem()->PlayBettySample(0x19);
         GlobalLogPtr->InitializeMultiplayer();
-        GlobalLogPtr->LoadCampaign(missionName.data(), extension.data(), 0, 0);
-        GlobalLogPtr->SetUpBriefingScreen(0);
+        GlobalLogPtr->LoadCampaign(missionName, extension, false, false);
+        GlobalLogPtr->SetUpBriefingScreen(false);
     }
 
     /// <summary>A tech base toggle: sets its team's tech base and tells the others.</summary>
@@ -593,7 +593,7 @@ auto MCSessionScreen::Activate(bool refresh) -> void
 
     const std::array<uint32_t, MaxPlayers> ids = SortedPlayerIds(sessionIds);
 
-    if (GlobalLogPtr->PlayerLights == nullptr)
+    if (GlobalLogPtr->PlayerLights.get() == nullptr)
     {
         GlobalLogPtr->PlayerLights = MCMakeGui<MCMPPlayerLights>();
         GlobalLogPtr->PlayerLights->Init();
@@ -648,7 +648,7 @@ auto MCSessionScreen::Activate(bool refresh) -> void
     MapName.clear();
     MissionLabel.clear();
 
-    if (MCLogChatWindow* chatWindow = GlobalLogPtr->ChatWindow; chatWindow != nullptr)
+    if (MCLogChatWindow* chatWindow = GlobalLogPtr->ChatWindow.get(); chatWindow != nullptr)
     {
         chatWindow->MoveTo(2, 0x42, false);
         chatWindow->Resize(0x10a);
@@ -662,7 +662,7 @@ auto MCSessionScreen::Activate(bool refresh) -> void
         chatWindow->ShowGuiWindow(true);
     }
 
-    if (MCTicker* ticker = GlobalLogPtr->Ticker; ticker != nullptr)
+    if (MCTicker* ticker = GlobalLogPtr->Ticker.get(); ticker != nullptr)
     {
         if (ticker->Parent != nullptr)
         {
@@ -930,7 +930,7 @@ auto MCSessionScreen::SomeoneCheckedIn() -> void
 auto MCSessionScreen::ShowDialog(std::string_view text, std::function<void()> onOk, std::string_view upArt,
                                  std::string_view downArt, std::function<void(int32_t)> onResult) -> void
 {
-    MCReusableDialog* dialog = GlobalLogPtr->MessageDialog;
+    MCReusableDialog* dialog = GlobalLogPtr->MessageDialog.get();
     dialog->SetText(text);
     dialog->SetTwoButton(false);
     dialog->OkButton->Callback()->SetExec(std::move(onOk));
@@ -974,7 +974,7 @@ auto MCSessionScreen::FileReport(uint32_t playerId, bool haveFile) -> void
     if (allHave)
     {
         // Everyone has it: the waiting dialog closes itself.
-        MCReusableDialog* dialog = GlobalLogPtr->MessageDialog;
+        MCReusableDialog* dialog = GlobalLogPtr->MessageDialog.get();
         GuiSystem()->AddTimer(dialog, 0, 1000, 0, 0, 0);
         dialog->OkButton->Callback()->SetExec(nullptr);
         CheckGoodToGo();

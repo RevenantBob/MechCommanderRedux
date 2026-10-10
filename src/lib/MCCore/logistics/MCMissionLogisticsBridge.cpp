@@ -8,7 +8,7 @@
 #include "logistics/MCPurVehicleList.h"
 #include "logistics/MCUnitLimits.h"
 #include "main/MCGamePaths.h"
-#include "main/logistics.h"
+#include "main/MCLogistics.h"
 #include "mission/MCMission.h"
 #include "mission/MCScenario.h"
 #include "object/MCBattleMech.h"
@@ -66,16 +66,12 @@ namespace
     }
 
     /// <summary>
-    /// Copies <paramref name="fileName"/> into <paramref name="field"/> as the original's <c>strncpy</c> of 9 did: the
-    /// first 9 bytes get the name and zeros, the rest keep what they held (the field is saved as it is in a save
-    /// game's record images). The names written are "tpak<i>n</i>", well inside it.
+    /// Copies <paramref name="fileName"/> into <paramref name="field"/> as the original's <c>strncpy</c> of 9 did: at
+    /// most 9 characters (the names written are "tpak<i>n</i>", well inside it).
     /// </summary>
-    template <size_t N> void CopyProfileName(char (&field)[N], std::string_view fileName)
+    void CopyProfileName(std::string& field, std::string_view fileName)
     {
-        static_assert(N > 9);
-        const std::span<char, 9> written(field, 9);
-        std::ranges::fill(written, '\0');
-        std::ranges::copy(fileName.substr(0, written.size()), written.begin());
+        field = fileName.substr(0, 9);
     }
 
     /// <summary>Starts block <paramref name="kind"/><paramref name="index"/> with its PacketNum.</summary>
@@ -166,70 +162,42 @@ namespace
     /// <summary>The warrior at <paramref name="index"/> of <paramref name="list"/> (walked from the head).</summary>
     MCLogWarrior* WarriorAt(MCLogWarriorList* list, int32_t index)
     {
-        MCLogWarrior* warrior = list->Warriors;
-
-        for (int32_t i = index; i > 0; i--)
-        {
-            warrior = warrior->Next;
-        }
-
-        return warrior;
+        return list->Warriors[static_cast<size_t>(index)].get();
     }
 
     /// <summary>How many warriors of <paramref name="list"/> are (or are not) assigned.</summary>
     uint32_t CountWarriors(MCLogWarriorList* list, bool assigned)
     {
-        uint32_t count = 0;
-        MCLogWarrior* warrior = list->Warriors;
-
-        for (int32_t i = list->NumWarriors; i > 0; i--)
-        {
-            if ((warrior->Assigned != 0) == assigned)
-            {
-                ++count;
-            }
-
-            warrior = warrior->Next;
-        }
-
-        return count;
+        return static_cast<uint32_t>(std::ranges::count_if(list->Warriors,
+                                                           [&](const std::unique_ptr<MCLogWarrior>& warrior)
+                                                           { return warrior->Assigned == assigned; }));
     }
 
-    /// <summary>How many of the <paramref name="count"/> parts from <paramref name="first"/> on pass <paramref name="test"/>.</summary>
-    template <typename Part, typename Test> uint32_t CountParts(Part* first, int32_t count, Test test)
+    /// <summary>How many of <paramref name="parts"/> pass <paramref name="test"/>.</summary>
+    template <typename Part, typename Test>
+    uint32_t CountParts(const std::vector<std::unique_ptr<Part>>& parts, Test test)
     {
-        uint32_t passed = 0;
-        Part* part = first;
-
-        for (int32_t i = count; i > 0; i--, part = part->Next)
-        {
-            if (test(part))
-            {
-                ++passed;
-            }
-        }
-
-        return passed;
+        return static_cast<uint32_t>(
+            std::ranges::count_if(parts, [&](const std::unique_ptr<Part>& part) { return test(part.get()); }));
     }
 
     /// <summary>
-    /// Runs <paramref name="write"/> on each of the <paramref name="count"/> parts from <paramref name="first"/> on that
-    /// pass <paramref name="test"/>, with its index among them. Returns the first error.
+    /// Runs <paramref name="write"/> on each of <paramref name="parts"/> that passes <paramref name="test"/>, with its
+    /// index among them. Returns the first error.
     /// </summary>
     template <typename Part, typename Test, typename Write>
-    int32_t WriteParts(Part* first, int32_t count, Test test, Write write)
+    int32_t WriteParts(const std::vector<std::unique_ptr<Part>>& parts, Test test, Write write)
     {
         uint32_t index = 0;
-        Part* part = first;
 
-        for (int32_t i = 0; i < count; i++, part = part->Next)
+        for (const std::unique_ptr<Part>& part : parts)
         {
-            if (!test(part))
+            if (!test(part.get()))
             {
                 continue;
             }
 
-            if (const int32_t result = write(part, index); result != 0)
+            if (const int32_t result = write(part.get(), index); result != 0)
             {
                 return result;
             }
@@ -251,7 +219,7 @@ namespace
         {
             int32_t status = -1;
 
-            for (int32_t i = 0; i < list->NumWarriors; i++)
+            for (int32_t i = 0; i < list->GetWarriorCount(); i++)
             {
                 MCLogWarrior* warrior = nullptr;
                 list->GetWarriorInfo(i, warrior);
@@ -274,11 +242,11 @@ namespace
             return status;
         };
 
-        int32_t status = search(logistics->WarriorList);
+        int32_t status = search(logistics->WarriorList.get());
 
         if (status == -1)
         {
-            status = search(logistics->AssignedWarriorList);
+            status = search(logistics->AssignedWarriorList.get());
         }
 
         if (status == -1)
@@ -304,7 +272,7 @@ namespace
         file.WriteIdLong("NumGifts", 0);
         file.WriteIdLong("NumMechs", logistics->PurMechList->GetMechCount());
         file.WriteIdLong("NumVehicles", logistics->PurVehicleList->GetVehicleCount());
-        file.WriteIdLong("NumComponants", logistics->PurchaseComponents->NumItems);
+        file.WriteIdLong("NumComponants", logistics->PurchaseComponents->NumItems());
         file.WriteIdLong("NumWarriors", logistics->PurPilotList->GetPilotCount());
 
         for (int32_t i = 0; i < logistics->PurMechList->GetMechCount(); i++)
@@ -329,7 +297,7 @@ namespace
             file.WriteIdString("Filename", vehicle->Data->FileName);
         }
 
-        for (int32_t i = 0; i < logistics->PurchaseComponents->NumItems; i++)
+        for (int32_t i = 0; i < logistics->PurchaseComponents->NumItems(); i++)
         {
             file.WriteBlock(std::format("Componant{}", i));
             MCLogInventoryItem* item = logistics->PurchaseComponents->GetItemInfo(i);
@@ -364,7 +332,7 @@ namespace
         {
             uint32_t packet = firstPacket;
 
-            for (int32_t i = list->NumWarriors - 1; i >= 0; i--)
+            for (int32_t i = list->GetWarriorCount() - 1; i >= 0; i--)
             {
                 MCLogWarrior* warrior = WarriorAt(list, i);
 
@@ -389,18 +357,18 @@ namespace
         };
 
         file.WriteBlock("Warriors");
-        numWarriors = CountWarriors(logistics->WarriorList, false);
+        numWarriors = CountWarriors(logistics->WarriorList.get(), false);
         file.WriteIdULong("NumWarriors", numWarriors);
 
-        if (const int32_t result = writeList(logistics->WarriorList, false, 0); result != 0)
+        if (const int32_t result = writeList(logistics->WarriorList.get(), false, 0); result != 0)
         {
             return result;
         }
 
         file.WriteBlock("AssWarriors");
-        numAssigned = CountWarriors(logistics->AssignedWarriorList, true);
+        numAssigned = CountWarriors(logistics->AssignedWarriorList.get(), true);
         file.WriteIdULong("NumAssWarriors", numAssigned);
-        return writeList(logistics->AssignedWarriorList, true, numWarriors);
+        return writeList(logistics->AssignedWarriorList.get(), true, numWarriors);
     }
 
     /// <summary>
@@ -457,16 +425,16 @@ namespace
     template <typename Test, typename Write>
     void WriteInventoryItems(MCInventoryList* inventory, Test test, int32_t& item, Write write)
     {
-        for (MCLogInventoryItem* entry = inventory->GetItemInfo(0); entry != nullptr; entry = entry->Next)
+        for (const std::unique_ptr<MCLogInventoryItem>& entry : inventory->Items)
         {
             if (!test(MasterComponentList[entry->MasterID].Form))
             {
                 continue;
             }
 
-            for (MCLogInventoryStat* stat = entry->Stats; stat != nullptr; stat = stat->Next)
+            for (const std::unique_ptr<MCLogInventoryStat>& stat : entry->Stats)
             {
-                write(entry->MasterID, stat, item);
+                write(entry->MasterID, stat.get(), item);
                 ++item;
             }
         }
@@ -851,10 +819,10 @@ namespace MCMissionLogisticsBridge
         // The unassigned mechs.
         auto unassigned = [](MCLogPart* part) { return part->Assigned == 0; };
         file.WriteBlock("Mechs");
-        const uint32_t numMechs = CountParts(logistics->MechList->Mechs, logistics->MechList->NumMechs, unassigned);
+        const uint32_t numMechs = CountParts(logistics->MechList->Mechs, unassigned);
         file.WriteIdULong("NumMechs", numMechs);
 
-        if (const int32_t result = WriteParts(logistics->MechList->Mechs, logistics->MechList->NumMechs, unassigned,
+        if (const int32_t result = WriteParts(logistics->MechList->Mechs, unassigned,
                                               [&](MCLogMech* mech, uint32_t index)
                                               {
                                                   const uint32_t packet = index + numAssWarriors + numWarriors;
@@ -870,18 +838,17 @@ namespace MCMissionLogisticsBridge
         auto forceMechWritten = [skipDeployed](MCLogMech* part)
         { return part->Assigned != 0 && (part->Deployed == 0 || !skipDeployed) && part->NotMineYet == 0; };
         file.WriteBlock("AssMechs");
-        const uint32_t numAssMechs =
-            CountParts(logistics->ForceMechList->Mechs, logistics->ForceMechList->NumMechs, forceMechWritten);
+        const uint32_t numAssMechs = CountParts(logistics->ForceMechList->Mechs, forceMechWritten);
         file.WriteIdULong("NumAssMechs", numAssMechs);
 
-        if (const int32_t result =
-                WriteParts(logistics->ForceMechList->Mechs, logistics->ForceMechList->NumMechs, forceMechWritten,
-                           [&](MCLogMech* mech, uint32_t index)
-                           {
-                               const uint32_t packet = index + numMechs + numAssWarriors + numWarriors;
-                               WritePacketBlock(file, "Mech", index + numMechs, packet);
-                               return LogisticsMechProfileWriter(ProfileName(packet), mech, false);
-                           });
+        if (const int32_t result = WriteParts(logistics->ForceMechList->Mechs, forceMechWritten,
+                                              [&](MCLogMech* mech, uint32_t index)
+                                              {
+                                                  const uint32_t packet =
+                                                      index + numMechs + numAssWarriors + numWarriors;
+                                                  WritePacketBlock(file, "Mech", index + numMechs, packet);
+                                                  return LogisticsMechProfileWriter(ProfileName(packet), mech, false);
+                                              });
             result != 0)
         {
             return result;
@@ -891,9 +858,8 @@ namespace MCMissionLogisticsBridge
         auto unassignedWaiting = [](MCLogVehicle* part) { return part->Assigned == 0 && part->Deployed == 0; };
         auto forceWaiting = [](MCLogVehicle* part) { return part->Assigned != 0 && part->Deployed == 0; };
         file.WriteBlock("Vehicles");
-        const uint32_t numVehicles =
-            CountParts(logistics->VehicleList->Vehicles, logistics->VehicleList->NumVehicles, unassignedWaiting) +
-            CountParts(logistics->ForceVehicleList->Vehicles, logistics->ForceVehicleList->NumVehicles, forceWaiting);
+        const uint32_t numVehicles = CountParts(logistics->VehicleList->Vehicles, unassignedWaiting) +
+                                     CountParts(logistics->ForceVehicleList->Vehicles, forceWaiting);
         file.WriteIdULong("NumVehicles", numVehicles);
         // The index runs on over both lists.
         uint32_t vehicleIndex = 0;
@@ -911,15 +877,13 @@ namespace MCMissionLogisticsBridge
             return written;
         };
 
-        if (const int32_t result = WriteParts(logistics->VehicleList->Vehicles, logistics->VehicleList->NumVehicles,
-                                              unassignedWaiting, writeVehicle);
+        if (const int32_t result = WriteParts(logistics->VehicleList->Vehicles, unassignedWaiting, writeVehicle);
             result != 0)
         {
             return result;
         }
 
-        if (const int32_t result = WriteParts(logistics->ForceVehicleList->Vehicles,
-                                              logistics->ForceVehicleList->NumVehicles, forceWaiting, writeVehicle);
+        if (const int32_t result = WriteParts(logistics->ForceVehicleList->Vehicles, forceWaiting, writeVehicle);
             result != 0)
         {
             return result;
@@ -929,18 +893,18 @@ namespace MCMissionLogisticsBridge
         auto forceDeployed = [](MCLogVehicle* part)
         { return part->Assigned != 0 && part->Deployed != 0 && part->NotMineYet == 0; };
         file.WriteBlock("AssVehicles");
-        const uint32_t numAssVehicles =
-            CountParts(logistics->ForceVehicleList->Vehicles, logistics->ForceVehicleList->NumVehicles, forceDeployed);
+        const uint32_t numAssVehicles = CountParts(logistics->ForceVehicleList->Vehicles, forceDeployed);
         file.WriteIdULong("NumAssVehicles", numAssVehicles);
 
-        if (const int32_t result = WriteParts(
-                logistics->ForceVehicleList->Vehicles, logistics->ForceVehicleList->NumVehicles, forceDeployed,
-                [&](MCLogVehicle* vehicle, uint32_t index)
-                {
-                    const uint32_t packet = index + numVehicles + numAssMechs + numMechs + numAssWarriors + numWarriors;
-                    WritePacketBlock(file, "Vehicle", index + numVehicles, packet);
-                    return LogisticsVehicleProfileWriter(ProfileName(packet), vehicle, false);
-                });
+        if (const int32_t result =
+                WriteParts(logistics->ForceVehicleList->Vehicles, forceDeployed,
+                           [&](MCLogVehicle* vehicle, uint32_t index)
+                           {
+                               const uint32_t packet =
+                                   index + numVehicles + numAssMechs + numMechs + numAssWarriors + numWarriors;
+                               WritePacketBlock(file, "Vehicle", index + numVehicles, packet);
+                               return LogisticsVehicleProfileWriter(ProfileName(packet), vehicle, false);
+                           });
             result != 0)
         {
             return result;
@@ -1048,7 +1012,7 @@ namespace MCMissionLogisticsBridge
         }
 
         int32_t item = 0;
-        WriteInventoryItems(mech->Inventory, IsOtherForm, item,
+        WriteInventoryItems(mech->Inventory.get(), IsOtherForm, item,
                             [&](uint8_t masterID, MCLogInventoryStat* stat, int32_t itemNum)
                             {
                                 mech->PlaceItem(masterID, itemNum, stat->Hits);
@@ -1057,7 +1021,7 @@ namespace MCMissionLogisticsBridge
                                 stat->ItemNum = itemNum;
                                 ++mech->NumOther;
                             });
-        WriteInventoryItems(mech->Inventory, IsWeaponForm, item,
+        WriteInventoryItems(mech->Inventory.get(), IsWeaponForm, item,
                             [&](uint8_t masterID, MCLogInventoryStat* stat, int32_t itemNum)
                             {
                                 mech->PlaceItem(masterID, itemNum, stat->Hits);
@@ -1068,7 +1032,7 @@ namespace MCMissionLogisticsBridge
                                                   mech->Inventory->GetFacing(static_cast<uint8_t>(itemNum)));
                                 ++mech->NumWeapons;
                             });
-        WriteInventoryItems(mech->Inventory, IsAmmoForm, item,
+        WriteInventoryItems(mech->Inventory.get(), IsAmmoForm, item,
                             [&](uint8_t masterID, MCLogInventoryStat* stat, int32_t itemNum)
                             {
                                 mech->PlaceItem(masterID, itemNum, stat->Hits);
@@ -1155,20 +1119,20 @@ namespace MCMissionLogisticsBridge
         file.WriteIdUChar("NumAmmo", vehicle->NumAmmo);
 
         int32_t item = 0;
-        WriteInventoryItems(vehicle->Inventory, IsOtherForm, item,
+        WriteInventoryItems(vehicle->Inventory.get(), IsOtherForm, item,
                             [&file](uint8_t masterID, MCLogInventoryStat*, int32_t itemNum)
                             {
                                 WriteItemBlock(file, itemNum);
                                 file.WriteIdUChar("MasterID", masterID);
                             });
-        WriteInventoryItems(vehicle->Inventory, IsWeaponForm, item,
+        WriteInventoryItems(vehicle->Inventory.get(), IsWeaponForm, item,
                             [&file](uint8_t masterID, MCLogInventoryStat* stat, int32_t itemNum)
                             {
                                 WriteItemBlock(file, itemNum);
                                 file.WriteIdUChar("MasterID", masterID);
                                 file.WriteIdUChar("FacesForward", stat->Facing);
                             });
-        WriteInventoryItems(vehicle->Inventory, IsAmmoForm, item,
+        WriteInventoryItems(vehicle->Inventory.get(), IsAmmoForm, item,
                             [&file](uint8_t masterID, MCLogInventoryStat*, int32_t itemNum)
                             {
                                 WriteItemBlock(file, itemNum);
@@ -1258,10 +1222,10 @@ namespace MCMissionLogisticsBridge
         auto unassigned = [](MCLogPart* part) { return part->Assigned == 0; };
         auto assigned = [](MCLogPart* part) { return part->Assigned != 0; };
         file.WriteBlock("Mechs");
-        const uint32_t numMechs = CountParts(logistics->MechList->Mechs, logistics->MechList->NumMechs, unassigned);
+        const uint32_t numMechs = CountParts(logistics->MechList->Mechs, unassigned);
         file.WriteIdULong("NumMechs", numMechs);
 
-        if (const int32_t result = WriteParts(logistics->MechList->Mechs, logistics->MechList->NumMechs, unassigned,
+        if (const int32_t result = WriteParts(logistics->MechList->Mechs, unassigned,
                                               [&](MCLogMech* mech, uint32_t index)
                                               {
                                                   const uint32_t packet = index + numAssWarriors + numWarriors;
@@ -1274,30 +1238,28 @@ namespace MCMissionLogisticsBridge
         }
 
         file.WriteBlock("AssMechs");
-        const uint32_t numAssMechs =
-            CountParts(logistics->ForceMechList->Mechs, logistics->ForceMechList->NumMechs, assigned);
+        const uint32_t numAssMechs = CountParts(logistics->ForceMechList->Mechs, assigned);
         file.WriteIdULong("NumAssMechs", numAssMechs);
 
-        if (const int32_t result =
-                WriteParts(logistics->ForceMechList->Mechs, logistics->ForceMechList->NumMechs, assigned,
-                           [&](MCLogMech* mech, uint32_t index)
-                           {
-                               const uint32_t packet = index + numMechs + numAssWarriors + numWarriors;
-                               WritePacketBlock(file, "Mech", index + numMechs, packet);
-                               return LogisticsMechProfileWriter(ProfileName(packet), mech, true);
-                           });
+        if (const int32_t result = WriteParts(logistics->ForceMechList->Mechs, assigned,
+                                              [&](MCLogMech* mech, uint32_t index)
+                                              {
+                                                  const uint32_t packet =
+                                                      index + numMechs + numAssWarriors + numWarriors;
+                                                  WritePacketBlock(file, "Mech", index + numMechs, packet);
+                                                  return LogisticsMechProfileWriter(ProfileName(packet), mech, true);
+                                              });
             result != 0)
         {
             return result;
         }
 
         file.WriteBlock("Vehicles");
-        const uint32_t numVehicles =
-            CountParts(logistics->VehicleList->Vehicles, logistics->VehicleList->NumVehicles, unassigned);
+        const uint32_t numVehicles = CountParts(logistics->VehicleList->Vehicles, unassigned);
         file.WriteIdULong("NumVehicles", numVehicles);
 
         if (const int32_t result =
-                WriteParts(logistics->VehicleList->Vehicles, logistics->VehicleList->NumVehicles, unassigned,
+                WriteParts(logistics->VehicleList->Vehicles, unassigned,
                            [&](MCLogVehicle* vehicle, uint32_t index)
                            {
                                const uint32_t packet = index + numAssMechs + numMechs + numAssWarriors + numWarriors;
@@ -1310,12 +1272,11 @@ namespace MCMissionLogisticsBridge
         }
 
         file.WriteBlock("AssVehicles");
-        const uint32_t numAssVehicles =
-            CountParts(logistics->ForceVehicleList->Vehicles, logistics->ForceVehicleList->NumVehicles, assigned);
+        const uint32_t numAssVehicles = CountParts(logistics->ForceVehicleList->Vehicles, assigned);
         file.WriteIdULong("NumAssVehicles", numAssVehicles);
 
         if (const int32_t result =
-                WriteParts(logistics->ForceVehicleList->Vehicles, logistics->ForceVehicleList->NumVehicles, assigned,
+                WriteParts(logistics->ForceVehicleList->Vehicles, assigned,
                            [&](MCLogVehicle* vehicle, uint32_t index)
                            {
                                const uint32_t packet =

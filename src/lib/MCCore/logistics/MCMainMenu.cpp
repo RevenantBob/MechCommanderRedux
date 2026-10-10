@@ -1,5 +1,6 @@
 #include "stdafx.h"
 #include "logistics/MCMainMenu.h"
+#include "ai/MCMoveGeometry.h"
 #include "logistics/MCBriefingScreen.h"
 #include "logistics/MCConnectMenu.h"
 #include "logistics/MCGenericScreen.h"
@@ -7,7 +8,7 @@
 #include "logistics/MCLogDialogButton.h"
 #include "logistics/MCRegistrySettings.h"
 #include "logistics/MCReusableDialog.h"
-#include "main/logistics.h"
+#include "main/MCLogistics.h"
 #include "main/main.h"
 #include "mission/MCMission.h"
 #include "network/multplyr.h"
@@ -38,9 +39,9 @@ namespace
 
         Solo = false;
         LastLogisticsMissionState = 0;
-        GlobalLogPtr->LoadCampaign(std::string(startFile).data(), const_cast<char*>(".pkk"), 0, 0);
+        GlobalLogPtr->LoadCampaign(startFile, ".pkk", false, false);
         GlobalLogPtr->BriefingScreen->BriefingBox = nullptr;
-        GlobalLogPtr->SetUpBriefingScreen(0);
+        GlobalLogPtr->SetUpBriefingScreen(false);
         GlobalLogPtr->MainScreen->ShowGuiWindow(false);
     }
 }
@@ -65,7 +66,7 @@ void ShowMultiPlayer()
     GlobalLogPtr->MainScreen->ShowGuiWindow(false);
     GlobalLogPtr->MultiplayerScreen->ShowGuiWindow(true);
     Solo = false;
-    GlobalLogPtr->CurrentScreen = GlobalLogPtr->MultiplayerScreen;
+    GlobalLogPtr->CurrentScreen = GlobalLogPtr->MultiplayerScreen.get();
     GlobalLogPtr->LogisticsState = 10;
 }
 
@@ -88,15 +89,15 @@ void ReturnToGame()
 
     if (GlobalLogPtr->PreviousState == 2)
     {
-        GlobalLogPtr->SetUpPurchaseScreen(0);
+        GlobalLogPtr->SetUpPurchaseScreen(false);
     }
     else if (GlobalLogPtr->PreviousState == 4)
     {
-        GlobalLogPtr->SetUpRepairScreen(0);
+        GlobalLogPtr->SetUpRepairScreen(false);
     }
     else
     {
-        GlobalLogPtr->SetUpBriefingScreen(0);
+        GlobalLogPtr->SetUpBriefingScreen(false);
     }
 
     GlobalLogPtr->MainScreen->ShowGuiWindow(false);
@@ -110,13 +111,13 @@ void GameOverMan()
 
 void Cancel()
 {
-    if (GlobalLogPtr->CurrentScreen == GlobalLogPtr->MainScreen)
+    if (GlobalLogPtr->CurrentScreen == GlobalLogPtr->MainScreen.get())
     {
         return;
     }
 
     WhackTimer = true;
-    GlobalLogPtr->SetUpMainScreen(1);
+    GlobalLogPtr->SetUpMainScreen(true);
     LoadingSolo = false;
 }
 
@@ -134,12 +135,12 @@ void DoExit()
         MPlayer->LeaveSession();
     }
 
-    GlobalLogPtr->SetUpMainScreen(0);
+    GlobalLogPtr->SetUpMainScreen(false);
 }
 
 void CheckExit()
 {
-    MCReusableDialog* dialog = GlobalLogPtr->MessageDialog;
+    MCReusableDialog* dialog = GlobalLogPtr->MessageDialog.get();
     dialog->SetText(LoadGameString(0xaf, 0xfe));
     dialog->SetTwoButton(true);
     // The dialog's callback and the cancel button's action are left as they were.

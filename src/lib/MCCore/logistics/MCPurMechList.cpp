@@ -5,7 +5,7 @@
 #include "logistics/MCMechPurchaseBlock.h"
 #include "main/MCGamePaths.h"
 #include "logistics/MCPurProfile.h"
-#include "main/logistics.h"
+#include "main/MCLogistics.h"
 #include "main/main.h"
 #include "object/MCMasterComponent.h"
 #include "object/MCMechGameSystem.h"
@@ -225,7 +225,7 @@ auto MCPurMechData::CalcBR() -> int32_t
 {
     BattleRating = ChassisBR;
 
-    for (MCLogInventoryItem* item = Inventory->Items; item != nullptr; item = item->Next)
+    for (const std::unique_ptr<MCLogInventoryItem>& item : Inventory->Items)
     {
         BattleRating = static_cast<int32_t>(
             static_cast<double>(MasterComponentList[item->MasterID].BattleRating) * item->Count + BattleRating);

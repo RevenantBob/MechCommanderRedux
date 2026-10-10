@@ -10,7 +10,7 @@
 #include "logistics/MCStoreRow.h"
 #include "logistics/MCTicker.h"
 #include "logistics/MCUnitLimits.h"
-#include "main/logistics.h"
+#include "main/MCLogistics.h"
 #include "main/main.h"
 #include "vfx/MCVfxFunctions.h"
 
@@ -206,7 +206,7 @@ auto MCVehiclePurchaseBlock::DrawBackground(int32_t) -> void
 
         for (int32_t location = 0; location < 5; ++location)
         {
-            AGShapeDraw(PicturePort->Frame(), GlobalLogPtr->VehicleIconShapes[data->NameIndex], location, 4, 0);
+            AGShapeDraw(PicturePort->Frame(), GlobalLogPtr->VehicleIconShapes[data->NameIndex].Data(), location, 4, 0);
         }
     }
 
@@ -215,7 +215,7 @@ auto MCVehiclePurchaseBlock::DrawBackground(int32_t) -> void
 
 auto MCVehiclePurchaseBlock::DrawRow(MCLogPort* port, int32_t top) -> void
 {
-    MCPurchaseScreen* screen = GlobalLogPtr->PurchaseScreen;
+    MCPurchaseScreen* screen = GlobalLogPtr->PurchaseScreen.get();
     std::unique_ptr<MCLogBlockPort> work = RowPicture(screen->VehicleTabPort.get(), port, top, false);
     MCPurVehicleData* data = PurVehicle->Data.get();
     WriteText(YellowDropFont, work.get(), 0x52, 0x24,
@@ -231,7 +231,7 @@ auto MCVehiclePurchaseBlock::DrawRow(MCLogPort* port, int32_t top) -> void
         // Sold out: the "sold out" name art, a blank picture and the sold-out mark.
         CopyArt(work.get(), 5, 4, std::format("lspfdv{:02}.tga", data->NameIndex));
         WipeBox(work.get(), 0xed, 6, 0x4b, 100, 0x10);
-        AGShapeDraw(work->Frame(), GlobalLogPtr->VehicleRepShapes[data->NameIndex], 6, 0xed, 6);
+        AGShapeDraw(work->Frame(), GlobalLogPtr->VehicleRepShapes[data->NameIndex].Data(), 6, 0xed, 6);
         stock = "0";
     }
     else
@@ -241,16 +241,16 @@ auto MCVehiclePurchaseBlock::DrawRow(MCLogPort* port, int32_t top) -> void
         // The picture.
         MCLogBlockPort picture(work->Frame(), 0xed, 6, 0x4b, 100, true);
         VfxPaneWipe(picture.Frame(), 0x10);
-        VfxShapeLookaside(GlobalLogPtr->ShapeLookaside[0]);
+        VfxShapeLookaside(GlobalLogPtr->ShapeLookaside[0].data());
 
         for (int32_t shape = 0; shape < 5; ++shape)
         {
-            VfxShapeTranslateDraw(picture.Frame(), GlobalLogPtr->VehicleRepShapes[index], shape, 0, 0);
+            VfxShapeTranslateDraw(picture.Frame(), GlobalLogPtr->VehicleRepShapes[index].Data(), shape, 0, 0);
         }
 
         for (int32_t location = 0; location < 5; ++location)
         {
-            AGShapeDraw(work->Frame(), GlobalLogPtr->VehicleIconShapes[index], location, 9, 0x22);
+            AGShapeDraw(work->Frame(), GlobalLogPtr->VehicleIconShapes[index].Data(), location, 9, 0x22);
         }
 
         // A negative stock shows the "unlimited" mark.

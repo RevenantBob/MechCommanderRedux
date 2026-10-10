@@ -7,7 +7,7 @@
 #include "gui/MCGuiSystem.h"
 #include "gui/MCHardwareCursor.h"
 #include "lib/MCDice.h"
-#include "main/logistics.h"
+#include "main/MCLogistics.h"
 #include "mission/MCMission.h"
 #include "mission/MCMissionResultsScreen.h"
 #include "platform/MCDisplay.h"

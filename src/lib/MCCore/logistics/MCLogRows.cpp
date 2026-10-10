@@ -7,7 +7,7 @@
 #include "logistics/MCPurchaseScreen.h"
 #include "logistics/MCRepairScreen.h"
 #include "logistics/MCReusableDialog.h"
-#include "main/logistics.h"
+#include "main/MCLogistics.h"
 #include "main/main.h"
 #include "mission/MCMission.h"
 #include "object/MCMasterComponent.h"
@@ -92,12 +92,12 @@ namespace
 
 auto OnRepairScreen() -> bool
 {
-    return GlobalLogPtr->CurrentScreen == GlobalLogPtr->RepairScreen;
+    return GlobalLogPtr->CurrentScreen == GlobalLogPtr->RepairScreen.get();
 }
 
 auto OnPurchaseScreen() -> bool
 {
-    return GlobalLogPtr->CurrentScreen == GlobalLogPtr->PurchaseScreen;
+    return GlobalLogPtr->CurrentScreen == GlobalLogPtr->PurchaseScreen.get();
 }
 
 auto ShowLogMessage(uint32_t stringId, bool okayArt) -> void
@@ -107,7 +107,7 @@ auto ShowLogMessage(uint32_t stringId, bool okayArt) -> void
 
 auto ShowLogMessage(std::string_view text, bool okayArt) -> void
 {
-    MCReusableDialog* dialog = GlobalLogPtr->MessageDialog;
+    MCReusableDialog* dialog = GlobalLogPtr->MessageDialog.get();
     dialog->SetText(text);
     dialog->SetTwoButton(false);
     dialog->Callback = nullptr;
@@ -126,7 +126,7 @@ auto OpenPurchaseDialog(int32_t purchaseType, int32_t unitCost, int32_t maxQuant
                         std::string_view subtitle, MCGuiPort* picture,
                         std::function<void(int32_t result, int32_t quantity)> callback) -> void
 {
-    MCPurchaseDlg* dialog = GlobalLogPtr->PurchaseDialog;
+    MCPurchaseDlg* dialog = GlobalLogPtr->PurchaseDialog.get();
     dialog->Init(purchaseType, unitCost, maxQuantity, title, subtitle, picture);
     dialog->SetCallback(std::move(callback));
     dialog->Activate();
@@ -326,13 +326,13 @@ auto PercentLeft(uint8_t current, uint8_t maximum) -> uint32_t
 auto ArmorShadeTable(int32_t shade) -> uint8_t*
 {
     static constexpr int32_t tables[5] = {4, 0, 1, 2, 3};
-    return GlobalLogPtr->ShapeLookaside[tables[shade]];
+    return GlobalLogPtr->ShapeLookaside[static_cast<size_t>(tables[shade])].data();
 }
 
 auto InternalShadeTable(int32_t shade) -> uint8_t*
 {
     static constexpr int32_t tables[5] = {9, 5, 6, 7, 8};
-    return GlobalLogPtr->ShapeLookaside[tables[shade]];
+    return GlobalLogPtr->ShapeLookaside[static_cast<size_t>(tables[shade])].data();
 }
 
 auto DrawTonnageBar(MCPane* pane, int32_t xPos, int32_t fill) -> void
@@ -367,8 +367,9 @@ auto DrawInventoryList(MCInventoryList* inventory, MCLogPort* port) -> std::opti
     std::vector<int32_t> longRange;
     int32_t index = 0;
 
-    for (MCLogInventoryItem* item = inventory->Items; item != nullptr; item = item->Next, ++index)
+    for (const std::unique_ptr<MCLogInventoryItem>& item : inventory->Items)
     {
+        const int32_t position = index++;
         const MCMasterComponent& component = MasterComponentList[item->MasterID];
         MCComponentForm form = component.Form;
 
@@ -379,15 +380,15 @@ auto DrawInventoryList(MCInventoryList* inventory, MCLogPort* port) -> std::opti
 
         if (component.WeaponRange[3] < 76.0f)
         {
-            shortRange.push_back(index);
+            shortRange.push_back(position);
         }
         else if (component.WeaponRange[3] < 151.0f)
         {
-            mediumRange.push_back(index);
+            mediumRange.push_back(position);
         }
         else
         {
-            longRange.push_back(index);
+            longRange.push_back(position);
         }
     }
 
@@ -409,11 +410,11 @@ auto DrawInventoryList(MCInventoryList* inventory, MCLogPort* port) -> std::opti
         }
     }
 
-    for (MCLogInventoryItem* item = inventory->Items; item != nullptr; item = item->Next)
+    for (const std::unique_ptr<MCLogInventoryItem>& item : inventory->Items)
     {
         if (IsEquipment(MasterComponentList[item->MasterID].Form))
         {
-            writeLine(item);
+            writeLine(item.get());
         }
     }
 
@@ -441,7 +442,7 @@ auto MCLogistics::DrawMechBodyLoc(MCLogMech* mech, int32_t location, MCLogPort* 
     }
 
     int32_t state = DiagramState(percent, mech->Internals[location].CurArmor);
-    DrawDiagram(GlobalLogPtr->MechIconShapes[mech->NameIndex], location, state, port, xPos, yPos);
+    DrawDiagram(GlobalLogPtr->MechIconShapes[mech->NameIndex].Data(), location, state, port, xPos, yPos);
 }
 
 auto MCLogistics::DrawVehicleBodyLoc(MCLogVehicle* vehicle, int32_t location, MCLogPort* port, int32_t xPos,
@@ -456,7 +457,7 @@ auto MCLogistics::DrawVehicleBodyLoc(MCLogVehicle* vehicle, int32_t location, MC
 
     int32_t percent = static_cast<int32_t>(static_cast<double>(vehicle->CurArmorPoints[location]) / maxArmor * 100.0f);
     int32_t state = DiagramState(percent, vehicle->CurInternalStructure[location]);
-    DrawDiagram(GlobalLogPtr->VehicleIconShapes[vehicle->NameIndex], location, state, port, xPos, yPos);
+    DrawDiagram(GlobalLogPtr->VehicleIconShapes[vehicle->NameIndex].Data(), location, state, port, xPos, yPos);
 }
 
 auto MCLogistics::DrawPilotSkillBar(MCLogWarrior* warrior, int32_t skill, int32_t xPos, int32_t yPos, int32_t row,
@@ -509,11 +510,10 @@ auto MCLogMech::CalcStatus() -> float
         return 0.0f;
     }
 
-    MCLogInventoryItem* item = Inventory->Items;
     float pilotFactor = 0.0f;
     MCLogWarrior* warrior = nullptr;
 
-    if (LocalPart == 0)
+    if (!LocalPart)
     {
         warrior = NetworkPilot;
     }
@@ -531,18 +531,18 @@ auto MCLogMech::CalcStatus() -> float
     double working = 0.0;
     double total = 0.0;
 
-    for (; item != nullptr; item = item->Next)
+    for (const std::unique_ptr<MCLogInventoryItem>& item : Inventory->Items)
     {
         const MCMasterComponent& component = MasterComponentList[item->MasterID];
 
-        if (!IsWeapon(component.Form) || item->Stats == nullptr)
+        if (!IsWeapon(component.Form) || item->Stats.empty())
         {
             continue;
         }
 
         int16_t value = WeaponWorth(component);
 
-        for (MCLogInventoryStat* stat = item->Stats; stat != nullptr; stat = stat->Next)
+        for (const std::unique_ptr<MCLogInventoryStat>& stat : item->Stats)
         {
             if (stat->Hits == 0)
             {
