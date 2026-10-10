@@ -24,7 +24,7 @@
 #include "logistics/MCUnitLimits.h"
 #include "logistics/MCPurProfile.h"
 #include "main/MCLogistics.h"
-#include "main/main.h"
+#include "main/MCGameStrings.h"
 #include "network/multplyr.h"
 #include "platform/MCInput.h"
 #include "vfx/MCVfxFunctions.h"

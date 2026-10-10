@@ -4,7 +4,7 @@
 #include "engine/MCCraterManager.h"
 #include "engine/MCElementBuffer.h"
 #include "engine/MCPolygonElement.h"
-#include "main/main.h"
+#include "main/MCMissionGlobals.h"
 #include "network/multplyr.h"
 #include "object/MCLaserType.h"
 #include "object/MCObjectSystem.h"

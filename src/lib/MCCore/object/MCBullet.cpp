@@ -7,7 +7,7 @@
 #include "camera/MCCamera.h"
 #include "engine/MCCraterManager.h"
 #include "lib/MCFrameOfRef.h"
-#include "main/main.h"
+#include "main/MCMissionGlobals.h"
 #include "mission/MCScenario.h"
 #include "network/multplyr.h"
 #include "object/MCBulletType.h"

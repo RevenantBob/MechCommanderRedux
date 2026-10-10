@@ -4,7 +4,7 @@
 #include "lib/MCFatal.h"
 #include "lib/MCFile.h"
 #include "lib/MCPacketFile.h"
-#include "main/main.h"
+#include "main/MCMissionGlobals.h"
 #include "mission/MCScenario.h"
 #include "object/MCBigGameObject.h"
 #include "object/MCMover.h"

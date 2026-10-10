@@ -61,7 +61,3 @@ private:
     /// <summary>The types loaded, in the order they were.</summary>
     std::vector<std::unique_ptr<MCObjectType>> _Types;
 };
-
-/// <summary>Where the object files are found ("data\objects\" until SYSTEM.CFG's objectPath is read).</summary>
-/// <remarks>A buffer like the other SYSTEM.CFG paths honorb fills (P3-main-2 makes them strings).</remarks>
-extern char ObjectPath[80];

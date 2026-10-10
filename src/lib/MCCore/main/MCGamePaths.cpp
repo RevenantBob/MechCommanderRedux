@@ -14,3 +14,8 @@ std::string FontPath;
 std::string DirectXPath;
 std::string SoundPath;
 std::string ShapesPath;
+std::string ObjectPath = "data\\objects\\";
+std::string MissionPath = "data\\missions\\";
+std::string CDmoviePath = "data\\movies\\";
+std::string MoviePath = "data\\movies\\";
+std::string SaveTempPath = "data\\save\\temp\\";

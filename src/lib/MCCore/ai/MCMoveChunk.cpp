@@ -5,7 +5,6 @@
 #include "ai/MCObjectMap.h"
 #include "lib/MCFatal.h"
 #include "lib/MCFile.h"
-#include "main/main.h"
 #include "object/MCBattleMech.h"
 #include "object/MCBattleMechType.h"
 #include "object/MCMechGameSystem.h"

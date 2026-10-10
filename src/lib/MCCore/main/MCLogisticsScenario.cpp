@@ -6,8 +6,9 @@
 #include "logistics/MCMissionLogisticsBridge.h"
 #include "main/MCGamePaths.h"
 #include "main/MCLogisticsShared.h"
-#include "main/honorb.h"
-#include "main/main.h"
+#include "main/MCSystemConfig.h"
+#include "main/MCMissionGlobals.h"
+#include "main/MCGameStrings.h"
 #include "mission/MCMission.h"
 #include "mission/MCScenario.h"
 

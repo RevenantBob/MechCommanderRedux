@@ -25,8 +25,8 @@
 #include "logistics/MCVehicleRepairBlock.h"
 #include "main/MCGamePaths.h"
 #include "main/MCLogisticsShared.h"
-#include "main/honorb.h"
-#include "main/main.h"
+#include "main/MCSystemConfig.h"
+#include "main/MCGameStrings.h"
 #include "mission/MCMission.h"
 #include "network/multplyr.h"
 #include "object/MCObjectTypeManager.h"
@@ -288,7 +288,7 @@ auto MCLogistics::LoadCampaign(std::string_view saveName, std::string_view exten
 
         const std::string missionName =
             !Solo ? std::string(CurPlanet == 0 ? "mechcmdr1" : "xmechcmdr1") : std::format("campaign{}", saveName);
-        *std::format_to_n(MissionName, sizeof(MissionName) - 1, "{}", missionName).out = 0;
+        MissionName = missionName;
         Mission()->ReloadCampaign(MissionName);
     }
 

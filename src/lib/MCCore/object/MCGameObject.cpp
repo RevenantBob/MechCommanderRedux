@@ -2,7 +2,7 @@
 #include "object/MCGameObject.h"
 #include "ai/MCMoveSystem.h"
 #include "lib/MCFatal.h"
-#include "main/main.h"
+#include "main/MCMissionGlobals.h"
 #include "object/MCObjectSystem.h"
 #include "object/MCObjectType.h"
 #include "object/MCObjectTypeManager.h"

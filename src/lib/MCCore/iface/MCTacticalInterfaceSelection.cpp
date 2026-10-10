@@ -3,7 +3,7 @@
 #include "ai/MCMoveSystem.h"
 #include "iface/MCCommandParser.h"
 #include "iface/MCMechBar.h"
-#include "main/main.h"
+#include "main/MCMissionGlobals.h"
 #include "mission/MCMission.h"
 #include "object/MCForces.h"
 #include "object/MCMechWarrior.h"

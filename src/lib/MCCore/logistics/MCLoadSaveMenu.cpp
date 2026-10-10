@@ -11,7 +11,7 @@
 #include "logistics/MCSessionScreen.h"
 #include "logistics/MCSplashScreen.h"
 #include "main/MCLogistics.h"
-#include "main/main.h"
+#include "main/MCGameStrings.h"
 #include "platform/MCFileSystem.h"
 #include "sound/MCSoundSystem.h"
 

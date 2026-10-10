@@ -1,7 +1,7 @@
 #include "stdafx.h"
 #include "sprite/MCPUAppearanceType.h"
 #include "camera/MCCamera.h"
-#include "main/main.h"
+#include "main/MCMissionGlobals.h"
 #include "sprite/MCPUAppearance.h"
 #include "sprite/MCShape.h"
 #include "sprite/MCSpriteManager.h"

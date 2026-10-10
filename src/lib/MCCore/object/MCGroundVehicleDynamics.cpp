@@ -1,6 +1,6 @@
 #include "stdafx.h"
 #include "object/MCGroundVehicleDynamics.h"
-#include "main/main.h"
+#include "main/MCMissionGlobals.h"
 #include "object/MCControl.h"
 #include "object/MCGroundVehicleControlData.h"
 #include "object/MCGroundVehicle.h"

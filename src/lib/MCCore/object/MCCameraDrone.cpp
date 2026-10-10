@@ -5,7 +5,7 @@
 #include "appear/MCAppearanceType.h"
 #include "appear/MCAppearanceTypeList.h"
 #include "camera/MCCamera.h"
-#include "main/main.h"
+#include "main/MCMissionGlobals.h"
 #include "mission/MCScenario.h"
 #include "network/multplyr.h"
 #include "object/MCCameraDroneType.h"

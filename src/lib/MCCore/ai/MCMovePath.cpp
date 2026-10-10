@@ -1,7 +1,7 @@
 #include "stdafx.h"
 #include "ai/MCMovePath.h"
 #include "ai/MCMoveSystem.h"
-#include "main/main.h"
+#include "main/MCMissionGlobals.h"
 
 auto MCMovePath::SetNumSteps(int32_t numSteps) -> void
 {

@@ -7,7 +7,7 @@
 #include "lib/MCFile.h"
 #include "lib/MCFitIniFile.h"
 #include "lib/MCPacketFile.h"
-#include "main/main.h"
+#include "main/MCMissionGlobals.h"
 #include "network/multplyr.h"
 #include "object/MCForces.h"
 #include "object/MCMover.h"

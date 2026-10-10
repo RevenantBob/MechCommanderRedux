@@ -1,7 +1,7 @@
 #include "stdafx.h"
 #include "object/MCMechWarrior.h"
 #include "lib/MCFatal.h"
-#include "main/main.h"
+#include "main/MCMissionGlobals.h"
 #include "object/MCForces.h"
 #include "object/MCMover.h"
 #include "object/MCMoverGameSystem.h"

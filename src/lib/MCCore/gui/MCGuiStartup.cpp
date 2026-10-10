@@ -10,7 +10,6 @@
 #include "linkup/ficommonnetwork.h"
 #include "linkup/sessionmanager.h"
 #include "main/MCGamePaths.h"
-#include "main/main.h"
 #include "logistics/MCConnectMenu.h"
 #include "main/MCGameContext.h"
 #include "mission/MCMission.h"
@@ -281,12 +280,11 @@ auto ParseCommandLine(std::string_view commandLine) -> void
     }
 }
 
-auto RealWinMain(void* instance, std::string_view commandLine) -> int
+auto RunGame(std::string_view commandLine) -> int
 {
     // The original noted the stack top and warned when the page file was under 48,000,000 bytes (GlobalMemoryStatus,
     // string 0x355), and refused a second instance; none of that applies.
     MCPort::SeedRand(static_cast<uint32_t>(std::time(nullptr)));
-    ThisInstance = instance;
     SavePath = "c:\\Program Files\\Honor Bound\\";
     DirectXPath = "\\honorb\\directx\\";
     TerrainPath = "data\\terrain\\";

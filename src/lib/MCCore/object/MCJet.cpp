@@ -4,7 +4,7 @@
 #include "appear/MCAppearanceTypeList.h"
 #include "camera/MCCamera.h"
 #include "lib/MCFrameOfRef.h"
-#include "main/main.h"
+#include "main/MCMissionGlobals.h"
 #include "object/MCBattleMech.h"
 #include "object/MCJetType.h"
 #include "object/MCObjectDrawing.h"

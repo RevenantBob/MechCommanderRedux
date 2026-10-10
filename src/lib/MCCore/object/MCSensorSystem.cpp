@@ -1,7 +1,7 @@
 #include "stdafx.h"
 #include "object/MCSensorSystem.h"
 #include "lib/MCFatal.h"
-#include "main/main.h"
+#include "main/MCMissionGlobals.h"
 #include "object/MCBigGameObject.h"
 #include "object/MCContactSystem.h"
 #include "object/MCForces.h"

@@ -3,7 +3,7 @@
 #include "ai/MCMoveSystem.h"
 #include "iface/MCTacticalInterface.h"
 #include "lib/MCFatal.h"
-#include "main/main.h"
+#include "main/MCMissionGlobals.h"
 #include "network/multplyr.h"
 #include "object/MCObjectSystem.h"
 #include "object/MCSortList.h"

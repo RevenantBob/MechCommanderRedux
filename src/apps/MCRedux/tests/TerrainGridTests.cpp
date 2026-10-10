@@ -1,7 +1,7 @@
 #include "stdafx.h"
 #include "MCTest.h"
 #include "fixtures/MCTerrainGeometryScope.h"
-#include "main/main.h"
+#include "main/MCMissionGlobals.h"
 #include "terrain/MCMapBlockManager.h"
 #include "terrain/MCTerrain.h"
 #include "terrain/MCTerrainWindow.h"

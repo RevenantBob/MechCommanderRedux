@@ -5,7 +5,7 @@
 #include "camera/MCCamera.h"
 #include "gui/MCGuiSystem.h"
 #include "lib/MCDice.h"
-#include "main/main.h"
+#include "main/MCMissionGlobals.h"
 #include "object/MCDebrisType.h"
 #include "object/MCObjectDrawing.h"
 #include "sprite/MCArmAppearance.h"

@@ -1,6 +1,6 @@
 #include "stdafx.h"
 #include "sprite/MCArmAppearanceType.h"
-#include "main/main.h"
+#include "main/MCMissionGlobals.h"
 #include "sprite/MCArmAppearance.h"
 #include "sprite/MCShape.h"
 #include "sprite/MCSpriteManager.h"

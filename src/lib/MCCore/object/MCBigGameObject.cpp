@@ -5,7 +5,7 @@
 #include "camera/MCCameraList.h"
 #include "lib/MCFatal.h"
 #include "lib/MCFile.h"
-#include "main/main.h"
+#include "main/MCMissionGlobals.h"
 #include "object/MCContactSystem.h"
 #include "object/MCObjectSystem.h"
 #include "object/MCObjectType.h"

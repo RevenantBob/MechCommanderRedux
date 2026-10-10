@@ -6,7 +6,7 @@
 #include "main/MCGamePaths.h"
 #include "logistics/MCPurProfile.h"
 #include "main/MCLogistics.h"
-#include "main/main.h"
+#include "main/MCGameStrings.h"
 #include "object/MCMasterComponent.h"
 #include "object/MCMechGameSystem.h"
 

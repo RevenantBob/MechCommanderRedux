@@ -6,7 +6,7 @@
 #include "engine/MCElementBuffer.h"
 #include "engine/MCPolygonElement.h"
 #include "engine/MCVfxElement.h"
-#include "main/main.h"
+#include "main/MCMissionGlobals.h"
 #include "object/MCGate.h"
 #include "object/MCGateType.h"
 #include "object/MCGroundVehicle.h"

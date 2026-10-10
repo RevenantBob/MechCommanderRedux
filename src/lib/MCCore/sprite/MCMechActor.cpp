@@ -10,7 +10,7 @@
 #include "engine/MCLineElement.h"
 #include "engine/MCPolygonElement.h"
 #include "engine/MCVfxElement.h"
-#include "main/main.h"
+#include "main/MCMissionGlobals.h"
 #include "mission/MCScenario.h"
 #include "object/MCBattleMech.h"
 #include "object/MCBattleMechType.h"

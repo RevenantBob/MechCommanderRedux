@@ -2,7 +2,8 @@
 #include "object/MCMover.h"
 #include "engine/MCByteFlag.h"
 #include "lib/MCFatal.h"
-#include "main/main.h"
+#include "main/MCMissionGlobals.h"
+#include "main/MCGameStrings.h"
 #include "mission/MCMission.h"
 #include "mission/MCScenario.h"
 #include "network/multplyr.h"
@@ -126,9 +127,7 @@ MCMover::MCMover()
 
     if (MPlayer != nullptr)
     {
-        std::array<char, 0x100> name{};
-        CLoadString(ThisInstance, 0xb9, name.data(), 0xfe);
-        NetName = name.data();
+        NetName = LoadGameString(0xb9, 0xfe);
     }
 }
 

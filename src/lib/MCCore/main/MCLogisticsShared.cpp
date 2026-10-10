@@ -1,6 +1,6 @@
 #include "stdafx.h"
 #include "main/MCLogisticsShared.h"
-#include "main/main.h"
+#include "main/MCGameStrings.h"
 
 auto LogWeightClass(float tonnage) -> int32_t
 {

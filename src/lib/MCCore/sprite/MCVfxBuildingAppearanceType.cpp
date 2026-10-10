@@ -1,6 +1,6 @@
 #include "stdafx.h"
 #include "sprite/MCVfxBuildingAppearanceType.h"
-#include "main/main.h"
+#include "main/MCMissionGlobals.h"
 #include "sprite/MCShape.h"
 #include "sprite/MCSpriteManager.h"
 #include "sprite/MCVfxBuildingAppearance.h"

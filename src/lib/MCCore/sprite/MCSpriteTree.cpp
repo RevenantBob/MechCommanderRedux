@@ -1,6 +1,6 @@
 #include "stdafx.h"
 #include "sprite/MCSpriteTree.h"
-#include "main/main.h"
+#include "main/MCMissionGlobals.h"
 #include "sprite/MCMechActor.h"
 #include "sprite/MCShape.h"
 

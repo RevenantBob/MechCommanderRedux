@@ -5,7 +5,7 @@
 #include "color/MCPalette.h"
 #include "engine/MCElementBuffer.h"
 #include "engine/MCVfxElement.h"
-#include "main/main.h"
+#include "main/MCMissionGlobals.h"
 #include "object/MCBigGameObject.h"
 #include "sprite/MCShape.h"
 #include "sprite/MCSpriteMath.h"

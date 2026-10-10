@@ -1,7 +1,6 @@
 #include "stdafx.h"
 #include "logistics/MCLogToolButton.h"
 #include "gui/MCGuiEvent.h"
-#include "main/main.h"
 #include "platform/MCInput.h"
 
 void LToolButtonEventHandler(MCGuiObject* object, MCGuiEvent* event)

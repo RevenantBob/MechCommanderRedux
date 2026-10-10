@@ -2,7 +2,7 @@
 #include "object/MCMechWarrior.h"
 #include "abl/MCScrollingTextWindow.h"
 #include "lib/MCFatal.h"
-#include "main/main.h"
+#include "main/MCMissionGlobals.h"
 #include "network/multplyr.h"
 #include "object/MCMasterComponent.h"
 #include "object/MCMover.h"

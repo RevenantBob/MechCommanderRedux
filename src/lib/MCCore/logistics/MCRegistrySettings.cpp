@@ -1,6 +1,6 @@
 #include "stdafx.h"
 #include "logistics/MCRegistrySettings.h"
-#include "main/main.h"
+#include "main/MCGameStrings.h"
 #include "platform/MCRegistry.h"
 
 namespace

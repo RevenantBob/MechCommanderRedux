@@ -8,7 +8,7 @@
 #include "engine/MCElementBuffer.h"
 #include "engine/MCVfxElement.h"
 #include "lib/MCDice.h"
-#include "main/main.h"
+#include "main/MCMissionGlobals.h"
 #include "mission/MCMission.h"
 #include "network/multplyr.h"
 #include "object/MCCollisionSystem.h"

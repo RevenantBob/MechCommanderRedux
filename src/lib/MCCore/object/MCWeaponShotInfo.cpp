@@ -1,7 +1,6 @@
 #include "stdafx.h"
 #include "object/MCWeaponShotInfo.h"
 #include "lib/MCFatal.h"
-#include "main/main.h"
 #include "mission/MCScenario.h"
 #include "mission/MCDifficultySettings.h"
 #include "network/multplyr.h"

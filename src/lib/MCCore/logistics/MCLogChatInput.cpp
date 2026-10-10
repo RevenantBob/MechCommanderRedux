@@ -8,7 +8,6 @@
 #include "linkup/sessionmanager.h"
 #include "logistics/MCLogChatWindow.h"
 #include "logistics/MCLogToolButton.h"
-#include "main/main.h"
 #include "network/multplyr.h"
 #include "vfx/MCVfxFunctions.h"
 

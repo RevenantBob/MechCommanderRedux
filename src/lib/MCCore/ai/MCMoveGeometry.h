@@ -1,7 +1,7 @@
 #pragma once
 
 #include "lib/MCFrameOfRef.h"
-#include "main/main.h"
+#include "main/MCMissionGlobals.h"
 #include "terrain/MCTerrain.h"
 
 class MCGameObject;

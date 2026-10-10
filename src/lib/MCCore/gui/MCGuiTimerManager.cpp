@@ -3,7 +3,7 @@
 #include "gui/MCGuiInput.h"
 #include "gui/MCGuiSystem.h"
 #include "lib/MCFatal.h"
-#include "main/main.h"
+#include "main/MCMissionGlobals.h"
 
 MCGuiTimerManager::MCGuiTimerManager()
 {

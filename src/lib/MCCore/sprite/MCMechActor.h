@@ -1,7 +1,7 @@
 #pragma once
 
 #include "appear/MCAppearance.h"
-#include "main/fixes.h"
+#include "main/MCOriginalBugFixes.h"
 #include "sprite/MCSpriteTree.h"
 
 #include <bit>
@@ -9,9 +9,9 @@
 class MCMovePath;
 
 /// <summary>The value of the mech actor's fields the original left uninitialised (0 with the port's fix).</summary>
-inline constexpr int32_t ActorUnset = MCREDUX_FIX_UNINITIALIZED_MECH_ACTOR ? 0 : -1;
+inline constexpr int32_t ActorUnset = FixUninitializedMechActor ? 0 : -1;
 /// <summary>The same for float fields.</summary>
-inline constexpr float ActorUnsetF = MCREDUX_FIX_UNINITIALIZED_MECH_ACTOR ? 0.0f : std::bit_cast<float>(0xffffffffu);
+inline constexpr float ActorUnsetF = FixUninitializedMechActor ? 0.0f : std::bit_cast<float>(0xffffffffu);
 
 /// <summary>
 /// A BattleMech's appearance: legs, torso and arms drawn from the part PAKs through its <see cref="MCSpriteTree"/>,

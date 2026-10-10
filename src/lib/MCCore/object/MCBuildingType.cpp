@@ -1,7 +1,7 @@
 #include "stdafx.h"
 #include "object/MCBuildingType.h"
 #include "lib/MCFitIniFile.h"
-#include "main/main.h"
+#include "main/MCMissionGlobals.h"
 #include "mission/MCScenario.h"
 #include "network/multplyr.h"
 #include "object/MCBuilding.h"

@@ -18,8 +18,7 @@
 #include "lib/MCPacketFile.h"
 #include "main/MCGamePaths.h"
 #include "logistics/MCPreferencesMenu.h"
-#include "main/honorb.h"
-#include "main/main.h"
+#include "main/MCMissionGlobals.h"
 #include "mission/MCDifficultySettings.h"
 #include "mission/MCMission.h"
 #include "mission/MCScenarioReading.h"
@@ -134,8 +133,8 @@ auto MCScenario::Load(std::string_view scenarioName, std::string_view terrainNam
     _WaypointMarkers = LoadShapeFile("waypoints");
 
     // The original passed SYSTEM.CFG's ABL heap, stack, code block, module and static sizes (all gone) and ran
-    // without debug info, debugger or profile log.
-    AblInit({.DebuggerPrint = AblDebuggerPrintCallback});
+    // without debug info, debugger or profile log. Its debugger print callback did nothing.
+    AblInit({.DebuggerPrint = [](std::string_view) {}});
     Turn = 0;
 
     // The objects placed now but brought into play later by the script.

@@ -3,7 +3,7 @@
 #include "camera/MCCamera.h"
 #include "engine/MCElementBuffer.h"
 #include "engine/MCVfxElement.h"
-#include "main/main.h"
+#include "main/MCMissionGlobals.h"
 #include "object/MCBuilding.h"
 #include "object/MCBuildingType.h"
 #include "object/MCBuildingMarines.h"

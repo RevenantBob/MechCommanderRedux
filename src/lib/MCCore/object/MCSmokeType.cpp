@@ -3,7 +3,7 @@
 #include "lib/MCFile.h"
 #include "lib/MCFitIniFile.h"
 #include "main/MCGamePaths.h"
-#include "main/main.h"
+#include "main/MCMissionGlobals.h"
 #include "object/MCSmoke.h"
 
 auto MCSmokeType::CreateInstance() -> std::unique_ptr<MCBaseObject>

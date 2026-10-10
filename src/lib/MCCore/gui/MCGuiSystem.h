@@ -12,6 +12,7 @@ class MCDisplay;
 class MCFont;
 class MCGuiFont;
 class MCGuiMessageBox;
+class MCGameSession;
 class MCGuiSmackerWindow;
 class MCPacketFile;
 
@@ -187,6 +188,8 @@ public:
     /// <summary>Where the mouse scrolls the map: outside (1, 1)..(width - 4, height - 4).</summary>
     tagRECT ScrollRect = {};
     std::unique_ptr<MCGuiTimerManager> TimerManager;
+    /// <summary>The game's systems from the end of <see cref="Start"/> to <see cref="Stop"/>.</summary>
+    std::unique_ptr<MCGameSession> Session;
     /// <summary>The movie window while a movie plays (the game waits for it).</summary>
     MCGuiOwned<MCGuiSmackerWindow> SmackerWindow;
     /// <summary>The window every screen is a child of (<see cref="ScreenWindow"/>).</summary>

@@ -17,7 +17,7 @@
 #include "lib/MCFrameOfRef.h"
 #include "lib/MCVector2D.h"
 #include "lib/MCFitIniFile.h"
-#include "main/main.h"
+#include "main/MCMissionGlobals.h"
 #include "mission/MCScenario.h"
 #include "network/multplyr.h"
 #include "object/MCAIControl.h"

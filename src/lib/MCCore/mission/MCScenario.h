@@ -256,8 +256,3 @@ extern std::array<int32_t, VisualRangeTableSize> VisualRangeTable;
 extern bool DrawRevealedTacMap;
 /// <summary><c>AlwaysDraw</c> from the game system file.</summary>
 extern uint8_t ForceAlways;
-/// <summary>
-/// Where a saved game's copies of the scenario, warrior and object profile FITs are unpacked
-/// (<c>"data\save\temp\"</c>); the scenario falls back on it when a file isn't in its usual folder.
-/// </summary>
-extern char SaveTempPath[80];

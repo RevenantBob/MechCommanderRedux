@@ -4,7 +4,7 @@
 #include "fakes/MCNullAudioDevice.h"
 #include "lib/MCFitIniFile.h"
 #include "main/MCGameContext.h"
-#include "main/main.h"
+#include "main/MCMissionGlobals.h"
 #include "mission/MCDifficultySettings.h"
 #include "mission/MCMissionResults.h"
 #include "mission/MCScenario.h"

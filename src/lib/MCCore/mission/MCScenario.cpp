@@ -11,7 +11,8 @@
 #include "ai/MCMoveSystem.h"
 #include "camera/MCCameraList.h"
 #include "gui/MCGuiSystem.h"
-#include "main/main.h"
+#include "main/MCMissionGlobals.h"
+#include "main/MCGameStrings.h"
 #include "mission/MCMission.h"
 #include "network/multplyr.h"
 #include "object/MCCollisionSystem.h"
@@ -36,7 +37,6 @@ float MineWaitTime = 0.0f;
 std::array<int32_t, VisualRangeTableSize> VisualRangeTable = {};
 bool DrawRevealedTacMap = false;
 uint8_t ForceAlways = 0;
-char SaveTempPath[80] = "data\\save\\temp\\";
 
 namespace
 {

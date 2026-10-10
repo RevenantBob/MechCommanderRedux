@@ -17,8 +17,9 @@
 #include "main/MCGamePaths.h"
 #include "logistics/MCMissionLogisticsBridge.h"
 #include "main/MCGameContext.h"
-#include "main/honorb.h"
-#include "main/main.h"
+#include "main/MCGameSession.h"
+#include "main/MCSystemConfig.h"
+#include "main/MCMissionGlobals.h"
 #include "mission/MCMission.h"
 #include "mission/MCScenario.h"
 #include "network/multplyr.h"
@@ -70,6 +71,7 @@ MCGuiSystem::MCGuiSystem()
 
 MCGuiSystem::~MCGuiSystem()
 {
+    Session.reset();
     _Retired.clear();
     VersionDialog.reset();
     SmackerWindow.reset();
@@ -270,11 +272,7 @@ auto MCGuiSystem::Start(std::string_view commandLine, int16_t screenWidth, int16
     MCGameContext::Current().SetTacticalInterface(std::make_unique<MCTacticalInterface>());
     TacticalInterface()->Init();
 
-    if (UserInit() != 0)
-    {
-        return -10;
-    }
-
+    Session = std::make_unique<MCGameSession>();
     SetScrollRect();
     CursorHidden = false;
     SetCurrentCursor(static_cast<MCCursorType>(0));
@@ -295,7 +293,7 @@ auto MCGuiSystem::Stop() -> void
         Mission()->CloseResultsScreen();
     }
 
-    UserDestroy();
+    Session.reset();
 
     if (MPlayer != nullptr)
     {

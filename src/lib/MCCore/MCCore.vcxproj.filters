@@ -594,10 +594,10 @@
     <ClCompile Include="logistics\MCVehicleRepairBlock.cpp">
       <Filter>logistics</Filter>
     </ClCompile>
-    <ClCompile Include="main\honorb.cpp">
+    <ClCompile Include="main\MCAblDebuggerConsole.cpp">
       <Filter>main</Filter>
     </ClCompile>
-    <ClCompile Include="main\main.cpp">
+    <ClCompile Include="main\MCErrorReport.cpp">
       <Filter>main</Filter>
     </ClCompile>
     <ClCompile Include="main\MCForceMessages.cpp">
@@ -607,6 +607,12 @@
       <Filter>main</Filter>
     </ClCompile>
     <ClCompile Include="main\MCGamePaths.cpp">
+      <Filter>main</Filter>
+    </ClCompile>
+    <ClCompile Include="main\MCGameSession.cpp">
+      <Filter>main</Filter>
+    </ClCompile>
+    <ClCompile Include="main\MCGameStrings.cpp">
       <Filter>main</Filter>
     </ClCompile>
     <ClCompile Include="main\MCInventoryList.cpp">
@@ -654,10 +660,13 @@
     <ClCompile Include="main\MCLogWarriorList.cpp">
       <Filter>main</Filter>
     </ClCompile>
+    <ClCompile Include="main\MCMissionGlobals.cpp">
+      <Filter>main</Filter>
+    </ClCompile>
     <ClCompile Include="main\MCMPPlayerLights.cpp">
       <Filter>main</Filter>
     </ClCompile>
-    <ClCompile Include="main\rmain.cpp">
+    <ClCompile Include="main\MCSystemConfig.cpp">
       <Filter>main</Filter>
     </ClCompile>
     <ClCompile Include="MCPort.cpp" />
@@ -1744,16 +1753,13 @@
     <ClInclude Include="logistics\MCVehicleRepairBlock.h">
       <Filter>logistics</Filter>
     </ClInclude>
-    <ClInclude Include="main\fixes.h">
-      <Filter>main</Filter>
-    </ClInclude>
-    <ClInclude Include="main\honorb.h">
-      <Filter>main</Filter>
-    </ClInclude>
-    <ClInclude Include="main\main.h">
+    <ClInclude Include="main\MCAblDebuggerConsole.h">
       <Filter>main</Filter>
     </ClInclude>
     <ClInclude Include="main\MCDropSlot.h">
+      <Filter>main</Filter>
+    </ClInclude>
+    <ClInclude Include="main\MCErrorReport.h">
       <Filter>main</Filter>
     </ClInclude>
     <ClInclude Include="main\MCForceMessages.h">
@@ -1763,6 +1769,12 @@
       <Filter>main</Filter>
     </ClInclude>
     <ClInclude Include="main\MCGamePaths.h">
+      <Filter>main</Filter>
+    </ClInclude>
+    <ClInclude Include="main\MCGameSession.h">
+      <Filter>main</Filter>
+    </ClInclude>
+    <ClInclude Include="main\MCGameStrings.h">
       <Filter>main</Filter>
     </ClInclude>
     <ClInclude Include="main\MCInventoryList.h">
@@ -1795,10 +1807,16 @@
     <ClInclude Include="main\MCLogWarriorList.h">
       <Filter>main</Filter>
     </ClInclude>
+    <ClInclude Include="main\MCMissionGlobals.h">
+      <Filter>main</Filter>
+    </ClInclude>
     <ClInclude Include="main\MCMPPlayerLights.h">
       <Filter>main</Filter>
     </ClInclude>
-    <ClInclude Include="main\rmain.h">
+    <ClInclude Include="main\MCOriginalBugFixes.h">
+      <Filter>main</Filter>
+    </ClInclude>
+    <ClInclude Include="main\MCSystemConfig.h">
       <Filter>main</Filter>
     </ClInclude>
     <ClInclude Include="MCCore.h" />

@@ -20,10 +20,10 @@
 #include "logistics/MCSessionScreen.h"
 #include "logistics/MCSplashScreen.h"
 #include "main/MCLogistics.h"
-#include "main/main.h"
+#include "main/MCGameStrings.h"
 #include "network/multplyr.h"
 #include "lib/MCFatal.h"
-#include "main/honorb.h"
+#include "main/MCGameSession.h"
 
 int32_t ReadyRoomTicks = 0;
 bool WhackTimer = false;

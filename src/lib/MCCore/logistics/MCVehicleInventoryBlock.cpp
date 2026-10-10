@@ -12,7 +12,7 @@
 #include "logistics/MCTicker.h"
 #include "logistics/MCUnitLimits.h"
 #include "main/MCLogistics.h"
-#include "main/main.h"
+#include "main/MCGameStrings.h"
 #include "vfx/MCVfxFunctions.h"
 
 namespace

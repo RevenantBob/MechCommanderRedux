@@ -3,7 +3,7 @@
 #include "gui/MCGuiEvent.h"
 #include "gui/MCGuiFont.h"
 #include "lib/MCFatal.h"
-#include "main/main.h"
+#include "main/MCGameStrings.h"
 
 namespace
 {

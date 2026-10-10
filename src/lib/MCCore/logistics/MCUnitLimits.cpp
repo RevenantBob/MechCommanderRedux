@@ -2,7 +2,7 @@
 #include "logistics/MCUnitLimits.h"
 #include "logistics/MCLogRows.h"
 #include "main/MCLogistics.h"
-#include "main/main.h"
+#include "main/MCGameStrings.h"
 
 int32_t ResourcePoints = 0;
 

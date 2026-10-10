@@ -8,7 +8,7 @@
 #include "logistics/MCRepairScreen.h"
 #include "logistics/MCReusableDialog.h"
 #include "main/MCLogistics.h"
-#include "main/main.h"
+#include "main/MCGameStrings.h"
 #include "mission/MCMission.h"
 #include "object/MCMasterComponent.h"
 #include "vfx/MCAgShape.h"

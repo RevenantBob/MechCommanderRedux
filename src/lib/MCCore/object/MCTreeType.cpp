@@ -4,7 +4,6 @@
 #include "lib/MCFile.h"
 #include "lib/MCFitIniFile.h"
 #include "main/MCGamePaths.h"
-#include "main/main.h"
 #include "object/MCMoverMath.h"
 #include "object/MCTree.h"
 #include "sound/MCSoundSystem.h"

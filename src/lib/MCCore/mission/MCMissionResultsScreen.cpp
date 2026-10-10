@@ -19,7 +19,7 @@
 #include "iface/MCTacticalInterface.h"
 #include "linkup/dpplayer.h"
 #include "linkup/sessionmanager.h"
-#include "main/main.h"
+#include "main/MCGameStrings.h"
 #include "mission/MCMission.h"
 #include "mission/MCScenario.h"
 #include "network/multplyr.h"

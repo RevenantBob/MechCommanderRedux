@@ -1,7 +1,7 @@
 #include "stdafx.h"
 #include "sprite/MCElementalTree.h"
 #include "camera/MCCamera.h"
-#include "main/main.h"
+#include "main/MCMissionGlobals.h"
 #include "sprite/MCElementalActor.h"
 #include "sprite/MCShape.h"
 #include "sprite/MCSpriteManager.h"

@@ -9,7 +9,9 @@
 #include "gui/MCUpdateDisplay.h"
 #include "iface/MCTacticalInterface.h"
 #include "lib/MCVector2D.h"
-#include "main/main.h"
+#include "main/MCMissionGlobals.h"
+#include "main/MCGameStrings.h"
+#include "main/MCErrorReport.h"
 #include "mission/MCMission.h"
 #include "mission/MCMissionResultsScreen.h"
 #include "mission/MCScenario.h"
@@ -153,7 +155,7 @@ namespace
                     GamePaused = !GamePaused;
                 }
 
-                if (event->AltKey != 0 && AssertTest(0x80, const_cast<char*>("User Break")) != 0)
+                if (event->AltKey != 0 && AssertTest(0x80, "User Break"))
                 {
                     SDL_TriggerBreakpoint();
                     return false;
@@ -243,8 +245,7 @@ namespace
             {
                 if (CheatsOn && CtrlAltHeld())
                 {
-                    char release[256];
-                    CLoadString(ThisInstance, 0x282, release, 0xfe);
+                    const std::string release = LoadGameString(0x282, 0xfe);
                     DestroyVersion();
                     gui->VersionDialog = MCMakeGui<MCGuiMessageBox>();
                     gui->VersionDialog->Init(std::format("Release Version: {}", release));

@@ -4,7 +4,7 @@
 #include "appear/MCAppearanceType.h"
 #include "camera/MCCamera.h"
 #include "gui/MCGuiSystem.h"
-#include "main/main.h"
+#include "main/MCMissionGlobals.h"
 #include "object/MCBigGameObject.h"
 #include "object/MCObjectEvent.h"
 #include "object/MCObjectQueue.h"

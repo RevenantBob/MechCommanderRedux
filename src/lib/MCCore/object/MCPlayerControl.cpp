@@ -1,7 +1,7 @@
 #include "stdafx.h"
 #include "object/MCPlayerControl.h"
 #include "gui/MCGuiSystem.h"
-#include "main/main.h"
+#include "main/MCMissionGlobals.h"
 #include "object/MCElementalControlData.h"
 #include "object/MCGroundVehicleControlData.h"
 #include "object/MCBattleMech.h"

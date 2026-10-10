@@ -4,7 +4,7 @@
 #include "gui/MCGuiPort.h"
 #include "iface/MCMechBar.h"
 #include "iface/MCTacticalInterface.h"
-#include "main/main.h"
+#include "main/MCMissionGlobals.h"
 #include "object/MCBigGameObject.h"
 #include "object/MCMechWarrior.h"
 #include "object/MCMoverGameSystem.h"

@@ -180,9 +180,4 @@ extern float MaxPilotSkill;
 extern uint32_t ScenarioResult;
 /// <summary>Whether any fire is burning (for the fire sound).</summary>
 extern int SomethingOnFire;
-/// <summary>The mission, scenario and ABL script files (<c>"data\missions\"</c>).</summary>
-extern char MissionPath[80];
 /// <summary>The Smacker movies (<c>"data\movies\"</c>).</summary>
-extern char CDmoviePath[80];
-/// <summary>The pilots' radio videos (<c>"data\movies\"</c>).</summary>
-extern char MoviePath[80];

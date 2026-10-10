@@ -4,7 +4,7 @@
 #include "camera/MCCamera.h"
 #include "engine/MCFont.h"
 #include "gui/MCGuiSystem.h"
-#include "main/main.h"
+#include "main/MCMissionGlobals.h"
 #include "object/MCMiscTerrainObject.h"
 #include "object/MCMiscTerrainObjectType.h"
 #include "platform/MCFrameLog.h"

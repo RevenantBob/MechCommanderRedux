@@ -9,7 +9,7 @@
 #include "gui/MCGuiSystem.h"
 #include "gui/MCGuiTimerManager.h"
 #include "main/MCGameContext.h"
-#include "main/main.h"
+#include "main/MCMissionGlobals.h"
 #include "mission/MCScenario.h"
 #include "platform/MCDisplay.h"
 

@@ -81,6 +81,9 @@
     <ClCompile Include="tests\FrameHashTests.cpp">
       <Filter>tests</Filter>
     </ClCompile>
+    <ClCompile Include="tests\GameSessionTests.cpp">
+      <Filter>tests</Filter>
+    </ClCompile>
     <ClCompile Include="tests\GpuDrawingTests.cpp">
       <Filter>tests</Filter>
     </ClCompile>

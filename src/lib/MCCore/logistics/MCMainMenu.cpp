@@ -9,13 +9,14 @@
 #include "logistics/MCRegistrySettings.h"
 #include "logistics/MCReusableDialog.h"
 #include "main/MCLogistics.h"
-#include "main/main.h"
+#include "main/MCGameStrings.h"
 #include "mission/MCMission.h"
 #include "network/multplyr.h"
 #include "platform/MCInput.h"
 #include "sound/MCSoundSystem.h"
 #include "logistics/MCSplashScreen.h"
-#include "main/honorb.h"
+#include "main/MCSystemConfig.h"
+#include "main/MCGameSession.h"
 #include "linkup/sessionmanager.h"
 
 namespace
@@ -29,7 +30,7 @@ namespace
         EnsureRegistryVersion();
         SoundSystem()->StopDigitalMusic();
         SoundSystem()->PlayBettySample(0x19);
-        MCStrCopy(MissionName, std::string(campaign).c_str());
+        MissionName = campaign;
         Mission()->ReloadCampaign(MissionName);
 
         if (firstPlanet)

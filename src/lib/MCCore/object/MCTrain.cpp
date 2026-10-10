@@ -3,7 +3,7 @@
 #include "ai/MCMoveSystem.h"
 #include "ai/MCScenarioMap.h"
 #include "lib/MCFatal.h"
-#include "main/main.h"
+#include "main/MCMissionGlobals.h"
 #include "object/MCTrainCar.h"
 #include "object/MCTrainManager.h"
 

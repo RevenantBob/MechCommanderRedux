@@ -4,7 +4,7 @@
 #include "appear/MCAppearanceTypeList.h"
 #include "camera/MCCamera.h"
 #include "lib/MCFatal.h"
-#include "main/main.h"
+#include "main/MCMissionGlobals.h"
 #include "network/multplyr.h"
 #include "object/MCCollisionSystem.h"
 #include "object/MCObjectDrawing.h"

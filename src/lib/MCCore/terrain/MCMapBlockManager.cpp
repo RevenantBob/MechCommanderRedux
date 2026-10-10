@@ -4,7 +4,7 @@
 #include "lib/MCFatal.h"
 #include "lib/MCPacketFile.h"
 #include "main/MCGamePaths.h"
-#include "main/main.h"
+#include "main/MCMissionGlobals.h"
 #include "terrain/MCTerrain.h"
 #include "terrain/MCTerrainWindow.h"
 

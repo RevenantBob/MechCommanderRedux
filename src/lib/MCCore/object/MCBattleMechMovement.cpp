@@ -9,7 +9,7 @@
 #include "engine/MCCraterManager.h"
 #include "iface/MCTacticalInterface.h"
 #include "lib/MCFatal.h"
-#include "main/main.h"
+#include "main/MCMissionGlobals.h"
 #include "mission/MCScenario.h"
 #include "network/multplyr.h"
 #include "object/MCAIControl.h"

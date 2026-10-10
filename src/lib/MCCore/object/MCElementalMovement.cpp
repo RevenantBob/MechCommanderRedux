@@ -5,7 +5,7 @@
 #include "appear/MCAppearanceType.h"
 #include "iface/MCTacticalInterface.h"
 #include "lib/MCDice.h"
-#include "main/main.h"
+#include "main/MCMissionGlobals.h"
 #include "mission/MCScenario.h"
 #include "network/multplyr.h"
 #include "object/MCAIControl.h"

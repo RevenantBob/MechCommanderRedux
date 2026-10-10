@@ -13,7 +13,7 @@
 #include "main/MCGamePaths.h"
 #include "main/MCGameContext.h"
 #include "main/MCLogistics.h"
-#include "main/main.h"
+#include "main/MCMissionGlobals.h"
 #include "mission/MCMission.h"
 #include "mission/MCScenario.h"
 #include "object/MCBigGameObject.h"

@@ -19,7 +19,7 @@
 #include "logistics/MCUnitLimits.h"
 #include "main/MCGamePaths.h"
 #include "main/MCLogistics.h"
-#include "main/main.h"
+#include "main/MCGameStrings.h"
 #include "mission/MCMission.h"
 #include "network/multplyr.h"
 #include "platform/MCInput.h"

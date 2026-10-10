@@ -4,7 +4,7 @@
 #include "abl/MCAblRuntime.h"
 #include "abl/MCAblSymbolTable.h"
 #include "lib/MCFatal.h"
-#include "main/fixes.h"
+#include "main/MCOriginalBugFixes.h"
 
 namespace
 {
@@ -73,10 +73,11 @@ auto MCAblModule::Attach(MCAblRuntime& runtime, int32_t moduleHandle) -> void
             _StaticArrays[i] = std::make_unique<uint8_t[]>(static_cast<size_t>(sizes[i]));
             _StaticData[i].Address = reinterpret_cast<MCAddress>(_StaticArrays[i].get());
 
-#if !MCREDUX_FIX_ABL_UNINITIALIZED_STATICS
             // The original's heap filled new blocks with 0xff, and nothing cleared a static array.
-            std::memset(_StaticArrays[i].get(), 0xff, static_cast<size_t>(sizes[i]));
-#endif
+            if constexpr (!FixAblUninitializedStatics)
+            {
+                std::memset(_StaticArrays[i].get(), 0xff, static_cast<size_t>(sizes[i]));
+            }
         }
     }
 

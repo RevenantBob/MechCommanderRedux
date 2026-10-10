@@ -2,7 +2,7 @@
 #include "object/MCBattleMech.h"
 #include "object/MCBattleMechType.h"
 #include "object/MCMechGameSystem.h"
-#include "main/fixes.h"
+#include "main/MCOriginalBugFixes.h"
 #include "ai/MCMoveSystem.h"
 #include "ai/MCTacticalOrder.h"
 #include "appear/MCAppearanceType.h"
@@ -18,7 +18,8 @@
 #include "iface/MCTacticalInterface.h"
 #include "lib/MCFatal.h"
 #include "lib/MCFitIniFile.h"
-#include "main/main.h"
+#include "main/MCMissionGlobals.h"
+#include "main/MCGameStrings.h"
 #include "mission/MCScenario.h"
 #include "network/multplyr.h"
 #include "object/MCAIControl.h"
@@ -789,13 +790,14 @@ auto MCBattleMech::GetPositionFromHS(uint32_t hotSpot) -> MCVector3D
     // mount's turn below still uses the real hot spot).
     uint32_t dataHotSpot = hotSpot;
 
-#if MCREDUX_FIX_SHORT_HOTSPOT_PACKETS
-    if (numFrames > 0 && gesture < mechType->HotSpotPacketShippedFloats.size() &&
-        mechType->HotSpotPacketShippedFloats[gesture] / (static_cast<uint32_t>(numFrames) * 3) <= dataHotSpot)
+    if constexpr (FixShortHotSpotPackets)
     {
-        dataHotSpot = 0;
+        if (numFrames > 0 && gesture < mechType->HotSpotPacketShippedFloats.size() &&
+            mechType->HotSpotPacketShippedFloats[gesture] / (static_cast<uint32_t>(numFrames) * 3) <= dataHotSpot)
+        {
+            dataHotSpot = 0;
+        }
     }
-#endif
 
     const int32_t index = numFrames * static_cast<int32_t>(dataHotSpot) + frameNumber;
     const float offsetX = offsets[index * 3];

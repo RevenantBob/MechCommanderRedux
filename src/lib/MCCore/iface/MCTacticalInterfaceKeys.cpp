@@ -6,7 +6,6 @@
 #include "gui/MCGuiChatWindow.h"
 #include "iface/MCCommandParser.h"
 #include "iface/MCMechBar.h"
-#include "main/main.h"
 #include "mission/MCScenario.h"
 #include "network/multplyr.h"
 #include "object/MCBattleMech.h"

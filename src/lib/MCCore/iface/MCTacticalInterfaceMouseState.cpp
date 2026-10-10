@@ -7,7 +7,7 @@
 #include "iface/MCMechBar.h"
 #include "linkup/dpplayer.h"
 #include "linkup/sessionmanager.h"
-#include "main/main.h"
+#include "main/MCGameStrings.h"
 #include "network/multplyr.h"
 #include "object/MCBuilding.h"
 #include "object/MCForces.h"

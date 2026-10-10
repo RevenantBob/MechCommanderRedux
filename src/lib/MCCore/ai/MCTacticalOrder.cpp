@@ -5,7 +5,7 @@
 #include "iface/MCTacticalInterface.h"
 #include "iface/MCCommandParser.h"
 #include "lib/MCFatal.h"
-#include "main/main.h"
+#include "main/MCMissionGlobals.h"
 #include "network/multplyr.h"
 #include "object/MCBuilding.h"
 #include "object/MCBuildingType.h"

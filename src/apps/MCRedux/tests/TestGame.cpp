@@ -12,10 +12,10 @@
 #include "logistics/MCLogComboBox.h"
 #include "logistics/MCLogSlider.h"
 #include "logistics/MCSplashScreen.h"
-#include "main/honorb.h"
+#include "main/MCSystemConfig.h"
 #include "main/MCLogistics.h"
 #include "main/MCGameContext.h"
-#include "main/main.h"
+#include "main/MCMissionGlobals.h"
 #include "mission/MCMission.h"
 #include "mission/MCScenario.h"
 #include "object/MCMover.h"
@@ -236,7 +236,7 @@ namespace MCTestGame
         /// <summary>Set by StartLogistics: the boot's clock moves on with the presents.</summary>
         bool clockFollowsPresents = false;
 
-        /// <summary>RealWinMain up to aSystem::run, with <paramref name="commandLine"/>, in a hidden window.</summary>
+        /// <summary>RunGame up to MCGuiSystem::Run, with <paramref name="commandLine"/>, in a hidden window.</summary>
         bool Boot(std::string commandLine);
     }
 
@@ -330,11 +330,11 @@ namespace MCTestGame
                 return false;
             }
 
-            // RealWinMain, up to aSystem::run. systemInit reads the paths from SYSTEM.CFG; the FastFiles it opens are
+            // RunGame, up to MCGuiSystem::Run. SystemInit reads the paths from SYSTEM.CFG; the FastFiles it opens are
             // every *.fst, so none may be open yet.
             GHiddenWindow = 1;
-            GNoSound = 1;
-            // Deterministic runs: game time only moves with RunFrame, and the dice start the same way (RealWinMain seeds
+            GNoSound = true;
+            // Deterministic runs: game time only moves with RunFrame, and the dice start the same way (RunGame seeds
             // them from the time of day). --seed <n> picks other dice. With the default, mission 1's Uller has its
             // pilot knocked out (4 wounds) in the fight the mission tests stage.
             clock = &MCGameContext::Current().SetClock(std::make_unique<MCManualClock>());

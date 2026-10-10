@@ -4,7 +4,7 @@
 #include "lib/MCFile.h"
 #include "lib/MCFitIniFile.h"
 #include "main/MCGameContext.h"
-#include "main/main.h"
+#include "main/MCMissionGlobals.h"
 #include "object/MCBattleMech.h"
 #include "object/MCElemental.h"
 #include "object/MCGroundVehicle.h"

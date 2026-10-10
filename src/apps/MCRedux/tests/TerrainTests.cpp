@@ -7,7 +7,6 @@
 #include "fixtures/MCTinyMap.h"
 #include "lib/MCPacketFile.h"
 #include "main/MCGameContext.h"
-#include "main/main.h"
 #include "terrain/MCMapBlockManager.h"
 #include "terrain/MCTacticalMap.h"
 #include "terrain/MCVertex.h"

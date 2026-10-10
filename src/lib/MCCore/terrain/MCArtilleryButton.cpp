@@ -6,7 +6,7 @@
 #include "iface/MCMechBar.h"
 #include "iface/MCTacticalInterface.h"
 #include "logistics/MCConnectMenu.h"
-#include "main/main.h"
+#include "main/MCGameStrings.h"
 #include "object/MCForces.h"
 #include "sound/MCSoundSystem.h"
 #include "terrain/MCTacticalMap.h"
@@ -29,9 +29,7 @@ namespace
     /// <summary>String <paramref name="id"/> of the string table.</summary>
     std::string TableString(uint32_t id)
     {
-        char buffer[256];
-        CLoadString(ThisInstance, id, buffer, 0xfe);
-        return buffer;
+        return LoadGameString(id, 0xfe);
     }
 }
 

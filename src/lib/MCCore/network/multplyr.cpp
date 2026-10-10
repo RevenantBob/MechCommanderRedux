@@ -33,9 +33,11 @@
 #include "logistics/MCLogChatInput.h"
 #include "logistics/MCPlayerNameObject.h"
 #include "logistics/MCSessionScreen.h"
-#include "main/honorb.h"
+#include "main/MCSystemConfig.h"
+#include "main/MCGameSession.h"
 #include "main/MCLogistics.h"
-#include "main/main.h"
+#include "main/MCMissionGlobals.h"
+#include "main/MCGameStrings.h"
 #include "mission/MCMission.h"
 #include "mission/MCScenario.h"
 #include "object/MCArtillery.h"
@@ -1160,10 +1162,9 @@ auto MCMultiPlayer::SetServer(uint32_t newServerID) -> void
         if (wasServer == 0)
         {
             MCFidpPlayer* me = SessionManager->MyPlayer;
-            char format[256];
             char text[512];
-            CLoadString(ThisInstance, 0x378, format, 0xfe);
-            std::snprintf(text, sizeof(text), format, me->Name);
+            const std::string format = LoadGameString(0x378, 0xfe);
+            std::snprintf(text, sizeof(text), format.c_str(), me->Name);
             HandleOwnMessages = 1;
             SendChat(0, text);
             HandleOwnMessages = 0;
@@ -1801,16 +1802,14 @@ auto MCMultiPlayer::PlayerLeftGame(uint32_t playerID) -> void
 
         if (player != nullptr)
         {
-            char format[256];
-            char serverText[256];
             char text[768];
-            CLoadString(ThisInstance, 0x382, format, 0xfe);
-            CLoadString(ThisInstance, 899, serverText, 0xfe);
-            std::snprintf(text, sizeof(text), format, player->Name);
+            const std::string format = LoadGameString(0x382, 0xfe);
+            const std::string serverText = LoadGameString(899, 0xfe);
+            std::snprintf(text, sizeof(text), format.c_str(), player->Name);
 
             if (wasServer == 0)
             {
-                std::strncat(text, serverText, sizeof(text) - std::strlen(text) - 1);
+                std::strncat(text, serverText.c_str(), sizeof(text) - std::strlen(text) - 1);
             }
 
             HandleOwnMessages = 1;
@@ -1853,12 +1852,11 @@ auto MCMultiPlayer::PlayerLeftGame(uint32_t playerID) -> void
         if (GlobalLogPtr->CurrentScreen == GlobalLogPtr->SessionScreen.get() ||
             GlobalLogPtr->CurrentScreen == GlobalLogPtr->LoadScreen.get())
         {
-            char reason[256];
             char text[512];
-            CLoadString(ThisInstance, LaunchedFromLobby == 0 ? 0x35f : 0x365, reason, 0xfe);
+            const std::string reason = LoadGameString(LaunchedFromLobby == 0 ? 0x35f : 0x365, 0xfe);
             MCFidpPlayer* player = MPlayer->SessionManager->GetPlayer(playerID);
             // Port fix: the player is already gone when DirectPlay reports it; the original printed its freed name.
-            std::snprintf(text, sizeof(text), "%s %s", player != nullptr ? player->Name : "", reason);
+            std::snprintf(text, sizeof(text), "%s %s", player != nullptr ? player->Name : "", reason.c_str());
             MCReusableDialog* dialog = GlobalLogPtr->MessageDialog.get();
             dialog->SetText(text);
             dialog->SetTwoButton(0);
@@ -2039,8 +2037,7 @@ auto MCMultiPlayer::Destroy() -> void
 
 auto ShowConnectStatus() -> void
 {
-    char text[256];
-    CLoadString(ThisInstance, 0x354, text, 0xfe);
+    const std::string text = LoadGameString(0x354, 0xfe);
 
     if (GlobalLogPtr != nullptr)
     {
@@ -3034,8 +3031,7 @@ auto HandleLocalPlayerRemoved(uint32_t fromID, const void* msg) -> void
         Mission()->EndScenario();
     }
 
-    char text[512];
-    CLoadString(ThisInstance, 0x369, text, 0xfe);
+    const std::string text = LoadGameString(0x369, 0xfe);
     MCReusableDialog* dialog = GlobalLogPtr->MessageDialog.get();
     dialog->SetText(text);
     dialog->SetTwoButton(0);

@@ -9,7 +9,7 @@
 #include "lib/MCFile.h"
 #include "lib/MCFrameOfRef.h"
 #include "lib/MCVector2D.h"
-#include "main/main.h"
+#include "main/MCGameStrings.h"
 #include "mission/MCScenario.h"
 #include "network/multplyr.h"
 #include "object/MCArtillery.h"
@@ -593,9 +593,7 @@ namespace
     /// <summary>Replaces <paramref name="name"/> with string resource <paramref name="stringId"/>.</summary>
     auto SetNameFromResource(std::string& name, uint32_t stringId) -> void
     {
-        char buffer[256];
-        CLoadString(ThisInstance, stringId, buffer, 0xfe);
-        name = buffer;
+        name = LoadGameString(stringId, 0xfe);
     }
 
     /// <summary>What <c>__ftol</c> gives: the value truncated, or 0x80000000 for NaN or out of range.</summary>

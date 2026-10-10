@@ -3,6 +3,7 @@
 #include "appear/MCAppearanceTypeList.h"
 #include "lib/MCFatal.h"
 #include "lib/MCFitIniFile.h"
+#include "main/MCGamePaths.h"
 #include "lib/MCPacketFile.h"
 #include "object/MCBaseObject.h"
 #include "object/MCObjectType.h"
@@ -59,8 +60,6 @@
 #include "object/MCTreeType.h"
 #include "object/MCTurret.h"
 #include "object/MCTurretType.h"
-
-char ObjectPath[80] = "data\\objects\\";
 
 namespace
 {

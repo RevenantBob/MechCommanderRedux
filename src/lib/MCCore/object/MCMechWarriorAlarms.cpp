@@ -2,7 +2,6 @@
 #include "object/MCMechWarrior.h"
 #include "abl/MCAblRuntime.h"
 #include "lib/MCFatal.h"
-#include "main/main.h"
 #include "network/multplyr.h"
 #include "object/MCMover.h"
 #include "object/MCMoverGameSystem.h"

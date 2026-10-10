@@ -2,7 +2,6 @@
 #include "object/MCWeaponChunkDebug.h"
 #include "ai/MCMoveSystem.h"
 #include "lib/MCFile.h"
-#include "main/main.h"
 #include "network/multplyr.h"
 #include "object/MCObjectQueue.h"
 #include "object/MCObjectSystem.h"
@@ -158,7 +157,6 @@ auto SaveChunkDebugMsg(std::string_view fileName) -> void
     file.Create(fileName);
     file.WriteString(ChunkDebugMsg);
     file.Close();
-    ExceptionGameMsg = ChunkDebugMsg.data();
 }
 
 auto DebugWeaponFireChunk(MCWeaponFireChunk* chunk1, MCWeaponFireChunk* chunk2, MCGameObject* attacker) -> void

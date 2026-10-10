@@ -9,7 +9,7 @@
 #include "iface/MCTacticalInterface.h"
 #include "linkup/sessionmanager.h"
 #include "logistics/MCConnectMenu.h"
-#include "main/main.h"
+#include "main/MCMissionGlobals.h"
 #include "mission/MCScenario.h"
 #include "network/multplyr.h"
 #include "platform/MCRenderer.h"

@@ -12,7 +12,7 @@
 #include "lib/MCFile.h"
 #include "lib/MCFitIniFile.h"
 #include "main/MCGamePaths.h"
-#include "main/main.h"
+#include "main/MCMissionGlobals.h"
 #include "mission/MCScenario.h"
 #include "object/MCBattleMech.h"
 #include "object/MCBattleMechType.h"

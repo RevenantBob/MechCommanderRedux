@@ -1,6 +1,6 @@
 #include "stdafx.h"
 #include "object/MCElementalDynamics.h"
-#include "main/main.h"
+#include "main/MCMissionGlobals.h"
 #include "object/MCControl.h"
 #include "object/MCElementalControlData.h"
 #include "object/MCElemental.h"

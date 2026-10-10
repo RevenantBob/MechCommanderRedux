@@ -5,7 +5,7 @@
 #include "logistics/MCLogTextObject.h"
 #include "logistics/MCReusableDialog.h"
 #include "main/MCLogistics.h"
-#include "main/main.h"
+#include "main/MCGameStrings.h"
 
 auto ShowMenuMessage(std::string_view text, std::function<void(int32_t)> callback, std::string_view upArt,
                      std::string_view downArt) -> void

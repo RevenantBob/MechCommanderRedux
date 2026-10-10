@@ -1,7 +1,7 @@
 #include "stdafx.h"
 #include "MCTest.h"
 #include "gui/MCGuiSystem.h"
-#include "main/main.h"
+#include "main/MCMissionGlobals.h"
 #include "object/MCAIControl.h"
 #include "object/MCBattleMech.h"
 #include "object/MCBattleMechType.h"

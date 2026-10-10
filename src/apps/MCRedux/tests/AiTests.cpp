@@ -4,7 +4,7 @@
 #include "ai/MCMoveSystem.h"
 #include "ai/MCTacticalOrder.h"
 #include "main/MCGameContext.h"
-#include "main/main.h"
+#include "main/MCMissionGlobals.h"
 #include "object/MCBigGameObject.h"
 #include "object/MCObjectSystem.h"
 #include "object/MCObjectQueue.h"

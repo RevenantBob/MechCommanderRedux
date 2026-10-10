@@ -12,7 +12,7 @@
 #include "main/MCGamePaths.h"
 #include "mission/MCScenario.h"
 #include "main/MCGameContext.h"
-#include "main/main.h"
+#include "main/MCMissionGlobals.h"
 #include "network/multplyr.h"
 #include "object/MCArtillery.h"
 #include "object/MCBattleMech.h"

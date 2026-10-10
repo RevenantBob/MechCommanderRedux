@@ -1,7 +1,7 @@
 #include "stdafx.h"
 #include "object/MCMover.h"
 #include "lib/MCFatal.h"
-#include "main/main.h"
+#include "main/MCMissionGlobals.h"
 #include "mission/MCMission.h"
 #include "mission/MCScenario.h"
 #include "mission/MCDifficultySettings.h"

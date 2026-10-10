@@ -12,7 +12,7 @@
 #include "lib/MCFitIniFile.h"
 #include "lib/MCPacketFile.h"
 #include "main/MCGamePaths.h"
-#include "main/main.h"
+#include "main/MCMissionGlobals.h"
 #include "mission/MCScenario.h"
 #include "network/multplyr.h"
 #include "object/MCAIControl.h"

@@ -9,8 +9,8 @@ void DebugWeaponFireChunk(MCWeaponFireChunk* chunk1, MCWeaponFireChunk* chunk2, 
 /// <summary>Prints the fields of one or two weapon hit chunks to the chunk debug message.</summary>
 void DebugWeaponHitChunk(MCWeaponHitChunk* chunk1, MCWeaponHitChunk* chunk2);
 /// <summary>
-/// Writes <see cref="ChunkDebugMsg"/> to <paramref name="fileName"/> and hands it to the crash report
-/// (<c>ExceptionGameMsg</c>).
+/// Writes <see cref="ChunkDebugMsg"/> to <paramref name="fileName"/>. (The original also handed it to its crash report,
+/// which the port doesn't have.)
 /// </summary>
 void SaveChunkDebugMsg(std::string_view fileName);
 

@@ -6,7 +6,7 @@
 #include "lib/MCFile.h"
 #include "lib/MCPacketFile.h"
 #include "main/MCGamePaths.h"
-#include "main/main.h"
+#include "main/MCMissionGlobals.h"
 #include "mission/MCMission.h"
 #include "object/MCBigGameObject.h"
 #include "object/MCMechWarrior.h"

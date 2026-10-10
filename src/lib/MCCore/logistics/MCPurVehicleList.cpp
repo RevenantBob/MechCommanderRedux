@@ -6,7 +6,7 @@
 #include "logistics/MCVehiclePurchaseBlock.h"
 #include "main/MCGamePaths.h"
 #include "main/MCLogistics.h"
-#include "main/main.h"
+#include "main/MCGameStrings.h"
 #include "object/MCMasterComponent.h"
 
 auto MCPurVehicleList::Clear() -> void

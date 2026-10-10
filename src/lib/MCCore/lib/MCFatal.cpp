@@ -1,6 +1,6 @@
 #include "stdafx.h"
 #include "lib/MCFatal.h"
-#include "main/main.h"
+#include "main/MCMissionGlobals.h"
 
 bool MCNoMessageBoxes = false;
 

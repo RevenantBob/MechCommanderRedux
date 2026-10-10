@@ -30,9 +30,11 @@
 #include "logistics/MCLogComboBox.h"
 #include "logistics/MCLogSlider.h"
 #include "logistics/MCSplashScreen.h"
-#include "main/honorb.h"
+#include "main/MCSystemConfig.h"
+#include "main/MCGameSession.h"
 #include "main/MCLogistics.h"
-#include "main/main.h"
+#include "main/MCMissionGlobals.h"
+#include "main/MCGameStrings.h"
 #include "mission/MCMissionResultsScreen.h"
 #include "mission/MCScenario.h"
 #include "network/multplyr.h"
@@ -53,9 +55,6 @@ float MinPilotSkill = 0.0f;
 float MaxPilotSkill = 0.0f;
 uint32_t ScenarioResult = 0;
 int SomethingOnFire = 0;
-char MissionPath[80] = "data\\missions\\";
-char CDmoviePath[80] = "data\\movies\\";
-char MoviePath[80] = "data\\movies\\";
 
 namespace
 {
@@ -798,11 +797,6 @@ auto MCMission::StartScenario(std::string_view name) -> void
     // A copy: the name may live in the logistics phase this frees.
     std::string scenarioName(name);
 
-    if (Solo == 0 && MPlayer == nullptr)
-    {
-        CheckForCDInDrive(CurPlanet, false);
-    }
-
     SoundSystem()->PlayBettySample(0x13);
     EndScenarioRequested = 0;
     ResultsScreen = MCMakeGui<MCMissionResultsScreen>();
@@ -895,11 +889,6 @@ auto MCMission::StartLogistics() -> MCLogistics&
 auto MCMission::EndScenario() -> void
 {
     TotalScenarioTime = ScenarioTime;
-
-    if (Solo == 0 && MPlayer == nullptr)
-    {
-        CheckForCDInDrive(CurPlanet, false);
-    }
 
     if (GlobalGameSegment == 0 && MPlayer == nullptr)
     {

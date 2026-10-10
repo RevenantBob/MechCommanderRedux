@@ -8,7 +8,6 @@
 #include "iface/MCCommandParser.h"
 #include "iface/MCMechBar.h"
 #include "iface/MCOrderSink.h"
-#include "main/main.h"
 #include "network/multplyr.h"
 #include "object/MCArtillery.h"
 #include "object/MCForces.h"

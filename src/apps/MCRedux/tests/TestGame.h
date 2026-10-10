@@ -14,7 +14,7 @@ namespace MCTestGame
 
     /// <summary>
     /// Boots the whole game in a hidden window with <c>-mission &lt;segment&gt;</c> (SYSTEM.CFG's campaign, logistics
-    /// skipped), as RealWinMain does, and runs frames until the scenario is playing. Only a TEST_CASE_ISOLATED test may:
+    /// skipped), as RunGame does, and runs frames until the scenario is playing. Only a TEST_CASE_ISOLATED test may:
     /// the boot expects a fresh process. The clock is an MCManualClock, installed in the context current at the boot
     /// (a test may install its own MCTestContextScope first, to give the game other services), and the dice are seeded,
     /// so a run plays out the same every time. The game stays up for the rest of the run, so only one segment can be

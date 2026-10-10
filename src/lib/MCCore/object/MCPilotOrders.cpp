@@ -1,6 +1,6 @@
 #include "stdafx.h"
 #include "object/MCPilotOrders.h"
-#include "main/main.h"
+#include "main/MCMissionGlobals.h"
 
 MCMoveOrders::MCMoveOrders()
 {

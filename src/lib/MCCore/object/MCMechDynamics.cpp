@@ -1,6 +1,6 @@
 #include "stdafx.h"
 #include "object/MCMechDynamics.h"
-#include "main/main.h"
+#include "main/MCMissionGlobals.h"
 #include "object/MCControl.h"
 #include "object/MCMechControlData.h"
 #include "object/MCBattleMech.h"

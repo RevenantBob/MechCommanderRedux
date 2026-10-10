@@ -14,7 +14,8 @@
 #include "main/MCGamePaths.h"
 #include "logistics/MCPreferencesMenu.h"
 #include "terrain/MCMapBlockManager.h"
-#include "main/main.h"
+#include "main/MCMissionGlobals.h"
+#include "main/MCGameStrings.h"
 #include "mission/MCScenario.h"
 #include "network/multplyr.h"
 #include "object/MCBigGameObject.h"
@@ -109,9 +110,7 @@ namespace
     /// <summary>String <paramref name="id"/> of the string table.</summary>
     std::string TableString(uint32_t id)
     {
-        char buffer[256];
-        CLoadString(ThisInstance, id, buffer, 0xfe);
-        return buffer;
+        return LoadGameString(id, 0xfe);
     }
 
     /// <summary>Loads string <paramref name="id"/> as a help text (at most 0x31 characters, as the original's).</summary>

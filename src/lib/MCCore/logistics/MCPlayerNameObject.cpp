@@ -5,7 +5,6 @@
 #include "gui/MCGuiGlobals.h"
 #include "linkup/dpplayer.h"
 #include "linkup/sessionmanager.h"
-#include "main/main.h"
 #include "network/multplyr.h"
 #include "vfx/MCVfxFunctions.h"
 

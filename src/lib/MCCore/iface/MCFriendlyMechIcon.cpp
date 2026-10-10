@@ -12,7 +12,7 @@
 #include "lib/MCFatal.h"
 #include "lib/MCFile.h"
 #include "main/MCGamePaths.h"
-#include "main/main.h"
+#include "main/MCMissionGlobals.h"
 #include "network/multplyr.h"
 #include "object/MCForces.h"
 #include "object/MCMechWarrior.h"

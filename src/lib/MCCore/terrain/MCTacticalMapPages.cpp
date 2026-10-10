@@ -8,7 +8,8 @@
 #include "gui/MCGuiScrollTextObject.h"
 #include "iface/MCTacticalInterface.h"
 #include "lib/MCMsvcSort.h"
-#include "main/main.h"
+#include "main/MCMissionGlobals.h"
+#include "main/MCGameStrings.h"
 #include "mission/MCMission.h"
 #include "mission/MCScenario.h"
 #include "object/MCArtillery.h"
@@ -161,9 +162,7 @@ namespace
     /// <summary>String <paramref name="id"/> of the string table.</summary>
     std::string TableString(uint32_t id)
     {
-        char buffer[256];
-        CLoadString(ThisInstance, id, buffer, 0xfe);
-        return buffer;
+        return LoadGameString(id, 0xfe);
     }
 
     /// <summary>Writes <paramref name="text"/> in <paramref name="font"/> at (<paramref name="x"/>, <paramref name="y"/>).</summary>

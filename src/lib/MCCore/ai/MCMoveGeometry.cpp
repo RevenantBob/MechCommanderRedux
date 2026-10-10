@@ -2,7 +2,7 @@
 #include "ai/MCMoveGeometry.h"
 #include "ai/MCMoveSystem.h"
 #include "lib/MCVector2D.h"
-#include "main/main.h"
+#include "main/MCMissionGlobals.h"
 #include "object/MCBigGameObject.h"
 
 std::array<int32_t, NumMoveLevels * OverlayWeightLevelSize> OverlayWeightTable{};

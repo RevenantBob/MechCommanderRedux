@@ -9,7 +9,7 @@
 #include "ai/MCTacticalOrder.h"
 #include "lib/MCFitIniFile.h"
 #include "main/MCGameContext.h"
-#include "main/main.h"
+#include "main/MCMissionGlobals.h"
 #include "object/MCElementalDynamics.h"
 #include "object/MCGroundVehicleDynamics.h"
 #include "object/MCMechDynamics.h"

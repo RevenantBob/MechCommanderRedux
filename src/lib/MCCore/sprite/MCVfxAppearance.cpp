@@ -7,7 +7,7 @@
 #include "engine/MCPolygonElement.h"
 #include "engine/MCVfxElement.h"
 #include "lib/MCFatal.h"
-#include "main/main.h"
+#include "main/MCMissionGlobals.h"
 #include "object/MCBigGameObject.h"
 #include "object/MCTreeBuilding.h"
 #include "object/MCTreeBuildingType.h"

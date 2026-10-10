@@ -21,7 +21,7 @@
 #include "main/MCForceMessages.h"
 #include "main/MCGamePaths.h"
 #include "main/MCLogisticsShared.h"
-#include "main/main.h"
+#include "main/MCGameStrings.h"
 #include "mission/MCMission.h"
 #include "mission/MCScenario.h"
 #include "network/multplyr.h"

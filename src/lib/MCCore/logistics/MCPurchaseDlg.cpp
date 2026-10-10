@@ -12,7 +12,7 @@
 #include "logistics/MCCompPurchaseBlock.h"
 #include "logistics/MCUnitLimits.h"
 #include "logistics/MCPurProfile.h"
-#include "main/main.h"
+#include "main/MCGameStrings.h"
 #include "vfx/MCVfxFunctions.h"
 
 namespace

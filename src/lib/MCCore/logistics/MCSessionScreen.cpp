@@ -25,7 +25,7 @@
 #include "logistics/MCConnectMenu.h"
 #include "logistics/MCMainMenu.h"
 #include "main/MCLogistics.h"
-#include "main/main.h"
+#include "main/MCGameStrings.h"
 #include "network/multplyr.h"
 #include "sound/MCSoundSystem.h"
 #include "vfx/MCVfxFunctions.h"

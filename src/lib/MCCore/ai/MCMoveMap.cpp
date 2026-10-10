@@ -4,7 +4,6 @@
 #include "lib/MCFatal.h"
 #include "lib/MCFile.h"
 #include "lib/MCPriorityQueue.h"
-#include "main/main.h"
 #include "mission/MCScenario.h"
 #include "object/MCBigGameObject.h"
 #include "object/MCGroundVehicle.h"

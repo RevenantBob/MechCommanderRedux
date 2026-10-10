@@ -6,7 +6,7 @@
 #include "engine/MCElementBuffer.h"
 #include "engine/MCVfxElement.h"
 #include "lib/MCFatal.h"
-#include "main/main.h"
+#include "main/MCMissionGlobals.h"
 #include "network/multplyr.h"
 #include "object/MCCollisionSystem.h"
 #include "object/MCObjectDrawing.h"

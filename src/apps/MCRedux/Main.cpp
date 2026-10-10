@@ -3,7 +3,7 @@
 #include "MCCrashTrace.h"
 #include "MCVersion.h"
 #include "abl/MCAblRuntime.h"
-#include "main/rmain.h"
+#include "gui/MCGuiStartup.h"
 #include "platform/MCAllocator.h"
 #include "platform/MCFileSystem.h"
 
@@ -215,9 +215,7 @@ int main(int argc, char** argv)
         return 1;
     }
 
-    std::vector<char> commandLine(options->GameCommandLine.begin(), options->GameCommandLine.end());
-    commandLine.push_back('\0');
-    const int result = WinMain(nullptr, nullptr, commandLine.data(), 1);
+    const int result = RunGame(options->GameCommandLine);
     SDL_Quit();
     return result;
 }

@@ -41,12 +41,13 @@
 #include "logistics/MCUnitLimits.h"
 #include "linkup/sessionmanager.h"
 #include "main/MCLogisticsShared.h"
-#include "main/honorb.h"
+#include "main/MCGameSession.h"
 #include "mission/MCScenario.h"
 #include "object/MCMoverGameSystem.h"
 #include "object/MCObjectTypeManager.h"
 #include "main/MCGamePaths.h"
-#include "main/main.h"
+#include "main/MCMissionGlobals.h"
+#include "main/MCGameStrings.h"
 #include "mission/MCMission.h"
 #include "network/multplyr.h"
 #include "platform/MCDisplay.h"
@@ -316,7 +317,7 @@ auto MCLogistics::Start() -> void
     ShowLogScreen(false, false);
 
     // Under the process ID, as aSystem::init sets it: copies of the game on one machine share the user folder.
-    *std::format_to_n(SaveTempPath, sizeof(SaveTempPath) - 1, "{}temp\\{}\\", SavePath, MCPort::ProcessId()).out = 0;
+    SaveTempPath = std::format("{}temp\\{}\\", SavePath, MCPort::ProcessId());
     // Port fix (OB-094): the original allocated a File here, and a FitIniFile after the sort tables, and never used or
     // freed either.
 

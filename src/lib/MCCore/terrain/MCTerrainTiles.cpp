@@ -2,7 +2,6 @@
 #include "terrain/MCTerrainTiles.h"
 #include "lib/MCPacketFile.h"
 #include "main/MCGamePaths.h"
-#include "main/main.h"
 
 std::string TilePath = "data\\tiles\\";
 std::string Tile90Path = "data\\tiles\\";

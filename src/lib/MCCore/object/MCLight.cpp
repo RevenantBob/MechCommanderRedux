@@ -4,7 +4,7 @@
 #include "appear/MCAppearanceTypeList.h"
 #include "camera/MCCamera.h"
 #include "gui/MCGuiSystem.h"
-#include "main/main.h"
+#include "main/MCMissionGlobals.h"
 #include "object/MCLightType.h"
 #include "object/MCObjectDrawing.h"
 #include "sprite/MCVfxAppearance.h"
