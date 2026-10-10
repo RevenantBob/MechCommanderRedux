@@ -297,7 +297,7 @@ auto MCBriefingScreen::RemoveChild(MCGuiObject* child) -> void
     MCLogObject::RemoveChild(child);
 }
 
-auto MCBriefingScreen::LanceTons(int32_t lance) const -> int32_t
+auto MCBriefingScreen::LanceTons(int32_t lance) -> int32_t
 {
     if (MultiPlayer() == nullptr)
     {
@@ -692,7 +692,7 @@ auto MCBriefingScreen::ShowHoverHelp(int32_t xPos, int32_t yPos) -> void
     else if (Inside(point, 2, 0x10, 0xd0, 0x21))
     {
         ShowHelp(0x286);
-        GlobalLogPtr->HoverScreenButton(this, 0);
+        MCLogistics::HoverScreenButton(this, 0);
     }
     else if (Inside(point, 2, 0x22, 0xd0, 0x33))
     {
@@ -704,7 +704,7 @@ auto MCBriefingScreen::ShowHoverHelp(int32_t xPos, int32_t yPos) -> void
 
         if (!ButtonsLocked)
         {
-            GlobalLogPtr->HoverScreenButton(this, 2);
+            MCLogistics::HoverScreenButton(this, 2);
         }
     }
     else if (Inside(point, 2, 0x46, 0xd0, 0x57))
@@ -713,7 +713,7 @@ auto MCBriefingScreen::ShowHoverHelp(int32_t xPos, int32_t yPos) -> void
 
         if (!ButtonsLocked)
         {
-            GlobalLogPtr->HoverScreenButton(this, 3);
+            MCLogistics::HoverScreenButton(this, 3);
         }
     }
     else if (Inside(point, 0x20c, 2, 0x24d, 0xd))
@@ -775,7 +775,7 @@ auto MCBriefingScreen::HandleClick(int32_t xPos, int32_t yPos) -> void
         if (MultiPlayer() == nullptr)
         {
             StopSmackerMovies();
-            SoundSystem()->PlayDigitalSample(0x36, 1, nullptr, 0, 0);
+            SoundSystem()->PlayDigitalSample(0x36, 1, nullptr, false, false);
             GlobalLogPtr->SetUpMainScreen(false);
             return;
         }
@@ -787,14 +787,14 @@ auto MCBriefingScreen::HandleClick(int32_t xPos, int32_t yPos) -> void
     // The tabs.
     if (Inside(point, 0xc2, 0x67, 0xd1, 0xde))
     {
-        SoundSystem()->PlayDigitalSample(0x36, 1, nullptr, 0, 0);
+        SoundSystem()->PlayDigitalSample(0x36, 1, nullptr, false, false);
         SetUpOperation();
         return;
     }
 
     if (Inside(point, 0xc2, 0xdf, 0xd1, 0x14a))
     {
-        SoundSystem()->PlayDigitalSample(0x36, 1, nullptr, 0, 0);
+        SoundSystem()->PlayDigitalSample(0x36, 1, nullptr, false, false);
         SetUpMission();
         return;
     }
@@ -815,7 +815,7 @@ auto MCBriefingScreen::Launch() -> void
     }
 
     LaunchPressed = true;
-    UpdateDisplay(0, 0, 0, 0, 0);
+    UpdateDisplay(false, false, 0, false, 0);
 
     if (MultiPlayer() == nullptr)
     {
@@ -826,12 +826,12 @@ auto MCBriefingScreen::Launch() -> void
 
         if (units <= MaxOwnedUnits)
         {
-            SoundSystem()->PlayDigitalSample(0x3a, 1, nullptr, 0, 0);
+            SoundSystem()->PlayDigitalSample(0x3a, 1, nullptr, false, false);
             Mission()->StartScenario(Mission()->Scenarios[Mission()->CurrentScenario].data());
             return;
         }
 
-        SoundSystem()->PlayDigitalSample(0x33, 1, nullptr, 0, 0);
+        SoundSystem()->PlayDigitalSample(0x33, 1, nullptr, false, false);
         ShowLogMessage(
             MCFormatPrintf(LoadGameString(0x373, 0xfe).c_str(), units, MaxOwnedUnits, units - MaxOwnedUnits));
         return;
@@ -931,7 +931,7 @@ auto MCBriefingScreen::ShowGuiWindow(bool show) -> void
 
 auto MCBriefingScreen::SetUpOperation() -> void
 {
-    GlobalLogPtr->AutoPlayMovie = 0;
+    GlobalLogPtr->AutoPlayMovie = false;
     MovieOver = 0;
 
     if (MultiPlayer() == nullptr)
@@ -940,7 +940,7 @@ auto MCBriefingScreen::SetUpOperation() -> void
 
         if (!PlayMovie)
         {
-            GuiSystem()->AddTimer(this, MovieDelayTimer, 500, 0, 0, 0);
+            GuiSystem()->AddTimer(this, MovieDelayTimer, 500, 0, 0, false);
         }
     }
     else
@@ -987,7 +987,7 @@ auto MCBriefingScreen::SetUpOperation() -> void
 
         while (SoundSystem()->IsChannelPlaying(0xe) != 0)
         {
-            UpdateDisplay(0, 0, 0, 0, 0);
+            UpdateDisplay(false, false, 0, false, 0);
         }
 
         if (MultiPlayer() != nullptr)

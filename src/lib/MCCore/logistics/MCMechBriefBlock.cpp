@@ -238,7 +238,7 @@ auto MCMechBriefBlock::HandleEvent(MCGuiEvent* event) -> void
     }
 }
 
-auto MCMechBriefBlock::PlaceInEmptySlot(int32_t lance, int32_t slot) -> bool
+auto MCMechBriefBlock::PlaceInEmptySlot(int32_t lance, int32_t slot) const -> bool
 {
     auto& deploy = GlobalLogPtr->DeploySlots[lance][slot];
 
@@ -250,7 +250,7 @@ auto MCMechBriefBlock::PlaceInEmptySlot(int32_t lance, int32_t slot) -> bool
         }
 
         GlobalLogPtr->SendAddMechMessage(Mech, lance, slot);
-        SoundSystem()->PlayDigitalSample(PlacedSound, 1, nullptr, 0, 0);
+        SoundSystem()->PlayDigitalSample(PlacedSound, 1, nullptr, false, false);
         deploy.Unit = GlobalLogPtr->ForceMechList->GetMechIndex(Mech);
         CurDeployTonnage = DeployTonnageWith(Mech, 1.0f);
         Mech->Deployed = true;
@@ -264,7 +264,7 @@ auto MCMechBriefBlock::PlaceInEmptySlot(int32_t lance, int32_t slot) -> bool
     }
 
     GlobalLogPtr->SendAddVehicleMessage(Vehicle, lance, slot);
-    SoundSystem()->PlayDigitalSample(PlacedSound, 1, nullptr, 0, 0);
+    SoundSystem()->PlayDigitalSample(PlacedSound, 1, nullptr, false, false);
     deploy.Vehicle = GlobalLogPtr->ForceVehicleList->GetVehicleIndex(Vehicle);
     CurDeployTonnage = DeployTonnageWith(Vehicle, 1.0f);
     Vehicle->Deployed = true;
@@ -282,7 +282,7 @@ auto MCMechBriefBlock::Settle(int32_t lance, int32_t slot) -> void
 
     screen->AddChild(this);
     const RECT& area = SlotRect(lance, slot);
-    MoveTo(area.left, area.top, 0);
+    MoveTo(area.left, area.top, false);
     DrawBackground();
     screen->CalcTonnages();
 }
@@ -366,7 +366,7 @@ auto MCMechBriefBlock::DropInSlotAt(POINT point, int32_t firstLance) -> bool
                 MCLogMech* occupant = nullptr;
                 GlobalLogPtr->ForceMechList->GetMechInfo(deploy.Unit, occupant);
                 CurDeployTonnage = DeployTonnageWith(occupant, -1.0f);
-                occupant->Deployed = 0;
+                occupant->Deployed = false;
                 Discard(occupant->BriefBlock);
                 deploy.Unit = -1;
 
@@ -377,7 +377,7 @@ auto MCMechBriefBlock::DropInSlotAt(POINT point, int32_t firstLance) -> bool
                     if (fits)
                     {
                         GlobalLogPtr->SendAddMechMessage(Mech, lance, slot);
-                        SoundSystem()->PlayDigitalSample(PlacedSound, 1, nullptr, 0, 0);
+                        SoundSystem()->PlayDigitalSample(PlacedSound, 1, nullptr, false, false);
                         deploy.Unit = GlobalLogPtr->ForceMechList->GetMechIndex(Mech);
                         CurDeployTonnage = DeployTonnageWith(Mech, 1.0f);
                         Mech->Deployed = true;
@@ -390,7 +390,7 @@ auto MCMechBriefBlock::DropInSlotAt(POINT point, int32_t firstLance) -> bool
                     if (fits)
                     {
                         GlobalLogPtr->SendAddVehicleMessage(Vehicle, lance, slot);
-                        SoundSystem()->PlayDigitalSample(PlacedSound, 1, nullptr, 0, 0);
+                        SoundSystem()->PlayDigitalSample(PlacedSound, 1, nullptr, false, false);
                         deploy.Unit = -1;
                         deploy.Vehicle = GlobalLogPtr->ForceVehicleList->GetVehicleIndex(Vehicle);
                         CurDeployTonnage = DeployTonnageWith(Vehicle, 1.0f);
@@ -404,7 +404,7 @@ auto MCMechBriefBlock::DropInSlotAt(POINT point, int32_t firstLance) -> bool
                 MCLogVehicle* occupant = nullptr;
                 GlobalLogPtr->ForceVehicleList->GetVehicleInfo(deploy.Vehicle, occupant);
                 CurDeployTonnage = DeployTonnageWith(occupant, -1.0f);
-                occupant->Deployed = 0;
+                occupant->Deployed = false;
                 Discard(occupant->BriefBlock);
                 deploy.Vehicle = -1;
 
@@ -415,7 +415,7 @@ auto MCMechBriefBlock::DropInSlotAt(POINT point, int32_t firstLance) -> bool
                     if (fits)
                     {
                         GlobalLogPtr->SendAddMechMessage(Mech, lance, slot);
-                        SoundSystem()->PlayDigitalSample(PlacedSound, 1, nullptr, 0, 0);
+                        SoundSystem()->PlayDigitalSample(PlacedSound, 1, nullptr, false, false);
                         deploy.Vehicle = -1;
                         deploy.Unit = GlobalLogPtr->ForceMechList->GetMechIndex(Mech);
                         CurDeployTonnage = DeployTonnageWith(Mech, 1.0f);
@@ -430,7 +430,7 @@ auto MCMechBriefBlock::DropInSlotAt(POINT point, int32_t firstLance) -> bool
                     if (fits)
                     {
                         GlobalLogPtr->SendAddVehicleMessage(Vehicle, lance, slot);
-                        SoundSystem()->PlayDigitalSample(PlacedSound, 1, nullptr, 0, 0);
+                        SoundSystem()->PlayDigitalSample(PlacedSound, 1, nullptr, false, false);
                         deploy.Vehicle = GlobalLogPtr->ForceVehicleList->GetVehicleIndex(Vehicle);
                         CurDeployTonnage = DeployTonnageWith(Vehicle, 1.0f);
                         Vehicle->Deployed = true;
@@ -500,16 +500,16 @@ auto MCMechBriefBlock::Drop(MCGuiEvent* event) -> void
         }
     }
 
-    SoundSystem()->PlayDigitalSample(sound, 1, nullptr, 0, 0);
+    SoundSystem()->PlayDigitalSample(sound, 1, nullptr, false, false);
 
     if (Mech != nullptr)
     {
-        Mech->Deployed = 0;
-        GlobalLogPtr->AssignedWarriorList->SetDeployed(Mech->PilotIndex, 0);
+        Mech->Deployed = false;
+        GlobalLogPtr->AssignedWarriorList->SetDeployed(Mech->PilotIndex, false);
     }
     else
     {
-        Vehicle->Deployed = 0;
+        Vehicle->Deployed = false;
     }
 
     if (Parent != nullptr)
@@ -547,7 +547,7 @@ auto MCMechBriefBlock::PickUp(MCGuiEvent* event) -> void
 
     const bool fromSlot = owner == screen;
     Drag.FromSlot = fromSlot;
-    SoundSystem()->PlayDigitalSample(PickedUpSound, 1, nullptr, 0, 0);
+    SoundSystem()->PlayDigitalSample(PickedUpSound, 1, nullptr, false, false);
     GuiSystem()->Grab(this);
 
     if (event->Type == 1)
@@ -579,16 +579,16 @@ auto MCMechBriefBlock::PickUp(MCGuiEvent* event) -> void
 
                 if (Mech == nullptr)
                 {
-                    Vehicle->Deployed = 0;
+                    Vehicle->Deployed = false;
                     deploy.Vehicle = -1;
                     CurDeployTonnage = DeployTonnageWith(Vehicle, -1.0f);
                 }
                 else
                 {
-                    Mech->Deployed = 0;
+                    Mech->Deployed = false;
                     deploy.Unit = -1;
                     CurDeployTonnage = DeployTonnageWith(Mech, -1.0f);
-                    GlobalLogPtr->AssignedWarriorList->SetDeployed(Mech->PilotIndex, 0);
+                    GlobalLogPtr->AssignedWarriorList->SetDeployed(Mech->PilotIndex, false);
                 }
 
                 screen->CalcTonnages();
@@ -692,7 +692,7 @@ auto MCMechBriefBlock::PaintBlock(MCPane* target, int32_t xPos, int32_t yPos, bo
 
         for (int32_t location = 0; location < 5; location++)
         {
-            GlobalLogPtr->DrawVehicleBodyLoc(Vehicle, location, &body, 0xd, 0xe);
+            MCLogistics::DrawVehicleBodyLoc(Vehicle, location, &body, 0xd, 0xe);
         }
     }
     else
@@ -717,7 +717,7 @@ auto MCMechBriefBlock::PaintBlock(MCPane* target, int32_t xPos, int32_t yPos, bo
 
             for (int32_t location = 0; location < 8; location++)
             {
-                GlobalLogPtr->DrawMechBodyLoc(Mech, location, &body, 0, 0);
+                MCLogistics::DrawMechBodyLoc(Mech, location, &body, 0, 0);
             }
         }
 

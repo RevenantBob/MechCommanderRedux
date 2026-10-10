@@ -428,7 +428,7 @@ auto MCElemental::FireWeapon(MCGameObject* target, float targetTime, int32_t wea
                         hitLocation = target->CalcHitLocation(this, weaponIndex, 0, attackType);
                     }
 
-                    Assert(hitLocation != -1 ? 1 : 0, 0, " Elemental.FireWeapon: Bad Hit Location ");
+                    Assert(hitLocation != -1, 0, " Elemental.FireWeapon: Bad Hit Location ");
 
                     if (volley == 0)
                     {
@@ -454,7 +454,7 @@ auto MCElemental::FireWeapon(MCGameObject* target, float targetTime, int32_t wea
                 hitLocation = target->CalcHitLocation(this, weaponIndex, 0, attackType);
             }
 
-            Assert(hitLocation != -1 ? 1 : 0, 0, " Elemental.FireWeapon: Bad Hit Location ");
+            Assert(hitLocation != -1, 0, " Elemental.FireWeapon: Bad Hit Location ");
             MCWeaponShotInfo shot;
             shot.Init(this, item.MasterID, fired().Damage, hitLocation, entryAngle);
             fx = CreateObject(static_cast<int32_t>(WeaponFXTable[fired().WeaponEffect]));

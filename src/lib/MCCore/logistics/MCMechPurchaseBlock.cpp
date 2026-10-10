@@ -78,11 +78,11 @@ auto MCMechPurchaseBlock::OnBuyConfirmed(int32_t result, int32_t quantity) -> vo
 
     for (int32_t count = quantity; count > 0; --count)
     {
-        GlobalLogPtr->MechList->AddMech(data->FileName.data(), 0, 1, 1);
+        GlobalLogPtr->MechList->AddMech(data->FileName.data(), false, true, true);
     }
 
     GlobalLogPtr->ReorderMechs();
-    GlobalLogPtr->PurchaseScreen->CreateMechInvBlock();
+    MCPurchaseScreen::CreateMechInvBlock();
     GlobalLogPtr->PurchaseScreen->SetUpMechInv(true, true);
     data->NumAvailable -= quantity;
     DrawBackground(Row);
@@ -331,7 +331,7 @@ auto MCMechPurchaseBlock::DrawBackground(int32_t) -> void
     PrepareInfoDescription(data->Description);
 }
 
-auto MCMechPurchaseBlock::DrawRow(MCLogPort* port, int32_t top) -> void
+auto MCMechPurchaseBlock::DrawRow(MCLogPort* port, int32_t top) const -> void
 {
     MCPurchaseScreen* screen = GlobalLogPtr->PurchaseScreen.get();
     std::unique_ptr<MCLogBlockPort> row = RowPicture(screen->MechTabPort.get(), port, top, false);

@@ -90,7 +90,7 @@ auto MCLogObject::Destroy() -> void
     }
 
     Parent = nullptr;
-    Animating = 0;
+    Animating = false;
 
     if (GuiSystem()->GrabbedObject() == this)
     {

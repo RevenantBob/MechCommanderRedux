@@ -37,7 +37,7 @@ public:
     bool DrawsLive() override { return true; }
     /// <summary>Decodes the current frame into the buffer and steps on.</summary>
     /// <returns>False on the last frame.</returns>
-    bool NextFrame();
+    bool NextFrame() const;
     /// <summary>Never hit: returns null.</summary>
     MCGuiObject* FindObject(int32_t xPos, int32_t yPos) override;
 

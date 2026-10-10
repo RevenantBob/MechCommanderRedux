@@ -87,12 +87,5 @@ private:
 /// </summary>
 float TerrainElevationAt(const MCVector3D& pos);
 
-/// <summary>
-/// The slope at <paramref name="pos"/> in degrees, from the elevations of the four map cells around it; the face
-/// normal is written to <paramref name="normal"/> when given.
-/// </summary>
-/// <remarks>Original behaviour: a vertical face gives the corner's height instead of an angle.</remarks>
-float TerrainAngleAt(const MCVector3D& pos, MCVector3D* normal);
-
 /// <summary>The upward normal of the terrain face under <paramref name="pos"/>.</summary>
 MCVector3D TerrainNormalAt(const MCVector3D& pos);

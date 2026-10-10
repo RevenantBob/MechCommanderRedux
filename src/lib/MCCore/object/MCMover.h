@@ -234,8 +234,7 @@ public:
 
     void SetLastValidPosition(MCVector3D pos) { LastValidPosition = pos; }
     /// <summary>The group's point, or null without a group. Unnamed in Ghidra; MechCommander 2's name.</summary>
-    MCMover* GetPoint();
-    int32_t ClearWeaponFireChunks(int32_t which);
+    MCMover* GetPoint() const;
     /// <summary>Packs and queues a weapon fire chunk (Fatal past <see cref="MaxWeaponFireChunks"/>).</summary>
     int32_t AddWeaponFireChunk(int32_t which, MCWeaponFireChunk* chunk);
     int32_t AddWeaponFireChunks(int32_t which, std::span<const uint32_t> packedChunks);
@@ -254,11 +253,8 @@ public:
     /// <summary>Copies the queued chunks into <paramref name="packedChunks"/> (room for
     /// <see cref="MaxRadioChunks"/>), leaving them queued.</summary>
     int32_t GrabRadioChunks(int32_t which, uint8_t* packedChunks);
-    void PlayMessage(MCRadioMessageType messageId, int propogateIfMultiplayer);
-    int EnemyRevealed();
+    void PlayMessage(MCRadioMessageType messageId, int propogateIfMultiplayer) const;
     int32_t GetInventoryDamage(int32_t itemIndex);
-    /// <summary>The ECM's effect, 0 without a working ECM.</summary>
-    float GetEcmEffect();
     float GetProbeEffect();
     /// <summary>MaxVisualRadius plus the probe's effect.</summary>
     float GetVisualRange();

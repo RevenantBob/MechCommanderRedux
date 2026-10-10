@@ -34,7 +34,7 @@ public:
     /// Port: draws the row into <paramref name="port"/> (the store's view) with its top at <paramref name="top"/>:
     /// what the original's <c>drawBackground</c> painted into the store's picture.
     /// </summary>
-    void DrawRow(MCLogPort* port, int32_t top);
+    void DrawRow(MCLogPort* port, int32_t top) const;
 
     /// <summary>
     /// Port: draws the drag icon's picture into <paramref name="surface"/>: a 0x20 square of the row, over the store's

@@ -10,20 +10,6 @@
 
 namespace MCPort
 {
-    void ReportUnimplemented(const char* file, int line, const char* what)
-    {
-        static std::mutex lock;
-        static std::set<std::pair<std::string, int>> reported;
-        std::scoped_lock guard(lock);
-
-        if (!reported.emplace(file, line).second)
-        {
-            return;
-        }
-
-        SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "Not reconstructed yet: %s (%s:%d)", what, file, line);
-    }
-
     int StrICmp(const char* a, const char* b)
     {
         for (;; ++a, ++b)
@@ -52,16 +38,6 @@ namespace MCPort
         }
 
         return 0;
-    }
-
-    char* StrUpr(char* text)
-    {
-        for (char* c = text; *c; ++c)
-        {
-            *c = static_cast<char>(std::toupper(static_cast<unsigned char>(*c)));
-        }
-
-        return text;
     }
 
     char* StrLwr(char* text)

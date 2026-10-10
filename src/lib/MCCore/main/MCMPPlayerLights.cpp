@@ -78,7 +78,7 @@ auto MCMPPlayerLights::SetPlayerStatus(uint32_t playerID, int32_t status) -> voi
 
     if (!TimerRunning && status == 2)
     {
-        GuiSystem()->AddTimer(this, 3, 500, 0, 0, 0);
+        GuiSystem()->AddTimer(this, 3, 500, 0, 0, false);
         TimerRunning = true;
     }
 }
@@ -97,20 +97,20 @@ auto MCMPPlayerLights::Draw() -> void
             continue;
         }
 
-        lightPort->CopyTo(target, lightPort->Width() * light, 0, 0);
+        lightPort->CopyTo(target, lightPort->Width() * light, 0, false);
         const int32_t status = PlayerStatus[static_cast<size_t>(light)];
 
         if (status == 1)
         {
             if (MCLogPort* statusPort = LogScreenArt("lsc_ph.tga"))
             {
-                statusPort->CopyTo(target, lightPort->Width() * light, 2, 1);
+                statusPort->CopyTo(target, lightPort->Width() * light, 2, true);
             }
         }
         else if (status == 2 && TimerRunning)
         {
             MCLogPort* blink = BlinkOn ? ReadyPort.get() : BlinkPort.get();
-            blink->CopyTo(target, LightWidth * light, 2, 1);
+            blink->CopyTo(target, LightWidth * light, 2, true);
         }
     }
 }

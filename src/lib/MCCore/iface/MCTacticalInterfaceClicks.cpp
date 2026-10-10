@@ -24,7 +24,7 @@ namespace
     /// <summary>Brings up the tactical map (out of its hidden slide) on <paramref name="page"/>.</summary>
     void ShowTacticalMapPage(MCTacmapPage page)
     {
-        TacticalMap()->HideMe(0);
+        TacticalMap()->HideMe(false);
         TacticalMap()->SetDisplayType(page);
     }
 
@@ -168,7 +168,7 @@ auto MCTacticalInterface::HandleMouse(MCGuiEvent* event) -> void
 
             if (ForcedOrder == MCForcedOrder::None)
             {
-                SoundSystem()->PlayDigitalSample(0x46, 1, nullptr, 0, 0);
+                SoundSystem()->PlayDigitalSample(0x46, 1, nullptr, false, false);
                 return;
             }
 
@@ -229,7 +229,7 @@ auto MCTacticalInterface::HandleMouse(MCGuiEvent* event) -> void
 
             if (DragTarget != nullptr)
             {
-                GuiSystem()->CursorHidden = 0;
+                GuiSystem()->CursorHidden = false;
 
                 if (event->ShiftKey == 0)
                 {
@@ -279,7 +279,7 @@ auto MCTacticalInterface::HandleMouse(MCGuiEvent* event) -> void
                 if (IsLanceLink(CurrentMode))
                 {
                     SetMode(MCInterfaceMode::None);
-                    GuiSystem()->CursorHidden = 0;
+                    GuiSystem()->CursorHidden = false;
                 }
 
                 UpdateInterface();
@@ -365,7 +365,7 @@ auto MCTacticalInterface::HandleMouse(MCGuiEvent* event) -> void
             }
 
             GuiSystem()->SetCurrentCursor(static_cast<MCCursorType>(MCInterfaceCursor::Normal));
-            GuiSystem()->CursorHidden = 1;
+            GuiSystem()->CursorHidden = true;
 
             if (DragTarget == nullptr)
             {
@@ -433,7 +433,7 @@ auto MCTacticalInterface::HandleClick(MCGuiEvent* event, MCGuiObject* target) ->
     auto endLanceLink = [&]()
     {
         SetMode(MCInterfaceMode::None);
-        GuiSystem()->CursorHidden = 0;
+        GuiSystem()->CursorHidden = false;
         UpdateInterface();
     };
 
@@ -514,7 +514,7 @@ auto MCTacticalInterface::HandleClick(MCGuiEvent* event, MCGuiObject* target) ->
     {
         if (camera != nullptr)
         {
-            camera->ChangeTarget(clicked, 0);
+            camera->ChangeTarget(clicked, false);
         }
 
         finish();
@@ -680,7 +680,7 @@ auto MCTacticalInterface::HandleClick(MCGuiEvent* event, MCGuiObject* target) ->
                     SetUnit(lance, movers, pointIndex);
                     MechBar->PlaceButtons(true);
                     SetMode(MCInterfaceMode::None);
-                    GuiSystem()->CursorHidden = 0;
+                    GuiSystem()->CursorHidden = false;
                     ClearMechSelection();
                     SelectLance(HomeCommander()->GetGroup(lance));
                     CommandParser->AddSubject(HomeCommander()->GetGroup(lance));
@@ -731,7 +731,7 @@ auto MCTacticalInterface::HandleClick(MCGuiEvent* event, MCGuiObject* target) ->
             }
 
             CommandParser->AddSubject(clickedPartId);
-            SoundSystem()->PlayDigitalSample(0x10, 1, nullptr, 0, 0);
+            SoundSystem()->PlayDigitalSample(0x10, 1, nullptr, false, false);
             finish();
             return;
         }
@@ -757,7 +757,7 @@ auto MCTacticalInterface::HandleClick(MCGuiEvent* event, MCGuiObject* target) ->
 
                 if (mode == MCInterfaceMode::CameraFollow && camera != nullptr)
                 {
-                    camera->ChangeTarget(clicked, 0);
+                    camera->ChangeTarget(clicked, false);
                 }
 
                 finish();
@@ -926,7 +926,7 @@ auto MCTacticalInterface::HandleClick(MCGuiEvent* event, MCGuiObject* target) ->
                     case MCInterfaceMode::LinkLance4:
                     {
                         SetMode(MCInterfaceMode::None);
-                        GuiSystem()->CursorHidden = 0;
+                        GuiSystem()->CursorHidden = false;
                         [[fallthrough]];
                     }
                     default:
@@ -1257,7 +1257,7 @@ auto MCTacticalInterface::HandleClick(MCGuiEvent* event, MCGuiObject* target) ->
                 case MCInterfaceMode::CameraFollow:
                 {
                     // Move the camera to the point.
-                    camera->ChangeTarget(nullptr, 0);
+                    camera->ChangeTarget(nullptr, false);
                     camera->SetPosition(MouseWorldPos);
                     finish();
                     return;

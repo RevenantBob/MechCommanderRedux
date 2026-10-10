@@ -31,8 +31,6 @@ public:
 
     /// <summary>Projects the bullet to the screen; true unless its appearance is off screen.</summary>
     bool IsVisible();
-    void SetOwner(MCBaseObject* newOwner) { Owner = static_cast<MCGameObject*>(newOwner); }
-    void SetTarget(MCBaseObject* newTarget) { Target = static_cast<MCGameObject*>(newTarget); }
     /// <summary>Sets the position the bullet flies to.</summary>
     void SetTargetPosition(MCVector3D position) { TargetPosition = position; }
     /// <summary>Sets the owner and the hot spot it fires from, and the target position.</summary>

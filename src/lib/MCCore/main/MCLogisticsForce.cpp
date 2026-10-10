@@ -5,7 +5,7 @@
 #include "logistics/MCPilotInventoryBlock.h"
 #include "logistics/MCVehicleInventoryBlock.h"
 
-auto MCLogistics::SetPilot(int32_t mechIndex, int32_t pilotIndex) -> void
+auto MCLogistics::SetPilot(int32_t mechIndex, int32_t pilotIndex) const -> void
 {
     MCLogMech* mech = nullptr;
 
@@ -87,7 +87,7 @@ namespace
     }
 }
 
-auto MCLogistics::ReorderMechs() -> void
+auto MCLogistics::ReorderMechs() const -> void
 {
     // Assigned mechs move from the mech list to the head of the force list; unassigned force mechs go back into the
     // mech list before the first with an equal or higher sort key.
@@ -104,7 +104,7 @@ auto MCLogistics::ReorderMechs() -> void
     RenumberRows(ForceMechList->Mechs);
 }
 
-auto MCLogistics::ReorderVehicles() -> void
+auto MCLogistics::ReorderVehicles() const -> void
 {
     // As ReorderMechs, with the vehicle list sorted by tonnage.
     MoveElements(
@@ -122,7 +122,7 @@ auto MCLogistics::ReorderVehicles() -> void
     RenumberRows(ForceVehicleList->Vehicles);
 }
 
-auto MCLogistics::ReorderWarriors() -> void
+auto MCLogistics::ReorderWarriors() const -> void
 {
     // Assigned pilots move into the assigned list before the first of an equal or higher rank; unassigned ones go
     // back into the pilot list by rank, then callsign.
@@ -153,7 +153,7 @@ auto MCLogistics::ReorderWarriors() -> void
     RenumberRows(AssignedWarriorList->Warriors);
 }
 
-auto MCLogistics::ShiftPilots(int32_t from, int32_t amount) -> void
+auto MCLogistics::ShiftPilots(int32_t from, int32_t amount) const -> void
 {
     for (const std::unique_ptr<MCLogMech>& mech : ForceMechList->Mechs)
     {
@@ -164,7 +164,7 @@ auto MCLogistics::ShiftPilots(int32_t from, int32_t amount) -> void
     }
 }
 
-auto MCLogistics::RequiredAssigned() -> bool
+auto MCLogistics::RequiredAssigned() const -> bool
 {
     if (MultiplayerInitialized)
     {

@@ -57,7 +57,7 @@ auto MCInventoryList::FindItem(uint8_t masterID) const -> MCLogInventoryItem*
     return nullptr;
 }
 
-auto MCInventoryList::LoadDescription(int32_t index, MCLogInventoryItem* item) -> void
+auto MCInventoryList::LoadDescription(int32_t index, MCLogInventoryItem* item) const -> void
 {
     if (item == nullptr)
     {

@@ -191,7 +191,7 @@ void MCDisplay::MakeScreen()
     _Ops.assign(_Pixels.size(), 0);
     MCRenderer::SetOpPlane(&_Screen, _Ops.data());
     MCRenderer::AddFrameSurface(&_Screen);
-    std::lock_guard lock(_PaletteLock);
+    std::scoped_lock lock(_PaletteLock);
     _PaletteDirty = true;
 }
 
@@ -302,7 +302,7 @@ void MCDisplay::SetPalette(int first, int count, const MCVfxRgb* entries)
     }
 
     count = std::min(count, 256 - first);
-    std::lock_guard lock(_PaletteLock);
+    std::scoped_lock lock(_PaletteLock);
 
     for (int i = 0; i < count; ++i)
     {
@@ -321,7 +321,7 @@ void MCDisplay::SetPalette(int first, int count, const uint8_t* rgb)
     }
 
     count = std::min(count, 256 - first);
-    std::lock_guard lock(_PaletteLock);
+    std::scoped_lock lock(_PaletteLock);
 
     for (int i = 0; i < count; ++i)
     {
@@ -349,7 +349,7 @@ void MCDisplay::GetPalette(int first, int count, MCVfxRgb* out) const
     }
 
     count = std::min(count, 256 - first);
-    std::lock_guard lock(_PaletteLock);
+    std::scoped_lock lock(_PaletteLock);
 
     for (int i = 0; i < count; ++i)
     {
@@ -359,7 +359,7 @@ void MCDisplay::GetPalette(int first, int count, MCVfxRgb* out) const
 
 void MCDisplay::SetGamma(float gamma, float brightness)
 {
-    std::lock_guard lock(_PaletteLock);
+    std::scoped_lock lock(_PaletteLock);
     _Gamma = std::clamp(gamma, 0.1f, 10.0f);
     _Brightness = std::clamp(brightness, 0.0f, 4.0f);
     _PaletteDirty = true;
@@ -377,7 +377,7 @@ void MCDisplay::GetShownColors(SDL_Color* out) const
         return;
     }
 
-    std::lock_guard lock(_PaletteLock);
+    std::scoped_lock lock(_PaletteLock);
     std::array<SDL_Color, 256> colors{};
     ApplyGamma(_Palette, _Gamma, _Brightness, colors.data());
     ApplyCycle(colors.data(), _Cycle, out);
@@ -385,7 +385,7 @@ void MCDisplay::GetShownColors(SDL_Color* out) const
 
 void MCDisplay::SetColorCycle(const MCColorCycle& cycle)
 {
-    std::lock_guard lock(_PaletteLock);
+    std::scoped_lock lock(_PaletteLock);
 
     if (cycle != _Cycle)
     {
@@ -427,7 +427,7 @@ MCFrame MCDisplay::BuildFrame(bool allColors)
     frame.Underlays = _FrameUnderlays;
 
     {
-        std::lock_guard lock(_PaletteLock);
+        std::scoped_lock lock(_PaletteLock);
 
         if (_PaletteDirty || allColors)
         {
@@ -557,7 +557,7 @@ std::expected<void, std::string> MCDisplay::SaveScreenshot(const std::filesystem
     {
         SDL_Color colors[256];
         {
-            std::lock_guard lock(_PaletteLock);
+            std::scoped_lock lock(_PaletteLock);
 
             for (size_t i = 0; i < 256; ++i)
             {

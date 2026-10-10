@@ -45,24 +45,6 @@ auto MCMovePath::GetDistanceLeft(MCVector3D position, int32_t fromStep) const ->
            step.DistanceToGoal;
 }
 
-auto MCMovePath::Mark() -> void
-{
-    if (Marked)
-    {
-        return;
-    }
-
-    MCScenarioMap* map = GameMap();
-
-    for (int32_t i = 0; i < NumSteps; i++)
-    {
-        const MCPathStep& step = StepList[static_cast<size_t>(i)];
-        map->PathMap[static_cast<size_t>(map->Width * step.TileR + step.TileC)]++;
-    }
-
-    Marked = true;
-}
-
 auto MCMovePath::Unmark() -> void
 {
     if (!Marked)
@@ -172,26 +154,6 @@ auto MCMovePath::CrossesBridge(int32_t start, int32_t range) const -> int32_t
         if (OverlayIsBridge[map->TileAt(step.TileR, step.TileC).OverlayType()])
         {
             return GlobalMoveMap()->CalcArea(step.TileR, step.TileC);
-        }
-    }
-
-    return -1;
-}
-
-auto MCMovePath::CrossesTile(int32_t start, int32_t range, int32_t tileR, int32_t tileC) const -> int32_t
-{
-    if (start == -1)
-    {
-        start = CurStep;
-    }
-
-    for (int32_t i = start; i < RangeEnd(start, range); i++)
-    {
-        const MCPathStep& step = StepList[static_cast<size_t>(i)];
-
-        if (tileR == step.TileR && tileC == step.TileC)
-        {
-            return i;
         }
     }
 

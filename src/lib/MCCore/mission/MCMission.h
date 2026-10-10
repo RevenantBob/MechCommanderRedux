@@ -95,10 +95,10 @@ public:
     void CloseResultsScreen();
 
     /// <summary>Writes the interface window states (zoom, tac map, palette) to <c>windows.fit</c>.</summary>
-    void SaveWindowStatus();
+    static void SaveWindowStatus();
 
     /// <summary>Restores the interface window states from <c>windows.fit</c>.</summary>
-    void LoadWindowStatus();
+    static void LoadWindowStatus();
 
     /// <summary>The state machine's current state.</summary>
     MCMissionState State = MCMissionState::Start;
@@ -143,7 +143,7 @@ private:
     /// Reads the movie list (<c>Movies</c> block, with <c>WaitTime</c>) and the scenario list (<c>Scenarios</c> block,
     /// with <c>LastScenario</c> when <paramref name="readLastScenario"/>) of <paramref name="file"/>.
     /// </summary>
-    int32_t ReadLists(MCFitIniFile& file, bool readLastScenario, bool readInDemo);
+    int32_t ReadLists(MCFitIniFile& file, bool campaign, bool readInDemo);
 
     /// <summary>The open mission FIT.</summary>
     std::unique_ptr<MCFitIniFile> _MissionFile;

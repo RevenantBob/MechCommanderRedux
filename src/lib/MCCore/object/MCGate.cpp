@@ -123,7 +123,7 @@ namespace
             {
                 if (gate.IsClosed)
                 {
-                    SoundSystem()->PlayDigitalSample(0x2a, 1, &gate, 0, 0);
+                    SoundSystem()->PlayDigitalSample(0x2a, 1, &gate, false, false);
                 }
 
                 gate.IsOpening = true;
@@ -137,7 +137,7 @@ namespace
             {
                 if (gate.IsOpen)
                 {
-                    SoundSystem()->PlayDigitalSample(0x2d, 1, &gate, 0, 0);
+                    SoundSystem()->PlayDigitalSample(0x2d, 1, &gate, false, false);
                 }
 
                 gate.IsClosing = true;
@@ -234,7 +234,7 @@ auto MCGate::IsVisible(MCCamera* cam) -> bool
         return false;
     }
 
-    int visible = cam->VertexProject(BlockNumber, VertexNumber, ScreenPos);
+    int visible = MCCamera::VertexProject(BlockNumber, VertexNumber, ScreenPos);
 
     if (Appearance != nullptr)
     {
@@ -263,7 +263,7 @@ auto MCGate::Update() -> int32_t
         TileRow = cell.Row;
         TileWorldY = cell.WorldY();
         const float elevation = cell.Elevation(" tbldg MapTile Out of Bounds ");
-        Appearance->Visible = 1;
+        Appearance->Visible = true;
         TileElevation = elevation;
         Appearance->Update();
         Appearance->RecalcBounds(Eye);
@@ -335,17 +335,17 @@ auto MCGate::OpenGate() -> void
     {
         if (!BlownOpen && Alignment != 0)
         {
-            if (TakeGateState(*this, Appearance->SetCombatMode(OpenRequested ? 1 : 0)))
+            if (TakeGateState(*this, Appearance->SetCombatMode(OpenRequested)))
             {
                 BlowAnyOffendingObject();
             }
         }
         else
         {
-            TakeGateState(*this, Appearance->SetCombatMode(1));
+            TakeGateState(*this, Appearance->SetCombatMode(true));
         }
     }
-    else if (TakeGateState(*this, Appearance->SetCombatMode(0)))
+    else if (TakeGateState(*this, Appearance->SetCombatMode(false)))
     {
         BlowAnyOffendingObject();
     }
@@ -453,7 +453,7 @@ auto MCGate::Render() -> void
 
     if (Appearance != nullptr)
     {
-        Appearance->Visible = IsVisible(Eye) ? 1 : 0;
+        Appearance->Visible = IsVisible(Eye);
         Appearance->Update();
     }
 

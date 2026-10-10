@@ -46,7 +46,7 @@ namespace
         }
         else
         {
-            const int32_t shift = Eye->CameraScale == 1 ? 1 : 0;
+            const int32_t shift = MCCamera::CameraScale == 1 ? 1 : 0;
             left = static_cast<float>(type->BoundsUpperLeftX >> shift) + appearance->ScreenPos.X;
             top = static_cast<float>(type->BoundsUpperLeftY >> shift) + appearance->ScreenPos.Y;
             right = static_cast<float>(type->BoundsLowerRightX >> shift) + appearance->ScreenPos.X;
@@ -64,7 +64,7 @@ namespace
     {
         float scale = 0.5f;
 
-        if (Eye->CameraScale != 1)
+        if (MCCamera::CameraScale != 1)
         {
             scale = 1.0f;
         }
@@ -73,7 +73,7 @@ namespace
     }
 }
 
-auto MCAppearance::GetScreenPos(MCCamera* cam) -> MCVector2D
+auto MCAppearance::GetScreenPos(MCCamera* cam) const -> MCVector2D
 {
     MCVector2D result;
 
@@ -87,7 +87,7 @@ auto MCAppearance::GetScreenPos(MCCamera* cam) -> MCVector2D
     const MCVector3D position = Owner->GetPosition();
     float scale = 0.5f;
 
-    if (cam->CameraScale != 1)
+    if (MCCamera::CameraScale != 1)
     {
         scale = 1.0f;
     }
@@ -106,7 +106,7 @@ auto MCAppearance::DrawSelectBox(uint8_t color) -> void
     float right;
     float bottom;
     SelectBounds(this, left, top, right, bottom);
-    ElementList()->OpenGroup(SelectDepth, 1);
+    ElementList()->OpenGroup(SelectDepth, true);
     const float margin = SelectMargin();
     const float outLeft = left - margin;
     const float outTop = top - margin;
@@ -131,7 +131,7 @@ auto MCAppearance::DrawSelectBrackets(uint8_t color) -> void
     float right;
     float bottom;
     SelectBounds(this, left, top, right, bottom);
-    ElementList()->OpenGroup(SelectDepth, 1);
+    ElementList()->OpenGroup(SelectDepth, true);
     const float outLeft = left - margin;
     const float outTop = top - margin;
     const float outRight = right + margin;

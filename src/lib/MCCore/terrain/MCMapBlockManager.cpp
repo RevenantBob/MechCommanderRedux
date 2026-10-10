@@ -375,34 +375,6 @@ auto MCMapBlockManager::GetTile(int32_t blockNum, int32_t vertexNum) -> int32_t
     return Block(blockNum)[vertexNum].TextureData;
 }
 
-auto TerrainAngleAt(const MCVector3D& pos, MCVector3D* normal) -> float
-{
-    MCVector3D edge1;
-    MCVector3D edge2;
-    float cornerZ = 0.0f;
-    FaceVectors(pos, edge1, edge2, cornerZ);
-    MCVector3D faceNormal = CrossX87(edge1, edge2);
-    float angle = 0.0f;
-
-    if (faceNormal.Z == 0.0f || std::isnan(faceNormal.Z))
-    {
-        // Faithful: a vertical face returns the corner's height, not an angle.
-        angle = cornerZ;
-    }
-    else
-    {
-        NormalizeX87(faceNormal);
-        angle = static_cast<float>(AcosMatherr(static_cast<double>(faceNormal.Z)) * RadsToDegrees);
-    }
-
-    if (normal != nullptr)
-    {
-        *normal = faceNormal;
-    }
-
-    return angle;
-}
-
 auto TerrainNormalAt(const MCVector3D& pos) -> MCVector3D
 {
     MCVector3D edge1;

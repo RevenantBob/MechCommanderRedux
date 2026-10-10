@@ -100,7 +100,7 @@ extern int32_t RadioVolume;
 extern int32_t SfxVolume;
 /// <summary>Music state: the player's forces are fighting.</summary>
 extern int32_t InCombat;
-/// <summary>Music state: the player's forces have contacts.</summary>
+/// <summary>Music state: the home team has an enemy contact (the team updates it, MCTeam.cpp).</summary>
 extern int32_t InContact;
 /// <summary>Music state: a friendly unit was destroyed.</summary>
 extern int32_t FriendlyDestroyed;

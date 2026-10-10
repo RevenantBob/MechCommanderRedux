@@ -9,16 +9,6 @@ public:
     MCVector2D() = default;
     constexpr MCVector2D(float newX, float newY) : X(newX), Y(newY) {}
 
-    /// <summary>Sets both components to 0.</summary>
-    void Zero()
-    {
-        X = 0.0f;
-        Y = 0.0f;
-    }
-
-    /// <summary>The length.</summary>
-    float Magnitude() const { return std::sqrt(Y * Y + X * X); }
-
     MCVector2D& operator+=(const MCVector2D& v)
     {
         X += v.X;

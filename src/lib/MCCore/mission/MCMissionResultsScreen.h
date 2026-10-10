@@ -111,7 +111,7 @@ private:
     /// <summary>The home side's primary objectives in a multiplayer game.</summary>
     void DrawMPObjectives();
     /// <summary>Whether the tonnage bonus is listed after the secondary objectives.</summary>
-    bool ShowsTonnageBonus() const;
+    static bool ShowsTonnageBonus();
 
     /// <summary>A commander's line on the multiplayer screen, as <see cref="Activate"/> found it.</summary>
     struct CommanderLine

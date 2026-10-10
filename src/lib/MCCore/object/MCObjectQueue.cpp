@@ -67,15 +67,8 @@ auto MCObjectQueue::DeleteList(MCObjectList* list) -> void
 
 auto MCObjectQueue::Remove(MCBaseObject* object) -> bool
 {
-    for (const std::unique_ptr<MCObjectList>& list : _Lists)
-    {
-        if (list->Remove(object))
-        {
-            return true;
-        }
-    }
-
-    return false;
+    return std::ranges::any_of(_Lists,
+                               [object](const std::unique_ptr<MCObjectList>& list) { return list->Remove(object); });
 }
 
 auto MCObjectQueue::Render() -> void
@@ -183,7 +176,7 @@ auto MCObjectQueue::FindObject(MCVector3D position) -> MCBaseObject*
     return result;
 }
 
-auto MCObjectQueue::FindObjectId(int32_t typeId) -> MCBaseObject*
+auto MCObjectQueue::FindObjectId(int32_t typeId) const -> MCBaseObject*
 {
     return FindIf(
         [typeId](MCBaseObject* object)

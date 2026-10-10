@@ -159,7 +159,7 @@ auto MCLogTextObject::HandleEvent(MCGuiEvent* event) -> void
             if (event->Data == MCLogNotice::FocusGained)
             {
                 // Focus: start the blink, and clear an empty-slot name so the player can type one.
-                GuiSystem()->AddTimer(this, BlinkTimer, static_cast<int32_t>(MCPort::CaretBlinkTime()), 0, 0, 0);
+                GuiSystem()->AddTimer(this, BlinkTimer, static_cast<int32_t>(MCPort::CaretBlinkTime()), 0, 0, false);
 
                 if (ClearEmptyOnFocus && Text() == EmptyFile)
                 {

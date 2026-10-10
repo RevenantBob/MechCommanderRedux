@@ -5,9 +5,14 @@
 #include "mission/MCScenario.h"
 #include "network/MCMultiPlayer.h"
 #include "network/MCMultiPlayerHandlers.h"
+#include "object/MCArtilleryChunk.h"
 #include "object/MCBattleMech.h"
+#include "object/MCMasterComponent.h"
 #include "object/MCMechWarrior.h"
 #include "object/MCTurret.h"
+#include "object/MCTurretType.h"
+#include "object/MCWeaponFireChunk.h"
+#include "object/MCWeaponShotInfo.h"
 
 // The game's side of multiplayer: the packed world-state and weapon-hit chunks the server sends, the queues they wait
 // in, and the handlers that apply the server's updates on a client.
@@ -171,6 +176,249 @@ TEST_CASE("network: a weapon hit on a mover packs its damage in quarter points a
     received.Unpack();
     CHECK(received.EqualTo(&hit) != 0);
     CHECK_EQ(received.Damage, 12.25f);
+}
+
+/// <summary>
+/// A hit on anything but a mover goes by the target's class: a building, tree, turret or gate as a terrain object
+/// (item at bits 12-14, vertex 15-23, block 24-31), a train car by train (20-27) and car (12-19) with the entry quadrant
+/// (28-29), a camera drone as train 0x80; the damage in quarter points sits at bits 2-11 for all of them.
+/// </summary>
+TEST_CASE("network: a weapon hit on a terrain object, train car or camera drone packs the target by its class")
+{
+    MCTestContextScope scope;
+    InstallGame(scope);
+    MCWeaponShotInfo shot;
+    shot.Damage = 6.5f;
+    shot.EntryAngle = 180.0f;
+
+    MCBattleMech building;
+    building.ObjectClass = MCObjectClass::Building;
+    building.PartId = 0x1000 + 3 * 0xc80 + 17 * 8 + 5;
+    MCWeaponHitChunk hit = EmptyWeaponHitChunk();
+    hit.Build(&building, &shot, 0);
+    hit.Pack();
+    CHECK_EQ(hit.Data, 1u | (26u << 2) | (5u << 12) | (17u << 15) | (3u << 24));
+    MCWeaponHitChunk received = EmptyWeaponHitChunk();
+    received.Data = hit.Data;
+    received.Unpack();
+    CHECK(received.EqualTo(&hit) != 0);
+    CHECK_EQ(received.TargetId, building.PartId);
+
+    MCBattleMech car;
+    car.ObjectClass = MCObjectClass::TrainCar;
+    car.PartId = 0x7d000 + 7 * 100 + 12;
+    hit = EmptyWeaponHitChunk();
+    hit.Build(&car, &shot, 0);
+    hit.Pack();
+    CHECK_EQ(hit.Data, 2u | (26u << 2) | (12u << 12) | (7u << 20) | (1u << 28));
+    received = EmptyWeaponHitChunk();
+    received.Data = hit.Data;
+    received.Unpack();
+    CHECK(received.EqualTo(&hit) != 0);
+    CHECK_EQ(received.TargetId, car.PartId);
+
+    MCBattleMech drone;
+    drone.ObjectClass = MCObjectClass::CameraDrone;
+    drone.PartId = 0x802c8 + 3;
+    hit = EmptyWeaponHitChunk();
+    hit.Build(&drone, &shot, 0);
+    hit.Pack();
+    CHECK_EQ(hit.Data, 2u | (26u << 2) | (3u << 12) | (0x80u << 20) | (1u << 28));
+    received = EmptyWeaponHitChunk();
+    received.Data = hit.Data;
+    received.Unpack();
+    CHECK_EQ(received.TargetId, drone.PartId);
+    CHECK_EQ(received.Damage, 6.5f);
+}
+
+namespace
+{
+    /// <summary>A weapon fire chunk packed, then unpacked again from its word alone for <paramref name="attacker"/>.</summary>
+    MCWeaponFireChunk RoundTrip(MCWeaponFireChunk& chunk, MCBigGameObject& attacker)
+    {
+        chunk.Pack();
+        MCWeaponFireChunk received;
+        received.Init();
+        received.Data = chunk.Data;
+        received.Unpack(&attacker);
+        return received;
+    }
+}
+
+/// <summary>
+/// A weapon fired packs, from the low bit: the target type (2 bits), the weapon index (5) and the hit flag (1), then
+/// the target: a mover's roster index (5 bits), hit location + 2 (4) and entry quadrant (2); a terrain object's item
+/// (3), vertex (9) and block (8); a train car's car (8), train (8) and quadrant (2), a camera drone being train 0x80;
+/// a map cell's column (10) and row (10). A missile weapon puts its counts below the target, 4 bits each: on a mover
+/// the anti-missile shots, the missiles past them and the missiles fired; on anything else the missiles fired alone.
+/// The receiver knows the weapon fires missiles from the attacker's own weapon.
+/// </summary>
+TEST_CASE("network: a weapon fire chunk packs its target, weapon and missiles, and unpacks to the same shot")
+{
+    MCTestContextScope scope;
+    MCMultiPlayer& game = InstallGame(scope);
+    game.NumMovers = 8;
+
+    // A turret attacker whose weapon is a laser, then a missile launcher.
+    const std::vector<MCMasterComponent> savedComponents = MasterComponentList;
+    MasterComponentList.assign(2, MCMasterComponent{});
+    MasterComponentList[0].Form = MCComponentForm::WeaponEnergy;
+    MasterComponentList[1].Form = MCComponentForm::WeaponMissile;
+    MCTurretType turretType;
+    turretType.WeaponType = 0;
+    MCTurret attacker;
+    attacker.ObjectClass = MCObjectClass::Turret;
+    attacker.ObjType = &turretType;
+
+    // Weapon 7 hits roster mover 5 in location 3, from the right (100 degrees).
+    MCBattleMech target;
+    target.NetRosterIndex = 5;
+    MCWeaponFireChunk fire;
+    fire.Init();
+    fire.BuildMoverTarget(&target, 7, 1, 100.0f, 0, 0, 0, 3);
+    MCWeaponFireChunk received = RoundTrip(fire, attacker);
+    CHECK_EQ(fire.Data, 0u | (7u << 2) | (1u << 7) | (5u << 8) | (5u << 13) | (3u << 17));
+    CHECK(received.EqualTo(&fire) != 0);
+
+    // A missed shot at terrain object 0x1000 + block 3 * 0xc80 + vertex 17 * 8 + item 5.
+    MCBattleMech building;
+    building.PartId = 0x1000 + 3 * 0xc80 + 17 * 8 + 5;
+    fire.Init();
+    fire.BuildTerrainTarget(&building, 2, 0, 0);
+    received = RoundTrip(fire, attacker);
+    CHECK_EQ(fire.Data, 1u | (2u << 2) | (5u << 8) | (17u << 11) | (3u << 20));
+    CHECK(received.EqualTo(&fire) != 0);
+    CHECK_EQ(received.TargetId, building.PartId);
+
+    // Car 12 of train 7, from behind; and camera drone 3 (train 0x80), from the left.
+    MCBattleMech car;
+    car.PartId = 0x7d000 + 7 * 100 + 12;
+    fire.Init();
+    fire.BuildTrainTarget(&car, 1, 1, 180.0f, 0);
+    received = RoundTrip(fire, attacker);
+    CHECK_EQ(fire.Data, 2u | (1u << 2) | (1u << 7) | (12u << 8) | (7u << 16) | (1u << 24));
+    CHECK(received.EqualTo(&fire) != 0);
+    CHECK_EQ(received.TargetId, car.PartId);
+
+    MCBattleMech drone;
+    drone.PartId = 0x802c8 + 3;
+    fire.Init();
+    fire.BuildCameraDroneTarget(&drone, 1, 1, -90.0f, 0);
+    received = RoundTrip(fire, attacker);
+    CHECK_EQ(fire.Data, 2u | (1u << 2) | (1u << 7) | (3u << 8) | (0x80u << 16) | (2u << 24));
+    CHECK_EQ(received.TargetId, drone.PartId);
+    CHECK_EQ(received.EntryAngle, 2);
+
+    // Map cell (row 300, column 700).
+    fire.Init();
+    fire.TargetType = 3;
+    fire.TargetCell = {300, 700};
+    fire.WeaponIndex = 4;
+    received = RoundTrip(fire, attacker);
+    CHECK_EQ(fire.Data, 3u | (4u << 2) | (700u << 8) | (300u << 18));
+    CHECK(received.TargetCell == fire.TargetCell);
+
+    // With the missile launcher: 9 missiles at the mover, 2 shot down by 3 anti-missile shots, from the front.
+    turretType.WeaponType = 1;
+    fire.Init();
+    fire.BuildMoverTarget(&target, 7, 1, 0.0f, 9, 7, 3, 3);
+    received = RoundTrip(fire, attacker);
+    CHECK_EQ(fire.Data, 0u | (7u << 2) | (1u << 7) | (3u << 8) | (7u << 12) | (9u << 16) | (5u << 20) | (5u << 25));
+    CHECK(received.EqualTo(&fire) != 0);
+
+    // At a map cell, only the missiles fired go: all of them count as past the anti-missile systems.
+    fire.Init();
+    fire.TargetType = 3;
+    fire.TargetCell = {300, 700};
+    fire.NumMissiles = 6;
+    fire.NumMissilesPastAms = 6;
+    received = RoundTrip(fire, attacker);
+    CHECK_EQ(fire.Data, 3u | (6u << 8) | (700u << 12) | (300u << 22));
+    CHECK_EQ(received.NumMissiles, 6);
+    CHECK_EQ(received.NumMissilesPastAms, 6);
+    CHECK(received.TargetCell == fire.TargetCell);
+
+    attacker.ObjType = nullptr;
+    MasterComponentList = savedComponents;
+}
+
+/// <summary>
+/// An artillery strike packs into one word: the commander (bits 0-2), the strike type (3-5), the cell's column (6-15)
+/// and row (16-25), and the seconds to impact + 1 (26-31), so -1 (the type's own time) goes as 0.
+/// </summary>
+TEST_CASE("network: an artillery strike packs its commander, type, cell and seconds into one word")
+{
+    MCArtilleryChunk strike;
+    strike.CommanderId = 3;
+    strike.StrikeType = 2;
+    strike.CellRow = 300;
+    strike.CellCol = 700;
+    strike.Seconds = 20;
+    strike.Pack();
+    CHECK_EQ(strike.Data, 3u | (2u << 3) | (700u << 6) | (300u << 16) | (21u << 26));
+
+    MCArtilleryChunk received;
+    received.Data = strike.Data;
+    received.Unpack();
+    CHECK(received.EqualTo(&strike) != 0);
+
+    strike.Seconds = -1;
+    strike.Pack();
+    CHECK_EQ(strike.Data >> 26, 0u);
+    received.Data = strike.Data;
+    received.Unpack();
+    CHECK_EQ(received.Seconds, -1);
+    CHECK_EQ(received.CellRow, 300);
+}
+
+/// <summary>
+/// The server sends a shot's damage in quarter points (rounded down) and its entry angle as a quadrant: front from -45
+/// to 45 degrees, left from -135 to -45, right from 45 to 135, the rest the rear; the angle it keeps is the quadrant's
+/// middle (0, -90, 90, 180). A client, or a single-player game, keeps both as they are.
+/// </summary>
+TEST_CASE("network: the server rounds a shot's damage to quarter points and its angle to the quadrant's middle")
+{
+    const std::array<std::tuple<float, int8_t, float>, 9> angles = {{{0.0f, 0, 0.0f},
+                                                                     {45.0f, 0, 0.0f},
+                                                                     {-45.0f, 0, 0.0f},
+                                                                     {-46.0f, 2, -90.0f},
+                                                                     {-134.0f, 2, -90.0f},
+                                                                     {46.0f, 3, 90.0f},
+                                                                     {134.0f, 3, 90.0f},
+                                                                     {135.0f, 1, 180.0f},
+                                                                     {-170.0f, 1, 180.0f}}};
+
+    for (const auto& [angle, quadrant, middle] : angles)
+    {
+        MCTest::Scope scope(std::format("angle {}", angle));
+        CHECK_EQ(AngleQuadrant(angle), quadrant);
+        CHECK_EQ(SnapAngle(angle), middle);
+    }
+
+    CHECK_EQ(QuarterPoints(12.3f), 12.25f);
+    CHECK_EQ(QuarterPoints(12.74f), 12.5f);
+    CHECK_EQ(QuarterPoints(3.0f), 3.0f);
+
+    MCWeaponShotInfo shot;
+    shot.SetDamage(7.6f);
+    shot.SetEntryAngle(100.0f);
+    CHECK_EQ(shot.Damage, 7.6f);
+    CHECK_EQ(shot.EntryAngle, 100.0f);
+
+    MCTestContextScope scope;
+    MCMultiPlayer& game = InstallGame(scope);
+    shot.SetDamage(7.6f);
+    CHECK_EQ(shot.Damage, 7.6f);
+    game.IsServer = true;
+    shot.SetDamage(7.6f);
+    shot.SetEntryAngle(100.0f);
+    CHECK_EQ(shot.Damage, 7.5f);
+    CHECK_EQ(shot.EntryAngle, 90.0f);
+    shot.Init(nullptr, 4, 9.9f, 2, -100.0f);
+    CHECK_EQ(shot.Damage, 9.75f);
+    CHECK_EQ(shot.EntryAngle, -90.0f);
+    CHECK_EQ(shot.MasterId, 4);
+    CHECK_EQ(shot.HitLocation, 2);
 }
 
 /// <summary>

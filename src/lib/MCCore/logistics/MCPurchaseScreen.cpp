@@ -96,12 +96,12 @@ auto MCPurchaseScreen::ShowHelpFor(int32_t xPos, int32_t yPos) -> void
     else if (inside(2, 0x10, 0xd0, 0x21))
     {
         ShowHelp(0x286);
-        GlobalLogPtr->HoverScreenButton(this, 0);
+        MCLogistics::HoverScreenButton(this, 0);
     }
     else if (inside(2, 0x22, 0xd0, 0x33))
     {
         ShowHelp(0x1e);
-        GlobalLogPtr->HoverScreenButton(this, 1);
+        MCLogistics::HoverScreenButton(this, 1);
     }
     else if (inside(2, 0x34, 0xd0, 0x45))
     {
@@ -110,7 +110,7 @@ auto MCPurchaseScreen::ShowHelpFor(int32_t xPos, int32_t yPos) -> void
     else if (inside(2, 0x46, 0xd0, 0x57))
     {
         ShowHelp(0x42);
-        GlobalLogPtr->HoverScreenButton(this, 3);
+        MCLogistics::HoverScreenButton(this, 3);
     }
     else if (inside(0x20c, 2, 0x24d, 0xd))
     {

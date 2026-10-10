@@ -250,26 +250,6 @@ auto ExecStdGetModHandle(MCAblRuntime& abl) -> MCAblType*
     return IntegerTypePtr;
 }
 
-auto ExecStdGetModName(MCAblRuntime& abl) -> MCAblType*
-{
-    return nullptr;
-}
-
-auto ExecStdSetModName(MCAblRuntime& abl) -> void
-{
-    abl.GetCodeToken();
-    abl.GetCodeToken();
-    MCAblType* typePtr = abl.ExecExpression();
-
-    if (typePtr->Form != MCAblTypeForm::Array || typePtr->Array.ElementTypePtr != CharTypePtr)
-    {
-        abl.RuntimeError(MCAblRuntimeError::InvalidFunctionArgument);
-    }
-
-    // Original behaviour: the name is left on the stack and never used.
-    abl.GetCodeToken();
-}
-
 auto ExecStdSetMaxLoops(MCAblRuntime& abl) -> MCAblType*
 {
     abl.GetCodeToken();

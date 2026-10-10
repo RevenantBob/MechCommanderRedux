@@ -50,7 +50,7 @@ public:
     /// </summary>
     MCBaseObject* FindObject(MCVector3D position);
     /// <summary>The first object whose type's id is <paramref name="typeId"/>.</summary>
-    MCBaseObject* FindObjectId(int32_t typeId);
+    MCBaseObject* FindObjectId(int32_t typeId) const;
     /// <summary>
     /// The object with part id <paramref name="partId"/>: a mover from the part table (below 0x1000), else a terrain
     /// object from its block's TBlk or RBlk list, else from the first list.
@@ -60,7 +60,7 @@ public:
     /// The object after <paramref name="current"/> (the first when null) in an ABL group: 500 the Inner Sphere's
     /// awake mechs, 501 the clan's, 502 the Inner Sphere's asleep, 1..32 / 329..360 / 165..196 by commander.
     /// </summary>
-    MCBaseObject* FindObjectInGroup(MCBaseObject* current, int32_t groupId);
+    static MCBaseObject* FindObjectInGroup(MCBaseObject* current, int32_t groupId);
     /// <summary>The first object of any list that <paramref name="match"/> accepts, or null.</summary>
     MCBaseObject* FindIf(const std::function<bool(MCBaseObject*)>& match) const;
 

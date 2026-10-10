@@ -40,7 +40,7 @@ public:
     /// </summary>
     void RandomAngle(float& angle);
     /// <summary>Sets the arm appearance's paint scheme.</summary>
-    void SetPaintScheme(int32_t paintScheme);
+    void SetPaintScheme(int32_t paintScheme) const;
 
     /// <summary>Set until the first update, which scales the velocity.</summary>
     bool JustCreated = true;

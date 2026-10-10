@@ -104,10 +104,10 @@ auto MCPilotInventoryBlock::DrawRow(MCLogPort* port, int32_t top) -> void
 
 auto MCPilotInventoryBlock::DrawInfo(MCLogPort* port) -> void
 {
-    GlobalLogPtr->DrawPilotSkillBar(Warrior, 3, 0x56, 0x192, 0, 0x36, WinHeight, port);
-    GlobalLogPtr->DrawPilotSkillBar(Warrior, 0, 0x56, 0x19b, 0, 0x36, WinHeight, port);
-    GlobalLogPtr->DrawPilotSkillBar(Warrior, 1, 0x56, 0x1a4, 0, 0x36, WinHeight, port);
-    GlobalLogPtr->DrawPilotSkillBar(Warrior, 2, 0x56, 0x1ad, 0, 0x36, WinHeight, port);
+    MCLogistics::DrawPilotSkillBar(Warrior, 3, 0x56, 0x192, 0, 0x36, WinHeight, port);
+    MCLogistics::DrawPilotSkillBar(Warrior, 0, 0x56, 0x19b, 0, 0x36, WinHeight, port);
+    MCLogistics::DrawPilotSkillBar(Warrior, 1, 0x56, 0x1a4, 0, 0x36, WinHeight, port);
+    MCLogistics::DrawPilotSkillBar(Warrior, 2, 0x56, 0x1ad, 0, 0x36, WinHeight, port);
     PortraitPort->CopyTo(port->Frame(), 9, 0x196, true);
     WriteText(YellowDropFont, port, 0x9c, 0x19a, RankName(Warrior->Rank));
     // One pip per point of health left.
@@ -133,13 +133,13 @@ auto MCPilotInventoryBlock::OfferSale() -> void
                        [this](int32_t result, int32_t) { OnSellConfirmed(result); });
 }
 
-auto MCPilotInventoryBlock::OnSellConfirmed(int32_t result) -> void
+auto MCPilotInventoryBlock::OnSellConfirmed(int32_t result) const -> void
 {
     MCLogWarrior* warrior = Warrior;
 
     if (result == 0)
     {
-        warrior->Assigned = 0;
+        warrior->Assigned = false;
         GlobalLogPtr->ShiftPilots(warrior->InventoryBlock->ListIndex, -1);
         GlobalLogPtr->ReorderWarriors();
         GlobalLogPtr->PurchaseScreen->CreatePilotInvBlock();
@@ -149,7 +149,7 @@ auto MCPilotInventoryBlock::OnSellConfirmed(int32_t result) -> void
 
     int32_t row = warrior->InventoryBlock->ListIndex;
     SoundSystem()->PlayPilotSpeech(warrior->PilotAudio, 2);
-    warrior->Sold = 1;
+    warrior->Sold = true;
     GlobalLogPtr->PurPilotList->SetPilotStatus(warrior->DescIndex, MCPurPilotData::SoldBack);
     GlobalLogPtr->AssignedWarriorList->RemoveWarrior(static_cast<uint8_t>(warrior->Id));
     GlobalLogPtr->ShiftPilots(row, -1);
@@ -157,7 +157,7 @@ auto MCPilotInventoryBlock::OnSellConfirmed(int32_t result) -> void
     ResourcePoints -= GlobalLogPtr->PurchaseDialog->UnitCost;
 }
 
-auto MCPilotInventoryBlock::BoardMech(MCLogMech* mech, int32_t row) -> void
+auto MCPilotInventoryBlock::BoardMech(MCLogMech* mech, int32_t row) const -> void
 {
     MCPilotInventoryBlock* block = Warrior->InventoryBlock.get();
     block->Mech = mech;
@@ -170,10 +170,10 @@ auto MCPilotInventoryBlock::BoardMech(MCLogMech* mech, int32_t row) -> void
     SoundSystem()->PlayPilotSpeech(Warrior->PilotAudio, 2);
 }
 
-auto MCPilotInventoryBlock::BackToInventory(MCGuiEvent* event) -> void
+auto MCPilotInventoryBlock::BackToInventory(MCGuiEvent* event) const -> void
 {
     MCLogInvScreen* screen = Screen();
-    Warrior->Assigned = 0;
+    Warrior->Assigned = false;
     GlobalLogPtr->ShiftPilots(Warrior->InventoryBlock->ListIndex, -1);
     GlobalLogPtr->ReorderWarriors();
     screen->CreatePilotInvBlock();
@@ -193,7 +193,7 @@ auto MCPilotInventoryBlock::HandleEvent(MCGuiEvent* event) -> void
     if (PilotDrag.Idle())
     {
         // The info block: skills, portrait, rank, wounds and description.
-        screen->DrawBlankInvInfoBlock(-1);
+        MCLogInvScreen::DrawBlankInvInfoBlock(-1);
         PrepareInfoDescription(Warrior->Description);
         screen->ShowInfo(MCInvInfoBox::Kind::Pilot, this);
     }
@@ -213,7 +213,7 @@ auto MCPilotInventoryBlock::HandleEvent(MCGuiEvent* event) -> void
             GuiSystem()->Grab(this);
             PilotDrag.Dragging = true;
             MakeDragIcon(PilotDrag, event);
-            Warrior->Assigned = 1;
+            Warrior->Assigned = true;
             GlobalLogPtr->ReorderWarriors();
             GlobalLogPtr->ShiftPilots(Warrior->InventoryBlock->ListIndex, 1);
             screen->CreatePilotInvBlock();
@@ -301,7 +301,7 @@ auto MCPilotInventoryBlock::HandleEvent(MCGuiEvent* event) -> void
             GuiSystem()->SetCursorVisible(true);
             GuiSystem()->Release();
             MCDragIcon::Remove();
-            Warrior->Assigned = 1;
+            Warrior->Assigned = true;
             GlobalLogPtr->ReorderWarriors();
             GlobalLogPtr->ShiftPilots(Warrior->InventoryBlock->ListIndex, 1);
             screen->CreatePilotInvBlock();

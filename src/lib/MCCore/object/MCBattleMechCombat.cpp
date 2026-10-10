@@ -166,7 +166,7 @@ auto MCBattleMech::TransferHitLocation(int32_t hitLocation) -> int32_t
 {
     if (hitLocation < 0 || hitLocation >= NumMechBodyLocations)
     {
-        Assert(false, 0, "(hitLocation >= 0) && (hitLocation < NumMechBodyLocations)", "L:\\mcx\\Object\\Mech.cpp");
+        Assert(false, 0, "(hitLocation >= 0) && (hitLocation < NumMechBodyLocations)", R"(L:\mcx\Object\Mech.cpp)");
     }
 
     return MechTransferHitTable[hitLocation];
@@ -298,7 +298,7 @@ auto MCBattleMech::HitInventoryItem(int32_t itemIndex, int setupOnly) -> int
         {
             if (UseSound != 0)
             {
-                SoundSystem()->PlayDigitalSample(0x13, 1, this, 0, 0);
+                SoundSystem()->PlayDigitalSample(0x13, 1, this, false, false);
             }
 
             std::unique_ptr<MCGameObject> sparks = CreateObject(0x3f);
@@ -417,12 +417,12 @@ auto MCBattleMech::DestroyBodyLocation(int32_t location) -> void
         }
         case MechLeftArm:
         {
-            LeftArmBlownThisFrame = 1;
+            LeftArmBlownThisFrame = true;
             return;
         }
         case MechRightArm:
         {
-            RightArmBlownThisFrame = 1;
+            RightArmBlownThisFrame = true;
             return;
         }
         default:
@@ -602,7 +602,7 @@ namespace
     void TransferHit(MCBattleMech* mech, MCWeaponShotInfo* shotInfo, int32_t bodyLocation)
     {
         MCWeaponShotInfo transferInfo = *shotInfo;
-        transferInfo.HitLocation = mech->TransferHitLocation(bodyLocation);
+        transferInfo.HitLocation = MCBattleMech::TransferHitLocation(bodyLocation);
 
         if (MultiPlayer() == nullptr)
         {
@@ -663,11 +663,11 @@ auto MCBattleMech::HandleWeaponHit(MCWeaponShotInfo* shotInfo, int addMultiplayC
 
     if (!(angle < -90.0 || 90.0 < angle))
     {
-        HitFromFrontThisFrame = 1;
+        HitFromFrontThisFrame = true;
     }
     else if (angle <= -91.0 || 91.0 <= angle)
     {
-        HitFromBehindThisFrame = 1;
+        HitFromBehindThisFrame = true;
     }
 
     const int32_t bodyLocation = MechArmorToBodyLocation[hitLocation];
@@ -873,7 +873,7 @@ namespace
     void CheckDamageRound(const MCWeaponShotInfo& shot)
     {
         const auto quarters = static_cast<int32_t>(shot.Damage * 4.0);
-        Assert(shot.Damage == quarters * 0.25 ? 1 : 0, 0, " WeaponHitChunk.build: damage round error ");
+        Assert(shot.Damage == quarters * 0.25, 0, " WeaponHitChunk.build: damage round error ");
     }
 
     /// <summary>A shot with no effect object sets off a live mine where it lands.</summary>
@@ -883,7 +883,7 @@ namespace
         int32_t tileC = 0;
         int32_t cellR = 0;
         int32_t cellC = 0;
-        GameMap()->WorldToMapPos(point, tileR, tileC, cellR, cellC);
+        MCScenarioMap::WorldToMapPos(point, tileR, tileC, cellR, cellC);
 
         // Port fix: a miss can land off the map, where the original reads (and writes) outside it.
         if (!GameMap()->OnMap(tileR, tileC))
@@ -1253,7 +1253,7 @@ auto MCBattleMech::FireWeapon(MCGameObject* target, float targetTime, int32_t we
                     }
                 }
 
-                Assert(hitLocation != -2 ? 1 : 0, 0, " Mech.FireWeapon: Bad Hit Location ");
+                Assert(hitLocation != -2, 0, " Mech.FireWeapon: Bad Hit Location ");
                 MCWeaponShotInfo shot;
                 shot.Init(this, item.MasterID, fired.Damage * static_cast<float>(missilesLeft), hitLocation,
                           entryAngle);
@@ -1296,7 +1296,7 @@ auto MCBattleMech::FireWeapon(MCGameObject* target, float targetTime, int32_t we
                 hitLocation = target->CalcHitLocation(this, weaponIndex, 0, attackType);
             }
 
-            Assert(hitLocation != -2 ? 1 : 0, 1, " Mech.FireWeapon: Bad Hit Location ");
+            Assert(hitLocation != -2, 1, " Mech.FireWeapon: Bad Hit Location ");
             MCWeaponShotInfo shot;
             shot.Init(this, item.MasterID, fired.Damage, hitLocation, entryAngle);
 
@@ -1449,14 +1449,14 @@ auto MCBattleMech::HandleWeaponFire(int32_t weaponIndex, MCGameObject* target, M
 
     if (hit == 0)
     {
-        Assert(target == nullptr ? 1 : 0, 0, " Mech.handleWeaponFire: target should be NULL with network miss! ");
-        Assert(targetPoint != nullptr ? 1 : 0, 0, " Mech.handleWeaponFire: MUST have targetpoint with network miss! ");
+        Assert(target == nullptr, 0, " Mech.handleWeaponFire: target should be NULL with network miss! ");
+        Assert(targetPoint != nullptr, 0, " Mech.handleWeaponFire: MUST have targetpoint with network miss! ");
 
         if (isStreak != 0)
         {
             CurMoverWeaponFireChunk.Unpack(this);
             DebugWeaponFireChunk(&CurMoverWeaponFireChunk, nullptr, this);
-            Assert(0, 0, " Mech.handleWeaponFire: streaks shouldn't miss! ");
+            Assert(false, 0, " Mech.handleWeaponFire: streaks shouldn't miss! ");
         }
 
         if (numShots != 9999)
@@ -1537,7 +1537,7 @@ auto MCBattleMech::HandleWeaponFire(int32_t weaponIndex, MCGameObject* target, M
 
                 if (fx != nullptr)
                 {
-                    Assert(hitLocation != -2 ? 1 : 0, static_cast<uint32_t>(TargetRolo),
+                    Assert(hitLocation != -2, static_cast<uint32_t>(TargetRolo),
                            " Mech.handleWeaponFire: Bad Hit Location ");
 
                     if (target != nullptr && target->ObjectClass == MCObjectClass::BattleMech)

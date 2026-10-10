@@ -230,7 +230,7 @@ int32_t MCMultiPlayer::StartScriptedGame(MCFitIniFile& file)
     return static_cast<int32_t>(connectResult);
 }
 
-int32_t MCMultiPlayer::NumPlayers()
+int32_t MCMultiPlayer::NumPlayers() const
 {
     if (LaunchedFromLobby)
     {
@@ -429,7 +429,7 @@ size_t MCMultiPlayer::GrabWeaponHitChunks(std::span<uint32_t> chunks)
 
 // ---- the session ---------------------------------------------------------------------------------------------------
 
-int32_t MCMultiPlayer::ConnectIpx()
+int32_t MCMultiPlayer::ConnectIpx() const
 {
     if (SessionManager == nullptr)
     {
@@ -437,17 +437,6 @@ int32_t MCMultiPlayer::ConnectIpx()
     }
 
     SessionManager->SetCurrentConnection(MCNetProtocol::Ipx);
-    return 0;
-}
-
-int32_t MCMultiPlayer::ConnectInternet(std::string_view ipAddress)
-{
-    if (SessionManager == nullptr)
-    {
-        return -1;
-    }
-
-    SessionManager->ConnectTcp(ipAddress);
     return 0;
 }
 
@@ -539,31 +528,31 @@ int32_t MCMultiPlayer::JoinSession(std::string_view sessionName, std::string_vie
     return -1;
 }
 
-int32_t MCMultiPlayer::ProcessReceiveList()
+int32_t MCMultiPlayer::ProcessReceiveList() const
 {
     Assert(SessionManager != nullptr, 0);
     SessionManager->ProcessMessages();
     return 0;
 }
 
-int MCMultiPlayer::PlayersInSession()
+int MCMultiPlayer::PlayersInSession() const
 {
     return static_cast<int>(SessionManager->GetPlayers(nullptr).size());
 }
 
-const std::vector<uint32_t>* MCMultiPlayer::PlayersOnHomeTeam()
+const std::vector<uint32_t>* MCMultiPlayer::PlayersOnHomeTeam() const
 {
     const MCFidpGroup* group = SessionManager->GetGroup(HomeTeamGroupID);
     return group != nullptr ? &group->Players : nullptr;
 }
 
-const std::vector<uint32_t>* MCMultiPlayer::PlayersOnEnemyTeam()
+const std::vector<uint32_t>* MCMultiPlayer::PlayersOnEnemyTeam() const
 {
     const MCFidpGroup* group = SessionManager->GetGroup(EnemyTeamGroupID);
     return group != nullptr ? &group->Players : nullptr;
 }
 
-bool MCMultiPlayer::IsMyTeammate(uint32_t playerID)
+bool MCMultiPlayer::IsMyTeammate(uint32_t playerID) const
 {
     const std::vector<uint32_t>* players = PlayersOnHomeTeam();
     return players != nullptr && std::ranges::contains(*players, playerID);
@@ -571,20 +560,18 @@ bool MCMultiPlayer::IsMyTeammate(uint32_t playerID)
 
 bool MCMultiPlayer::AllPlayersCheckedIn()
 {
-    for (const auto& player : SessionManager->GetPlayers(nullptr))
-    {
-        if (player->HasPlayerNumber)
-        {
-            Assert(player->PlayerNumber >= 0 && player->PlayerNumber <= 5, 0, "Invalid player number");
+    return std::ranges::all_of(SessionManager->GetPlayers(nullptr),
+                               [this](const auto& player)
+                               {
+                                   if (!player->HasPlayerNumber)
+                                   {
+                                       return true;
+                                   }
 
-            if (PlayerCheckedIn[player->PlayerNumber] == 0)
-            {
-                return false;
-            }
-        }
-    }
-
-    return true;
+                                   Assert(player->PlayerNumber >= 0 && player->PlayerNumber <= 5, 0,
+                                          "Invalid player number");
+                                   return PlayerCheckedIn[player->PlayerNumber] != 0;
+                               });
 }
 
 void MCMultiPlayer::SwitchServers()
@@ -690,14 +677,14 @@ void MCMultiPlayer::PlayerLeftGame(uint32_t playerID)
             // Port fix: the player is already gone when DirectPlay reports it; the original printed its freed name.
             MCReusableDialog* dialog = GlobalLogPtr->MessageDialog.get();
             dialog->SetText(std::format("{} {}", player != nullptr ? player->Name : std::string(), reason));
-            dialog->SetTwoButton(0);
+            dialog->SetTwoButton(false);
             dialog->Callback = CancelBool;
             dialog->OkButton->Callback()->SetExec(nullptr);
             char upArt[] = "bh_okay.tga";
             char downArt[] = "bg_okay.tga";
             dialog->OkButton->SetUpPicture(upArt);
             dialog->OkButton->SetDownPicture(downArt);
-            dialog->OkButton->Disabled = 0;
+            dialog->OkButton->Disabled = false;
             dialog->OkButton->Draw();
             dialog->Timeout = 15000;
             dialog->Activate();
@@ -834,17 +821,17 @@ void ShowConnectStatus()
 
     if (dialog->OkButton != nullptr)
     {
-        dialog->OkButton->ShowGuiWindow(0);
+        dialog->OkButton->ShowGuiWindow(false);
     }
 
     if (dialog->CancelButton != nullptr)
     {
-        dialog->CancelButton->ShowGuiWindow(0);
+        dialog->CancelButton->ShowGuiWindow(false);
     }
 
     dialog->Callback = nullptr;
     dialog->Activate();
-    UpdateDisplay(0, 0, 0, 0, 0);
+    UpdateDisplay(false, false, 0, false, 0);
 }
 
 void DestroyConnectStatusWindow()
@@ -859,15 +846,15 @@ void DestroyConnectStatusWindow()
 
     if (dialog->OkButton != nullptr)
     {
-        dialog->OkButton->ShowGuiWindow(1);
+        dialog->OkButton->ShowGuiWindow(true);
     }
 
     if (dialog->CancelButton != nullptr)
     {
-        dialog->CancelButton->ShowGuiWindow(1);
+        dialog->CancelButton->ShowGuiWindow(true);
     }
 
-    dialog->SetTwoButton(1);
+    dialog->SetTwoButton(true);
 }
 
 int32_t LoadMultiplayerGameSystem(MCFitIniFile& file)

@@ -474,7 +474,7 @@ auto MCMover::RelativePosition(float angle, float distance, uint32_t flags) -> M
         int32_t tileC;
         int32_t cellR;
         int32_t cellC;
-        GameMap()->WorldToMapPos(point, tileR, tileC, cellR, cellC);
+        MCScenarioMap::WorldToMapPos(point, tileR, tileC, cellR, cellC);
 
         // Port fix: the walk can leave the map, where the original reads outside it. Off the map is impassable.
         if (!GameMap()->OnMap(tileR, tileC))
@@ -526,7 +526,7 @@ auto MCMover::LineOfFire(MCGameObject* target) -> int
     int32_t tileC;
     int32_t cellR;
     int32_t cellC;
-    GameMap()->WorldToMapPos(target->GetPosition(), tileR, tileC, cellR, cellC);
+    MCScenarioMap::WorldToMapPos(target->GetPosition(), tileR, tileC, cellR, cellC);
     target->ClearLineOfFire();
     const int result = GameMap()->LineOfFire(Position, target->GetPosition());
     target->RestoreLineOfFire();
@@ -539,7 +539,7 @@ auto MCMover::LineOfFire(MCVector3D point) -> int
     int32_t tileC;
     int32_t cellR;
     int32_t cellC;
-    GameMap()->WorldToMapPos(point, tileR, tileC, cellR, cellC);
+    MCScenarioMap::WorldToMapPos(point, tileR, tileC, cellR, cellC);
     return GameMap()->LineOfFire(Position, point);
 }
 
@@ -712,7 +712,7 @@ auto MCMover::HandleTacticalOrder(MCTacticalOrder tacOrder, int32_t priority, in
                 int32_t tileC;
                 int32_t cellR;
                 int32_t cellC;
-                GameMap()->WorldToMapPos(tacOrder.GetWayPoint(0), tileR, tileC, cellR, cellC);
+                MCScenarioMap::WorldToMapPos(tacOrder.GetWayPoint(0), tileR, tileC, cellR, cellC);
                 // Port fix: the player's jump point can be off the map, where the original reads outside it.
                 cellOpen = GameMap()->OnMap(tileR, tileC) &&
                            GameMap()->Map[GameMap()->Width * tileR + tileC].GetCellPassable(cellR, cellC) != 0;
@@ -784,7 +784,7 @@ auto MCMover::HandleTacticalOrder(MCTacticalOrder tacOrder, int32_t priority, in
                 if (queuePlayerOrder != 0)
                 {
                     vehiclePilot->AddQueuedTacOrder(tacOrder);
-                    vehiclePilot->TacOrderQueueExecuting = 1;
+                    vehiclePilot->TacOrderQueueExecuting = true;
                     return 0;
                 }
 
@@ -849,7 +849,7 @@ auto MCMover::FireAntiMissileSystem(int32_t numMissiles, int32_t& antiMissileSho
 
 auto MCMover::PilotingCheck(uint32_t, float) -> void
 {
-    PilotingCheckPending = 0;
+    PilotingCheckPending = false;
 }
 
 auto MCMover::UpdateDamageTakenRate() -> void
@@ -928,7 +928,7 @@ auto MCMover::SetPilot(MCMechWarrior* newPilot) -> void
     newPilot->SetVehicle(this);
 }
 
-auto MCMover::GetPoint() -> MCMover*
+auto MCMover::GetPoint() const -> MCMover*
 {
     if (Group != nullptr)
     {
@@ -936,13 +936,6 @@ auto MCMover::GetPoint() -> MCMover*
     }
 
     return nullptr;
-}
-
-auto MCMover::ClearWeaponFireChunks(int32_t which) -> int32_t
-{
-    const int32_t numChunks = NumWeaponFireChunks[which];
-    NumWeaponFireChunks[which] = 0;
-    return numChunks;
 }
 
 auto MCMover::AddWeaponFireChunk(int32_t which, MCWeaponFireChunk* chunk) -> int32_t
@@ -1033,7 +1026,7 @@ auto MCMover::UpdateWeaponFireChunks(int32_t which) -> int32_t
                 if (target == nullptr)
                 {
                     DebugWeaponFireChunk(&chunk, nullptr, this);
-                    Assert(0, 0, missing);
+                    Assert(false, 0, missing);
                 }
 
                 HandleWeaponFire(weaponIndex, static_cast<MCGameObject*>(target), nullptr, chunk.Hit,
@@ -1162,7 +1155,7 @@ auto MCMover::UpdateRadioChunks(int32_t which) -> int32_t
     return 0;
 }
 
-auto MCMover::PlayMessage(MCRadioMessageType messageId, int propogateIfMultiplayer) -> void
+auto MCMover::PlayMessage(MCRadioMessageType messageId, int propogateIfMultiplayer) const -> void
 {
     if (Pilot != nullptr)
     {
@@ -1201,12 +1194,6 @@ auto MCMover::IsRevealed() -> int
 {
     // The home side's visibility bits (the names are the original's, swapped).
     MCByteFlag* bits = Terrain()->HomeVisibleBits();
-    return TileVisible(bits, ObjPosition);
-}
-
-auto MCMover::EnemyRevealed() -> int
-{
-    MCByteFlag* bits = HomeTeam()->Alignment != -1 ? Terrain()->ClanVisibleBits.get() : Terrain()->ISVisibleBits.get();
     return TileVisible(bits, ObjPosition);
 }
 
@@ -1250,16 +1237,6 @@ auto MCMover::GetInventoryDamage(int32_t itemIndex) -> int32_t
     return static_cast<int8_t>(MasterComponentList[item.MasterID].Health) - item.Health;
 }
 
-auto MCMover::GetEcmEffect() -> float
-{
-    if (Ecm != 0xff && Inventory[Ecm].Disabled == 0)
-    {
-        return MasterComponentList[Inventory[Ecm].MasterID].Damage;
-    }
-
-    return 0.0f;
-}
-
 auto MCMover::GetProbeEffect() -> float
 {
     if (Probe != 0xff && Inventory[Probe].Disabled == 0)
@@ -1301,7 +1278,7 @@ auto MCMover::Disable(uint32_t cause) -> void
     }
 
     Status = 1;
-    DisableThisFrame = 1;
+    DisableThisFrame = true;
 
     if (Alignment == HomeTeam()->Alignment)
     {
@@ -1359,7 +1336,7 @@ auto MCMover::ShutDown() -> void
     if (IsDisabled() == 0 && Status != 5 && Status != 4)
     {
         Status = 4;
-        ShutDownThisFrame = 1;
+        ShutDownThisFrame = true;
     }
 }
 
@@ -1368,7 +1345,7 @@ auto MCMover::StartUp() -> void
     if (IsDisabled() == 0 && Status != 3 && Status != 0)
     {
         Status = 3;
-        StartUpThisFrame = 1;
+        StartUpThisFrame = true;
     }
 }
 

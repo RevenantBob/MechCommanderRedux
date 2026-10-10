@@ -170,14 +170,6 @@ void MCFile::Close()
     _FileImage = {};
 }
 
-void MCFile::DeleteFile()
-{
-    if (IsOpen() && _Parent == nullptr)
-    {
-        Close();
-    }
-}
-
 int32_t MCFile::Seek(int32_t pos, int32_t from)
 {
     const int32_t length = static_cast<int32_t>(GetLength());
@@ -380,29 +372,6 @@ int32_t MCFile::ReadLine(uint8_t* buffer, int32_t maxLength)
     return static_cast<int32_t>(line.size()) + 1;
 }
 
-int32_t MCFile::ReadLineEx(uint8_t* buffer, int32_t maxLength)
-{
-    if (!IsOpen() || maxLength <= 0)
-    {
-        return 0;
-    }
-
-    std::vector<uint8_t> window(static_cast<size_t>(maxLength) + 2, 0);
-    const int32_t got = ReadRawAt(_LogicalPosition, std::span(window).first(static_cast<size_t>(maxLength)));
-    const int32_t limit = std::min(got, maxLength);
-    int32_t length = 0;
-
-    while (length < limit && window[length] != '\n')
-    {
-        ++length;
-    }
-
-    std::copy_n(window.begin(), std::min(length + 1, maxLength), buffer);
-    buffer[std::min(length + 1, maxLength - 1)] = 0;
-    _LogicalPosition += static_cast<uint32_t>(length + 1);
-    return length + 2;
-}
-
 int32_t MCFile::WriteRaw(std::span<const uint8_t> data)
 {
     if (_Parent != nullptr || !IsOpen() || _Disk == nullptr)
@@ -426,21 +395,6 @@ int32_t MCFile::WriteByte(uint8_t value)
     return WriteRaw(std::span(&value, 1)) == 1 ? NO_ERR : WRITE_ERR;
 }
 
-int32_t MCFile::WriteWord(int16_t value)
-{
-    if (_Parent != nullptr || !IsOpen())
-    {
-        return 0;
-    }
-
-    return WriteRaw(std::bit_cast<std::array<uint8_t, 2>>(value)) == 2 ? NO_ERR : WRITE_ERR;
-}
-
-int32_t MCFile::WriteShort(int16_t value)
-{
-    return WriteWord(value);
-}
-
 int32_t MCFile::WriteLong(int32_t value)
 {
     if (_Parent != nullptr || !IsOpen())
@@ -449,11 +403,6 @@ int32_t MCFile::WriteLong(int32_t value)
     }
 
     return WriteRaw(std::bit_cast<std::array<uint8_t, 4>>(value)) == 4 ? NO_ERR : WRITE_ERR;
-}
-
-int32_t MCFile::WriteFloat(float value)
-{
-    return WriteLong(std::bit_cast<int32_t>(value));
 }
 
 int32_t MCFile::WriteString(std::string_view text)

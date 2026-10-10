@@ -21,20 +21,3 @@ auto MCObjectEvent::Init(int32_t newId, MCGuiEvent* newEvent) -> void
 
     SelectionIndex = -1;
 }
-
-auto MCObjectEvent::InitCombat(int32_t newId, MCGameObject* attacker, MCGameObject* target) -> void
-{
-    Type = 2;
-
-    if (attacker != nullptr)
-    {
-        AttackerPartId = attacker->PartId;
-    }
-
-    if (target != nullptr)
-    {
-        TargetPartId = target->PartId;
-    }
-
-    Id = newId;
-}

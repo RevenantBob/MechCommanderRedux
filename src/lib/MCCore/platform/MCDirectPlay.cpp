@@ -2197,7 +2197,7 @@ uint32_t MCDirectPlay::Receive(uint32_t* fromID, uint32_t* toID, uint32_t, void*
     for (const auto& [pointerOffset, targetOffset] : fixups)
     {
         uint8_t* target = out + targetOffset;
-        std::memcpy(out + pointerOffset, &target, sizeof(target));
+        std::memcpy(out + pointerOffset, static_cast<const void*>(&target), sizeof(uint8_t*));
     }
 
     *size = needed;

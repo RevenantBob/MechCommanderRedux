@@ -53,7 +53,7 @@ int MCSessionManager::RemovePlayerFromGame(MCFidpPlayer* player)
 }
 
 void MCSessionManager::SetupMessageSendCounts(MCFIGuaranteedMessageHeader* header,
-                                              std::span<MCFidpPlayer* const> players)
+                                              std::span<MCFidpPlayer* const> players) const
 {
     for (MCFidpPlayer* player : players)
     {
@@ -190,7 +190,7 @@ void MCSessionManager::SendMessageToGroup(uint32_t groupID, MCFIGuaranteedMessag
     {
         if (!LaunchedFromLobby)
         {
-            std::lock_guard lock(CriticalSection);
+            std::scoped_lock lock(CriticalSection);
             header->Header |= FIMSG_GROUP_MESSAGE;
             PreIDGroupMessages.push_back(CopyToFreeMessage(header, size, groupID));
         }
@@ -236,7 +236,7 @@ void MCSessionManager::SendMessageToGroup(uint32_t groupID, MCFIGuaranteedMessag
         }
     }
 
-    std::lock_guard lock(CriticalSection);
+    std::scoped_lock lock(CriticalSection);
     SetupMessageSendCounts(header, list);
 
     if (SendPlainMessage(groupID, header, size) == 0)
@@ -343,7 +343,7 @@ void MCSessionManager::SendMessageToPlayerGuaranteed(uint32_t playerID, MCFIGuar
     {
         if (!LaunchedFromLobby)
         {
-            std::lock_guard lock(CriticalSection);
+            std::scoped_lock lock(CriticalSection);
             header->Header &= ~FIMSG_GROUP_MESSAGE;
             PreIDGroupMessages.push_back(CopyToFreeMessage(header, size, playerID));
         }
@@ -364,7 +364,7 @@ void MCSessionManager::SendMessageToPlayerGuaranteed(uint32_t playerID, MCFIGuar
         return;
     }
 
-    std::lock_guard lock(CriticalSection);
+    std::scoped_lock lock(CriticalSection);
 
     if (firstSend && player->PlayerNumber >= 0 && player->PlayerNumber < MaxLinkupPlayers)
     {
@@ -396,7 +396,7 @@ void MCSessionManager::SendMessageToServerGuaranteed(MCFIGuaranteedMessageHeader
 {
     if (!HasPlayerNumber)
     {
-        std::lock_guard lock(CriticalSection);
+        std::scoped_lock lock(CriticalSection);
         header->Header &= ~FIMSG_GROUP_MESSAGE;
         PreIDServerMessages.push_back(CopyToFreeMessage(header, size, ServerID));
         return;
@@ -412,7 +412,7 @@ void MCSessionManager::BroadcastMessage(MCFIMessageHeader* header, uint32_t size
 
 void MCSessionManager::SendMessageToServer(MCFIMessageHeader* header, uint32_t size)
 {
-    std::lock_guard lock(CriticalSection);
+    std::scoped_lock lock(CriticalSection);
 
     if (!HasPlayerNumber)
     {
@@ -427,29 +427,8 @@ void MCSessionManager::SendMessageToServer(MCFIMessageHeader* header, uint32_t s
 
 int32_t MCSessionManager::SendPlainMessage(uint32_t toID, const MCFIMessageHeader* header, uint32_t size)
 {
-    std::lock_guard lock(CriticalSection);
+    std::scoped_lock lock(CriticalSection);
     return static_cast<int32_t>(DirectPlay->Send(MyPlayerID, toID, 0, header, std::min<uint32_t>(size, 0x200)));
-}
-
-int MCSessionManager::BroadcastFile(std::string_view fileName, std::optional<std::string_view> directory,
-                                    std::function<void(const std::string& fileName)> callback)
-{
-    auto transfer = std::make_unique<MCFileTransferInfo>(_HomeDirectory, MyPlayerID, 0, fileName, directory, 0,
-                                                         MCFileTransferDirection::Send);
-    transfer->Callback = std::move(callback);
-    transfer->FileID = _NextFileID;
-    _NextFileID++;
-
-    if (_NextFileID > 0xff)
-    {
-        _NextFileID = 0;
-    }
-
-    std::vector<uint8_t> begin = transfer->CreateBeginTransferMessage();
-    OutgoingFiles.push_back(std::move(transfer));
-    BroadcastMessage(reinterpret_cast<MCFIMessageHeader*>(begin.data()), static_cast<uint32_t>(begin.size()));
-    // Original behaviour: when the id wraps the answer is -1.
-    return _NextFileID - 1;
 }
 
 void MCSessionManager::SendMessageFromInfo(MCFidpMessage& msg)

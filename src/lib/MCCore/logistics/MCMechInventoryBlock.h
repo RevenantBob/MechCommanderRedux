@@ -42,7 +42,7 @@ public:
     /// The sale dialog's answer: a confirmed sale moves the mech's undamaged weapons and equipment to the spare
     /// components and removes the mech; otherwise it goes back to the inventory.
     /// </summary>
-    void OnSellConfirmed(int32_t result);
+    void OnSellConfirmed(int32_t result) const;
 
     /// <summary>The cached small damage diagram (0x1c x 0x1e).</summary>
     std::unique_ptr<MCLogPort> DiagramPort;

@@ -33,7 +33,7 @@ namespace
     /// </summary>
     void ProjectPoint(const MCVector3D& point, int32_t& screenX, int32_t& screenY)
     {
-        const float scale = Eye->CameraScale == 1 ? 0.5f : 1.0f;
+        const float scale = MCCamera::CameraScale == 1 ? 0.5f : 1.0f;
         const float dx = (point.X - Eye->Position.X) * scale;
         const float dy = (point.Y - Eye->Position.Y) * scale;
         const float dz = (point.Z - Eye->Position.Z) * scale;
@@ -111,7 +111,7 @@ auto MCProjectileLaser::Update() -> int32_t
 
         if (laserType->SoundEffectId != 0xffffffff)
         {
-            SoundSystem()->PlayDigitalSample(laserType->SoundEffectId, 1, this, 0, 0);
+            SoundSystem()->PlayDigitalSample(laserType->SoundEffectId, 1, this, false, false);
         }
 
         HeadPosition = Position;
@@ -154,7 +154,7 @@ auto MCProjectileLaser::Update() -> int32_t
 
     if (Appearance != nullptr)
     {
-        Appearance->Visible = visibleNow ? 1 : 0;
+        Appearance->Visible = visibleNow;
         Appearance->Update();
     }
 
@@ -166,7 +166,7 @@ auto MCProjectileLaser::Update() -> int32_t
     {
         MCFrameOfRef ownerFrame = shooter->GetFrame();
         const float cosFacing = UnitX.Y * ownerFrame.I.Y + UnitX.X * ownerFrame.I.X + UnitX.Z * ownerFrame.I.Z;
-        float facing = static_cast<float>(ownerFrame.MyAcos(cosFacing) * RadiansToDegrees);
+        float facing = static_cast<float>(MCFrameOfRef::MyAcos(cosFacing) * RadiansToDegrees);
 
         if (ownerFrame.I.Y < 0.0f)
         {
@@ -358,7 +358,7 @@ auto MCProjectileLaser::Update() -> int32_t
         int32_t tileC = 0;
         int32_t cellR = 0;
         int32_t cellC = 0;
-        GameMap()->WorldToMapPos(*TargetPosition, tileR, tileC, cellR, cellC);
+        MCScenarioMap::WorldToMapPos(*TargetPosition, tileR, tileC, cellR, cellC);
 
         // Port fix: a miss can land off the map, where the original reads (and writes) outside it.
         if (!GameMap()->OnMap(tileR, tileC))
@@ -418,7 +418,7 @@ auto MCProjectileLaser::Render() -> void
     side2.Vertices[3] = side1.Vertices[3];
 
     const int32_t depth = -side1.Vertices[0].Y;
-    ElementList()->OpenGroup(depth, 1);
+    ElementList()->OpenGroup(depth, true);
     ElementList()->Add(ElementList()->Make<MCPolygonElement>(side1, depth));
     ElementList()->Add(ElementList()->Make<MCPolygonElement>(side2, depth));
 

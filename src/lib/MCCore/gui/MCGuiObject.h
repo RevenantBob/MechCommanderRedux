@@ -247,7 +247,7 @@ public:
     virtual bool ClipsChildren() { return false; }
 
     /// <summary>Wipes a rectangle of the port to <paramref name="color"/>.</summary>
-    void FillBox(int16_t left, int16_t top, int16_t right, int16_t bottom, uint8_t color);
+    void FillBox(int16_t left, int16_t top, int16_t right, int16_t bottom, uint8_t color) const;
 
     /// <summary>Sets one pixel of the port.</summary>
     void SetBit(int32_t xPos, int32_t yPos, uint8_t color);

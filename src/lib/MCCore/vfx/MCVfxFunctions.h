@@ -42,10 +42,6 @@ using MCVfxLineCallback = std::function<void(int32_t x, int32_t y)>;
 /// <returns>The pixel's previous colour, or VFX_ERR_* (-3 when the point is outside the pane).</returns>
 int32_t VfxPixelWrite(MCPane* pane, int32_t x, int32_t y, uint8_t color);
 
-/// <summary>Reads one pixel.</summary>
-/// <returns>Its colour, or VFX_ERR_* (-3 when the point is outside the pane).</returns>
-int32_t VfxPixelRead(MCPane* pane, int32_t x, int32_t y);
-
 /// <summary>
 /// Draws the line from (x0, y0) to (x1, y1), both ends included, clipped to the pane, in <paramref name="color"/>
 /// (its low byte): <c>VFX_line_draw</c>'s LD_DRAW mode.
@@ -58,16 +54,6 @@ int32_t VfxLineDraw(MCPane* pane, int32_t x0, int32_t y0, int32_t x1, int32_t y1
 /// (LD_TRANSLATE).
 /// </summary>
 int32_t VfxLineTranslate(MCPane* pane, int32_t x0, int32_t y0, int32_t x1, int32_t y1, const uint8_t* table);
-
-/// <summary>The line of <see cref="VfxLineDraw"/>, <paramref name="callback"/> called for each pixel (LD_EXECUTE).</summary>
-int32_t VfxLineExecute(MCPane* pane, int32_t x0, int32_t y0, int32_t x1, int32_t y1, const MCVfxLineCallback& callback);
-
-/// <summary>
-/// Fills a rectangle (clamped to the pane) with a checkerboard of <paramref name="color"/>: every other pixel,
-/// the rows an even distance above the bottom starting at the left edge.
-/// </summary>
-/// <returns>0, VFX_ERR_* for the pane, or VfxErrBadShape (-4) when nothing is left after clamping.</returns>
-int32_t VfxRectangleHash(MCPane* pane, int32_t x0, int32_t y0, int32_t x1, int32_t y1, uint8_t color);
 
 /// <summary>Fills the pane with <paramref name="color"/>.</summary>
 int32_t VfxPaneWipe(MCPane* pane, int32_t color);
@@ -94,13 +80,6 @@ int32_t VfxPaneCopy(MCPane* source, int32_t sx, int32_t sy, MCPane* target, int3
 /// its own and only tests parm against 0.
 /// </remarks>
 int32_t VfxPaneScroll(MCPane* pane, int32_t dx, int32_t dy, int32_t mode, int32_t parm);
-
-/// <summary>
-/// Draws the outline of the ellipse centred at (xc, yc) with radii <paramref name="width"/> and
-/// <paramref name="height"/> (midpoint algorithm, each point clipped). A zero radius draws the line from
-/// (xc - width, yc - height) to (xc + width, yc + height) instead and returns its result.
-/// </summary>
-int32_t VfxEllipseDraw(MCPane* pane, int32_t xc, int32_t yc, int32_t width, int32_t height, int32_t color);
 
 /// <summary>
 /// Fills the ellipse centred at (xc, yc) with radii <paramref name="width"/> and <paramref name="height"/>, one
@@ -145,18 +124,6 @@ inline constexpr uint32_t VfxShapeTransformXlat = 0x01;
 /// <summary><c>VFX_shape_transform</c> flag: the work buffer already holds the shape; don't redraw it.</summary>
 inline constexpr uint32_t VfxShapeTransformReuse = 0x02;
 
-/// <summary>
-/// The window-space rectangle a shape covers when drawn at (hotX, hotY), mirrored per <paramref name="mirror"/>,
-/// written to <paramref name="rectangle"/> as x0, y0, x1, y1.
-/// </summary>
-/// <remarks>
-/// The right and bottom edges are exclusive on x (one past the last pixel) and inclusive on y;
-/// a shape without rows gives (0, 0, 0, 0), one without pixels (INT32_MAX, INT32_MAX, INT32_MIN, INT32_MIN).
-/// Bit 0 of <paramref name="mirror"/> mirrors about hotX, bit 1 about hotY.
-/// </remarks>
-int32_t VfxShapeVisibleRectangle(void* shapeTable, int32_t shapeNum, int32_t hotX, int32_t hotY, int32_t mirror,
-                                 int32_t* rectangle);
-
 /// <summary>Maps every pixel of a shape through the lookaside table, in place.</summary>
 int32_t VfxShapeRemapColors(void* shapeTable, int32_t shapeNum);
 
@@ -175,25 +142,11 @@ int32_t VfxShapeScanAsm(MCPane* pane, uint8_t transparentColor, int32_t hotX, in
 /// <summary>A shape's bounds word: its width in the high 16 bits and height in the low ones.</summary>
 int32_t VfxShapeBounds(void* shapeTable, int32_t shapeNum);
 
-/// <summary>A shape's origin word: the hot spot's x in the high 16 bits and y in the low ones.</summary>
-int32_t VfxShapeOrigin(void* shapeTable, int32_t shapeNum);
-
 /// <summary>A shape's size: <c>(x_max - x_min + 1) &lt;&lt; 16 | (y_max - y_min + 1)</c> (low word only).</summary>
 int32_t VfxShapeResolution(void* shapeTable, int32_t shapeNum);
 
 /// <summary>A shape's top-left offset from its hot spot: <c>x_min &lt;&lt; 16 | (uint16_t)y_min</c>.</summary>
 int32_t VfxShapeMinxy(void* shapeTable, int32_t shapeNum);
-
-/// <summary>Writes a shape's palette entries (if it has any) into <paramref name="palette"/> at their indices.</summary>
-void VfxShapePalette(void* shapeTable, int32_t shapeNum, MCVfxRgb* palette);
-
-/// <summary>Copies a shape's palette entries to <paramref name="colors"/> (when not null).</summary>
-/// <returns>The number of entries (0 without a palette).</returns>
-int32_t VfxShapeColors(void* shapeTable, int32_t shapeNum, MCVfxCrgb* colors);
-
-/// <summary>Replaces a shape's palette entries with <paramref name="colors"/> (when not null).</summary>
-/// <returns>The number of entries (0 without a palette).</returns>
-int32_t VfxShapeSetColors(void* shapeTable, int32_t shapeNum, MCVfxCrgb* colors);
 
 /// <summary>The number of shapes in a table.</summary>
 int32_t VfxShapeCount(void* shapeTable);
@@ -203,16 +156,6 @@ inline bool VfxIsShapeTable(const void* shapeTable)
 {
     return std::memcmp(shapeTable, "1.10", 4) == 0;
 }
-
-/// <summary>
-/// Lists the shapes with distinct data: writes to <paramref name="indexList"/> (when not null) the number of every
-/// shape whose data offset no earlier shape shares.
-/// </summary>
-/// <returns>The number of distinct shapes.</returns>
-int32_t VfxShapeList(void* shapeTable, uint32_t* indexList);
-
-/// <summary>Lists the shapes with distinct palettes, as <c>VFX_shape_list</c> does for data.</summary>
-int32_t VfxShapePaletteList(void* shapeTable, uint32_t* indexList);
 
 // ---------------------------------------------------------------------------------------------------------------
 // vfxa.asm: fixed-point maths (vfx/MCVfxMath.cpp)
@@ -251,7 +194,8 @@ int32_t VfxCharacterWidth(void* font, int32_t character);
 /// mapped through the table and the pixels it maps to 255 are left alone (transparent).
 /// </summary>
 /// <returns>The character's width, whether or not any of it was drawn; VFX_ERR_* for a bad or empty pane.</returns>
-int32_t VfxCharacterDraw(MCPane* pane, int32_t x, int32_t y, void* font, int32_t character, uint8_t* colorTranslate);
+int32_t VfxCharacterDraw(MCPane* pane, int32_t x, int32_t y, void* font, int32_t character,
+                         const uint8_t* colorTranslate);
 
 /// <summary>
 /// Draws a zero-terminated string from (x, y), each character advancing x by <c>VFX_character_draw</c>'s result.
@@ -276,9 +220,6 @@ void VfxLineToPane(MCPane* pane, int32_t y, uint8_t* line, int32_t width);
 /// <returns>The low byte of BMHD's transparent colour (0 for a masked picture, which the asm left undefined).</returns>
 int32_t VfxIlbmDraw(MCPane* pane, uint8_t* ilbm);
 
-/// <summary>Copies an ILBM's CMAP (256 entries) into <paramref name="palette"/>, scaled down to 6 bits.</summary>
-void VfxIlbmPalette(uint8_t* ilbm, MCVfxRgb* palette);
-
 /// <summary>An ILBM's size from BMHD: width in the high 16 bits, height in the low ones.</summary>
 int32_t VfxIlbmResolution(uint8_t* ilbm);
 
@@ -287,7 +228,7 @@ int32_t VfxIlbmResolution(uint8_t* ilbm);
 int32_t VfxPcxDraw(MCPane* pane, uint8_t* pcx);
 
 /// <summary>Copies a PCX file's 256-colour palette (its last 768 bytes) into <paramref name="palette"/>, scaled to 6 bits.</summary>
-void VfxPcxPalette(uint8_t* pcx, int32_t fileSize, MCVfxRgb* palette);
+void VfxPcxPalette(const uint8_t* pcx, int32_t fileSize, MCVfxRgb* palette);
 
 /// <summary>A PCX picture's size: width in the high 16 bits, height in the low ones.</summary>
 int32_t VfxPcxResolution(uint8_t* pcx);
@@ -307,7 +248,7 @@ int32_t VfxGifDraw(MCPane* pane, uint8_t* gif, void* buffer);
 /// Copies a GIF's global colour table and then its first image's local colour table (each if present) into
 /// <paramref name="palette"/>, scaled down to 6 bits.
 /// </summary>
-void VfxGifPalette(uint8_t* gif, MCVfxRgb* palette);
+void VfxGifPalette(const uint8_t* gif, MCVfxRgb* palette);
 
 /// <summary>A GIF's first image's size: width in the high 16 bits, height in the low ones.</summary>
 int32_t VfxGifResolution(uint8_t* gif);
@@ -460,7 +401,8 @@ int VfxShapeScan(MCPane* pane, uint8_t transparentColor, int hotX, int hotY, voi
 /// </summary>
 /// <returns>0.</returns>
 /// <remarks>The original took a last argument it never read (the game passed 0).</remarks>
-int32_t FastShapeDraw(MCPane* pane, void* shapeTable, int32_t shapeNum, int32_t hotX, int32_t hotY, uint8_t* xlat);
+int32_t FastShapeDraw(MCPane* pane, void* shapeTable, int32_t shapeNum, int32_t hotX, int32_t hotY,
+                      const uint8_t* xlat);
 
 // ---------------------------------------------------------------------------------------------------------------
 // vfx\vfx_ellipse.cpp (vfx/MCAgEllipse.cpp)
@@ -538,23 +480,13 @@ void AGShapeTranslateTransform(MCPane* pane, void* shapeTable, int32_t shapeNum,
 /// <c>AlphaTable[sprite &lt;&lt; 8 | screen]</c>. <paramref name="fullSize"/> 0 halves it (every other pixel of every
 /// other row); <paramref name="mirror"/> nonzero mirrors it left to right. Clipped to the pane.
 /// </summary>
-void CopySprite(MCPane* pane, uint8_t* sprite, int x, int y, int width, int height, int mirror, int fullSize);
+void CopySprite(MCPane* pane, const uint8_t* sprite, int x, int y, int width, int height, int mirror, int fullSize);
 
 /// <summary>
 /// Port: <see cref="CopySprite(PANE*, uint8_t*, int, int, int, int, int, int)"/> of a window's pixels, which the
 /// renderers read through its texture (the sprite is the whole window, <paramref name="width"/> its width).
 /// </summary>
 void CopySprite(MCPane* pane, MCWindow* sprite, int x, int y, int width, int height, int mirror, int fullSize);
-
-/// <summary>
-/// Draws a shape opaque, its skipped pixels written as colour 0, with its hot spot at window coordinates
-/// (hotX, hotY) (the pane only clips): renders a shape into a scratch bitmap.
-/// </summary>
-void AGShapeFill(MCPane* pane, void* shapeTable, int32_t shapeNum, int32_t hotX, int32_t hotY);
-
-/// <summary>As <see cref="AGShapeFill"/>, each pixel mapped through <see cref="Lookaside"/> (skips stay 0).</summary>
-/// <remarks>When clipped, the pane's right column itself is not written.</remarks>
-void AGShapeTranslateFill(MCPane* pane, void* shapeTable, int32_t shapeNum, int32_t hotX, int32_t hotY);
 
 // ---------------------------------------------------------------------------------------------------------------
 // vfx\vfx_translatedraw.cpp (vfx/MCAgShapeDraw.cpp)
@@ -589,4 +521,4 @@ inline uint8_t* const VfxTileFill = reinterpret_cast<uint8_t*>(static_cast<intpt
 /// when it is <see cref="VfxTileFill"/>, else mapped through the 256-byte table it points to (a haze palette).
 /// </summary>
 /// <returns>0, or 0xcdcf0001 when the tile is wholly outside the pane.</returns>
-int32_t VfxNTileDraw(MCPane* pane, uint8_t* tile, int32_t x, int32_t y, uint8_t* xlat);
+int32_t VfxNTileDraw(MCPane* pane, const uint8_t* tile, int32_t x, int32_t y, const uint8_t* xlat);

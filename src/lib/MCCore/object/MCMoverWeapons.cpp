@@ -354,7 +354,7 @@ auto MCMover::CalcOptimalRange(MCGameObject* target) -> int
     };
 
     int32_t numWorking = 0;
-    sortList.Clear(1);
+    sortList.Clear(true);
 
     for (int32_t step = 0; step < NumRangeRatings; step++)
     {
@@ -382,12 +382,12 @@ auto MCMover::CalcOptimalRange(MCGameObject* target) -> int
         return oldRange != 0.0f ? 1 : 0;
     }
 
-    sortList.Sort(1);
+    sortList.Sort(true);
     int32_t bestStep = sortList.List[0].Id;
 
     if (sortList.List[1].Value == sortList.List[0].Value)
     {
-        sortList.Clear(1);
+        sortList.Clear(true);
 
         for (int32_t step = 0; step < NumRangeRatings; step++)
         {
@@ -404,7 +404,7 @@ auto MCMover::CalcOptimalRange(MCGameObject* target) -> int
             setItem(step, total, step);
         }
 
-        sortList.Sort(1);
+        sortList.Sort(true);
         const MCSortListNode* node = sortList.List.data();
         bestStep = node[0].Id;
 
@@ -695,7 +695,7 @@ auto MCMover::SortWeapons(int32_t* weaponList, int32_t* valueList, int32_t listS
         }
     };
 
-    sortList.Clear(1);
+    sortList.Clear(true);
 
     if (listSize == -1)
     {
@@ -711,7 +711,7 @@ auto MCMover::SortWeapons(int32_t* weaponList, int32_t* valueList, int32_t listS
             setValue(i - NumOther, CalcAttackChance(target, aimLocation, ScenarioTime, i, 0.0f, nullptr, nullptr));
         }
 
-        sortList.Sort(1);
+        sortList.Sort(true);
         listSize = NumWeapons;
 
         if (listSize == 0)
@@ -743,7 +743,7 @@ auto MCMover::SortWeapons(int32_t* weaponList, int32_t* valueList, int32_t listS
             setValue(i, chance);
         }
 
-        sortList.Sort(1);
+        sortList.Sort(true);
     }
 
     for (int32_t i = 0; i < listSize; i++)

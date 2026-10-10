@@ -76,7 +76,7 @@ auto MCGuiAnimation::Load(std::string_view fileName) -> int32_t
     return 0;
 }
 
-auto MCGuiAnimation::DrawFrame(int32_t frame, MCPane* pane, int32_t xPos, int32_t yPos) -> void
+auto MCGuiAnimation::DrawFrame(int32_t frame, MCPane* pane, int32_t xPos, int32_t yPos) const -> void
 {
     AGShapeDraw(pane, Shapes.get(), frame, xPos, yPos);
 }

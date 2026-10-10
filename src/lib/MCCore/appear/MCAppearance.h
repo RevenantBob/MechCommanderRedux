@@ -73,7 +73,7 @@ public:
     /// Where the owner is on screen through <paramref name="cam"/>, or the cached <see cref="ScreenPos"/> when
     /// <paramref name="cam"/> is null.
     /// </summary>
-    MCVector2D GetScreenPos(MCCamera* cam);
+    MCVector2D GetScreenPos(MCCamera* cam) const;
 
     /// <summary>Draws corner marks around the appearance's bounds in <paramref name="color"/>.</summary>
     void DrawSelectBox(uint8_t color);

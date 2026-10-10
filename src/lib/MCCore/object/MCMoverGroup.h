@@ -40,7 +40,6 @@ public:
     int32_t SetPoint(MCMover* mover);
     MCMover* GetPoint() const { return Point; }
     void SetDisbandOnNoPoint(int setting) { DisbandOnNoPoint = setting; }
-    int GetDisbandOnNoPoint() const { return DisbandOnNoPoint; }
     /// <summary>Copies the members to <paramref name="moverList"/>; returns how many.</summary>
     int32_t GetMovers(MCMover** moverList);
     /// <summary>Gives <paramref name="tacOrder"/> to every member (or, jumping, per-member goals).</summary>
@@ -51,7 +50,7 @@ public:
     /// than 6 wounds the point; none when no member qualifies.
     /// </summary>
     MCMover* SelectPoint(int excludePoint);
-    MCMechWarrior* GetPointPilot();
+    MCMechWarrior* GetPointPilot() const;
     /// <summary>
     /// Adds the members to <paramref name="counts"/>: [status 0..5] by status, [6] pilot ejected, [7] asleep, [8]
     /// gone (as <c>Team::statusCount</c>, without its checks). The original's name is lost.
@@ -60,25 +59,18 @@ public:
     /// <summary>Adds every member to the interface's mech list.</summary>
     void AddToGui(int visible);
     /// <summary>The members' jump goals around <paramref name="goal"/> (CalcJumpGoals).</summary>
-    int32_t CalcMemberJumpGoals(MCVector3D goal, MCVector3D* goalList, MCGameObject* dfaTarget);
+    int32_t CalcMemberJumpGoals(MCVector3D goal, MCVector3D* goalList, MCGameObject* dfaTarget) const;
     int32_t OrderMoveToPoint(int setTacOrder, MCOrderOrigin origin, MCVector3D location, uint32_t params);
     int32_t OrderMoveToObject(int setTacOrder, MCOrderOrigin origin, MCGameObject* target, uint32_t params);
-    int32_t OrderTraversePath(MCOrderOrigin origin, MCWayPath* wayPath, uint32_t params);
-    /// <summary>The original's name is lost (its assert says <c>orderPatrolPath</c>).</summary>
-    int32_t OrderPatrolPath(MCOrderOrigin origin, MCWayPath* wayPath);
     int32_t OrderPowerDown(MCOrderOrigin origin);
     int32_t OrderPowerUp(MCOrderOrigin origin);
     int32_t OrderAttackObject(MCOrderOrigin origin, MCGameObject* target, int32_t attackType, int32_t attackMethod,
                               int32_t attackRange, int32_t aimLocation, uint32_t params);
     int32_t OrderWithdraw(MCOrderOrigin origin, MCVector3D location);
-    int32_t OrderEject(MCOrderOrigin origin);
     /// <summary>Triggers alarm <paramref name="alarmCode"/> in every member's pilot.</summary>
     void TriggerAlarm(MCPilotAlarmType alarm, uint32_t triggerId);
-    /// <summary>Alarm 4 for every member.</summary>
-    int32_t HandleMateCrippled(uint32_t mateId);
-    int32_t HandleMateDisabled(uint32_t mateId);
     int32_t HandleMateDestroyed(uint32_t mateId);
-    int32_t HandleMateEjected(uint32_t mateId);
+    static int32_t HandleMateEjected(uint32_t mateId);
     void HandleMateFiredWeapon(uint32_t mateId);
     /// <summary>Member <paramref name="index"/>.</summary>
     MCMover* GetMover(int32_t index) const { return Movers[index]; }

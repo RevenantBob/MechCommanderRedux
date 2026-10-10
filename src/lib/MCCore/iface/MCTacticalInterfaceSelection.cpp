@@ -164,7 +164,7 @@ auto MCTacticalInterface::DeselectMech(int32_t partId) -> void
     }
 }
 
-auto MCTacticalInterface::DeselectEnemy() -> void
+auto MCTacticalInterface::DeselectEnemy() const -> void
 {
     if (SelectedEnemy != nullptr)
     {

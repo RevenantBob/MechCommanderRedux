@@ -20,7 +20,7 @@ public:
     /// <summary>Unpacks <see cref="Data"/> into the fields.</summary>
     void Unpack();
     /// <summary>Whether the unpacked fields of both chunks match.</summary>
-    int EqualTo(MCArtilleryChunk* chunk);
+    int EqualTo(MCArtilleryChunk* chunk) const;
 
     int8_t CommanderId = 0;
     int8_t StrikeType = 0;

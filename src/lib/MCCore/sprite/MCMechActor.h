@@ -56,19 +56,19 @@ public:
     int32_t GetFrameNumber() override { return CurrentFrame[MCMechPart::Legs]; }
 
     /// <summary>Always 0.</summary>
-    int HitMech(int32_t hitLocation);
+    static int HitMech(int32_t hitLocation);
 
     /// <summary>The frames of gesture <paramref name="gesture"/>.</summary>
-    float GetNumFramesInGesture(uint32_t gesture);
+    float GetNumFramesInGesture(uint32_t gesture) const;
 
     /// <summary>The start velocity of gesture <paramref name="gesture"/> (-1 for a gesture the tree hasn't).</summary>
-    float GetVelocityOfGesture(uint32_t gesture);
+    float GetVelocityOfGesture(uint32_t gesture) const;
 
     /// <summary>The hot spot (weapon mount) table index for <paramref name="location"/>.</summary>
-    uint32_t GetHotSpotIndex(uint32_t location);
+    static uint32_t GetHotSpotIndex(uint32_t location);
 
     /// <summary>Loads the tree's stand, walk and run shapes.</summary>
-    void PreloadGestures();
+    void PreloadGestures() const;
 
     /// <summary>Raises (<paramref name="combatMode"/>) or lowers the arms into the gun pose.</summary>
     void SetCombatMode(bool combatMode);
@@ -83,17 +83,11 @@ public:
     /// <summary>Starts (<paramref name="path"/> with steps left) or clears the stop countdown.</summary>
     int32_t SetMovePath(MCMovePath* path);
 
-    /// <summary>Stops the mech at once.</summary>
-    void ForceStop();
-
     /// <summary>Whether the mech is walking or running with nowhere to go, and stands.</summary>
     bool CheckStop() const;
 
     /// <summary>Draws the jump's arc and landing point.</summary>
     void RenderJump();
-
-    /// <summary>Draws the damage diagram of the mech when it is the current target.</summary>
-    void DrawTargetDamage();
 
     /// <summary>The mech drawn (set by BattleMech::init).</summary>
     MCGameObject* OwnerMech = nullptr;

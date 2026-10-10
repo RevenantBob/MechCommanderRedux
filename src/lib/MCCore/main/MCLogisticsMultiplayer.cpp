@@ -183,7 +183,7 @@ auto MCLogistics::InitializeMultiplayer() -> void
     }
 
     std::ranges::fill(MultiPlayer()->PlayerSessionCheckIn, 0);
-    MultiPlayer()->InLogistics = 1;
+    MultiPlayer()->InLogistics = true;
     std::array<uint32_t, 6> teammates{};
     int32_t numTeammates = 0;
     std::array<uint32_t, 6> opponents{};
@@ -362,28 +362,28 @@ auto MCLogistics::HandleChatMessage(uint32_t playerID, const void* message) -> v
     {
         if (shown == briefing && briefing->ChatTimerOn == 0)
         {
-            GuiSystem()->AddTimer(briefing, 5, 0xfa, 0, 0, 0);
-            briefing->ChatTimerOn = 1;
+            GuiSystem()->AddTimer(briefing, 5, 0xfa, 0, 0, false);
+            briefing->ChatTimerOn = true;
         }
         else if (shown == PurchaseScreen.get() && PurchaseScreen->ChatBlinking == 0)
         {
-            GuiSystem()->AddTimer(PurchaseScreen.get(), 7, 0xfa, 0, 0, 0);
-            PurchaseScreen->ChatBlinking = 1;
+            GuiSystem()->AddTimer(PurchaseScreen.get(), 7, 0xfa, 0, 0, false);
+            PurchaseScreen->ChatBlinking = true;
         }
         else if (shown == RepairScreen.get() && RepairScreen->ChatBlinking == 0)
         {
-            GuiSystem()->AddTimer(RepairScreen.get(), 8, 0xfa, 0, 0, 0);
-            RepairScreen->ChatBlinking = 1;
+            GuiSystem()->AddTimer(RepairScreen.get(), 8, 0xfa, 0, 0, false);
+            RepairScreen->ChatBlinking = true;
         }
 
-        briefing->ChatBlinking = 1;
-        SoundSystem()->PlayDigitalSample(0x14, 1, nullptr, 0, 0);
+        briefing->ChatBlinking = true;
+        SoundSystem()->PlayDigitalSample(0x14, 1, nullptr, false, false);
     }
 
     ChatWindow->HandleNetworkMessage(playerID, const_cast<void*>(message));
 }
 
-auto MCLogistics::SendRemoveForceMessage(int lance, int slot) -> void
+auto MCLogistics::SendRemoveForceMessage(int lance, int slot) const -> void
 {
     if (!MultiplayerInitialized || MultiPlayer() == nullptr)
     {
@@ -403,7 +403,7 @@ namespace
     }
 }
 
-auto MCLogistics::SendAddMechMessage(MCLogMech* mech, int lance, int slot) -> void
+auto MCLogistics::SendAddMechMessage(MCLogMech* mech, int lance, int slot) const -> void
 {
     if (!MultiplayerInitialized || MultiPlayer() == nullptr)
     {
@@ -428,7 +428,7 @@ auto MCLogistics::SendAddMechMessage(MCLogMech* mech, int lance, int slot) -> vo
     SendToAll(message);
 }
 
-auto MCLogistics::SendAddVehicleMessage(MCLogVehicle* vehicle, int lance, int slot) -> void
+auto MCLogistics::SendAddVehicleMessage(MCLogVehicle* vehicle, int lance, int slot) const -> void
 {
     if (!MultiplayerInitialized || MultiPlayer() == nullptr)
     {
@@ -445,7 +445,7 @@ auto MCLogistics::SendAddVehicleMessage(MCLogVehicle* vehicle, int lance, int sl
     SendToAll(message);
 }
 
-auto MCLogistics::HandleLostPlayer(uint32_t playerID, int) -> void
+auto MCLogistics::HandleLostPlayer(uint32_t playerID, int) const -> void
 {
     // "<player> has left the game" (or, in a lobby game, the variant that ends it).
     const std::string text = LoadGameString(LaunchedFromLobby == 0 || MultiPlayer() == nullptr ? 0x35f : 0x365, 0xfe);
@@ -462,9 +462,9 @@ auto MCLogistics::HandleLostPlayer(uint32_t playerID, int) -> void
     LostPlayerHandler(0);
 }
 
-auto MCLogistics::HandlePrepareScenarioMessage() -> void
+auto MCLogistics::HandlePrepareScenarioMessage() const -> void
 {
-    SoundSystem()->PlayDigitalSample(0x3a, 1, nullptr, 0, 0);
+    SoundSystem()->PlayDigitalSample(0x3a, 1, nullptr, false, false);
     Mission()->StartScenario(MpMissionName);
 }
 
@@ -757,10 +757,10 @@ auto MCLogistics::PrepareMultiplayerScenario(std::string_view scenarioName, std:
 
                 for (int32_t count = 11 - inGroup; count > 0; count--)
                 {
-                    out << static_cast<int>(0) << ", ";
+                    out << 0 << ", ";
                 }
 
-                out << static_cast<int>(0) << '\n';
+                out << 0 << '\n';
 
                 if (nextCommander == currentCommander)
                 {
@@ -845,7 +845,7 @@ auto MCLogistics::FindMPVehicleList(uint32_t playerID, bool teammate) -> MCLogVe
     return list;
 }
 
-auto MCLogistics::AddMechFromNetworkMessage(MCLogMechList& list, const MCDeployForce& force) -> MCLogPart*
+auto MCLogistics::AddMechFromNetworkMessage(MCLogMechList& list, const MCDeployForce& force) const -> MCLogPart*
 {
     // netmechs.rsp lists three variants per mech name.
     const size_t nameIndex = static_cast<size_t>(force.NameIndex) * 3 + force.NameVariant;
@@ -860,7 +860,7 @@ auto MCLogistics::AddMechFromNetworkMessage(MCLogMechList& list, const MCDeployF
     return mech;
 }
 
-auto MCLogistics::AddVehicleFromNetworkMessage(MCLogVehicleList& list, const MCDeployForce& force) -> MCLogPart*
+auto MCLogistics::AddVehicleFromNetworkMessage(MCLogVehicleList& list, const MCDeployForce& force) const -> MCLogPart*
 {
     MCLogVehicle* vehicle = list.AddVehicle(NetListItem(NetVehicleNames, force.NameIndex), false, false,
                                             MultiPlayer()->HomeTeamGroupID == SideGroupID(force));
@@ -926,7 +926,7 @@ auto LostPlayerHandler(int32_t answer) -> void
     dialog->OkButton->Callback()->SetExec(nullptr);
     dialog->OkButton->SetUpPicture("bh_okay.tga");
     dialog->OkButton->SetDownPicture("bg_okay.tga");
-    dialog->OkButton->Disabled = 0;
+    dialog->OkButton->Disabled = false;
     dialog->Timeout = 5000;
     dialog->TimeoutResult = 1;
     dialog->Activate();

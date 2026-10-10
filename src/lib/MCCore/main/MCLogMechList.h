@@ -70,7 +70,7 @@ public:
     int32_t GetMechInfo(int32_t index, MCLogMech*& mech) const;
 
     /// <summary>Writes the mech at <paramref name="index"/> as a profile text file.</summary>
-    int32_t SaveMechText(std::string_view fileName, int32_t index);
+    int32_t SaveMechText(std::string_view fileName, int32_t index) const;
 
     /// <summary>The mechs in list order.</summary>
     std::vector<std::unique_ptr<MCLogMech>> Mechs;

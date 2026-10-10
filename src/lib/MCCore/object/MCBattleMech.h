@@ -142,9 +142,7 @@ public:
     /// <summary>Where jump jet <paramref name="jet"/> (0 or 1) is this frame.</summary>
     MCVector3D GetJumpPosition(int32_t jet);
     /// <summary>Where a hit on the destroyed <paramref name="hitLocation"/> goes (MechTransferHitTable).</summary>
-    int32_t TransferHitLocation(int32_t hitLocation);
-    /// <summary>Starts a jump to <paramref name="jumpGoal"/>.</summary>
-    int32_t StartJump(MCVector3D jumpGoal);
+    static int32_t TransferHitLocation(int32_t hitLocation);
     /// <summary>Damages the ammunition and weapons loaded in the mech (a shutdown's heat).</summary>
     void DamageLoadedComponents();
 

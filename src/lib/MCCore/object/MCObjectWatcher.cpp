@@ -60,16 +60,6 @@ auto MCObjectWatcherList::RemoveWatch(MCBaseObject** watcher) -> bool
     return false;
 }
 
-auto MCObjectWatcherList::Restart() -> void
-{
-    for (MCBaseObject** watcher : _Watchers)
-    {
-        *watcher = nullptr;
-    }
-
-    _Watchers.clear();
-}
-
 //---------------------------------------------------------------------------
 // BaseObjectWatcher
 //---------------------------------------------------------------------------

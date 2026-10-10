@@ -176,7 +176,7 @@ void SaveGameCallback()
     {
         std::string fileName = pane->Files[pane->SelectedFile].Name;
         SoundSystem()->StopDigitalMusic();
-        result = GlobalLogPtr->SaveCampaign(fileName.data());
+        result = MCLogistics::SaveCampaign(fileName.data());
     }
 
     if (result != 0)
@@ -338,7 +338,7 @@ void LoadSaveScreenHandleEvent(MCGuiObject* object, MCGuiEvent* event)
     else if (message == 5 && object == GlobalLogPtr->SaveScreen.get())
     {
         // Enter in the name entry: save.
-        SoundSystem()->PlayDigitalSample(screen->LoadSaveButton->PressSound, 1, nullptr, 0, 0);
+        SoundSystem()->PlayDigitalSample(screen->LoadSaveButton->PressSound, 1, nullptr, false, false);
         SaveGame();
     }
 }

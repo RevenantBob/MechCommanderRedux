@@ -36,28 +36,6 @@ void MCSessionManager::AddVerifyEntry(int32_t playerNumber, uint8_t sendCount)
     verify.Count++;
 }
 
-void MCSessionManager::SendVerifies()
-{
-    for (int32_t i = 0; i < MaxLinkupPlayers; i++)
-    {
-        const MCFIVerifyMessage& verify = _VerifyMessages[i];
-
-        if (verify.Count != 0)
-        {
-            if (MCFidpPlayer* player = GetPlayerNumber(i); player != nullptr)
-            {
-                SendPlainMessage(player->Id, &verify, verify.WireSize());
-            }
-        }
-    }
-
-    for (MCFIVerifyMessage& verify : _VerifyMessages)
-    {
-        verify.Header = LinkupHeader(MCLinkupMessageType::Verify);
-        verify.Count = 0;
-    }
-}
-
 void MCSessionManager::ProcessMessages()
 {
     if (MyPlayerID == 0)
@@ -78,7 +56,7 @@ void MCSessionManager::ProcessMessages()
         }
     }
 
-    std::lock_guard lock(CriticalSection);
+    std::scoped_lock lock(CriticalSection);
     ReceiveThread();
     UpdateGuaranteedMessages();
 
@@ -424,29 +402,6 @@ void MCSessionManager::UpdateGuaranteedMessages()
         if (player.get() != MyPlayer)
         {
             UpdatePlayerGuaranteedMessages(*player, now);
-        }
-    }
-}
-
-void MCSessionManager::UpdateFileTransfers()
-{
-    const size_t numTransfers = OutgoingFiles.size();
-
-    for (size_t i = 0; i < numTransfers && !OutgoingFiles.empty(); i++)
-    {
-        std::unique_ptr<MCFileTransferInfo>& transfer = OutgoingFiles.front();
-        const bool finished = transfer->PrepareNextMessage();
-        SendMessageFromInfo(*transfer->Message);
-
-        if (finished)
-        {
-            std::unique_ptr<MCFileTransferInfo> done = std::move(transfer);
-            OutgoingFiles.erase(OutgoingFiles.begin());
-
-            if (done->Callback)
-            {
-                done->Callback(done->FileName);
-            }
         }
     }
 }

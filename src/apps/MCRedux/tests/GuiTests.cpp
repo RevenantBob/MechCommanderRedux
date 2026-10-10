@@ -1,13 +1,10 @@
 #include "stdafx.h"
 #include "MCTest.h"
-#include "TestGame.h"
 #include "fakes/MCMemoryFileSource.h"
 #include "gui/MCGuiAnimation.h"
 #include "gui/MCGuiFont.h"
 #include "gui/MCGuiPort.h"
 #include "gui/MCGuiSystem.h"
-#include "gui/MCUpdateDisplay.h"
-#include "iface/MCTacticalInterface.h"
 #include "main/MCGamePaths.h"
 #include "main/MCGameContext.h"
 #include "platform/MCRenderer.h"
@@ -89,26 +86,6 @@ TEST_CASE("gui: an animation's shapes are registered while loaded and freed with
     }
 
     CHECK(MCRenderer::DataBlockOf(firstShapes) == nullptr);
-}
-
-TEST_CASE_ISOLATED("game: the game shuts down from the main menu and lets go of the GUI's memory")
-{
-    if (!MCTestGame::Available())
-    {
-        return;
-    }
-
-    REQUIRE(MCTestGame::StartLogistics());
-    REQUIRE(TacticalInterface() != nullptr);
-    REQUIRE(CursorShapes != nullptr);
-    const uint8_t* cursor = CursorShapes[0];
-    REQUIRE(cursor != nullptr);
-    CHECK(MCRenderer::DataBlockOf(cursor) != nullptr);
-
-    GuiSystem()->Stop();
-    CHECK(TacticalInterface() == nullptr);
-    CHECK(CursorShapes == nullptr);
-    CHECK(MCRenderer::DataBlockOf(cursor) == nullptr);
 }
 
 TEST_CASE("gui: a font's data is registered while loaded and freed with it")

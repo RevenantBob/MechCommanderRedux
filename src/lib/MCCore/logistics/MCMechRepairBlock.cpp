@@ -78,7 +78,7 @@ namespace
     /// </summary>
     void DrawItemInfo(MCLogInventoryItem* item, MCInventoryList* inventory)
     {
-        if (item->InventoryBlock.get() == nullptr)
+        if (item->InventoryBlock == nullptr)
         {
             MCInventoryList::MakeInventoryBlock(item);
             inventory->LoadDescription(0, item);
@@ -212,7 +212,7 @@ auto MCMechRepairBlock::StripUnrepaired() -> void
     }
 
     DrawBackground(SlotIndex, nullptr);
-    RepairScreen()->CreateCompInvBlock();
+    MCRepairScreen::CreateCompInvBlock();
     RepairScreen()->SetUpCompInv(false, true);
 }
 
@@ -279,7 +279,7 @@ auto MCMechRepairBlock::Destroy() -> void
     MCLogObject::Destroy();
 }
 
-auto MCMechRepairBlock::UndeployMech() -> void
+auto MCMechRepairBlock::UndeployMech() const -> void
 {
     MCLogMech* logMech = Mech;
 
@@ -306,12 +306,12 @@ auto MCMechRepairBlock::UndeployMech() -> void
 
             HideBriefBlock(logMech->BriefBlock.get());
             unit = -1;
-            logMech->Deployed = 0;
+            logMech->Deployed = false;
             return;
         }
     }
 
-    logMech->Deployed = 0;
+    logMech->Deployed = false;
 }
 
 auto MCMechRepairBlock::HandleEvent(MCGuiEvent* event) -> void
@@ -433,7 +433,7 @@ auto MCMechRepairBlock::HandleEvent(MCGuiEvent* event) -> void
 
                     if (item != nullptr)
                     {
-                        RepairScreen()->DrawBlankInvInfoBlock(2);
+                        MCRepairScreen::DrawBlankInvInfoBlock(2);
                         DrawItemInfo(item, Mech->Inventory.get());
                         return;
                     }
@@ -442,7 +442,7 @@ auto MCMechRepairBlock::HandleEvent(MCGuiEvent* event) -> void
             else if (eventX < pane->GlobalX())
             {
                 // Over the mech: show its info.
-                RepairScreen()->DrawBlankInvInfoBlock(0);
+                MCRepairScreen::DrawBlankInvInfoBlock(0);
 
                 if (DragPort == nullptr)
                 {
@@ -452,7 +452,7 @@ auto MCMechRepairBlock::HandleEvent(MCGuiEvent* event) -> void
 
                     for (int32_t location = 0; location < 8; ++location)
                     {
-                        GlobalLogPtr->DrawMechBodyLoc(Mech, location, DragPort.get(), 2, 0);
+                        MCLogistics::DrawMechBodyLoc(Mech, location, DragPort.get(), 2, 0);
                     }
 
                     // The battle rating bar along the left edge: 26 pixels at 18010.
@@ -690,7 +690,7 @@ auto MCMechRepairBlock::HandleDrop(MCGuiEvent* event, int32_t eventType) -> void
                 MCLogMech* current = Mech;
                 GlobalLogPtr->ShiftPilots(current->PilotIndex, -1);
                 int32_t row = SlotIndex;
-                pilot->Assigned = 0;
+                pilot->Assigned = false;
                 GlobalLogPtr->SetPilot(row, -1);
                 GlobalLogPtr->ReorderWarriors();
                 current->CalcBR();
@@ -731,7 +731,7 @@ auto MCMechRepairBlock::HandleDrop(MCGuiEvent* event, int32_t eventType) -> void
         {
             MCLogWarrior* pilot = nullptr;
             GlobalLogPtr->AssignedWarriorList->GetWarriorInfo(pilotIndex, pilot);
-            pilot->Assigned = 0;
+            pilot->Assigned = false;
             GlobalLogPtr->ShiftPilots(pilotIndex, -1);
             GlobalLogPtr->SetPilot(SlotIndex, -1);
             GlobalLogPtr->ReorderWarriors();
@@ -767,8 +767,8 @@ auto MCMechRepairBlock::HandleDrop(MCGuiEvent* event, int32_t eventType) -> void
             }
         }
 
-        leaving->Deployed = 0;
-        leaving->Assigned = 0;
+        leaving->Deployed = false;
+        leaving->Assigned = false;
 
         if (leaving == RepairScreen()->SelectedMech)
         {
@@ -785,14 +785,14 @@ auto MCMechRepairBlock::HandleDrop(MCGuiEvent* event, int32_t eventType) -> void
 
         RepairScreen()->RemoveMechFromList(leaving);
         leaving->InventoryBlock->DeleteDiagram();
-        RepairScreen()->CreateMechInvBlock();
+        MCRepairScreen::CreateMechInvBlock();
         RepairScreen()->SetUpMechInv(true, true);
         return;
     }
 
     // An item from the weapon list.
     Drag.Item = false;
-    RepairScreen()->DrawBlankInvInfoBlock(-1);
+    MCRepairScreen::DrawBlankInvInfoBlock(-1);
 
     if (droppedOnInventory)
     {
@@ -822,7 +822,7 @@ auto MCMechRepairBlock::HandleDrop(MCGuiEvent* event, int32_t eventType) -> void
             else
             {
                 item->Count = 1;
-                RepairScreen()->CreateCompInvBlock();
+                MCRepairScreen::CreateCompInvBlock();
                 RepairScreen()->SetUpCompInv(false, true);
             }
         }
@@ -1002,7 +1002,7 @@ auto MCMechRepairBlock::DragSlider(int32_t localX) -> void
                 }
             }
 
-            Mech->Deployed = 0;
+            Mech->Deployed = false;
         }
 
         int32_t target = position;
@@ -1154,7 +1154,7 @@ auto MCMechRepairBlock::RepairItems() -> void
         return;
     }
 
-    RepairScreen()->CreateCompInvBlock();
+    MCRepairScreen::CreateCompInvBlock();
     RepairScreen()->SetUpCompInv(false, true);
     DrawBackground(SlotIndex, nullptr);
 }
@@ -1426,7 +1426,7 @@ auto MCMechRepairBlock::DrawDamageDiagram(MCLogPort* port) -> void
     }
 }
 
-auto MCMechRepairBlock::PaintDiagram(MCLogPort* port, int32_t top, int32_t xPos) -> void
+auto MCMechRepairBlock::PaintDiagram(MCLogPort* port, int32_t top, int32_t xPos) const -> void
 {
     MCLogBlockPort blank(port->Frame(), xPos, top + 8, 0x4b, 100, true);
     VfxPaneWipe(blank.Frame(), 0x10);
@@ -1755,13 +1755,13 @@ auto MCMechRepairBlock::OnBeginDragPilot(MCLogPort* surface) -> void
     MCDragIcon::DrawFrom(surface, 5, 0x25, [this](MCLogPort* port) { DrawRow(port, 0); });
 }
 
-auto MCMechRepairBlock::OnBeginDragMech(MCLogPort* surface) -> void
+auto MCMechRepairBlock::OnBeginDragMech(MCLogPort* surface) const -> void
 {
     VfxPaneWipe(surface->Frame(), 0x10);
 
     for (int32_t location = 0; location < 8; ++location)
     {
-        GlobalLogPtr->DrawMechBodyLoc(Mech, location, surface, 2, 1);
+        MCLogistics::DrawMechBodyLoc(Mech, location, surface, 2, 1);
     }
 }
 
@@ -1942,10 +1942,10 @@ auto MCMechRepairBlock::PaintPilot(MCLogPort* port, int32_t top, float status, b
     }
 
     WriteLine(YellowDropFont, port->Frame(), 0x2d, top + 0x3c, rank);
-    GlobalLogPtr->DrawPilotSkillBar(warrior, 3, 0x2e, top + 0x4a, 0, 0x36, WinHeight, port);
-    GlobalLogPtr->DrawPilotSkillBar(warrior, 0, 0x2e, top + 0x53, 0, 0x36, WinHeight, port);
-    GlobalLogPtr->DrawPilotSkillBar(warrior, 1, 0x2e, top + 0x5c, 0, 0x36, WinHeight, port);
-    GlobalLogPtr->DrawPilotSkillBar(warrior, 2, 0x2e, top + 0x65, 0, 0x36, WinHeight, port);
+    MCLogistics::DrawPilotSkillBar(warrior, 3, 0x2e, top + 0x4a, 0, 0x36, WinHeight, port);
+    MCLogistics::DrawPilotSkillBar(warrior, 0, 0x2e, top + 0x53, 0, 0x36, WinHeight, port);
+    MCLogistics::DrawPilotSkillBar(warrior, 1, 0x2e, top + 0x5c, 0, 0x36, WinHeight, port);
+    MCLogistics::DrawPilotSkillBar(warrior, 2, 0x2e, top + 0x65, 0, 0x36, WinHeight, port);
 
     // One 2x2 pip per point of health.
     auto pips = static_cast<int32_t>(warrior->Health);
@@ -1964,10 +1964,6 @@ auto MCMechRepairBlock::PaintPilot(MCLogPort* port, int32_t top, float status, b
 auto MCMechRepairBlock::SetPilotHealth(MCLogPort*) -> void
 {
     // Drawn with the pilot's stats (PaintPilot).
-}
-
-auto MCMechRepairBlock::SetMechStats() -> void
-{
 }
 
 auto MCMechRepairBlock::SetWeaponLists() -> void
@@ -2016,7 +2012,7 @@ auto MCMechRepairBlock::SetWeaponLists() -> void
     for (size_t list = 0; list < 3; ++list)
     {
         std::vector<int32_t>& entries = std::array{&ShortRangeWeapons, &MediumRangeWeapons, &LongRangeWeapons}[list][0];
-        SortByDamage(entries, hits[list], *Mech->Inventory.get());
+        SortByDamage(entries, hits[list], *Mech->Inventory);
     }
 
     ItemHits.clear();
@@ -2047,7 +2043,7 @@ auto MCMechRepairBlock::SortByDamage(std::span<int32_t> entries, std::span<int32
     }
 }
 
-auto MCMechRepairBlock::GetInvItem(const std::vector<int32_t>& list, int32_t index, uint8_t& itemNum)
+auto MCMechRepairBlock::GetInvItem(const std::vector<int32_t>& list, int32_t index, uint8_t& itemNum) const
     -> MCLogInventoryItem*
 {
     int32_t earlier = index - 1;
@@ -2063,7 +2059,7 @@ auto MCMechRepairBlock::GetInvItem(const std::vector<int32_t>& list, int32_t ind
     return item;
 }
 
-auto MCMechRepairBlock::RepairArmor(int32_t points) -> void
+auto MCMechRepairBlock::RepairArmor(int32_t points) const -> void
 {
     MCLogMech* logMech = Mech;
 
@@ -2130,7 +2126,7 @@ auto MCMechRepairBlock::RepairArmor(int32_t points) -> void
     }
 }
 
-auto MCMechRepairBlock::RepairInternal(int32_t points) -> void
+auto MCMechRepairBlock::RepairInternal(int32_t points) const -> void
 {
     MCLogMech* logMech = Mech;
 
@@ -2316,7 +2312,7 @@ auto MCMechRepairBlock::DrawWeaponList(MCLogPort* content) -> void
     }
 }
 
-auto MCMechRepairBlock::GetItemFromScrollPane(int32_t line, uint8_t& itemNum) -> MCLogInventoryItem*
+auto MCMechRepairBlock::GetItemFromScrollPane(int32_t line, uint8_t& itemNum) const -> MCLogInventoryItem*
 {
     // The lines: heading, short-range weapons, heading, medium, heading, long, heading, equipment.
     const auto numShort = static_cast<int32_t>(ShortRangeWeapons.size());
@@ -2360,7 +2356,7 @@ auto MCMechRepairBlock::SetUpItemDragIcon(MCLogInventoryItem* item, uint8_t item
     int32_t eventY = event->Y;
     uint8_t masterID = item->MasterID;
     MCDragIcon* icon = MCDragIcon::Create();
-    RepairScreen()->DrawBlankInvInfoBlock(2);
+    MCRepairScreen::DrawBlankInvInfoBlock(2);
     icon->Begin(eventX - 0x10, eventY - 0x10, 0x20, 0x20,
                 [this, item](MCLogPort* surface) { OnBeginDragItem(surface, item); });
 
@@ -2408,7 +2404,7 @@ auto MCMechRepairBlock::SetUpItemDragIcon(MCLogInventoryItem* item, uint8_t item
     }
 }
 
-auto MCMechRepairBlock::DrawInfo(MCLogPort* port) -> void
+auto MCMechRepairBlock::DrawInfo(MCLogPort* port) const -> void
 {
     if (DragPort != nullptr)
     {

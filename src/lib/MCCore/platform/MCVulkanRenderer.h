@@ -391,7 +391,7 @@ private:
                                                    SDL_GPUTextureUsageFlags usage, uint32_t width, uint32_t height);
     void Release(Texture& texture);
     /// <summary>Takes the copy of a surface's <paramref name="rect"/> (window pixels; between render passes).</summary>
-    void TakeCopy(SDL_GPUCommandBuffer* commands, Surface& surface, const MCRect& rect);
+    static void TakeCopy(SDL_GPUCommandBuffer* commands, Surface& surface, const MCRect& rect);
     /// <summary>Sets each surface's drawn size for this frame (<paramref name="underlays"/> are drawn as shown).</summary>
     void PlaceSurfaces(std::span<const MCUnderlay> underlays);
     /// <summary>(Re)makes a surface's textures at its drawn size and clears them, as a window's new pixels start.</summary>
@@ -554,7 +554,7 @@ private:
     };
 
     /// <summary>What is kept for <paramref name="texture"/> (made when missing).</summary>
-    TextureState& StateOf(MCTexture* texture);
+    static TextureState& StateOf(MCTexture* texture);
     /// <summary>
     /// Makes <paramref name="texture"/>'s GPU copy and uploads its pixels whole into it when it has none, its pixels
     /// changed, or it is behind them.

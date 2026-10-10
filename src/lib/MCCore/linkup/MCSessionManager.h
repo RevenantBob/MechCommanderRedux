@@ -107,15 +107,13 @@ public:
     /// <summary>Modem <paramref name="index"/>'s name, or null.</summary>
     const char* GetModemName(int32_t index) const;
     /// <summary>Whether the game was started by a DirectPlay lobby.</summary>
-    bool WasLaunchedFromLobby();
+    static bool WasLaunchedFromLobby();
     /// <summary>
     /// Connects the session the lobby launched the game for, calling <paramref name="showStatus"/> while waiting and
     /// <paramref name="hideStatus"/> after.
     /// </summary>
     /// <returns>0 when connected; 0x8877042e (DPERR_NOTLOBBIED) when the game was not lobby-launched.</returns>
     uint32_t SetupLobbyConnection(const std::function<void()>& showStatus, const std::function<void()>& hideStatus);
-    /// <summary>The available connections.</summary>
-    const std::vector<std::unique_ptr<MCFidpNetworkProtocol>>& GetConnections() const { return Connections; }
     /// <summary>Re-enumerates the sessions of this game on the current connection.</summary>
     /// <returns>The session list, or null without DirectPlay.</returns>
     const std::vector<std::unique_ptr<MCFidpSession>>* GetSessions();
@@ -136,8 +134,6 @@ public:
 
     // ---- the per-frame pump ----
 
-    /// <summary>Sends each player the numbers of the guaranteed messages received from it (its verify message).</summary>
-    void SendVerifies();
     /// <summary>
     /// The per-frame pump: pings when due, receives, resends unverified messages and processes the system and
     /// application queues.
@@ -153,12 +149,6 @@ public:
     int ReceiveThread();
     /// <summary>Resends every player's overdue unverified messages.</summary>
     void UpdateGuaranteedMessages();
-    /// <summary>
-    /// Sends the next piece of the current outgoing file and drops the finished transfers. Original behaviour: the list
-    /// cursor is never advanced, so with several transfers the first gets every piece until it is done.
-    /// </summary>
-    /// <remarks>Nothing in MCX.EXE calls it (OB-107), so BroadcastFile only ever sends the announcement.</remarks>
-    void UpdateFileTransfers();
 
     // ---- sending ----
 
@@ -194,13 +184,6 @@ public:
     /// <summary>Sends a plain message to <paramref name="toID"/> through DirectPlay (at most 0x200 bytes).</summary>
     /// <remarks>The original's <c>SendMessage</c> (renamed <c>SendMessageA</c> by windows.h).</remarks>
     int32_t SendPlainMessage(uint32_t toID, const MCFIMessageHeader* header, uint32_t size);
-    /// <summary>
-    /// Starts sending <paramref name="fileName"/> in <paramref name="directory"/> to everyone;
-    /// <paramref name="callback"/> is called when it is done.
-    /// </summary>
-    /// <returns>The transfer's id.</returns>
-    int BroadcastFile(std::string_view fileName, std::optional<std::string_view> directory,
-                      std::function<void(const std::string& fileName)> callback);
     /// <summary>Sends <paramref name="msg"/> the way its header says (group, guaranteed or plain).</summary>
     void SendMessageFromInfo(MCFidpMessage& msg);
     /// <summary>The latency statistics line (null outside a session).</summary>
@@ -294,7 +277,7 @@ private:
     /// <summary>Records the physical memory reported by player <paramref name="fromID"/>.</summary>
     void ProcessSystemInfoMessage(const MCFISystemInfoMessage& msg, uint32_t fromID);
     /// <summary>Sets group <paramref name="groupID"/>'s data in DirectPlay.</summary>
-    void SetGroupData(uint32_t groupID, std::span<const uint8_t> data, uint32_t flags);
+    void SetGroupData(uint32_t groupID, std::span<const uint8_t> data, uint32_t flags) const;
     /// <summary>Initializes DirectPlay with a compound address.</summary>
     int32_t InitializeConnection(std::span<const DPCOMPOUNDADDRESSELEMENT> elements);
     /// <summary>Deletes every enumerated session except the current one.</summary>
@@ -316,7 +299,7 @@ private:
     /// <summary>Resends <paramref name="player"/>'s unverified messages whose delay ran out at <paramref name="now"/>.</summary>
     void UpdatePlayerGuaranteedMessages(MCFidpPlayer& player, uint32_t now);
     /// <summary>Stamps each numbered player's next send count into <paramref name="header"/> for a group send.</summary>
-    void SetupMessageSendCounts(MCFIGuaranteedMessageHeader* header, std::span<MCFidpPlayer* const> players);
+    void SetupMessageSendCounts(MCFIGuaranteedMessageHeader* header, std::span<MCFidpPlayer* const> players) const;
     /// <summary>Tells the players who is in each group (<paramref name="playerID"/>: only that player; 0 everyone).</summary>
     void SendPlayersInGroupMessages(uint32_t playerID);
     /// <summary>Sends the guaranteed messages queued before this machine had a player number.</summary>

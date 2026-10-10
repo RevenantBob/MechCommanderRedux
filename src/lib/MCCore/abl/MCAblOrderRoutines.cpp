@@ -112,7 +112,7 @@ auto ExecHbSetOrderMode(MCAblRuntime& abl) -> MCAblType*
     abl.ExecExpression();
     // Original behaviour: the argument is ignored; the mode is always reset to pilot orders.
     int wasUnitOrder = abl.Brain.IsUnitOrder != 0;
-    abl.Brain.IsUnitOrder = 0;
+    abl.Brain.IsUnitOrder = false;
     abl.Top().Integer = wasUnitOrder;
     abl.GetCodeToken();
     return IntegerTypePtr;

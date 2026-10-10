@@ -250,7 +250,7 @@ auto MCRepairScreen::DrawBackground() -> void
     ScreenChrome.Clear();
     Info.Clear();
 
-    if (SelectedMech != nullptr && SelectedMech->RepairBlock.get() != nullptr)
+    if (SelectedMech != nullptr && SelectedMech->RepairBlock != nullptr)
     {
         SelectedMech->RepairBlock->DrawButtons(nullptr);
     }
@@ -286,17 +286,17 @@ auto MCRepairScreen::HandleEvent(MCGuiEvent* event) -> void
         else if (inside(2, 0x10, 0xd1, 0x21))
         {
             ShowHelp(0x286);
-            GlobalLogPtr->HoverScreenButton(this, 0);
+            MCLogistics::HoverScreenButton(this, 0);
         }
         else if (inside(2, 0x22, 0xd1, 0x33))
         {
             ShowHelp(0x1e);
-            GlobalLogPtr->HoverScreenButton(this, 1);
+            MCLogistics::HoverScreenButton(this, 1);
         }
         else if (inside(2, 0x34, 0xd1, 0x45))
         {
             ShowHelp(0x41);
-            GlobalLogPtr->HoverScreenButton(this, 2);
+            MCLogistics::HoverScreenButton(this, 2);
         }
         else if (inside(2, 0x46, 0xd1, 0x57))
         {

@@ -33,7 +33,7 @@ public:
     }
 
     /// <summary>acos of <paramref name="cosine"/> clamped to [-1, 1].</summary>
-    double MyAcos(float cosine) const
+    static double MyAcos(float cosine)
     {
         if (cosine < -1.0)
         {

@@ -81,7 +81,7 @@ auto MCBuilding::IsVisible(MCCamera* cam) -> bool
         return false;
     }
 
-    int visible = cam->VertexProject(BlockNumber, VertexNumber, ScreenPos);
+    int visible = MCCamera::VertexProject(BlockNumber, VertexNumber, ScreenPos);
 
     if (Appearance != nullptr)
     {
@@ -126,7 +126,7 @@ auto MCBuilding::Update() -> int32_t
     // No extent radius in the FIT: measure it from the appearance's bounds.
     if (type->ExtentRadius < 0.0)
     {
-        Appearance->Visible = 1;
+        Appearance->Visible = true;
         Appearance->Update();
         Appearance->CalcCollideBounds();
         const float dx = Appearance->UpperLeft.X - Appearance->LowerRight.X;
@@ -255,7 +255,7 @@ auto MCBuilding::Render() -> void
 
     if (Appearance != nullptr)
     {
-        Appearance->Visible = visible ? 1 : 0;
+        Appearance->Visible = visible;
         Appearance->TileNum = TileNum;
         Appearance->Update();
     }
@@ -297,13 +297,13 @@ auto MCBuilding::Render() -> void
             {
                 if (SoundSystem() != nullptr && UseSound != 0)
                 {
-                    SoundSystem()->PlayDigitalSample(0x14, 1, this, 0, 1);
+                    SoundSystem()->PlayDigitalSample(0x14, 1, this, false, true);
                 }
 
                 BlipFrame = 0;
             }
 
-            ElementList()->OpenGroup(-100000, 1);
+            ElementList()->OpenGroup(-100000, true);
             ElementList()->Add(
                 ElementList()->Make<MCVfxElement>(shape, ScreenPos.X, ScreenPos.Y, BlipFrame, 0, nullptr, 0));
             BlipTime = FrameLength + BlipTime;
@@ -354,7 +354,8 @@ auto MCBuilding::Render() -> void
 
         if (SoundHandle == 0xffffffff && type->NormalEffectId != 0xffffffff)
         {
-            SoundHandle = static_cast<uint32_t>(SoundSystem()->PlayDigitalSample(type->NormalEffectId, 0, this, 1, 0));
+            SoundHandle =
+                static_cast<uint32_t>(SoundSystem()->PlayDigitalSample(type->NormalEffectId, 0, this, true, false));
         }
     }
 

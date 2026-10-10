@@ -262,7 +262,7 @@ auto MCElementalType::HandleCollision(MCGameObject* collidee, MCGameObject* coll
             return 0;
     }
 
-    SoundSystem()->PlayDigitalSample(4, 1, collidee, 0, 0);
+    SoundSystem()->PlayDigitalSample(4, 1, collidee, false, false);
     return 0;
 }
 
@@ -298,7 +298,7 @@ auto MCElementalType::HandleDestruction(MCGameObject* collidee, MCGameObject* co
     }
 
     elemental->Status = 2;
-    elemental->DeathExplosionDone = 0;
+    elemental->DeathExplosionDone = false;
     TacticalInterface()->RemoveMech(elemental->PartId);
 
     // Original behaviour (OB-003): the type's alignment (1 or 0xff) against the home team's (1 or -1), so a clan

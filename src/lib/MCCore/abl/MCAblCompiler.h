@@ -131,7 +131,7 @@ private:
     /// Error recovery as MCX.EXE did it: unless the current token is in one of the lists, a syntax error (unexpected
     /// end of file or unexpected token).
     /// </summary>
-    void Synchronize(MCAblTokenList tokens1, MCAblTokenList tokens2 = {}, MCAblTokenList tokens3 = {});
+    void Synchronize(MCAblTokenList tokens1, MCAblTokenList tokens2 = {}, MCAblTokenList tokens3 = {}) const;
 
     // ---- Modules, functions and calls (MCAblCompiler.cpp) -------------------------------------------------------
 

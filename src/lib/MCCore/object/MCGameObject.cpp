@@ -38,7 +38,7 @@ namespace
         int32_t tileC;
         int32_t cellR;
         int32_t cellC;
-        GameMap()->WorldToMapPos(position, tileR, tileC, cellR, cellC);
+        MCScenarioMap::WorldToMapPos(position, tileR, tileC, cellR, cellC);
         return GameMap()->Map[GameMap()->Width * tileR + tileC];
     }
 }
@@ -166,7 +166,7 @@ auto MCGameObject::RelativePosition(float angle, float distance, uint32_t flags)
         int32_t tileC;
         int32_t cellR;
         int32_t cellC;
-        GameMap()->WorldToMapPos(point, tileR, tileC, cellR, cellC);
+        MCScenarioMap::WorldToMapPos(point, tileR, tileC, cellR, cellC);
 
         // Port fix: the walk can leave the map, where the original reads outside it. Off the map is impassable.
         if (!GameMap()->OnMap(tileR, tileC))

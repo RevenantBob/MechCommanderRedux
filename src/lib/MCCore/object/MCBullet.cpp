@@ -66,7 +66,7 @@ auto MCBullet::Update() -> int32_t
 
         if (bulletType->SoundEffectId != 0xffffffff)
         {
-            SoundSystem()->PlayDigitalSample(bulletType->SoundEffectId, 1, this, 0, 0);
+            SoundSystem()->PlayDigitalSample(bulletType->SoundEffectId, 1, this, false, false);
         }
 
         BulletPosition = Position;
@@ -84,7 +84,7 @@ auto MCBullet::Update() -> int32_t
 
     if (Appearance != nullptr)
     {
-        Appearance->Visible = visibleNow ? 1 : 0;
+        Appearance->Visible = visibleNow;
         Appearance->Update();
     }
 
@@ -236,7 +236,7 @@ auto MCBullet::Update() -> int32_t
         int32_t tileC = 0;
         int32_t cellR = 0;
         int32_t cellC = 0;
-        GameMap()->WorldToMapPos(*TargetPosition, tileR, tileC, cellR, cellC);
+        MCScenarioMap::WorldToMapPos(*TargetPosition, tileR, tileC, cellR, cellC);
 
         // Port fix: a miss can land off the map, where the original reads (and writes) outside it.
         if (!GameMap()->OnMap(tileR, tileC))

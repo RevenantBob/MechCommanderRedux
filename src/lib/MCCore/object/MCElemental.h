@@ -99,8 +99,6 @@ public:
     /// </summary>
     void SetControlSettings(char& newRotate, char& newThrottleSetting, float& newRotatePerSec,
                             int32_t& newGestureStateGoal, int32_t& minThrottle, int32_t& maxThrottle);
-    /// <summary>The control data's throttle.</summary>
-    int32_t GetThrottle();
     /// <summary>A marine's death: it is taken off the interface at once, leaving no wreck.</summary>
     /// <param name="deathTime">The death timer to set (0.8 when it goes quietly, 0 when shot).</param>
     void RemoveMarine(float deathTime);

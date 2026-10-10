@@ -33,8 +33,6 @@ public:
     void Clear();
     /// <summary>Meters from a position through step <paramref name="fromStep"/> (-1: the current) to the goal.</summary>
     float GetDistanceLeft(MCVector3D position, int32_t fromStep = -1) const;
-    /// <summary>Counts the path's tiles in the scenario map's path map.</summary>
-    void Mark();
     /// <summary>Takes the path's tiles back out of the scenario map's path map.</summary>
     void Unmark();
     /// <summary>Sets the path lock of <paramref name="range"/> steps from <paramref name="start"/> (-1: current).</summary>
@@ -48,8 +46,6 @@ public:
     bool IsBlocked(int32_t start, int32_t range, int* reachedEnd = nullptr) const;
     /// <summary>The area of the first bridge tile among the steps, or -1.</summary>
     int32_t CrossesBridge(int32_t start, int32_t range) const;
-    /// <summary>The first step on tile (tileR, tileC), or -1.</summary>
-    int32_t CrossesTile(int32_t start, int32_t range, int32_t tileR, int32_t tileC) const;
     /// <summary>The first step on a closed gate overlay, or -1.</summary>
     int32_t CrossesClosedGate(int32_t start, int32_t range) const;
     /// <summary>Rebuilds the path from a received chunk.</summary>

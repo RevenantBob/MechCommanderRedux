@@ -240,14 +240,14 @@ auto MCViewWindow::Display() -> void
 
     if (Scenario() != nullptr && (ScenarioEndTurn == -1 || Turn < ScenarioEndTurn))
     {
-        Scenario()->Render(this);
+        MCScenario::Render(this);
 
         if (GetCamera()->CameraId == 1 && MultiPlayer() != nullptr && MultiPlayer()->SessionManager != nullptr &&
             DisplayProfileData == 2)
         {
             if (const std::optional<std::string> stats = MultiPlayer()->SessionManager->GetStats(); stats.has_value())
             {
-                LineFont()->Scaled = 0;
+                LineFont()->Scaled = false;
                 LineFont()->Scale = 1.0f;
                 // The original formatted the line into 256 bytes.
                 LineFont()->Print(180, 72, stats->substr(0, 0xff).c_str(), 0xfe, GlobalPane);

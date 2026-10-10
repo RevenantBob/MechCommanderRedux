@@ -56,7 +56,7 @@ auto MCGuiListBox::VisibleItems() const -> int32_t
     return WinHeight / ItemHeight;
 }
 
-auto MCGuiListBox::SetBarPosition(int32_t position) -> void
+auto MCGuiListBox::SetBarPosition(int32_t position) const -> void
 {
     if (ScrollBar != nullptr)
     {
@@ -269,7 +269,7 @@ auto MCGuiListBox::Draw() -> void
     }
 }
 
-auto MCGuiListBox::UpdateScrollRange() -> void
+auto MCGuiListBox::UpdateScrollRange() const -> void
 {
     if (const int32_t visibleItems = VisibleItems(); visibleItems < NumItems())
     {

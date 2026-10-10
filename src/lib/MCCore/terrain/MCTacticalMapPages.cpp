@@ -675,7 +675,7 @@ auto MCTacticalMap::DrawObjects() -> void
     }
 }
 
-auto MCTacticalMap::AddSalvageString(MCGameObject* obj) -> void
+auto MCTacticalMap::AddSalvageString(MCGameObject* obj) const -> void
 {
     MCGuiScrollTextObject* text = SalvageText.get();
     // The original's lines held 63 characters.
@@ -808,7 +808,7 @@ auto MCTacticalMap::DrawParts() -> void
     // A mech's front view also shows its internal structure.
     if (mover->ObjectClass == MCObjectClass::BattleMech && DataDisplayMode == 0)
     {
-        for (int16_t i = 0; i < mover->NumBodyLocations(); i++)
+        for (int32_t i = 0; i < mover->NumBodyLocations(); i++)
         {
             const int8_t numArmor = mover->NumArmorLocations();
             AGShapeLookaside(PartColorTable(*this, BodyColors[static_cast<size_t>(i)]));
@@ -888,7 +888,7 @@ auto MCTacticalMap::DrawPilot(MCMechWarrior* pilot) -> void
     WriteText(WhiteFont, frame, 0x33, 0x23, pilot->Rank <= 3 ? TableString(0x86 + pilot->Rank) : std::string());
 }
 
-auto MCTacticalMap::DrawWeapons() -> void
+auto MCTacticalMap::DrawWeapons() const -> void
 {
     MCGuiScrollTextObject* text = InfoText.get();
     const int32_t firstPixel = text->FirstPixel;

@@ -63,9 +63,9 @@ auto MCGroundVehicle::NetUpdateMovement() -> void
 
     if (DisableThisFrame != 0)
     {
-        DisableThisFrame = 0;
-        ShutDownThisFrame = 0;
-        StartUpThisFrame = 0;
+        DisableThisFrame = false;
+        ShutDownThisFrame = false;
+        StartUpThisFrame = false;
         Status = 1;
         controlData->Throttle = 0;
         return;
@@ -74,8 +74,8 @@ auto MCGroundVehicle::NetUpdateMovement() -> void
     if (ShutDownThisFrame != 0)
     {
         controlData->Throttle = 0;
-        ShutDownThisFrame = 0;
-        StartUpThisFrame = 0;
+        ShutDownThisFrame = false;
+        StartUpThisFrame = false;
         Status = 5;
         return;
     }
@@ -83,7 +83,7 @@ auto MCGroundVehicle::NetUpdateMovement() -> void
     if (StartUpThisFrame != 0)
     {
         controlData->Throttle = 100;
-        StartUpThisFrame = 0;
+        StartUpThisFrame = false;
         Status = 0;
         return;
     }
@@ -360,7 +360,7 @@ auto MCGroundVehicle::HandleMoveChunk(uint32_t chunk) -> int32_t
             path->CurStep = step;
         }
 
-        NewMoveChunk = 1;
+        NewMoveChunk = true;
     }
 
     return 0;

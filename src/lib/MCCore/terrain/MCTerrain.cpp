@@ -343,38 +343,22 @@ auto MCTerrain::NewWindow(MCCamera* cam) -> MCTerrainWindow*
     return nullptr;
 }
 
-auto MCTerrain::KillWindow(MCCamera* cam) -> void
-{
-    for (const std::unique_ptr<MCTerrainWindow>& window : Windows)
-    {
-        if (window->Camera == cam)
-        {
-            window->Release();
-        }
-    }
-}
-
 auto MCTerrain::Update() -> void
 {
     Windows[0]->Update();
 }
 
-auto MCTerrain::SetOverlayTile(int32_t blockNum, int32_t vertexNum, int32_t value) -> void
+auto MCTerrain::SetOverlayTile(int32_t blockNum, int32_t vertexNum, int32_t value) const -> void
 {
     MapBlocks->SetOverlayTile(blockNum, vertexNum, value);
 }
 
-auto MCTerrain::GetOverlayTile(int32_t blockNum, int32_t vertexNum) -> int32_t
+auto MCTerrain::GetOverlayTile(int32_t blockNum, int32_t vertexNum) const -> int32_t
 {
     return MapBlocks->GetOverlayTile(blockNum, vertexNum);
 }
 
-auto MCTerrain::SetTile(int32_t blockNum, int32_t vertexNum, int32_t value) -> void
-{
-    MapBlocks->SetTile(blockNum, vertexNum, value);
-}
-
-auto MCTerrain::GetTile(int32_t blockNum, int32_t vertexNum) -> int32_t
+auto MCTerrain::GetTile(int32_t blockNum, int32_t vertexNum) const -> int32_t
 {
     return MapBlocks->GetTile(blockNum, vertexNum);
 }
@@ -438,23 +422,18 @@ auto MCTerrain::GetTerrainElevation(const MCVector3D& pos) -> float
     return TerrainElevationAt(pos);
 }
 
-auto MCTerrain::GetTerrainAngle(const MCVector3D& pos, MCVector3D* normal) -> float
-{
-    return TerrainAngleAt(pos, normal);
-}
-
 auto MCTerrain::GetTerrainNormal(const MCVector3D& pos) -> MCVector3D
 {
     return TerrainNormalAt(pos);
 }
 
-auto MCTerrain::UpdateAllObjects() -> void
+auto MCTerrain::UpdateAllObjects() const -> void
 {
     ObjectBlocks->UpdateAllObjects();
 }
 
 auto MCTerrain::MarkSeen(const MCVector3D& looker, const MCVector3D& /*lookVector*/, float angle, float /*range*/,
-                         uint8_t who) -> void
+                         uint8_t who) const -> void
 {
     if (angle != 360.0f)
     {
@@ -485,7 +464,7 @@ auto MCTerrain::MarkSeen(const MCVector3D& looker, const MCVector3D& /*lookVecto
 }
 
 auto MCTerrain::MarkRadiusSeen(const MCVector3D& looker, const MCVector3D& /*lookVector*/, float angle, float range,
-                               uint8_t who) -> void
+                               uint8_t who) const -> void
 {
     if (angle != 360.0f)
     {

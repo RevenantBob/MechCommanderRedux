@@ -17,10 +17,10 @@ struct MCAudioCore
     std::atomic<MCAudioDevice*> Listener = nullptr;
 
     /// <summary>Adds one buffer's contribution to <paramref name="out"/>. Called with the lock held.</summary>
-    void MixBuffer(MCSoundBuffer& buffer, float* out, int frames);
+    void MixBuffer(MCSoundBuffer& buffer, float* out, int frames) const;
 
     /// <summary>Adds one stream's contribution to <paramref name="out"/>. Called with the lock held.</summary>
-    void MixStream(MCAudioStream& stream, float* out, int frames);
+    void MixStream(MCAudioStream& stream, float* out, int frames) const;
 
     /// <summary>Mixes everything into <paramref name="out"/>, overwriting it.</summary>
     void Render(float* out, int frames);
@@ -69,7 +69,7 @@ namespace
     }
 }
 
-void MCAudioCore::MixBuffer(MCSoundBuffer& buffer, float* out, int frames)
+void MCAudioCore::MixBuffer(MCSoundBuffer& buffer, float* out, int frames) const
 {
     if (!buffer._Playing)
     {
@@ -148,7 +148,7 @@ void MCAudioCore::MixBuffer(MCSoundBuffer& buffer, float* out, int frames)
     buffer._Position = position;
 }
 
-void MCAudioCore::MixStream(MCAudioStream& stream, float* out, int frames)
+void MCAudioCore::MixStream(MCAudioStream& stream, float* out, int frames) const
 {
     if (stream._Paused)
     {
@@ -215,7 +215,7 @@ void MCAudioCore::MixStream(MCAudioStream& stream, float* out, int frames)
 void MCAudioCore::Render(float* out, int frames)
 {
     std::fill(out, out + static_cast<size_t>(frames) * 2, 0.0f);
-    std::lock_guard lock(Lock);
+    std::scoped_lock lock(Lock);
 
     for (MCSoundBuffer* buffer : Buffers)
     {
@@ -246,7 +246,7 @@ MCSoundBuffer::MCSoundBuffer(Key, std::shared_ptr<MCAudioCore> core, const MCSou
 
 MCSoundBuffer::~MCSoundBuffer()
 {
-    std::lock_guard lock(_Core->Lock);
+    std::scoped_lock lock(_Core->Lock);
     std::erase(_Core->Buffers, this);
 }
 
@@ -277,7 +277,7 @@ MCSoundBuffer::MCLockedRegion MCSoundBuffer::Lock(uint32_t offset, uint32_t byte
 void MCSoundBuffer::Unlock([[maybe_unused]] const MCLockedRegion& region)
 {
     // The mixer reads the bytes under the core lock; taking it once orders these writes before its next read.
-    std::lock_guard lock(_Core->Lock);
+    std::scoped_lock lock(_Core->Lock);
 }
 
 void MCSoundBuffer::Write(uint32_t offset, std::span<const uint8_t> data)
@@ -300,7 +300,7 @@ void MCSoundBuffer::Write(uint32_t offset, std::span<const uint8_t> data)
 void MCSoundBuffer::Play(bool looping)
 {
     {
-        std::lock_guard lock(_Core->Lock);
+        std::scoped_lock lock(_Core->Lock);
         _Playing = !_Data.empty();
         _Looping = looping;
     }
@@ -314,7 +314,7 @@ void MCSoundBuffer::Play(bool looping)
 void MCSoundBuffer::Stop()
 {
     {
-        std::lock_guard lock(_Core->Lock);
+        std::scoped_lock lock(_Core->Lock);
         _Playing = false;
     }
 
@@ -326,7 +326,7 @@ void MCSoundBuffer::Stop()
 
 uint32_t MCSoundBuffer::GetStatus() const
 {
-    std::lock_guard lock(_Core->Lock);
+    std::scoped_lock lock(_Core->Lock);
     uint32_t status = 0;
 
     if (_Playing)
@@ -344,7 +344,7 @@ uint32_t MCSoundBuffer::GetStatus() const
 
 void MCSoundBuffer::GetCurrentPosition(uint32_t* play, uint32_t* write) const
 {
-    std::lock_guard lock(_Core->Lock);
+    std::scoped_lock lock(_Core->Lock);
     const uint32_t blockAlign = _Format.BlockAlign();
     const uint32_t size = Size();
     const uint32_t playOffset = size == 0 ? 0 : (static_cast<uint32_t>(_Position) * blockAlign) % size;
@@ -363,44 +363,44 @@ void MCSoundBuffer::GetCurrentPosition(uint32_t* play, uint32_t* write) const
 
 void MCSoundBuffer::SetCurrentPosition(uint32_t offset)
 {
-    std::lock_guard lock(_Core->Lock);
+    std::scoped_lock lock(_Core->Lock);
     const uint32_t size = Size();
     _Position = size == 0 ? 0.0 : static_cast<double>((offset % size) / _Format.BlockAlign());
 }
 
 void MCSoundBuffer::SetVolume(int32_t hundredthsDb)
 {
-    std::lock_guard lock(_Core->Lock);
+    std::scoped_lock lock(_Core->Lock);
     _Volume = std::clamp(hundredthsDb, VolumeMin, VolumeMax);
 }
 
 int32_t MCSoundBuffer::GetVolume() const
 {
-    std::lock_guard lock(_Core->Lock);
+    std::scoped_lock lock(_Core->Lock);
     return _Volume;
 }
 
 void MCSoundBuffer::SetPan(int32_t pan)
 {
-    std::lock_guard lock(_Core->Lock);
+    std::scoped_lock lock(_Core->Lock);
     _Pan = std::clamp(pan, PanLeft, PanRight);
 }
 
 int32_t MCSoundBuffer::GetPan() const
 {
-    std::lock_guard lock(_Core->Lock);
+    std::scoped_lock lock(_Core->Lock);
     return _Pan;
 }
 
 void MCSoundBuffer::SetFrequency(uint32_t hz)
 {
-    std::lock_guard lock(_Core->Lock);
+    std::scoped_lock lock(_Core->Lock);
     _Frequency = hz == 0 ? 0 : std::clamp<uint32_t>(hz, 100, 100000);
 }
 
 uint32_t MCSoundBuffer::GetFrequency() const
 {
-    std::lock_guard lock(_Core->Lock);
+    std::scoped_lock lock(_Core->Lock);
     return _Frequency != 0 ? _Frequency : _Format.Rate;
 }
 
@@ -414,7 +414,7 @@ MCAudioStream::MCAudioStream(Key, std::shared_ptr<MCAudioCore> core, const MCSou
 
 MCAudioStream::~MCAudioStream()
 {
-    std::lock_guard lock(_Core->Lock);
+    std::scoped_lock lock(_Core->Lock);
     std::erase(_Core->Streams, this);
 }
 
@@ -429,25 +429,25 @@ void MCAudioStream::Queue(std::span<const uint8_t> pcm)
         converted[i] = SampleAt(pcm.data(), _Format.Bits, i);
     }
 
-    std::lock_guard lock(_Core->Lock);
+    std::scoped_lock lock(_Core->Lock);
     _Samples.insert(_Samples.end(), converted.begin(), converted.end());
 }
 
 uint64_t MCAudioStream::QueuedFrames() const
 {
-    std::lock_guard lock(_Core->Lock);
+    std::scoped_lock lock(_Core->Lock);
     return _Samples.size() / _Format.Channels;
 }
 
 uint64_t MCAudioStream::PlayedFrames() const
 {
-    std::lock_guard lock(_Core->Lock);
+    std::scoped_lock lock(_Core->Lock);
     return _Played;
 }
 
 void MCAudioStream::Clear()
 {
-    std::lock_guard lock(_Core->Lock);
+    std::scoped_lock lock(_Core->Lock);
     _Samples.clear();
     _Phase = 0.0;
     _Played = 0;
@@ -455,19 +455,19 @@ void MCAudioStream::Clear()
 
 void MCAudioStream::Pause(bool paused)
 {
-    std::lock_guard lock(_Core->Lock);
+    std::scoped_lock lock(_Core->Lock);
     _Paused = paused;
 }
 
 void MCAudioStream::SetVolume(int32_t hundredthsDb)
 {
-    std::lock_guard lock(_Core->Lock);
+    std::scoped_lock lock(_Core->Lock);
     _Volume = std::clamp(hundredthsDb, MCSoundBuffer::VolumeMin, MCSoundBuffer::VolumeMax);
 }
 
 void MCAudioStream::SetPan(int32_t pan)
 {
-    std::lock_guard lock(_Core->Lock);
+    std::scoped_lock lock(_Core->Lock);
     _Pan = std::clamp(pan, MCSoundBuffer::PanLeft, MCSoundBuffer::PanRight);
 }
 
@@ -562,7 +562,7 @@ std::expected<std::shared_ptr<MCSoundBuffer>, std::string> MCAudio::CreateBuffer
     }
 
     auto buffer = std::make_shared<MCSoundBuffer>(MCSoundBuffer::Key{}, _Core, format, bytes);
-    std::lock_guard lock(_Core->Lock);
+    std::scoped_lock lock(_Core->Lock);
     _Core->Buffers.push_back(buffer.get());
     return buffer;
 }
@@ -602,14 +602,14 @@ std::expected<std::shared_ptr<MCAudioStream>, std::string> MCAudio::CreateStream
     }
 
     auto stream = std::make_shared<MCAudioStream>(MCAudioStream::Key{}, _Core, format);
-    std::lock_guard lock(_Core->Lock);
+    std::scoped_lock lock(_Core->Lock);
     _Core->Streams.push_back(stream.get());
     return stream;
 }
 
 void MCAudio::SetMasterVolume(float volume)
 {
-    std::lock_guard lock(_Core->Lock);
+    std::scoped_lock lock(_Core->Lock);
     _Core->Master = std::clamp(volume, 0.0f, 1.0f);
 }
 

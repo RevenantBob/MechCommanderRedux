@@ -45,7 +45,7 @@ auto ScrollEventHandler(MCGuiObject* obj, MCGuiEvent* event) -> void
         case MCGuiEventType::LeftButtonDown:
         {
             GuiSystem()->Grab(obj);
-            GuiSystem()->AddTimer(obj, RepeatDelayTimer, 1000, 0, 0, 0);
+            GuiSystem()->AddTimer(obj, RepeatDelayTimer, 1000, 0, 0, false);
             APostMessage(obj->Parent, message);
             break;
         }
@@ -61,7 +61,7 @@ auto ScrollEventHandler(MCGuiObject* obj, MCGuiEvent* event) -> void
             if (event->Data == RepeatDelayTimer)
             {
                 GuiSystem()->RemoveTimer(obj, RepeatDelayTimer);
-                GuiSystem()->AddTimer(obj, RepeatTimer, 200, 0, 0, 0);
+                GuiSystem()->AddTimer(obj, RepeatTimer, 200, 0, 0, false);
             }
 
             APostMessage(obj->Parent, message);

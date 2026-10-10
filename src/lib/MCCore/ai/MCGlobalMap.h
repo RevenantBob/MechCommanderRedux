@@ -145,18 +145,14 @@ public:
 
     /// <summary>The area of a tile, -1 for none (or off the map).</summary>
     int32_t CalcArea(int32_t tileR, int32_t tileC) const;
-    /// <summary>Makes the spare last area a one-tile area at (tileR, tileC).</summary>
-    int32_t SetTempArea(int32_t tileR, int32_t tileC);
 
     /// <summary>The doors of an area.</summary>
     std::span<MCDoorInfo> AreaDoors(int32_t area);
     /// <summary>A door side's links (NumLinks of them, plus the spare room for the start and goal doors).</summary>
     std::span<MCDoorLink> DoorSideLinks(int32_t door, int32_t side);
 
-    /// <summary>The direction a door leaves <paramref name="fromArea"/> by, -1 if it doesn't touch it.</summary>
-    int32_t ExitDirection(int32_t doorIndex, int32_t fromArea) const;
     /// <summary>The centre of the cell a leg's path ended in (<paramref name="prevGoalCell"/>), on the ground.</summary>
-    MCVector3D GetDoorWorldPos(const int32_t* prevGoalCell) const;
+    static MCVector3D GetDoorWorldPos(const int32_t* prevGoalCell);
 
     /// <summary>
     /// Finds the door path from one area to another, writing at most <paramref name="path"/>'s size steps.
@@ -168,7 +164,6 @@ public:
     int32_t CalcPath(MCVector3D start, MCVector3D goal, std::span<MCGlobalPathStep> path);
     /// <summary>The number of steps between two areas, from the path cost table.</summary>
     int32_t GetPathCost(int32_t startArea, int32_t goalArea) const;
-    void OpenDoor(int32_t door);
     void CloseDoor(int32_t door);
     /// <summary>Closes an area and its doors and clears its path cost entries.</summary>
     void CloseArea(int32_t area);
@@ -221,8 +216,8 @@ private:
     void CalcAreas(const MCScenarioMap& map);
     void CalcBridges(const MCScenarioMap& map);
     /// <summary>Adds a door to the build list, unless it is there already.</summary>
-    void AddDoor(std::vector<MCGlobalMapDoor>& buildList, int32_t area1, int32_t area2, int32_t row, int32_t col,
-                 int32_t cellR, int32_t cellC, int32_t length, int32_t direction) const;
+    static void AddDoor(std::vector<MCGlobalMapDoor>& buildList, int32_t area1, int32_t area2, int32_t row, int32_t col,
+                        int32_t cellR, int32_t cellC, int32_t length, int32_t direction);
     void CalcGlobalDoors(const MCScenarioMap& map);
     void CalcAreaDoors();
     /// <summary>The cell path cost from one door of an area to another (runs the path finder).</summary>

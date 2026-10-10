@@ -1,32 +1,17 @@
 #pragma once
 
 // Port-wide helpers shared by every reconstructed file: portable replacements for the MSVC CRT extensions the
-// original called, and the marker for code that is not reconstructed yet.
-
-/// <summary>
-/// Marks a code path of the original that the port doesn't reproduce yet. It logs the place once per run and carries
-/// on, so a missing piece shows up in the log instead of crashing. <c>grep MC_UNIMPLEMENTED</c> lists them all.
-/// </summary>
-#define MC_UNIMPLEMENTED(what) ::MCPort::ReportUnimplemented(__FILE__, __LINE__, what)
+// original called.
 
 struct _SYSTEMTIME;
 
 namespace MCPort
 {
-    /// <summary>Logs an <c>MC_UNIMPLEMENTED</c> path the first time it is reached.</summary>
-    /// <param name="file">Source file of the marker.</param>
-    /// <param name="line">Line of the marker.</param>
-    /// <param name="what">What isn't reconstructed.</param>
-    void ReportUnimplemented(const char* file, int line, const char* what);
-
     /// <summary>Case-insensitive ASCII string compare, as MSVC's <c>_stricmp</c>.</summary>
     int StrICmp(const char* a, const char* b);
 
     /// <summary>Case-insensitive ASCII compare of at most <paramref name="count"/> characters (<c>_strnicmp</c>).</summary>
     int StrNICmp(const char* a, const char* b, size_t count);
-
-    /// <summary>Upper-cases a string in place (<c>_strupr</c>).</summary>
-    char* StrUpr(char* text);
 
     /// <summary>Lower-cases a string in place (<c>_strlwr</c>).</summary>
     char* StrLwr(char* text);

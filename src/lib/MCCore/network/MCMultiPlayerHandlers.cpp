@@ -108,14 +108,14 @@ namespace
     void ShowOkDialog(MCReusableDialog& dialog, std::string_view text, void (*exit)())
     {
         dialog.SetText(text);
-        dialog.SetTwoButton(0);
+        dialog.SetTwoButton(false);
         dialog.Callback = nullptr;
         dialog.OkButton->Callback()->SetExec(exit);
         char upArt[] = "bh_okay.tga";
         char downArt[] = "bg_okay.tga";
         dialog.OkButton->SetUpPicture(upArt);
         dialog.OkButton->SetDownPicture(downArt);
-        dialog.OkButton->Disabled = 0;
+        dialog.OkButton->Disabled = false;
         dialog.OkButton->Draw();
         dialog.Activate();
     }
@@ -388,7 +388,7 @@ void HandleAppPlayerOrder(uint32_t, std::span<const uint8_t> msg)
     MCVector3D wayPoint;
     wayPoint.X = std::bit_cast<float>(message.OrderParam1);
     wayPoint.Y = std::bit_cast<float>(message.OrderParam2);
-    wayPoint.Z = Terrain()->GetTerrainElevation(wayPoint);
+    wayPoint.Z = MCTerrain::GetTerrainElevation(wayPoint);
     order.SetWayPoint(0, wayPoint);
 
     // A jump-attack (method 1) becomes a jump to the target's position, as Parser::SendTacOrder does locally.
@@ -551,7 +551,7 @@ void HandleAppPlayerArtillery(uint32_t, std::span<const uint8_t> msg)
     MCVector3D location;
     location.X = message.TargetX;
     location.Y = message.TargetY;
-    location.Z = Terrain()->GetTerrainElevation(location);
+    location.Z = MCTerrain::GetTerrainElevation(location);
     CallArtillery(chunk.CommanderId, chunk.StrikeType, location, chunk.Seconds, 0);
 }
 
@@ -787,7 +787,7 @@ namespace
         }
 
         MCVector3D position = MapCellToWorldPos(chunk.TileRow, chunk.TileCol);
-        position.Z = Terrain()->GetTerrainElevation(position);
+        position.Z = MCTerrain::GetTerrainElevation(position);
 
         if (chunk.Param2 == 4)
         {
@@ -906,7 +906,7 @@ void HandleAppWorldStateUpdate(uint32_t, std::span<const uint8_t> msg)
                 }
 
                 MCVector3D location = MapCellToWorldPos(chunk.TileRow, chunk.TileCol);
-                location.Z = Terrain()->GetTerrainElevation(location);
+                location.Z = MCTerrain::GetTerrainElevation(location);
                 CallArtillery(chunk.Type - MCWorldStateChunk::Artillery, chunk.Param1, location, chunk.Param2, 0);
                 break;
             }
@@ -1007,7 +1007,7 @@ void HandleLocalPlayerRemoved()
             WhackTimer = true;
         }
 
-        GlobalLogPtr->CurrentScreen->ShowGuiWindow(0);
+        GlobalLogPtr->CurrentScreen->ShowGuiWindow(false);
         GlobalLogPtr->CurrentScreen = GlobalLogPtr->MainScreen.get();
         GlobalLogPtr->LogisticsState = 1;
         GlobalLogPtr->ShowLogScreen(true, true);

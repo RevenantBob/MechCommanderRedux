@@ -152,77 +152,6 @@ int32_t VfxShapeRemapColors(void* shapeTable, int32_t shapeNum)
     return 0;
 }
 
-int32_t VfxShapeVisibleRectangle(void* shapeTable, int32_t shapeNum, int32_t hotX, int32_t hotY, int32_t mirror,
-                                 int32_t* rectangle)
-{
-    int32_t left = 0;
-    int32_t top = 0;
-    int32_t right = 0;
-    int32_t bottom = 0;
-
-    const MCShapeInfo shape = ReadShape(shapeTable, shapeNum);
-    int32_t rows = shape.YMax + 1 - shape.YMin;
-
-    if (rows > 0)
-    {
-        left = INT32_MAX;
-        top = INT32_MAX;
-        right = INT32_MIN;
-        bottom = INT32_MIN;
-        const uint8_t* data = shape.Data;
-
-        for (int32_t y = shape.YMin + hotY; rows > 0; --rows, ++y)
-        {
-            int32_t x = shape.XMin + hotX;
-
-            for (;;)
-            {
-                const uint8_t token = *data++;
-                const int32_t count = token >> 1;
-
-                if (count == 0)
-                {
-                    if ((token & 1) == 0)
-                    {
-                        break;
-                    }
-
-                    x += *data++;
-                    continue;
-                }
-
-                data += (token & 1) ? count : 1;
-                // x1 ends one past the last pixel of the rightmost packet, as the asm leaves it.
-                left = std::min(left, x);
-                x += count;
-                right = std::max(right, x);
-                top = std::min(top, y);
-                bottom = std::max(bottom, y);
-            }
-        }
-    }
-
-    if (mirror & 1)
-    {
-        const int32_t mirroredLeft = hotX + hotX - right;
-        right = hotX + hotX - left;
-        left = mirroredLeft;
-    }
-
-    if (mirror & 2)
-    {
-        const int32_t mirroredTop = hotY + hotY - bottom;
-        bottom = hotY + hotY - top;
-        top = mirroredTop;
-    }
-
-    rectangle[0] = left;
-    rectangle[1] = top;
-    rectangle[2] = right;
-    rectangle[3] = bottom;
-    return 0;
-}
-
 namespace
 {
     /// <summary>
@@ -621,11 +550,6 @@ int32_t VfxShapeBounds(void* shapeTable, int32_t shapeNum)
     return MCVfxRead32(MCVfxShape(shapeTable, shapeNum));
 }
 
-int32_t VfxShapeOrigin(void* shapeTable, int32_t shapeNum)
-{
-    return MCVfxRead32(MCVfxShape(shapeTable, shapeNum) + 4);
-}
-
 int32_t VfxShapeResolution(void* shapeTable, int32_t shapeNum)
 {
     const MCShapeInfo shape = ReadShape(shapeTable, shapeNum);
@@ -642,71 +566,6 @@ int32_t VfxShapeMinxy(void* shapeTable, int32_t shapeNum)
 
 namespace
 {
-    /// <summary>The palette block of shape <paramref name="shapeNum"/> (the directory's second dword), or null.</summary>
-    uint8_t* ShapePalette(void* shapeTable, int32_t shapeNum)
-    {
-        uint8_t* table = static_cast<uint8_t*>(shapeTable);
-        const int32_t offset = MCVfxRead32(table + 8 + static_cast<intptr_t>(shapeNum) * 8 + 4);
-        return offset == 0 ? nullptr : table + offset;
-    }
-}
-
-void VfxShapePalette(void* shapeTable, int32_t shapeNum, MCVfxRgb* palette)
-{
-    const uint8_t* block = ShapePalette(shapeTable, shapeNum);
-
-    if (block == nullptr)
-    {
-        return;
-    }
-
-    // Original behaviour: a count of 0 would loop 2^32 times; the game's shapes have no palettes.
-    uint32_t count = static_cast<uint32_t>(MCVfxRead32(block));
-    block += 4;
-
-    do
-    {
-        palette[block[0]] = MCVfxRgb{block[1], block[2], block[3]};
-        block += 4;
-    } while (--count != 0);
-}
-
-int32_t VfxShapeColors(void* shapeTable, int32_t shapeNum, MCVfxCrgb* colors)
-{
-    const uint8_t* block = ShapePalette(shapeTable, shapeNum);
-
-    if (block == nullptr)
-    {
-        return 0;
-    }
-
-    const int32_t count = MCVfxRead32(block);
-
-    if (colors != nullptr)
-    {
-        std::memcpy(colors, block + 4, static_cast<size_t>(count) * sizeof(MCVfxCrgb));
-    }
-
-    return count;
-}
-
-int32_t VfxShapeSetColors(void* shapeTable, int32_t shapeNum, MCVfxCrgb* colors)
-{
-    uint8_t* block = ShapePalette(shapeTable, shapeNum);
-
-    if (block == nullptr)
-    {
-        return 0;
-    }
-
-    const int32_t count = MCVfxRead32(block);
-
-    if (colors != nullptr)
-    {
-        std::memcpy(block + 4, colors, static_cast<size_t>(count) * sizeof(MCVfxCrgb));
-    }
-
-    return count;
 }
 
 int32_t VfxShapeCount(void* shapeTable)
@@ -716,56 +575,4 @@ int32_t VfxShapeCount(void* shapeTable)
 
 namespace
 {
-    /// <summary>
-    /// VFX_shape_list and VFX_shape_palette_list: list shape 0 and every later shape whose directory dword at
-    /// <paramref name="field"/> (0 data, 4 palette) differs from all earlier shapes'.
-    /// </summary>
-    int32_t ListDistinct(void* shapeTable, int32_t field, uint32_t* indexList)
-    {
-        const uint8_t* table = static_cast<uint8_t*>(shapeTable);
-        const int32_t count = MCVfxRead32(table + 4);
-        const uint8_t* directory = table + 8 + field;
-        int32_t distinct = 1;
-
-        if (indexList != nullptr)
-        {
-            *indexList++ = 0;
-        }
-
-        // Original behaviour: an empty table (count 0) would make the asm's LOOP run 2^32 times.
-        for (int32_t i = 1; i < count; ++i)
-        {
-            const int32_t value = MCVfxRead32(directory + i * 8);
-            bool seen = false;
-
-            for (int32_t j = 0; j < i && !seen; ++j)
-            {
-                seen = MCVfxRead32(directory + j * 8) == value;
-            }
-
-            if (seen)
-            {
-                continue;
-            }
-
-            if (indexList != nullptr)
-            {
-                *indexList++ = static_cast<uint32_t>(i);
-            }
-
-            ++distinct;
-        }
-
-        return distinct;
-    }
-}
-
-int32_t VfxShapeList(void* shapeTable, uint32_t* indexList)
-{
-    return ListDistinct(shapeTable, 0, indexList);
-}
-
-int32_t VfxShapePaletteList(void* shapeTable, uint32_t* indexList)
-{
-    return ListDistinct(shapeTable, 4, indexList);
 }

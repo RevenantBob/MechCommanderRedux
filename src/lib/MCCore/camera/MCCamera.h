@@ -71,7 +71,7 @@ public:
     void ChangeTarget(MCBaseObject* target, bool jumpTo);
 
     /// <summary>0.5 at camera scale 1 (zoomed out), 1 otherwise: always 1 in the port.</summary>
-    float GetScaleFactor() const;
+    static float GetScaleFactor();
 
     MCVector3D GetPosition() const;
 
@@ -79,7 +79,7 @@ public:
     /// The world point under a screen point: the corner of the grid quad around it plus the offset turned back
     /// through the view angle, at the corner's height.
     /// </summary>
-    void InverseProject(const MCVector2D& screenPos, MCVector3D& point);
+    void InverseProject(const MCVector2D& screenPos, MCVector3D& point) const;
 
     /// <summary>
     /// The screen point of the terrain at <paramref name="point"/>, as the terrain's projection places it in this
@@ -89,7 +89,7 @@ public:
 
     /// <summary>The screen position of vertex <paramref name="vertexNum"/> of block <paramref name="blockNum"/>
     /// (both clamped); 0 and 10000,10000 when it wasn't drawn this frame.</summary>
-    int VertexProject(int32_t blockNum, int32_t vertexNum, MCVector2D& screenPos);
+    static int VertexProject(int32_t blockNum, int32_t vertexNum, MCVector2D& screenPos);
 
     /// <summary>Drops the target and moves the camera by a screen-aligned offset.</summary>
     void ScrollCamera(int32_t dx, int32_t dy);

@@ -674,7 +674,7 @@ auto MCSessionScreen::Activate(bool refresh) -> void
         ticker->SetPos(3, 3);
     }
 
-    GuiSystem()->AddTimer(this, ScreenTimer, 500, 0, 0, 0);
+    GuiSystem()->AddTimer(this, ScreenTimer, 500, 0, 0, false);
     MultiPlayer()->ChatCallback = LogisticsChatCallback;
 }
 
@@ -764,14 +764,14 @@ auto MCSessionScreen::AssignPlayer(uint32_t playerId, int8_t team, int8_t slot, 
             AssignPlayer(teamPlayers[slotIndex], 0, 0, false);
         }
 
-        if (int32_t index = FindSlot(Team1Players, playerId); index >= 0)
+        if (const int32_t index = FindSlot(Team1Players, playerId); index >= 0)
         {
             Team1Players[static_cast<size_t>(index)] = NoPlayer;
             MultiPlayer()->SessionManager->RemovePlayerFromGroup(MultiPlayer()->InnerSphereGroupID, playerId);
         }
-        else if ((index = FindSlot(Team2Players, playerId)) >= 0)
+        else if (const int32_t team2Index = FindSlot(Team2Players, playerId); team2Index >= 0)
         {
-            Team2Players[static_cast<size_t>(index)] = NoPlayer;
+            Team2Players[static_cast<size_t>(team2Index)] = NoPlayer;
             MultiPlayer()->SessionManager->RemovePlayerFromGroup(MultiPlayer()->ClanGroupID, playerId);
         }
         else
@@ -819,12 +819,12 @@ auto MCSessionScreen::AssignPlayer(uint32_t playerId, int8_t team, int8_t slot, 
     CheckGoodToGo();
 }
 
-auto MCSessionScreen::SetTeam1RP(int32_t resourcePoints) -> void
+auto MCSessionScreen::SetTeam1RP(int32_t resourcePoints) const -> void
 {
     Team1RPText->SetStringBuffer(std::format("{}", resourcePoints));
 }
 
-auto MCSessionScreen::SetTeam2RP(int32_t resourcePoints) -> void
+auto MCSessionScreen::SetTeam2RP(int32_t resourcePoints) const -> void
 {
     Team2RPText->SetStringBuffer(std::format("{}", resourcePoints));
 }
@@ -846,7 +846,7 @@ auto MCSessionScreen::SetMap(std::string_view fileName) -> void
     MapPicture->Load(GamePath(TerrainPath, fileName, ".log.tga"));
 }
 
-auto MCSessionScreen::DrawMap(MCPane* target) -> void
+auto MCSessionScreen::DrawMap(MCPane* target) const -> void
 {
     if (MapBoxWiped)
     {
@@ -975,7 +975,7 @@ auto MCSessionScreen::FileReport(uint32_t playerId, bool haveFile) -> void
     {
         // Everyone has it: the waiting dialog closes itself.
         MCReusableDialog* dialog = GlobalLogPtr->MessageDialog.get();
-        GuiSystem()->AddTimer(dialog, 0, 1000, 0, 0, 0);
+        GuiSystem()->AddTimer(dialog, 0, 1000, 0, 0, false);
         dialog->OkButton->Callback()->SetExec(nullptr);
         CheckGoodToGo();
         return;
@@ -1223,7 +1223,7 @@ auto MCSessionScreen::FillDpidArray(uint32_t* ids, int32_t* count, bool myTeam) 
     }
 }
 
-auto MCSessionScreen::CheckGoodToGo() -> void
+auto MCSessionScreen::CheckGoodToGo() const -> void
 {
     auto filled = [](const std::array<uint32_t, TeamSlots>& team)
     { return std::ranges::any_of(team, [](uint32_t id) { return id != NoPlayer; }); };
@@ -1231,45 +1231,6 @@ auto MCSessionScreen::CheckGoodToGo() -> void
     const bool goodToGo = NumUnassigned == 0 && !MissionFile.empty() && !MultiPlayer()->PlayersOnHomeTeam()->empty() &&
                           !MultiPlayer()->PlayersOnEnemyTeam()->empty() && filled(Team1Players) && filled(Team2Players);
     StartButton->Disabled = !goodToGo;
-}
-
-auto MCSessionScreen::RemovePlayer(uint32_t playerId) -> void
-{
-    NumPlayers--;
-
-    if (NumPlayers < 2)
-    {
-        // Too few left: the session ends.
-        ShowDialog(LoadGameString(LaunchedFromLobby == 0 ? 0xb0 : 0xba, 0xfe),
-                   LaunchedFromLobby == 0 ? Cancel : GameOverMan, "bh_okay.tga", "bg_okay.tga", nullptr);
-        return;
-    }
-
-    if (MCPlayerNameObject* nameObject = NameOf(playerId); nameObject != nullptr)
-    {
-        nameObject->ShowGuiWindow(false);
-        nameObject->FileStatus = MCPlayerNameObject::MCFileStatus::NotAsked;
-        nameObject->SetPlayerId(NoPlayer);
-        SomeoneCheckedIn();
-        FileReport(NoPlayer, false);
-        GlobalLogPtr->PlayerLights->SetPlayerStatus(playerId, 0);
-    }
-
-    if (int32_t index = FindSlot(Team1Players, playerId); index >= 0)
-    {
-        Team1Players[static_cast<size_t>(index)] = NoPlayer;
-    }
-    else if ((index = FindSlot(Team2Players, playerId)) >= 0)
-    {
-        Team2Players[static_cast<size_t>(index)] = NoPlayer;
-    }
-    else
-    {
-        // An unassigned player: close up the list.
-        LayOutUnassigned(NoPlayer, MaxPlayers, true);
-    }
-
-    CheckGoodToGo();
 }
 
 auto MCSessionScreen::SetTeamTechBase(int8_t team, int8_t techBase) -> void
@@ -1304,7 +1265,7 @@ auto MCSessionScreen::SetTeamTechBase(int8_t team, int8_t techBase) -> void
     clanButton->Toggled = techBase == -1;
 }
 
-auto MCSessionScreen::SetTeamControls(bool live) -> void
+auto MCSessionScreen::SetTeamControls(bool live) const -> void
 {
     const MCLogInputType input = live ? MCLogInputType::Digits : MCLogInputType::None;
     Team1RPText->AllowedInput = input;

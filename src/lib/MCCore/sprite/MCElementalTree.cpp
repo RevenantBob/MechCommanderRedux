@@ -109,7 +109,7 @@ auto MCElementalTree::GetGesture(int32_t gesture, float rotation) -> MCShape*
     // Full size and zoomed out packets alternate.
     uint32_t packet = data.BasePacketNumber + static_cast<uint32_t>(rotationIndex * 2);
 
-    if (Eye != nullptr && Eye->CameraScale == 1)
+    if (Eye != nullptr && MCCamera::CameraScale == 1)
     {
         packet++;
     }

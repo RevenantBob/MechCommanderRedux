@@ -42,7 +42,7 @@ namespace
         int32_t tileC;
         int32_t cellR;
         int32_t cellC;
-        GameMap()->WorldToMapPos(position, tileR, tileC, cellR, cellC);
+        MCScenarioMap::WorldToMapPos(position, tileR, tileC, cellR, cellC);
         return CellPassable(tileR, tileC, cellR, cellC);
     }
 
@@ -770,12 +770,6 @@ auto MCMechWarrior::OrderPowerDown(int unitOrder, MCOrderOrigin origin) -> int32
     return result;
 }
 
-auto MCMechWarrior::OrderUseSpeed(float speed) -> int32_t
-{
-    SetMoveSpeedVelocity(speed);
-    return 1;
-}
-
 auto MCMechWarrior::OrderAttackObject(int unitOrder, MCOrderOrigin origin, MCGameObject* target, int32_t type,
                                       int32_t method, int32_t range, int32_t aimLocation, uint32_t params) -> int32_t
 {
@@ -899,7 +893,7 @@ auto MCMechWarrior::OrderWithdraw(int unitOrder, MCOrderOrigin origin, MCVector3
     const int32_t result = OrderMoveToPoint(unitOrder, 1, origin, goal, -1, 1);
     MCMover* mover = static_cast<MCMover*>(Vehicle);
     Assert(mover != nullptr, 0, " orderWithdraw:Warrior has no Vehicle ");
-    mover->Withdrawing = 1;
+    mover->Withdrawing = true;
 
     if (origin == MCOrderOrigin::Commander)
     {
@@ -930,12 +924,6 @@ auto MCMechWarrior::OrderEject(int unitOrder, int setTacOrder, MCOrderOrigin ori
 auto MCMechWarrior::OrderUseFireRange(int32_t range) -> int32_t
 {
     OrderFireRange = static_cast<MCMover*>(Vehicle)->GetFireRange(range);
-    return 1;
-}
-
-auto MCMechWarrior::OrderUseFireOdds(int32_t odds) -> int32_t
-{
-    OrderFireOdds = FireOddsTable[odds];
     return 1;
 }
 

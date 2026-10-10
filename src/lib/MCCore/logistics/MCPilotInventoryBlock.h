@@ -41,7 +41,7 @@ public:
     /// The sale dialog's answer: a confirmed sale lets the pilot go (marked sold back in the store); otherwise the
     /// pilot goes back to the inventory.
     /// </summary>
-    void OnSellConfirmed(int32_t result);
+    void OnSellConfirmed(int32_t result) const;
 
     MCLogWarrior* Warrior = nullptr;
     /// <summary>
@@ -64,8 +64,8 @@ private:
     void OfferSale();
 
     /// <summary>Gives the pilot to <paramref name="mech"/> (force row <paramref name="row"/>) and says so.</summary>
-    void BoardMech(MCLogMech* mech, int32_t row);
+    void BoardMech(MCLogMech* mech, int32_t row) const;
 
     /// <summary>Puts the pilot back in the inventory with the drop sound (fine over the inventory, refused elsewhere).</summary>
-    void BackToInventory(MCGuiEvent* event);
+    void BackToInventory(MCGuiEvent* event) const;
 };

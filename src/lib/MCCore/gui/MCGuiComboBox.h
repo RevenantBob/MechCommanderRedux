@@ -29,9 +29,9 @@ public:
 
     /// <summary>Changes a list string (and the text field when it is the selected one).</summary>
     /// <returns>Whether <paramref name="item"/> is an item.</returns>
-    bool ChangeItemString(int32_t item, std::string_view text);
+    bool ChangeItemString(int32_t item, std::string_view text) const;
     /// <returns>Whether <paramref name="item"/> is an item.</returns>
-    bool SelectItem(int32_t item);
+    bool SelectItem(int32_t item) const;
 
     /// <summary>The field showing the selection (read-only).</summary>
     MCGuiOwned<MCGuiTextObject> TextField;

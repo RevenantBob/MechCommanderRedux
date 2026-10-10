@@ -334,12 +334,6 @@ MCVector3D MapCellToWorldPos(int32_t cellR, int32_t cellC);
 /// pulled back along the line to the last (or first, per <paramref name="flags"/> bit 2) passable cell.
 /// </summary>
 MCVector3D RelativePositionToPoint(MCVector3D pos, float angle, float distance, uint32_t flags);
-/// <summary>The terrain type of a tile texture index (bands of 79).</summary>
-int32_t CalcTileTypeFromIndex(int32_t tileIndex);
-/// <summary>The overlay type of an overlay texture index.</summary>
-int32_t CalcOverlayTypeFromIndex(int32_t overlayIndex);
-/// <summary>The cell direction (0-7) an object faces.</summary>
-int32_t CellFacing(MCGameObject* object);
 /// <summary>The direction (0-7) from one tile/cell to an adjacent one, -2 when they aren't neighbours.</summary>
 /// <remarks>Only inlined copies exist in MCX.EXE (in MoveChunk::build).</remarks>
 int32_t CellDirToCell(int32_t fromTileR, int32_t fromTileC, int32_t fromCellR, int32_t fromCellC, int32_t toTileR,

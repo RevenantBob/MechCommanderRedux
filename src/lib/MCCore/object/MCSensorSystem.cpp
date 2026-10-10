@@ -142,7 +142,7 @@ auto MCSensorSystem::SetTeam(MCTeam* newTeam) -> void
     }
 }
 
-auto MCSensorSystem::Enabled() -> int
+auto MCSensorSystem::Enabled() const -> int
 {
     if (TeamSensorSlot < 0 || Owner->GetExistsAndAwake() == 0)
     {
@@ -170,7 +170,7 @@ auto MCSensorSystem::Disable() -> void
     SetTeam(nullptr);
 }
 
-auto MCSensorSystem::CalcTeamEffect(MCTeam* team) -> float
+auto MCSensorSystem::CalcTeamEffect(MCTeam* team) const -> float
 {
     const float jammerEffect = team->GetJammerEffect();
     const float ecmEffect = team->GetEcmEffect(Owner->GetPosition());

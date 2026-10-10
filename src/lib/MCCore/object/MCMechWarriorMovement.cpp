@@ -98,7 +98,7 @@ auto MCMechWarrior::SetMoveGoal(uint32_t type, MCVector3D* location, MCGameObjec
     {
         if (static_cast<double>(location->Z) < -10.0)
         {
-            location->Z = Terrain()->GetTerrainElevation(*location);
+            location->Z = MCTerrain::GetTerrainElevation(*location);
         }
 
         MoveOrders.GoalLocation = *location;
@@ -110,7 +110,7 @@ auto MCMechWarrior::SetMoveGoal(uint32_t type, MCVector3D* location, MCGameObjec
     {
         if (static_cast<double>(location->Z) < -10.0)
         {
-            location->Z = Terrain()->GetTerrainElevation(*location);
+            location->Z = MCTerrain::GetTerrainElevation(*location);
         }
 
         MoveOrders.GoalLocation = *location;
@@ -214,7 +214,7 @@ auto MCMechWarrior::GetMoveDistanceLeft() -> float
     return distance;
 }
 
-auto MCMechWarrior::IsJumping(MCVector3D* jumpGoal) -> int
+auto MCMechWarrior::IsJumping(MCVector3D* jumpGoal) const -> int
 {
     if (Vehicle != nullptr)
     {
@@ -362,7 +362,7 @@ auto MCMechWarrior::CalcMovePath(int32_t selectionIndex, uint32_t moveParams, in
     int32_t startTileC;
     int32_t startCellR;
     int32_t startCellC;
-    GameMap()->WorldToMapPos(start, startTileR, startTileC, startCellR, startCellC);
+    MCScenarioMap::WorldToMapPos(start, startTileR, startTileC, startCellR, startCellC);
     const int32_t startArea = GlobalMoveMap()->CalcArea(startTileR, startTileC);
 
     const uint32_t escapeTile = (moveParams >> 13) & 1;
@@ -574,7 +574,7 @@ auto MCMechWarrior::CalcMovePath(int32_t selectionIndex, uint32_t moveParams, in
         int32_t goalTileC;
         int32_t goalCellR;
         int32_t goalCellC;
-        GameMap()->WorldToMapPos(goal, goalTileR, goalTileC, goalCellR, goalCellC);
+        MCScenarioMap::WorldToMapPos(goal, goalTileR, goalTileC, goalCellR, goalCellC);
         bool simple = std::abs(goalTileR - startTileR) <= SimpleMovePathRange &&
                       std::abs(goalTileC - startTileC) <= SimpleMovePathRange;
         const int32_t longRange = LongRangeMovementEnabled[Team->Id];
@@ -591,7 +591,7 @@ auto MCMechWarrior::CalcMovePath(int32_t selectionIndex, uint32_t moveParams, in
                                                    MCTerrain::MetersPerVertex);
             goal = mover->RelativePosition(-facing, range, 2);
             MoveOrders.OriginalGlobalGoal[1] = goal;
-            GameMap()->WorldToMapPos(goal, goalTileR, goalTileC, goalCellR, goalCellC);
+            MCScenarioMap::WorldToMapPos(goal, goalTileR, goalTileC, goalCellR, goalCellC);
             simple = true;
             planLocal = true;
         }
@@ -621,29 +621,36 @@ auto MCMechWarrior::CalcMovePath(int32_t selectionIndex, uint32_t moveParams, in
                     next = Next::GlobalPath;
                 }
             }
-            else if (selectionIndex >= 1 &&
-                     (numSteps -= (selectionIndex / GroupMoveTrailLen[1]) * GroupMoveTrailLen[0]) <= 0)
-            {
-                next = Next::TrimFailed;
-            }
             else
             {
-                MCMovePath* path = MoveOrders.Path[pathNum].get();
-                MoveOrders.GlobalGoalLocation = path->StepList[numSteps - 1].Destination;
-                path->NumSteps = numSteps;
-                path->NumStepsWhenNotPaused = numSteps;
-                CurTacOrder.SetWayPoint(0, MoveOrders.GlobalGoalLocation);
-                uint32_t goalId = 0;
-
-                if (goalObj != nullptr)
+                if (selectionIndex >= 1)
                 {
-                    MoveOrders.Path[pathNum]->Target = goalObj->GetPosition();
-                    goalId = static_cast<uint32_t>(goalObj->PartId);
+                    numSteps -= (selectionIndex / GroupMoveTrailLen[1]) * GroupMoveTrailLen[0];
                 }
 
-                SetMoveGoal(goalId, &goal, nullptr);
-                MoveOrders.NextUpdate = MovementUpdateFrequency + ScenarioTime;
-                next = simple ? Next::GlobalLeg : Next::GlobalPath;
+                if (numSteps <= 0)
+                {
+                    next = Next::TrimFailed;
+                }
+                else
+                {
+                    MCMovePath* path = MoveOrders.Path[pathNum].get();
+                    MoveOrders.GlobalGoalLocation = path->StepList[numSteps - 1].Destination;
+                    path->NumSteps = numSteps;
+                    path->NumStepsWhenNotPaused = numSteps;
+                    CurTacOrder.SetWayPoint(0, MoveOrders.GlobalGoalLocation);
+                    uint32_t goalId = 0;
+
+                    if (goalObj != nullptr)
+                    {
+                        MoveOrders.Path[pathNum]->Target = goalObj->GetPosition();
+                        goalId = static_cast<uint32_t>(goalObj->PartId);
+                    }
+
+                    SetMoveGoal(goalId, &goal, nullptr);
+                    MoveOrders.NextUpdate = MovementUpdateFrequency + ScenarioTime;
+                    next = simple ? Next::GlobalLeg : Next::GlobalPath;
+                }
             }
         }
 
@@ -747,7 +754,7 @@ auto MCMechWarrior::CalcMovePath(int32_t selectionIndex, uint32_t moveParams, in
             if (step != 0)
             {
                 MCGlobalPathStep prevStep = MoveOrders.GlobalPath[step - 1];
-                start = GlobalMoveMap()->GetDoorWorldPos(prevStep.GoalCell);
+                start = MCGlobalMap::GetDoorWorldPos(prevStep.GoalCell);
             }
 
             const int32_t lastStep = MoveOrders.NumGlobalSteps - 1;
@@ -876,7 +883,7 @@ auto MCMechWarrior::CalcMovePath(int32_t selectionIndex, uint32_t moveParams, in
     return LastMoveCalcErr;
 }
 
-auto MCMechWarrior::GetNextWayPoint(MCVector3D& nextPoint, int incWayPoint) -> int
+auto MCMechWarrior::GetNextWayPoint(MCVector3D& nextPoint, int incWayPoint) const -> int
 {
     MCTacticalOrder order;
     order.Reset();
@@ -890,68 +897,7 @@ auto MCMechWarrior::GetNextWayPoint(MCVector3D& nextPoint, int incWayPoint) -> i
     return 0;
 }
 
-auto VectorOffset(MCVector3D start, MCVector3D end, int32_t reverse) -> MCVector3D
-{
-    float dx;
-    float dy;
-
-    if (reverse == 0)
-    {
-        dx = end.X - start.X;
-        dy = end.Y - start.Y;
-    }
-    else
-    {
-        dx = start.X - end.X;
-        dy = start.Y - end.Y;
-    }
-
-    const float length = std::sqrt(dy * dy + dx * dx);
-
-    if (length != 0.0f)
-    {
-        dx = dx / length;
-        dy = dy / length;
-    }
-
-    const float stepLength = static_cast<float>(MCTerrain::MetersPerVertexDivMapcellDim * 0.5);
-    dx = dx * stepLength;
-    dy = dy * stepLength;
-
-    if (std::sqrt(dy * dy + dx * dx) == 0.0f)
-    {
-        return start;
-    }
-
-    const auto totalDistance = static_cast<float>((start - end).Magnitude());
-    const float originX = reverse == 0 ? start.X : end.X;
-    const float originY = reverse == 0 ? start.Y : end.Y;
-    float x = originX;
-    float y = originY;
-    float distance = 0.0f;
-
-    // Step until the cell stepped from is open (the result lands one step past it) or the whole way is walked.
-    int32_t tileR;
-    int32_t tileC;
-    int32_t cellR;
-    int32_t cellC;
-    GameMap()->WorldToMapPos(MCVector3D(x, y, 0.0f), tileR, tileC, cellR, cellC);
-    bool open = CellPassable(tileR, tileC, cellR, cellC);
-
-    while (!open && distance < totalDistance)
-    {
-        GameMap()->WorldToMapPos(MCVector3D(x, y, 0.0f), tileR, tileC, cellR, cellC);
-        x = dx + x;
-        y = dy + y;
-        open = CellPassable(tileR, tileC, cellR, cellC);
-        distance = std::sqrt((y - originY) * (y - originY) + (x - originX) * (x - originX));
-    }
-
-    const float elevation = GameMap()->GetTerrainElevation(MCVector3D(x, y, 0.0f));
-    return MCVector3D(x, y, elevation);
-}
-
-auto MCMechWarrior::CalcWithdrawGoal(float withdrawRange) -> MCVector3D
+auto MCMechWarrior::CalcWithdrawGoal(float withdrawRange) const -> MCVector3D
 {
     MCMover* mover = static_cast<MCMover*>(Vehicle);
     MCVector3D escapeVector;
@@ -991,13 +937,13 @@ auto MCMechWarrior::CalcWithdrawGoal(float withdrawRange) -> MCVector3D
     double distance = static_cast<float>(withdrawDistance(goal));
     int32_t lastTileR;
     int32_t lastTileC;
-    GameMap()->WorldToMapTilePos(goal, lastTileR, lastTileC);
+    MCScenarioMap::WorldToMapTilePos(goal, lastTileR, lastTileC);
 
     while (distance < withdrawRange)
     {
         int32_t tileR;
         int32_t tileC;
-        GameMap()->WorldToMapTilePos(goal, tileR, tileC);
+        MCScenarioMap::WorldToMapTilePos(goal, tileR, tileC);
 
         if (tileR != lastTileR || tileC != lastTileC)
         {

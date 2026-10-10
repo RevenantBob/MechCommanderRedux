@@ -55,7 +55,7 @@ auto MCExplosion::HandleStaticCollision() -> void
     {
         for (int32_t col = 0; col < 3; col++)
         {
-            CollisionSystem()->DetectBlockCollisions(this, row * MCTerrain::BlocksMapSide + firstBlock + col);
+            MCCollisionSystem::DetectBlockCollisions(this, row * MCTerrain::BlocksMapSide + firstBlock + col);
         }
     }
 }
@@ -72,7 +72,7 @@ auto MCExplosion::Update() -> int32_t
 
         if (soundId != 0xffffffff)
         {
-            SoundSystem()->PlayDigitalSample(soundId, 1, this, 0, 0);
+            SoundSystem()->PlayDigitalSample(soundId, 1, this, false, false);
         }
     }
 

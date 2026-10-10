@@ -139,7 +139,7 @@ auto MCTacticalInterface::UpdateMouseState(MCGuiEvent* event) -> void
         tag->SetBackColor(backColor);
         tag->TextColor = textColor;
         tag->SetHelpText(text.data());
-        tag->ShowGuiWindow(1);
+        tag->ShowGuiWindow(true);
     };
 
     // What is under the mouse.

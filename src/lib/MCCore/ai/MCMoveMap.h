@@ -78,10 +78,6 @@ public:
     /// <summary>As <see cref="CalcPath"/>, with a flat estimate (every cell 10 from the goal cells), to the cells of
     /// any area with a path to the goal's.</summary>
     int32_t CalcEscapePath(MCMovePath* path, MCVector3D* goalWorldPos, int32_t* goalCell);
-    /// <summary>Sets the target a path's <see cref="MCMovePath::Target"/> gets.</summary>
-    void SetTarget(MCVector3D targetPos) { Target = targetPos; }
-    /// <summary>Writes the window's parents, costs and path to a debug file.</summary>
-    void WriteDebug(MCFile& debugFile) const;
 
     /// <summary>The node of window cell (r, c).</summary>
     MCMoveMapNode& NodeAt(int32_t r, int32_t c) { return _Map[static_cast<size_t>(MaxCellWidth * r + c)]; }
@@ -157,7 +153,7 @@ private:
     void SetGoal(MCVector3D goalPos, int32_t goalR, int32_t goalC);
     void SetGoal(int32_t thruArea, int32_t goalDoor);
     /// <summary>Marks every cell of the window whose area has a path to the escape goal's area.</summary>
-    void MarkEscapeGoalCells(MCVector3D goalPos);
+    void MarkEscapeGoalCells(MCVector3D escapeGoal);
     /// <summary>Marks the free cells of the goal door (or the one cell past it the target is in).</summary>
     /// <returns>The number of cells marked.</returns>
     int32_t MarkGoalCells(MCVector3D targetPos);

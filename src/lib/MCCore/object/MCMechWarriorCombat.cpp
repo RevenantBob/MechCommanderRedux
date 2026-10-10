@@ -8,7 +8,8 @@
 
 // The pilot's combat: which weapons can fire, and the combat decision tree.
 
-auto MCMechWarrior::CalcWeaponsStatus(MCGameObject* target, int32_t* weaponList, MCVector3D* targetPoint) -> int32_t
+auto MCMechWarrior::CalcWeaponsStatus(MCGameObject* target, int32_t* weaponList, MCVector3D* targetPoint) const
+    -> int32_t
 {
     MCMover* mover = static_cast<MCMover*>(Vehicle);
 

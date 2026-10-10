@@ -133,7 +133,7 @@ auto MCScenario::Update() -> int32_t
             SoundSystem()->PlayDigitalMusic(ScenarioTuneNum, false);
         }
 
-        GuiSystem()->SetCursorVisible(1);
+        GuiSystem()->SetCursorVisible(true);
         MusicPending = false;
         MissionStartTime = MCPort::Milliseconds();
     }
@@ -376,7 +376,7 @@ auto MCScenario::StartObjectiveTimers() -> void
     }
 }
 
-auto MCScenario::SetObjectiveTimer(int32_t objectiveNumber, float time) -> int32_t
+auto MCScenario::SetObjectiveTimer(int32_t objectiveNumber, float time) const -> int32_t
 {
     if (!Objectives.IsValid(objectiveNumber))
     {
@@ -385,11 +385,11 @@ auto MCScenario::SetObjectiveTimer(int32_t objectiveNumber, float time) -> int32
 
     const auto id = static_cast<int16_t>(objectiveNumber + ObjectiveTimerId);
     GuiSystem()->RemoveTimer(GuiSystem(), id);
-    GuiSystem()->AddTimer(GuiSystem(), id, static_cast<int32_t>(time), ObjectiveTimerEvent, 0, 1);
+    GuiSystem()->AddTimer(GuiSystem(), id, static_cast<int32_t>(time), ObjectiveTimerEvent, 0, true);
     return 0;
 }
 
-auto MCScenario::CheckObjectiveTimer(int32_t objectiveNumber) -> float
+auto MCScenario::CheckObjectiveTimer(int32_t objectiveNumber) const -> float
 {
     if (!Objectives.IsValid(objectiveNumber))
     {
@@ -421,7 +421,7 @@ auto MCScenario::SetupBonus() -> void
                                LoadGameString(TonnageBonusNameString, 0xfe));
 }
 
-auto MCScenario::HandleMultiplayMessage(int32_t code, int32_t param) -> void
+auto MCScenario::HandleMultiplayMessage(int32_t code, int32_t param) const -> void
 {
     if (ScenarioBrainHandleMessage == nullptr)
     {
@@ -436,7 +436,7 @@ auto MCScenario::HandleMultiplayMessage(int32_t code, int32_t param) -> void
     abl.MissionMessageParam = 0;
 }
 
-auto MCScenario::CheckAnyoneInCombat() -> void
+auto MCScenario::CheckAnyoneInCombat() const -> void
 {
     for (uint32_t i = 1; i <= NumWarriors(); i++)
     {

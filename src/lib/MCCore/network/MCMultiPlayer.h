@@ -92,7 +92,7 @@ public:
     int32_t StartScriptedGame(MCFitIniFile& file);
 
     /// <summary>The number of players (the session's in a lobby game, else NumLanPlayers).</summary>
-    int32_t NumPlayers();
+    int32_t NumPlayers() const;
 
     /// <summary>Connects the lobby's session; the server creates the groups and sends its setup.</summary>
     int32_t SetupLobbyGame();
@@ -137,9 +137,7 @@ public:
     /// <returns>How many.</returns>
     size_t GrabWeaponHitChunks(std::span<uint32_t> chunks);
 
-    int32_t ConnectIpx();
-
-    int32_t ConnectInternet(std::string_view ipAddress);
+    int32_t ConnectIpx() const;
 
     /// <summary>Hosts a session named <paramref name="sessionName"/> for <paramref name="maxPlayers"/>.</summary>
     int32_t CreateSession(std::string_view sessionName, std::string_view playerName, int32_t maxPlayers);
@@ -154,11 +152,7 @@ public:
     int32_t JoinSession();
 
     /// <summary>Runs the SessionManager's message pump.</summary>
-    int32_t ProcessReceiveList();
-
-    /// <summary>Sends a message to the host (guaranteed or not).</summary>
-    /// <returns>0; -1 without a session; -2 on the host itself.</returns>
-    int32_t SendToHost(MCFIMessageHeader* msg, int32_t size, bool guaranteed);
+    int32_t ProcessReceiveList() const;
 
     /// <summary>Sends chat <paramref name="text"/> to <paramref name="toID"/> (0 = everyone).</summary>
     int32_t SendChat(uint32_t toID, std::string_view text);
@@ -167,8 +161,6 @@ public:
 
     /// <summary>The server's setup message to <paramref name="toID"/> (0 = everyone): the group ids.</summary>
     int32_t SendPlayerSetup(uint32_t toID, uint32_t innerSphereGroupID, uint32_t clanGroupID);
-
-    int32_t SendPlayerCheckInReceipt(int32_t checkInId);
 
     int32_t SendStartPlanning();
 
@@ -210,25 +202,20 @@ public:
 
     int32_t SendWorldStateUpdate();
 
-    int32_t SendFile(std::string_view fileName, std::string_view directory);
-
     int32_t SendFileInquiry(std::string_view fileName);
 
     /// <summary>The server's per-frame sends: world state and weapons, movers and turrets, each on its timer.</summary>
     int32_t UpdateClients();
 
-    /// <summary>A client's per-frame keep-alive to the server (every second).</summary>
-    int32_t UpdateServer();
-
-    int PlayersInSession();
+    int PlayersInSession() const;
 
     /// <summary>The ids of the players in this machine's team group, or null.</summary>
-    const std::vector<uint32_t>* PlayersOnHomeTeam();
+    const std::vector<uint32_t>* PlayersOnHomeTeam() const;
 
     /// <summary>The ids of the players in the other team's group, or null.</summary>
-    const std::vector<uint32_t>* PlayersOnEnemyTeam();
+    const std::vector<uint32_t>* PlayersOnEnemyTeam() const;
 
-    bool IsMyTeammate(uint32_t playerID);
+    bool IsMyTeammate(uint32_t playerID) const;
 
     /// <summary>Whether every numbered player has checked in.</summary>
     bool AllPlayersCheckedIn();

@@ -27,28 +27,6 @@ MCElementalActor::~MCElementalActor()
     }
 }
 
-auto MCElementalActor::GetNumFramesInGesture(uint32_t gesture) -> float
-{
-    // Port fix: the original tests numGestures < gesture, so gesture == numGestures reads past the table.
-    if (AppearType->Gestures.size() <= gesture)
-    {
-        return 0.0f;
-    }
-
-    return static_cast<float>(AppearType->Gestures[gesture].NumFrames);
-}
-
-auto MCElementalActor::GetVelocityOfGesture(uint32_t gesture) -> float
-{
-    // Port fix: as in GetNumFramesInGesture.
-    if (AppearType->Gestures.size() <= gesture)
-    {
-        return 0.0f;
-    }
-
-    return AppearType->Gestures[gesture].Velocity;
-}
-
 auto MCElementalActor::SetGestureGoal(int32_t goal) -> int32_t
 {
     if (GoalPending)
@@ -189,7 +167,7 @@ auto MCElementalActor::Render(int32_t depthFixup) -> int32_t
     FrameRate = AppearType->GestureFrameRate(CurrentGesture);
     CurrentShape = AppearType->GetGesture(CurrentGesture, static_cast<float>(MCActorFacing(obj)));
     RecalcBounds(Eye);
-    ElementList()->OpenGroup(static_cast<int32_t>(static_cast<float>(depthFixup) - ScreenPos.Y), 1);
+    ElementList()->OpenGroup(static_cast<int32_t>(static_cast<float>(depthFixup) - ScreenPos.Y), true);
 
     if (DrawTerrainGrid != 0)
     {

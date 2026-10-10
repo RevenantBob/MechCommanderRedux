@@ -13,9 +13,10 @@
 #include "object/MCMover.h"
 #include "object/MCMoverGameSystem.h"
 #include "object/MCMechWarrior.h"
+#include "sound/MCSoundSystem.h"
 #include "terrain/MCTerrain.h"
 
-int InContact = 0;
+int32_t InContact = 0;
 
 namespace
 {
@@ -210,12 +211,12 @@ auto MCTeam::GetContacts(MCGameObject* looker, int32_t* contacts, int32_t contac
     return numFound;
 }
 
-auto MCTeam::GetContactType(MCGameObject* object) -> int32_t
+auto MCTeam::GetContactType(MCGameObject* object) const -> int32_t
 {
     return object->GetContactType(Id);
 }
 
-auto MCTeam::IsContact(MCGameObject* object, int32_t contactCriteria) -> int
+auto MCTeam::IsContact(MCGameObject* object, int32_t contactCriteria) const -> int
 {
     const auto contactType = static_cast<MCContactStatus>(object->GetContactType(Id));
 
@@ -248,33 +249,6 @@ auto MCTeam::ScanBattlefield() -> void
     for (MCSensorSystem* sensor : _Sensors)
     {
         sensor->UpdateScan(1);
-    }
-}
-
-auto MCTeam::IncNumEnemyContacts() -> void
-{
-    NumEnemyContacts++;
-
-    if (this == HomeTeam() && NumEnemyContacts != 0)
-    {
-        InContact = 1;
-    }
-}
-
-auto MCTeam::DecNumEnemyContacts() -> void
-{
-    NumEnemyContacts--;
-
-    if (NumEnemyContacts == 0)
-    {
-        if (this == HomeTeam())
-        {
-            InContact = 0;
-        }
-    }
-    else if (NumEnemyContacts < 0)
-    {
-        Fatal(0, " Negative Team Contact Count ");
     }
 }
 
@@ -601,13 +575,13 @@ auto MCTeam::StatusCount(int32_t* counts) -> void
     }
 }
 
-auto MCTeam::LineOfSight(MCVector3D position) -> int
+auto MCTeam::LineOfSight(MCVector3D position) const -> int
 {
     int32_t tileR;
     int32_t tileC;
     int32_t cellR;
     int32_t cellC;
-    GameMap()->WorldToMapPos(position, tileR, tileC, cellR, cellC);
+    MCScenarioMap::WorldToMapPos(position, tileR, tileC, cellR, cellC);
 
     // The clan side sees by terrainVisibleBits, the Inner Sphere by ClanVisibleBits (the names are the original's).
     MCByteFlag* visibleBits;

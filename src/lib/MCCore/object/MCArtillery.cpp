@@ -270,12 +270,12 @@ auto MCArtillery::Update() -> int32_t
         if (typeNum >= 507 && typeNum <= 509 && TimeToImpact < 4.0)
         {
             ImpactSoundPlayed = true;
-            SoundSystem()->PlayDigitalSample(SampleIncomingMultiplayer, 1, this, 0, 0);
+            SoundSystem()->PlayDigitalSample(SampleIncomingMultiplayer, 1, this, false, false);
         }
         else if (TimeToImpact < 2.0)
         {
             ImpactSoundPlayed = true;
-            SoundSystem()->PlayDigitalSample(SampleIncoming, 1, this, 0, 0);
+            SoundSystem()->PlayDigitalSample(SampleIncoming, 1, this, false, false);
         }
     }
 
@@ -384,12 +384,12 @@ auto MCArtillery::Render() -> void
     }
 
     // The 50% frames follow the 100% ones.
-    if (Eye->CameraScale == 1)
+    if (MCCamera::CameraScale == 1)
     {
         frame += static_cast<int32_t>(type->FrameCount);
     }
 
-    ElementList()->OpenGroup(-40000, 1);
+    ElementList()->OpenGroup(-40000, true);
     ElementList()->Add(ElementList()->Make<MCVfxElement>(shape, ScreenPos.X, ScreenPos.Y, frame, 0, nullptr, 1));
 
     const int32_t seconds = std::abs(static_cast<int32_t>(std::floor(static_cast<double>(TimeToImpact))));
@@ -436,7 +436,7 @@ auto MCArtillery::HandleStaticCollision() -> void
     int32_t centerC = 0;
     int32_t cellR = 0;
     int32_t cellC = 0;
-    GameMap()->WorldToMapPos(GetPosition(), centerR, centerC, cellR, cellC);
+    MCScenarioMap::WorldToMapPos(GetPosition(), centerR, centerC, cellR, cellC);
 
     for (int32_t tileR = centerR - 1; tileR < centerR + 2; tileR++)
     {
@@ -468,7 +468,7 @@ auto MCArtillery::HandleStaticCollision() -> void
     {
         for (int32_t col = 0; col < 3; col++)
         {
-            CollisionSystem()->DetectBlockCollisions(this, row * MCTerrain::BlocksMapSide + firstBlock + col);
+            MCCollisionSystem::DetectBlockCollisions(this, row * MCTerrain::BlocksMapSide + firstBlock + col);
         }
     }
 }

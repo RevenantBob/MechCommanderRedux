@@ -240,7 +240,7 @@ auto MCGuiChatInput::HandleEvent(MCGuiEvent* event) -> void
         {
             if (event->Data == FocusGained)
             {
-                GuiSystem()->AddTimer(this, BlinkTimer, static_cast<int32_t>(MCPort::CaretBlinkTime()), 0, 0, 0);
+                GuiSystem()->AddTimer(this, BlinkTimer, static_cast<int32_t>(MCPort::CaretBlinkTime()), 0, 0, false);
             }
             else if (event->Data == FocusLost)
             {

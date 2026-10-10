@@ -181,7 +181,7 @@ auto MCMoveMap::SetStart(const MCVector3D* startPos, int32_t startR, int32_t sta
         int32_t tileC = 0;
         int32_t cellR = 0;
         int32_t cellC = 0;
-        _ScenarioMap->WorldToMapPos(*startPos, tileR, tileC, cellR, cellC);
+        MCScenarioMap::WorldToMapPos(*startPos, tileR, tileC, cellR, cellC);
         StartR = (tileR - ULr) * 3 + cellR;
         StartC = (tileC - ULc) * 3 + cellC;
         return;
@@ -201,7 +201,7 @@ auto MCMoveMap::SetGoal(MCVector3D goalPos, int32_t goalR, int32_t goalC) -> voi
         int32_t tileC = 0;
         int32_t cellR = 0;
         int32_t cellC = 0;
-        _ScenarioMap->WorldToMapPos(GoalPos, tileR, tileC, cellR, cellC);
+        MCScenarioMap::WorldToMapPos(GoalPos, tileR, tileC, cellR, cellC);
         GoalR = (tileR - ULr) * 3 + cellR;
         GoalC = (tileC - ULc) * 3 + cellC;
     }
@@ -400,7 +400,7 @@ auto MCMoveMap::MarkEscapeGoalCells(MCVector3D escapeGoal) -> void
     int32_t goalTileC = 0;
     int32_t goalCellR = 0;
     int32_t goalCellC = 0;
-    _ScenarioMap->WorldToMapPos(escapeGoal, goalTileR, goalTileC, goalCellR, goalCellC);
+    MCScenarioMap::WorldToMapPos(escapeGoal, goalTileR, goalTileC, goalCellR, goalCellC);
     const int32_t goalArea = globalMap->CalcArea(goalTileR, goalTileC);
 
     for (int32_t row = 0; row < Height; row++)
@@ -546,7 +546,7 @@ auto MCMoveMap::MarkGoalCells(MCVector3D targetPos) -> int32_t
     int32_t tileC = 0;
     int32_t cellR = 0;
     int32_t cellC = 0;
-    _ScenarioMap->WorldToMapPos(targetPos, tileR, tileC, cellR, cellC);
+    MCScenarioMap::WorldToMapPos(targetPos, tileR, tileC, cellR, cellC);
     const int32_t targetR = cellR + (tileR * 3 - MinRow);
     const int32_t targetC = cellC + (tileC * 3 - MinCol);
     int32_t numMarked = 0;
@@ -977,127 +977,4 @@ auto MCMoveMap::CalcPath(MCMovePath* path, MCVector3D* goalWorldPos, int32_t* go
 auto MCMoveMap::CalcEscapePath(MCMovePath* path, MCVector3D* goalWorldPos, int32_t* goalCell) -> int32_t
 {
     return SearchPath(path, goalWorldPos, goalCell, true);
-}
-
-auto MCMoveMap::WriteDebug(MCFile& debugFile) const -> void
-{
-    debugFile.WriteString(std::format("Time = {:.6f}\n\n", 0.0));
-    debugFile.WriteString(std::format("Start = ({}, {})\n", StartR, StartC));
-    debugFile.WriteString(std::format("Goal = ({}, {})\n", GoalR, GoalC));
-    debugFile.WriteString("\n");
-    debugFile.WriteString("PARENT:\n");
-    debugFile.WriteString("-------\n");
-
-    for (int32_t r = 0; r < CellHeight; r++)
-    {
-        std::string line;
-
-        for (int32_t c = 0; c < CellWidth; c++)
-        {
-            const MCMoveMapNode& node = NodeAt(r, c);
-
-            if (StartR == r && StartC == c)
-            {
-                line += "S";
-            }
-            else if (node.Parent == -1)
-            {
-                line += ".";
-            }
-            else if ((node.Flags & PathFlag) == 0)
-            {
-                line += std::to_string(node.Parent);
-            }
-            else
-            {
-                line += "X";
-            }
-        }
-
-        debugFile.WriteString(line + "\n");
-    }
-
-    debugFile.WriteString("\n");
-    debugFile.WriteString("MAP:\n");
-    debugFile.WriteString("-------\n");
-    // As the original: a cost none of the cases cover repeats the previous cell's text.
-    std::string cell;
-
-    for (int32_t r = 0; r < CellHeight; r++)
-    {
-        std::string line;
-
-        for (int32_t c = 0; c < CellWidth; c++)
-        {
-            const int32_t cost = NodeAt(r, c).Cost;
-
-            if (GoalR == r && GoalC == c)
-            {
-                cell = "G";
-            }
-            else if (StartR == r && StartC == c)
-            {
-                cell = "S";
-            }
-            else if (cost == MoveLevel)
-            {
-                cell = ".";
-            }
-            else if (cost >= BlockedCost)
-            {
-                cell = " ";
-            }
-            else if (cost < 0x100)
-            {
-                cell = "o";
-            }
-
-            line += cell;
-        }
-
-        debugFile.WriteString(line + "\n");
-    }
-
-    debugFile.WriteString("\n");
-    debugFile.WriteString("PATH:\n");
-    debugFile.WriteString("-------\n");
-
-    for (int32_t r = 0; r < CellHeight; r++)
-    {
-        std::string line;
-
-        for (int32_t c = 0; c < CellWidth; c++)
-        {
-            const MCMoveMapNode& node = NodeAt(r, c);
-
-            if (GoalR == r && GoalC == c)
-            {
-                line += "G";
-            }
-            else if (StartR == r && StartC == c)
-            {
-                line += "S";
-            }
-            else if ((node.Flags & PathFlag) != 0)
-            {
-                line += "*";
-            }
-            else if (node.Cost == MoveLevel)
-            {
-                line += ".";
-            }
-            else if (node.Cost >= BlockedCost)
-            {
-                line += " ";
-            }
-            else
-            {
-                line += "o";
-            }
-        }
-
-        debugFile.WriteString(line + "\n");
-    }
-
-    debugFile.WriteString("\n");
 }

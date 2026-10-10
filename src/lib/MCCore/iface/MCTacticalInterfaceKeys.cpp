@@ -87,7 +87,7 @@ namespace
     /// <summary>Brings up the tactical map (out of its hidden slide) on <paramref name="page"/>.</summary>
     void ShowTacticalMapPage(MCTacmapPage page)
     {
-        TacticalMap()->HideMe(0);
+        TacticalMap()->HideMe(false);
         TacticalMap()->SetDisplayType(page);
     }
 
@@ -255,7 +255,7 @@ auto MCTacticalInterface::HandleKeyDown(MCGuiEvent* event) -> void
                 if (GuiSystem()->TextObject() != chatInput)
                 {
                     GuiSystem()->SetText(chatInput);
-                    FirstReturn = 1;
+                    FirstReturn = true;
                 }
             }
         }
@@ -335,8 +335,8 @@ auto MCTacticalInterface::HandleKeyDown(MCGuiEvent* event) -> void
                 {MCKeyCommand::AimRightLeg, MCInterfaceMode::AimRightLeg, true},
             };
 
-            const auto modeKey = std::ranges::find_if(modeKeys, [&](const MCModeKey& entry)
-                                                      { return is(entry.Key) && (!entry.Armed || AnySelected(true)); });
+            const auto* const modeKey = std::ranges::find_if(
+                modeKeys, [&](const MCModeKey& entry) { return is(entry.Key) && (!entry.Armed || AnySelected(true)); });
 
             if (modeKey != std::end(modeKeys))
             {
@@ -392,7 +392,7 @@ auto MCTacticalInterface::HandleKeyDown(MCGuiEvent* event) -> void
                     ClearMechSelection();
                     SelectLance(lance);
                     CommandParser->AddSubject(lance);
-                    SoundSystem()->PlayDigitalSample(0x30, 1, nullptr, 0, 0);
+                    SoundSystem()->PlayDigitalSample(0x30, 1, nullptr, false, false);
                 }
             }
             else if (lanceToAdd >= 0)
@@ -403,7 +403,7 @@ auto MCTacticalInterface::HandleKeyDown(MCGuiEvent* event) -> void
                 {
                     SelectLance(lance);
                     CommandParser->AddSubject(lance);
-                    SoundSystem()->PlayDigitalSample(0x30, 1, nullptr, 0, 0);
+                    SoundSystem()->PlayDigitalSample(0x30, 1, nullptr, false, false);
                 }
             }
             else if (is(MCKeyCommand::CameraFollow))
@@ -447,7 +447,7 @@ auto MCTacticalInterface::HandleKeyDown(MCGuiEvent* event) -> void
     if (GuiSystem()->CursorHidden != 0 &&
         GuiSystem()->CursorShape == static_cast<int32_t>(MCInterfaceCursor::LinkLance) && !IsLanceLink(CurrentMode))
     {
-        GuiSystem()->CursorHidden = 0;
+        GuiSystem()->CursorHidden = false;
     }
 }
 
@@ -507,7 +507,7 @@ auto MCTacticalInterface::HandleKeyUp(MCGuiEvent* event) -> void
     {
         SetMode(static_cast<MCInterfaceMode>(static_cast<int32_t>(MCInterfaceMode::LinkLance1) + lance));
         GuiSystem()->SetCurrentCursor(static_cast<MCCursorType>(MCInterfaceCursor::LinkLance));
-        GuiSystem()->CursorHidden = 1;
+        GuiSystem()->CursorHidden = true;
     }
 
     if (key == Key(MCKeyCommand::SelectVisible) && Scenario() != nullptr)

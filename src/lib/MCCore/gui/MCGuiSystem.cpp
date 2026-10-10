@@ -265,7 +265,7 @@ auto MCGuiSystem::Start(std::string_view commandLine, int16_t screenWidth, int16
     MakeScreen(width, height);
     GamePalette()->Activate();
     CountsPerSecond = MCPort::PerformanceFrequency();
-    UpdateDisplay(0, 0, 0, 0, 0);
+    UpdateDisplay(false, false, 0, false, 0);
     AUnlockScreen();
 
     TimerManager = std::make_unique<MCGuiTimerManager>();
@@ -354,7 +354,7 @@ auto MCGuiSystem::StartSmackerMovie(std::string_view fileName) -> int32_t
         return result;
     }
 
-    result = window->StartSmackerMovie(std::move(movie), 1);
+    result = window->StartSmackerMovie(std::move(movie), true);
 
     if (result != 0)
     {
@@ -401,7 +401,7 @@ auto MCGuiSystem::Run() -> void
         ScreenWindow()->Child(i)->Draw();
     }
 
-    UpdateDisplay(0, 0, 0, 0, 0);
+    UpdateDisplay(false, false, 0, false, 0);
     bool quit = false;
 
     do
@@ -432,7 +432,7 @@ auto MCGuiSystem::Run() -> void
                 noiseChance = Scenario()->StartUpCountdown;
             }
 
-            UpdateDisplay(TakeScreenShot, staticNoise, noiseChance, 0, 0);
+            UpdateDisplay(TakeScreenShot, staticNoise, noiseChance, false, 0);
             TakeScreenShot = false;
         }
         else if (!quit)
@@ -585,37 +585,37 @@ auto MCGuiSystem::ReleaseText() -> void
     }
 }
 
-auto MCGuiSystem::GrabbedObject() -> MCGuiObject*
+auto MCGuiSystem::GrabbedObject() const -> MCGuiObject*
 {
     return Grabbed;
 }
 
-auto MCGuiSystem::TextObject() -> MCGuiObject*
+auto MCGuiSystem::TextObject() const -> MCGuiObject*
 {
     return TextFocus;
 }
 
-auto MCGuiSystem::CurrentObject() -> MCGuiObject*
+auto MCGuiSystem::CurrentObject() const -> MCGuiObject*
 {
     return Current;
 }
 
 auto MCGuiSystem::AddTimer(MCGuiObject* target, int16_t id, int32_t interval, int32_t eventType, int32_t eventData,
-                           bool useScenarioTime) -> int32_t
+                           bool useScenarioTime) const -> int32_t
 {
     MCMouseThreadLock lock;
     return TimerManager->AddTimer(target, id, static_cast<uint32_t>(interval), eventType, eventData, useScenarioTime);
 }
 
 auto MCGuiSystem::AddUniqueTimer(MCGuiObject* target, int16_t id, int32_t interval, int32_t eventType,
-                                 int32_t eventData, bool useScenarioTime) -> int32_t
+                                 int32_t eventData, bool useScenarioTime) const -> int32_t
 {
     MCMouseThreadLock lock;
     return TimerManager->AddUniqueTimer(target, id, static_cast<uint32_t>(interval), eventType, eventData,
                                         useScenarioTime);
 }
 
-auto MCGuiSystem::RemoveTimer(MCGuiObject* target, int16_t id) -> void
+auto MCGuiSystem::RemoveTimer(MCGuiObject* target, int16_t id) const -> void
 {
     if (TimerManager != nullptr)
     {
@@ -624,7 +624,7 @@ auto MCGuiSystem::RemoveTimer(MCGuiObject* target, int16_t id) -> void
     }
 }
 
-auto MCGuiSystem::RemoveTimers(MCGuiObject* target) -> void
+auto MCGuiSystem::RemoveTimers(MCGuiObject* target) const -> void
 {
     if (TimerManager != nullptr)
     {

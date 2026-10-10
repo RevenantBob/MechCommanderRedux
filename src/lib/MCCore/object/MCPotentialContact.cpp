@@ -134,45 +134,6 @@ auto MCPotentialContactManager::Add(MCPotentialContactType type, MCBigGameObject
     return &contact;
 }
 
-auto MCPotentialContactManager::GetContactCounts(int32_t* counts, int32_t teamId, int enemiesOnly) -> int32_t
-{
-    // Per team, the lists to count: the enemy's first.
-    static constexpr std::array<std::array<MCPotentialContactType, 3>, 3> ListOrder = {{
-        {MCPotentialContactType::Clan, MCPotentialContactType::InnerSphere, MCPotentialContactType::Allied},
-        {MCPotentialContactType::InnerSphere, MCPotentialContactType::Clan, MCPotentialContactType::Allied},
-        {MCPotentialContactType::Clan, MCPotentialContactType::InnerSphere, MCPotentialContactType::Allied},
-    }};
-
-    counts[0] = 0;
-    counts[1] = 0;
-    counts[2] = 0;
-    const int32_t numLists = enemiesOnly ? 1 : 3;
-
-    for (int32_t list = 0; list < numLists; list++)
-    {
-        for (MCPotentialContact* contact : List(ListOrder[teamId][list]))
-        {
-            int tagged = 0;
-            const auto contactType = static_cast<MCContactStatus>(contact->Object->GetContactType(teamId, tagged));
-
-            if (tagged != 0)
-            {
-                counts[0]++;
-            }
-            else if (contactType == MCContactStatus::Sensor)
-            {
-                counts[2]++;
-            }
-            else if (contactType == MCContactStatus::Visual)
-            {
-                counts[1]++;
-            }
-        }
-    }
-
-    return 0;
-}
-
 auto MCPotentialContactManager::Remove(MCPotentialContact* contact) -> void
 {
     if (contact == nullptr)

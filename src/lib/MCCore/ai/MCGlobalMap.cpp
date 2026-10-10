@@ -345,16 +345,6 @@ auto MCGlobalMap::DoorSideLinks(int32_t door, int32_t side) -> std::span<MCDoorL
                                         static_cast<size_t>(info.NumLinks[static_cast<size_t>(side)] + 2));
 }
 
-auto MCGlobalMap::SetTempArea(int32_t tileR, int32_t tileC) -> int32_t
-{
-    MCGlobalMapArea& area = Areas[static_cast<size_t>(NumAreas)];
-    area.NumDoors = 0;
-    area.SectorR = static_cast<int16_t>(tileR / SectorDim);
-    area.SectorC = static_cast<int16_t>(tileC / SectorDim);
-    area.Open = 1;
-    return NumAreas;
-}
-
 auto MCGlobalMap::InFillSector(int32_t row, int32_t col) const -> bool
 {
     return row >= _MinTileR && row < _MaxTileR && col >= _MinTileC && col < _MaxTileC;
@@ -630,7 +620,7 @@ auto MCGlobalMap::CalcBridges(const MCScenarioMap& map) -> void
 }
 
 auto MCGlobalMap::AddDoor(std::vector<MCGlobalMapDoor>& buildList, int32_t area1, int32_t area2, int32_t row,
-                          int32_t col, int32_t cellR, int32_t cellC, int32_t length, int32_t direction) const -> void
+                          int32_t col, int32_t cellR, int32_t cellC, int32_t length, int32_t direction) -> void
 {
     for (const MCGlobalMapDoor& door : buildList)
     {
@@ -971,24 +961,7 @@ auto MCGlobalMap::CalcPathCostTable() -> void
     }
 }
 
-auto MCGlobalMap::ExitDirection(int32_t doorIndex, int32_t fromArea) const -> int32_t
-{
-    const MCGlobalMapDoor& door = Doors[static_cast<size_t>(doorIndex)];
-
-    if (door.Area[0] == fromArea)
-    {
-        return door.Direction[0];
-    }
-
-    if (door.Area[1] == fromArea)
-    {
-        return door.Direction[1];
-    }
-
-    return -1;
-}
-
-auto MCGlobalMap::GetDoorWorldPos(const int32_t* prevGoalCell) const -> MCVector3D
+auto MCGlobalMap::GetDoorWorldPos(const int32_t* prevGoalCell) -> MCVector3D
 {
     MCVector3D position = MapCellCentre(prevGoalCell[0], prevGoalCell[1]);
     position.Z = GameMap()->GetTerrainElevation(MCVector3D(position.X, position.Y, 0.0f));
@@ -1306,10 +1279,10 @@ auto MCGlobalMap::CalcPath(MCVector3D start, MCVector3D goal, std::span<MCGlobal
     const MCScenarioMap* map = GameMap();
     int32_t startR = 0;
     int32_t startC = 0;
-    map->WorldToMapTilePos(start, startR, startC);
+    MCScenarioMap::WorldToMapTilePos(start, startR, startC);
     int32_t goalR = 0;
     int32_t goalC = 0;
-    map->WorldToMapTilePos(goal, goalR, goalC);
+    MCScenarioMap::WorldToMapTilePos(goal, goalR, goalC);
     const int32_t goalArea = CalcArea(goalR, goalC);
     const int32_t startArea = CalcArea(startR, startC);
     return CalcPath(startArea, goalArea, path);
@@ -1323,11 +1296,6 @@ auto MCGlobalMap::GetPathCost(int32_t startArea, int32_t goalArea) const -> int3
     }
 
     return PathCostTable[static_cast<size_t>(NumAreas * startArea + goalArea)];
-}
-
-auto MCGlobalMap::OpenDoor(int32_t door) -> void
-{
-    Doors[static_cast<size_t>(door)].Open = 1;
 }
 
 auto MCGlobalMap::CloseDoor(int32_t door) -> void

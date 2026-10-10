@@ -169,20 +169,6 @@ auto MCTacticalOrder::SetWayPoint(int32_t index, MCVector3D wayPoint) -> void
     point[2] = wayPoint.Z;
 }
 
-auto MCTacticalOrder::AddWayPoint(MCVector3D wayPoint, int32_t run) -> void
-{
-    const int32_t index = MoveParams.WayPath.NumPoints;
-
-    if (index == MaxWayPoints)
-    {
-        Fatal(MaxWayPoints, " tacticalOrder.addWayPoint: too many! ");
-    }
-
-    SetWayPoint(index, wayPoint);
-    MoveParams.WayPath.Mode[index] = static_cast<uint8_t>(run);
-    MoveParams.WayPath.NumPoints++;
-}
-
 auto MCTacticalOrder::GetRamTarget() const -> MCGameObject*
 {
     return Code == MCTacticalOrderCode::AttackObject && AttackParams.Method == 2 ? Target : nullptr;
@@ -458,7 +444,7 @@ auto MCTacticalOrder::Unpack() -> void
         {
             AttackParams.TargetPoint =
                 MapCellToWorldPos(static_cast<int32_t>(cellRow), static_cast<int32_t>(targetBits & 0x3ff));
-            AttackParams.TargetPoint.Z = Terrain()->GetTerrainElevation(AttackParams.TargetPoint);
+            AttackParams.TargetPoint.Z = MCTerrain::GetTerrainElevation(AttackParams.TargetPoint);
             break;
         }
         default:
@@ -535,14 +521,14 @@ auto MCTacticalOrder::Execute(MCMechWarrior* pilot, int32_t& message) -> int32_t
     {
         if (vehicle->ObjectClass == MCObjectClass::GroundVehicle)
         {
-            static_cast<MCGroundVehicle*>(vehicle)->Refitting = 0;
+            static_cast<MCGroundVehicle*>(vehicle)->Refitting = false;
         }
 
         MCGameObject* buddy = vehicle->RefitBuddy;
 
         if (buddy->ObjectClass == MCObjectClass::GroundVehicle)
         {
-            static_cast<MCGroundVehicle*>(buddy)->Refitting = 0;
+            static_cast<MCGroundVehicle*>(buddy)->Refitting = false;
         }
 
         if (IsMoverClass(buddy->ObjectClass))
@@ -961,7 +947,7 @@ auto MCTacticalOrder::Execute(MCMechWarrior* pilot, int32_t& message) -> int32_t
 
     if (Code != MCTacticalOrderCode::Withdraw && static_cast<char>(pilot->Vehicle->Status) != 2)
     {
-        static_cast<MCMover*>(pilot->Vehicle)->Withdrawing = 0;
+        static_cast<MCMover*>(pilot->Vehicle)->Withdrawing = false;
     }
 
     return result;
@@ -1121,7 +1107,7 @@ auto MCTacticalOrder::Status(MCMechWarrior* pilot) -> bool
     }
 }
 
-auto MCTacticalOrder::CaptureStatus(MCMechWarrior* pilot) -> bool
+auto MCTacticalOrder::CaptureStatus(MCMechWarrior* pilot) const -> bool
 {
     if (Stage == StageDone)
     {
@@ -1290,7 +1276,7 @@ auto MCTacticalOrder::RefitStatus(MCMechWarrior* pilot) -> bool
         {
             // A round of repairs every RefitTime seconds, until the mech needs nothing more.
             MCGroundVehicle* truck = static_cast<MCGroundVehicle*>(refitter);
-            truck->Refitting = 1;
+            truck->Refitting = true;
 
             if (static_cast<double>(RefitTime) + Time < ScenarioTime)
             {
@@ -1321,7 +1307,7 @@ auto MCTacticalOrder::RefitStatus(MCMechWarrior* pilot) -> bool
 
         case 4:
         {
-            static_cast<MCGroundVehicle*>(refitter)->Refitting = 0;
+            static_cast<MCGroundVehicle*>(refitter)->Refitting = false;
             refitee->GetPilot()->OrderPowerUp(UnitOrder, MCOrderOrigin::Self);
             refitee->RefitBuddy = nullptr;
             refitter->RefitBuddy = nullptr;

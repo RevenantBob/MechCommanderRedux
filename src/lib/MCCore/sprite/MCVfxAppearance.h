@@ -39,7 +39,7 @@ public:
     virtual void SetDamageLvl(uint32_t damageLevel);
 
     /// <summary>The number of frames of <paramref name="state"/> (0 when the type hasn't it).</summary>
-    int32_t StateExists(MCActorState state);
+    int32_t StateExists(MCActorState state) const;
 
     /// <summary>The type.</summary>
     MCVfxAppearanceType* AppearType = nullptr;

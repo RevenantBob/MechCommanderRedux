@@ -86,7 +86,7 @@ namespace
 
         MCVector3D direction(vx, vy, vz);
         direction.Normalize();
-        double angle = AcosMatherr(static_cast<double>(reference | direction)) * RadiansToDegrees;
+        double angle = AcosMatherr(reference | direction) * RadiansToDegrees;
 
         if (0.0f <= vy * refX - refY * vx)
         {
@@ -118,16 +118,6 @@ MCSmoke::~MCSmoke()
 auto MCSmoke::StopSmoking() -> void
 {
     EndTime = MCPort::Milliseconds();
-}
-
-auto MCSmoke::StartSmoking() -> void
-{
-    JustStarted = true;
-
-    for (MCSmokeSphere& sphere : Spheres)
-    {
-        sphere.Active = false;
-    }
 }
 
 auto MCSmoke::IsVisible(size_t sphereIndex) -> bool
@@ -171,7 +161,7 @@ auto MCSmoke::IsVisible(size_t sphereIndex) -> bool
 
     const int32_t minXY = VfxShapeMinxy(shape, sphere.Frame);
     const int32_t resolution = VfxShapeResolution(shape, sphere.Frame);
-    const float scale = camera->CameraScale == 1 ? 0.5f : 1.0f;
+    const float scale = MCCamera::CameraScale == 1 ? 0.5f : 1.0f;
     const float left = scale * static_cast<float>(minXY >> 16) + sphere.ScreenX;
     const float top = scale * static_cast<float>(static_cast<int16_t>(minXY)) + sphere.ScreenY;
     const float right = scale * static_cast<float>(resolution >> 16) + left;
@@ -235,7 +225,7 @@ auto MCSmoke::Update() -> int32_t
 
         if (!sphere.OnGround && !smokeType->HasRotation)
         {
-            const float elevation = Terrain()->GetTerrainElevation(sphere.Position);
+            const float elevation = MCTerrain::GetTerrainElevation(sphere.Position);
 
             if (sphere.Position.Z < elevation)
             {
@@ -272,7 +262,7 @@ auto MCSmoke::Render() -> void
         return;
     }
 
-    ElementList()->OpenGroup(static_cast<int32_t>(static_cast<float>(DepthBias) - ScreenPos.Y), 1);
+    ElementList()->OpenGroup(static_cast<int32_t>(static_cast<float>(DepthBias) - ScreenPos.Y), true);
     const auto* smokeType = static_cast<MCSmokeType*>(ObjType);
     uint8_t* shape = smokeType->SmokeShape.Data();
 

@@ -574,26 +574,3 @@ auto MCAblRuntime::ExecReturn() -> void
     _ExitWithReturn = true;
     GetCodeToken();
 }
-
-auto MCAblRuntime::ExecOrderReturn(int32_t returnValue) -> void
-{
-    MCAblStackItem* framePtr = CurrentRoutineFrame();
-    framePtr->Integer = returnValue;
-    _ReturnValue = MCAblStackItem{};
-    _ReturnValue.Integer = returnValue;
-
-    if (_Debugger)
-    {
-        _Debugger->TraceDataStore(_Routine, _Routine->TypePtr, framePtr, _Routine->TypePtr);
-    }
-
-    _ExitWithReturn = true;
-
-    if (returnValue != 1)
-    {
-        // The code an order's return jumps to: the end of a routine.
-        static const MCAblToken exitOrderCode[] = {MCAblToken::EndFunction, MCAblToken::Semicolon, MCAblToken::None};
-        _Code = const_cast<char*>(reinterpret_cast<const char*>(exitOrderCode));
-        GetCodeToken();
-    }
-}

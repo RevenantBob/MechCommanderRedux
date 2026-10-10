@@ -214,9 +214,9 @@ auto MCTacticalInterface::Init() -> int32_t
     MechBar = MCMakeGui<MCMechBar>();
     MechBar->Init(0, 0, 1, 1, nullptr);
     MechBar->Resize(0x280, 0x3d);
-    MechBar->ShowGuiWindow(0);
+    MechBar->ShowGuiWindow(false);
     ScreenWindow()->AddChild(MechBar.get());
-    MechBar->MoveTo(0, GuiSystem()->Height() - MechBar->Height() - 1, 0);
+    MechBar->MoveTo(0, GuiSystem()->Height() - MechBar->Height() - 1, false);
     MechBar->SetDepth(0x4b);
 
     // iface.fit's parameters.
@@ -247,7 +247,7 @@ auto MCTacticalInterface::Init() -> int32_t
         tag->SetBackColor(0xf4);
         ScreenWindow()->AddChild(tag.get());
         tag->SetDepth(0x28);
-        tag->ShowGuiWindow(0);
+        tag->ShowGuiWindow(false);
     }
 
     // The default key bindings.
@@ -328,11 +328,11 @@ auto MCTacticalInterface::ZoomIn(float factor, bool sound) -> void
     {
         if (sound)
         {
-            SoundSystem()->PlayDigitalSample(0x44, 1, nullptr, 0, 0);
+            SoundSystem()->PlayDigitalSample(0x44, 1, nullptr, false, false);
         }
 
-        Eye->ForceUpdate = 1;
-        MCTerrain::ForceRedraw = 1;
+        Eye->ForceUpdate = true;
+        MCTerrain::ForceRedraw = true;
     }
 }
 
@@ -349,11 +349,11 @@ auto MCTacticalInterface::ZoomOut(float factor, bool sound) -> void
     {
         if (sound)
         {
-            SoundSystem()->PlayDigitalSample(0x45, 1, nullptr, 0, 0);
+            SoundSystem()->PlayDigitalSample(0x45, 1, nullptr, false, false);
         }
 
-        Eye->ForceUpdate = 1;
-        MCTerrain::ForceRedraw = 1;
+        Eye->ForceUpdate = true;
+        MCTerrain::ForceRedraw = true;
     }
 }
 
@@ -367,7 +367,7 @@ auto MCTacticalInterface::StartScenario() -> void
 
     if (MainHolder() != nullptr)
     {
-        MainHolder()->ShowGuiWindow(1);
+        MainHolder()->ShowGuiWindow(true);
     }
 
     if (_ScrollCallback == nullptr)
@@ -385,7 +385,7 @@ auto MCTacticalInterface::StartScenario() -> void
         ::TacticalMap()->SetID(first->PartId);
     }
 
-    MechBar->ShowGuiWindow(1);
+    MechBar->ShowGuiWindow(true);
     MechBar->InitLances();
     DragTarget = nullptr;
     ForcingOrder = false;
@@ -399,12 +399,12 @@ auto MCTacticalInterface::EndScenario() -> void
     _HighlightedObject = nullptr;
     CommandParser.reset();
     MechBar->CleanUp();
-    MechBar->ShowGuiWindow(0);
+    MechBar->ShowGuiWindow(false);
     HideTags();
 
     if (MainHolder() != nullptr)
     {
-        MainHolder()->ShowGuiWindow(0);
+        MainHolder()->ShowGuiWindow(false);
     }
 
     GuiSystem()->RemoveCallback(_ScrollCallback.get());
@@ -418,7 +418,7 @@ auto MCTacticalInterface::AddMech(int32_t partId, int32_t lance, bool active, bo
     icon->Init(0, 0, 0x34, 0x2e, nullptr);
     icon->SetID(partId);
     icon->Active = active;
-    icon->ShowGuiWindow(active ? 1 : 0);
+    icon->ShowGuiWindow(active);
 
     if (!onBar)
     {
@@ -437,12 +437,12 @@ auto MCTacticalInterface::AddMech(int32_t partId, int32_t lance, bool active, bo
     }
 }
 
-auto MCTacticalInterface::ActivateMech(int32_t partId) -> void
+auto MCTacticalInterface::ActivateMech(int32_t partId) const -> void
 {
     if (MCFriendlyMechIcon* icon = MechBar->GetButtonFromID(partId); icon != nullptr)
     {
         icon->Active = true;
-        icon->ShowGuiWindow(1);
+        icon->ShowGuiWindow(true);
         icon->SetID(icon->PartId);
         MechBar->PlaceButtons(true);
     }
@@ -502,7 +502,7 @@ auto MCTacticalInterface::RemoveMech(int32_t partId) -> void
     }
 }
 
-auto MCTacticalInterface::UpdateInterface() -> void
+auto MCTacticalInterface::UpdateInterface() const -> void
 {
     MechBar->Draw();
 }
@@ -510,7 +510,7 @@ auto MCTacticalInterface::UpdateInterface() -> void
 auto MCTacticalInterface::CallStrike(int32_t strikeType, MCVector3D* position, MCGameObject* target, bool forCommander,
                                      bool forClans, float delay) -> void
 {
-    const auto entry = std::ranges::find(StrikeTypes, strikeType, &MCStrikeTypeEntry::ObjectType);
+    const auto* const entry = std::ranges::find(StrikeTypes, strikeType, &MCStrikeTypeEntry::ObjectType);
 
     if (entry == std::end(StrikeTypes))
     {
@@ -558,7 +558,7 @@ auto MCTacticalInterface::CallStrike(int32_t strikeType, MCVector3D* position, M
 
     if (needsSight && team->LineOfSight(location) == 0)
     {
-        SoundSystem()->PlayDigitalSample(0x33, 1, nullptr, 0, 0);
+        SoundSystem()->PlayDigitalSample(0x33, 1, nullptr, false, false);
         return;
     }
 
@@ -577,11 +577,11 @@ auto MCTacticalInterface::HideTags() -> void
 {
     for (const MCGuiOwned<MCFloatHelp>& tag : FloatingTags)
     {
-        tag->ShowGuiWindow(0);
+        tag->ShowGuiWindow(false);
     }
 }
 
-auto MCTacticalInterface::SetUnit(int32_t groupId, std::span<MCMover*> movers, int32_t pointIndex) -> void
+auto MCTacticalInterface::SetUnit(int32_t groupId, std::span<MCMover*> movers, int32_t pointIndex) const -> void
 {
     const auto numMovers = static_cast<int32_t>(movers.size());
     HomeCommander()->SetGroup(groupId, numMovers, movers.data(), pointIndex);
@@ -619,7 +619,7 @@ auto MCTacticalInterface::SetUnit(int32_t groupId, std::span<MCMover*> movers, i
     }
 }
 
-auto MCTacticalInterface::SetPoint(int32_t partId, bool isPoint) -> void
+auto MCTacticalInterface::SetPoint(int32_t partId, bool isPoint) const -> void
 {
     if (MCFriendlyMechIcon* button = MechBar->GetButtonFromID(partId); button != nullptr)
     {
@@ -654,7 +654,7 @@ auto MCTacticalInterface::TagMover(MCFloatHelp& tag, MCGameObject& mover) -> voi
     tag.SetHelpText(text.data());
 }
 
-auto MCTacticalInterface::CheatHealAll() -> void
+auto MCTacticalInterface::CheatHealAll() const -> void
 {
     ForEachLiveBarMover(*MechBar,
                         [](MCMover& mover)
@@ -693,7 +693,7 @@ auto MCTacticalInterface::CheatHealAll() -> void
                         });
 }
 
-auto MCTacticalInterface::CheatDeadEye() -> void
+auto MCTacticalInterface::CheatDeadEye() const -> void
 {
     ForEachLiveBarMover(*MechBar,
                         [](MCMover& mover)

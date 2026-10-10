@@ -108,7 +108,7 @@ auto MCArmAppearance::Render(int32_t depthFixup) -> int32_t
         fadeTable = GamePalette()->GetFadeTable(FadeTableIndex);
     }
 
-    ElementList()->OpenGroup(static_cast<int32_t>(static_cast<float>(depthFixup) - ScreenPos.Y), 1);
+    ElementList()->OpenGroup(static_cast<int32_t>(static_cast<float>(depthFixup) - ScreenPos.Y), true);
 
     if (CurrentShape == nullptr || CurrentShape->FrameList == nullptr)
     {

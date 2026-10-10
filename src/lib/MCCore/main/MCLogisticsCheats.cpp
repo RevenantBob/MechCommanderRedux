@@ -142,8 +142,8 @@ auto MCLogistics::ProcessCheatCode(int16_t key) -> void
             MCLogInvScreen* screen = CurrentScreen == RepairScreen.get()
                                          ? static_cast<MCLogInvScreen*>(RepairScreen.get())
                                          : PurchaseScreen.get();
-            screen->CreateCompInvBlock();
-            screen->SetUpCompInv(1, 1);
+            MCLogInvScreen::CreateCompInvBlock();
+            screen->SetUpCompInv(true, true);
             break;
         }
         case MCLogCheat::MillionPoints:

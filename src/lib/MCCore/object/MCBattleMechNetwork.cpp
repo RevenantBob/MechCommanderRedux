@@ -239,13 +239,13 @@ auto MCBattleMech::NetUpdateMovement() -> void
 
     if (path->NumStepsWhenNotPaused > 0 && bodyState == 0)
     {
-        StartUpThisFrame = 1;
+        StartUpThisFrame = true;
     }
 
     if (path->NumSteps - 1 <= path->CurStep && distance < MoveMarginOfError[1])
     {
         // At the end of the path: take up the body state the server sent.
-        StartUpThisFrame = 0;
+        StartUpThisFrame = false;
         int32_t gesture = -1;
 
         switch (StatusChunk.BodyState)
@@ -256,7 +256,7 @@ auto MCBattleMech::NetUpdateMovement() -> void
                 {
                     if (bodyState == 0)
                     {
-                        SoundSystem()->PlayDigitalSample(0x3d, 1, this, 0, 0);
+                        SoundSystem()->PlayDigitalSample(0x3d, 1, this, false, false);
                     }
 
                     gesture = 1;
@@ -267,7 +267,7 @@ auto MCBattleMech::NetUpdateMovement() -> void
             {
                 if (bodyState != 0)
                 {
-                    SoundSystem()->PlayDigitalSample(0x3c, 1, this, 0, 0);
+                    SoundSystem()->PlayDigitalSample(0x3c, 1, this, false, false);
                     gesture = 0;
                 }
                 break;
@@ -316,11 +316,11 @@ auto MCBattleMech::NetUpdateMovement() -> void
 
         if (Appearance->SetGestureGoal(gesture) == 0)
         {
-            DisableThisFrame = 0;
-            ShutDownThisFrame = 0;
-            StartUpThisFrame = 0;
-            HitFromFrontThisFrame = 0;
-            HitFromBehindThisFrame = 0;
+            DisableThisFrame = false;
+            ShutDownThisFrame = false;
+            StartUpThisFrame = false;
+            HitFromFrontThisFrame = false;
+            HitFromBehindThisFrame = false;
         }
 
         controlData->Throttle = static_cast<int8_t>(maxThrottle);
@@ -333,8 +333,8 @@ auto MCBattleMech::NetUpdateMovement() -> void
 
         if (result == 0 || result == -0x1521ffff)
         {
-            ShutDownThisFrame = 0;
-            StartUpThisFrame = 0;
+            ShutDownThisFrame = false;
+            StartUpThisFrame = false;
 
             if (result == -0x1521ffff)
             {
@@ -352,8 +352,8 @@ auto MCBattleMech::NetUpdateMovement() -> void
 
         if (result == 0 || result == -0x1521ffff)
         {
-            StartUpThisFrame = 0;
-            ShutDownThisFrame = 0;
+            StartUpThisFrame = false;
+            ShutDownThisFrame = false;
 
             if (result == -0x1521ffff)
             {
@@ -688,7 +688,7 @@ auto MCBattleMech::HandleMoveChunk(uint32_t chunk) -> int32_t
             path->CurStep = step;
         }
 
-        NewMoveChunk = 1;
+        NewMoveChunk = true;
     }
 
     return 0;

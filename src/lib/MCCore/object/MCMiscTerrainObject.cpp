@@ -28,7 +28,7 @@ namespace
         int32_t cellC = 0;
         tileR = 0;
         tileC = 0;
-        GameMap()->WorldToMapPos(object.Position, tileR, tileC, cellR, cellC);
+        MCScenarioMap::WorldToMapPos(object.Position, tileR, tileC, cellR, cellC);
         return GameMap()->Map[GameMap()->Width * tileR + tileC];
     }
 
@@ -172,10 +172,10 @@ auto MCMiscTerrainObject::HandleEvent(MCObjectEvent* event) -> int32_t
     return 0;
 }
 
-auto MCMiscTerrainObject::GetScreenPos() -> MCVector2D
+auto MCMiscTerrainObject::GetScreenPos() const -> MCVector2D
 {
     MCVector2D screenPos;
-    Eye->VertexProject(BlockNumber, VertexNumber, screenPos);
+    MCCamera::VertexProject(BlockNumber, VertexNumber, screenPos);
     return screenPos;
 }
 
@@ -204,7 +204,7 @@ auto MCMiscTerrainObject::Render() -> void
 
     MCVector2D screenPos;
 
-    if (Eye->VertexProject(BlockNumber, VertexNumber, screenPos) == 0 || IsRevealed() == 0)
+    if (MCCamera::VertexProject(BlockNumber, VertexNumber, screenPos) == 0 || IsRevealed() == 0)
     {
         return;
     }
@@ -253,7 +253,7 @@ auto MCMiscTerrainObject::Render() -> void
     int32_t frame = edge * 2;
     int32_t depthOffset = 0x3a;
 
-    if (Eye->CameraScale == 1)
+    if (MCCamera::CameraScale == 1)
     {
         frame++;
         depthOffset = 0x1d;
@@ -265,7 +265,7 @@ auto MCMiscTerrainObject::Render() -> void
         }
     }
 
-    ElementList()->OpenGroup(static_cast<int32_t>(-screenPos.Y - static_cast<float>(depthOffset)), 1);
+    ElementList()->OpenGroup(static_cast<int32_t>(-screenPos.Y - static_cast<float>(depthOffset)), true);
     uint8_t* edgeShapes = static_cast<MCMiscTerrainObjectType*>(ObjType)->ForestEdgeShapes.Data();
     ElementList()->Add(
         ElementList()->Make<MCVfxElement>(edgeShapes, screenPos.X, screenPos.Y, frame, 0, hazePalette, 1));
@@ -277,7 +277,7 @@ auto MCMiscTerrainObject::DrawBars(MCVector2D screenPos) -> void
     // Port: an overlay, on the screen over the view: it follows the object through the zoom, its size doesn't change.
     screenPos = MCOverlayPoint(screenPos);
     MCPolyElementData data;
-    const float scale = Eye->CameraScale != 1 ? 1.0f : 0.5f;
+    const float scale = MCCamera::CameraScale != 1 ? 1.0f : 0.5f;
     const float barWidth = scale * 38.0f;
     const float barHeight = scale * 4.0f;
     const float top = (screenPos.Y - scale * 6.0f) - barHeight;
@@ -310,15 +310,15 @@ auto MCMiscTerrainObject::DrawBars(MCVector2D screenPos) -> void
         barLength = 1.0f;
     }
 
-    ElementList()->OpenGroup(-50000, 1);
+    ElementList()->OpenGroup(-50000, true);
     data.NumVertices = 0;
-    data.TextureMapOff = 0;
+    data.TextureMapOff = false;
     data.Texture = nullptr;
     data.TextureWidth = 0;
     data.TextureHeight = 0;
     data.FadeTable = nullptr;
-    data.Translate = 0;
-    data.StatusBar = 1;
+    data.Translate = false;
+    data.StatusBar = true;
     data.BarColor = barColor;
     data.Vertices[0].X = static_cast<int16_t>(static_cast<int32_t>(std::floor(static_cast<double>(left - 1.0f))));
     data.Vertices[0].Y = static_cast<int16_t>(static_cast<int32_t>(std::floor(static_cast<double>(top - 1.0f))));
@@ -354,7 +354,7 @@ auto MCMiscTerrainObject::SetDamage(float newDamage) -> void
         }
 
         Terrain()->SetOverlayTile(BlockNumber, VertexNumber, 0xf);
-        MCTerrain::ForceRedraw = 1;
+        MCTerrain::ForceRedraw = true;
         OverlayDestroyed = true;
         Destroyed = true;
         Status = 2;
@@ -403,7 +403,7 @@ auto MCMiscTerrainObject::SetDamage(float newDamage) -> void
 
         const int32_t overlayTile = Terrain()->GetOverlayTile(BlockNumber, VertexNumber);
         Terrain()->SetOverlayTile(BlockNumber, VertexNumber, overlayTile < 0xd0a || 0xd0d < overlayTile ? 8 : 4);
-        MCTerrain::ForceRedraw = 1;
+        MCTerrain::ForceRedraw = true;
         OverlayDestroyed = true;
         Destroyed = true;
         Status = 2;
@@ -423,7 +423,7 @@ auto MCMiscTerrainObject::SetDamage(float newDamage) -> void
 
         Terrain()->GetOverlayTile(BlockNumber, VertexNumber);
         Terrain()->SetOverlayTile(BlockNumber, VertexNumber, 0x13);
-        MCTerrain::ForceRedraw = 1;
+        MCTerrain::ForceRedraw = true;
         OverlayDestroyed = true;
         Destroyed = true;
         Status = 2;
@@ -576,7 +576,7 @@ auto MCMiscTerrainObject::HandleWeaponHit(MCWeaponShotInfo* shotInfo, int addMul
             {
                 ObjType->CreateExplosion(Position, 0.0f, 0.0f);
                 Status = 2;
-                SoundSystem()->PlayDigitalSample(0x48, 1, this, 0, 0);
+                SoundSystem()->PlayDigitalSample(0x48, 1, this, false, false);
             }
 
             break;

@@ -361,7 +361,7 @@ auto MCLogistics::SetUpPurchasing(MCPacketFile& file) -> void
     purchasing.Close();
 }
 
-auto MCLogistics::SetUpOldPurchasing(std::string_view purchaseFile) -> void
+auto MCLogistics::SetUpOldPurchasing(std::string_view purchaseFile) const -> void
 {
     MCFitIniFile purchasing;
     OpenPurchaseFile(purchasing, purchaseFile, " could not open mission purchasing file ");

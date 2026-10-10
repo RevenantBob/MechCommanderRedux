@@ -37,18 +37,18 @@ public:
     /// Whether two objects touch: two movers (classes below explosions) by sharing a terrain vertex and cell, anything
     /// else by distance against their extents; touching pairs get <see cref="CheckExtents"/>.
     /// </summary>
-    void DetectCollision(MCGameObject* obj1, MCGameObject* obj2);
+    static void DetectCollision(MCGameObject* obj1, MCGameObject* obj2);
     /// <summary>An object against a static one (a mover passes those its own cell lets it through).</summary>
-    void DetectStaticCollision(MCGameObject* obj1, MCGameObject* obj2);
+    static void DetectStaticCollision(MCGameObject* obj1, MCGameObject* obj2);
     /// <summary>
     /// <paramref name="object"/> against every object with a type in terrain block <paramref name="blockNumber"/>'s
     /// two lists (its trees and light walls, then the rest), as fires, explosions and artillery check the blocks
     /// around them.
     /// </summary>
-    void DetectBlockCollisions(MCGameObject* object, int32_t blockNumber);
+    static void DetectBlockCollisions(MCGameObject* object, int32_t blockNumber);
     /// <summary>Calls both objects' types' collision handlers; an object whose destruction handler asks is removed and
     /// deleted.</summary>
-    void CheckExtents(MCGameObject* obj1, MCGameObject* obj2);
+    static void CheckExtents(MCGameObject* obj1, MCGameObject* obj2);
     /// <summary>A grid cell's size in world units (FIT "GridRadius").</summary>
     uint32_t GridRadius() const { return Grid.CellSize(); }
 

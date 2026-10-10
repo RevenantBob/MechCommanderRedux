@@ -196,7 +196,7 @@ auto MCGuiSmackerWindow::Draw() -> void
     }
 }
 
-auto MCGuiSmackerWindow::NextFrame() -> bool
+auto MCGuiSmackerWindow::NextFrame() const -> bool
 {
     MCSmackerPlayer* player = Movie->Player.get();
     // Port: SmackToBufferRect (collecting the changed rectangle) has no use here; the whole frame is copied.

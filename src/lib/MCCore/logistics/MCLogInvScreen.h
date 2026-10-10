@@ -88,22 +88,22 @@ public:
     /// Sets up the store's tabs (mechs, vehicles, components) unless <paramref name="pilotsOnly"/>, and the pilots
     /// for hire (always rebuilt).
     /// </summary>
-    void CreatePurVehiclePane(bool pilotsOnly);
+    static void CreatePurVehiclePane(bool pilotsOnly);
 
     /// <summary>Makes the mech tab's view and numbers its blocks.</summary>
-    void CreateMechInvBlock();
+    static void CreateMechInvBlock();
 
     /// <summary>Makes the vehicle tab's view and numbers its blocks.</summary>
-    void CreateVhclInvBlock();
+    static void CreateVhclInvBlock();
 
     /// <summary>Makes the pilot tab's view and numbers its blocks.</summary>
-    void CreatePilotInvBlock();
+    void CreatePilotInvBlock() const;
 
     /// <summary>Makes the component tab's view (after re-indexing the inventory).</summary>
-    void CreateCompInvBlock();
+    static void CreateCompInvBlock();
 
     /// <summary>Clears the info box under the inventory for tab <paramref name="tab"/> (negative = the current one).</summary>
-    void DrawBlankInvInfoBlock(int32_t tab);
+    static void DrawBlankInvInfoBlock(int32_t tab);
 
     /// <summary>
     /// Shows the mech tab: puts the mech blocks in the inventory panes (<paramref name="resetScroll"/> scrolls them
@@ -112,7 +112,7 @@ public:
     void SetUpMechInv(bool resetScroll, bool redrawTabs);
 
     /// <summary>Shows the mechs for sale in the store (on the purchase screen only).</summary>
-    void SetUpMechPurchase();
+    void SetUpMechPurchase() const;
 
     /// <summary>Shows the pilot tab (the assigned pilots, last in the list, aren't shown).</summary>
     void SetUpPilotInv(bool resetScroll, bool redrawTabs);
@@ -124,19 +124,19 @@ public:
     void SetUpVhclInv(bool resetScroll, bool redrawTabs);
 
     /// <summary>Shows the vehicles for sale in the store.</summary>
-    void SetUpVehiclePurchase();
+    void SetUpVehiclePurchase() const;
 
     /// <summary>Shows the pilots for hire in the store.</summary>
-    void SetUpPilotPurchase();
+    void SetUpPilotPurchase() const;
 
     /// <summary>Numbers the store's component blocks by their sort order.</summary>
-    void ReIndexComponents();
+    static void ReIndexComponents();
 
     /// <summary>Shows the components for sale in the store.</summary>
-    void SetUpCompPurchase();
+    void SetUpCompPurchase() const;
 
     /// <summary>Takes the pilot of row <paramref name="pilotIndex"/> out of the store: the rows below move up.</summary>
-    void RemovePilot(int32_t pilotIndex);
+    static void RemovePilot(int32_t pilotIndex);
 
     /// <summary>
     /// Port: draws the screen: its background art, the info box and column header (<see cref="Info"/>), then the

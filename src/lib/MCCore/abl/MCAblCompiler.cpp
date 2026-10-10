@@ -115,7 +115,7 @@ auto MCAblCompiler::IfTokenGetElseError(MCAblToken token, MCAblSyntaxError error
     NextToken();
 }
 
-auto MCAblCompiler::Synchronize(MCAblTokenList tokens1, MCAblTokenList tokens2, MCAblTokenList tokens3) -> void
+auto MCAblCompiler::Synchronize(MCAblTokenList tokens1, MCAblTokenList tokens2, MCAblTokenList tokens3) const -> void
 {
     if (!TokenIn(tokens1) && !TokenIn(tokens2) && !TokenIn(tokens3))
     {

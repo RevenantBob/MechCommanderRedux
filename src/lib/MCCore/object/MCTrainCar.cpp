@@ -117,7 +117,7 @@ auto MCTrainCar::HandleStaticCollision() -> void
 
         if (vertexNumber == otherVertex)
         {
-            CollisionSystem()->DetectStaticCollision(this, other);
+            MCCollisionSystem::DetectStaticCollision(this, other);
         }
     }
 }
@@ -227,7 +227,7 @@ auto MCTrainCar::Update() -> int32_t
         int32_t tileC = 0;
         int32_t cellR = 0;
         int32_t cellC = 0;
-        GameMap()->WorldToMapPos(GetPosition(), tileR, tileC, cellR, cellC);
+        MCScenarioMap::WorldToMapPos(GetPosition(), tileR, tileC, cellR, cellC);
         OnMap = !(tileR < 0 || GameMap()->Height <= tileR || tileC < 0 || GameMap()->Width <= tileC);
 
         if (OnMap)
@@ -259,7 +259,7 @@ auto MCTrainCar::Update() -> int32_t
 
     if (Appearance != nullptr)
     {
-        Appearance->Visible = visibleNow ? 1 : 0;
+        Appearance->Visible = visibleNow;
 
         if (IsDestroyed() != 0)
         {
@@ -282,7 +282,7 @@ auto MCTrainCar::Render() -> void
     {
         if (Appearance != nullptr)
         {
-            Appearance->Visible = OnScreen() != 0 && OnMap ? 1 : 0;
+            Appearance->Visible = OnScreen() != 0 && OnMap;
             Appearance->Update();
         }
 
@@ -297,13 +297,13 @@ auto MCTrainCar::Render() -> void
                 {
                     if (SoundSystem() != nullptr)
                     {
-                        SoundSystem()->PlayDigitalSample(0x14, 1, this, 0, 1);
+                        SoundSystem()->PlayDigitalSample(0x14, 1, this, false, true);
                     }
 
                     BlipFrame = 0;
                 }
 
-                ElementList()->OpenGroup(-100000, 1);
+                ElementList()->OpenGroup(-100000, true);
                 ElementList()->Add(
                     ElementList()->Make<MCVfxElement>(shape, ScreenPos.X, ScreenPos.Y, BlipFrame, 0, nullptr, 0));
                 BlipFrame++;
@@ -481,7 +481,7 @@ auto MCTrainCar::MineCheck() -> void
     int32_t tileC = 0;
     int32_t cellR = 0;
     int32_t cellC = 0;
-    GameMap()->WorldToMapPos(GetPosition(), tileR, tileC, cellR, cellC);
+    MCScenarioMap::WorldToMapPos(GetPosition(), tileR, tileC, cellR, cellC);
     // Each side's mines only go off under the other side.
     const uint32_t mine = Alignment == -1 || Alignment == 0 ? GameMap()->GetInnerSphereMine(tileR, tileC, cellR, cellC)
                                                             : GameMap()->GetClanMine(tileR, tileC, cellR, cellC);
@@ -647,7 +647,7 @@ auto MCTrainCar::RelativePosition(float angle, float distance, uint32_t flags) -
         int32_t tileC;
         int32_t cellR;
         int32_t cellC;
-        GameMap()->WorldToMapPos(point, tileR, tileC, cellR, cellC);
+        MCScenarioMap::WorldToMapPos(point, tileR, tileC, cellR, cellC);
 
         // Port fix: the walk can leave the map, where the original reads outside it. Off the map is impassable.
         if (!GameMap()->OnMap(tileR, tileC))

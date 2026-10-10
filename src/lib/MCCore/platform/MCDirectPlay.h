@@ -271,8 +271,8 @@ public:
                                           uint32_t* size);
 
     /// <summary>Lists the connections (TCP/IP and IPX) with their connection data.</summary>
-    uint32_t EnumConnections(const _GUID* application, MCEnumConnectionsCallback callback, void* context,
-                             uint32_t flags);
+    static uint32_t EnumConnections(const _GUID* application, MCEnumConnectionsCallback callback, void* context,
+                                    uint32_t flags);
 
     /// <summary>Selects the connection described by <paramref name="connection"/> (from EnumConnections or CreateCompoundAddress).</summary>
     /// <returns>DP_OK, DPERR_ALREADYINITIALIZED, or DPERR_UNSUPPORTED for a modem or serial connection.</returns>

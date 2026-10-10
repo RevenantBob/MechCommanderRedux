@@ -79,7 +79,7 @@ public:
     /// Loads the description of <paramref name="item"/>, or of the item at <paramref name="index"/> when it is null,
     /// from the object description file (once).
     /// </summary>
-    void LoadDescription(int32_t index, MCLogInventoryItem* item);
+    void LoadDescription(int32_t index, MCLogInventoryItem* item) const;
 
     /// <summary>Makes a copy record numbered with the next <see cref="NextStatID"/>.</summary>
     std::unique_ptr<MCLogInventoryStat> CreateStat(uint8_t itemNum, uint8_t hits, uint8_t facing, int16_t amount,

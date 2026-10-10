@@ -141,7 +141,7 @@ auto MCScenario::Load(std::string_view scenarioName, std::string_view terrainNam
     ScenarioObjectList = std::make_unique<MCObjectQueue>();
     CreatedParts.clear();
 
-    UpdateDisplay(0, 1, 100, 1, 0);
+    UpdateDisplay(false, true, 100, true, 0);
     SoundSystem()->PlayStaticNoise();
     const auto [maxFiresBurning, maxFireBurnTime] = LoadGameSystem();
 
@@ -223,13 +223,13 @@ auto MCScenario::Load(std::string_view scenarioName, std::string_view terrainNam
     MissionStartTime = 0;
     RunningTime = 0.0f;
     ActualTime = 0.0f;
-    UpdateDisplay(0, 1, 30, 1, 100);
+    UpdateDisplay(false, true, 30, true, 100);
 
     Eye = CameraList()->ActivateAllReady();
 
     if (MultiPlayer() != nullptr)
     {
-        Eye->ChangeTarget(MultiPlayer()->LocalMovers[0], 1);
+        Eye->ChangeTarget(MultiPlayer()->LocalMovers[0], true);
     }
 
     // The 'Mechs start with the damage their loadouts carried over.
@@ -300,7 +300,7 @@ auto MCScenario::LoadGameSystem() -> std::pair<int32_t, float>
         Fatal(std::to_underlying(table.error()), " Could not find Visual Range Table ");
     }
 
-    UpdateDisplay(0, 1, 30, 1, 2);
+    UpdateDisplay(false, true, 30, true, 2);
 
     if (MasterComponentList.empty())
     {
@@ -348,7 +348,7 @@ auto MCScenario::LoadGameSystem() -> std::pair<int32_t, float>
         RequireFit<int32_t>(file, "MaxFiresBurning", " COuld not find max fires burning in gameSys ");
     const auto maxFireBurnTime =
         RequireFit<float>(file, "MaxFireBurnTime", " COuld not find max fire burn time in gameSys ");
-    UpdateDisplay(0, 1, 30, 1, 5);
+    UpdateDisplay(false, true, 30, true, 5);
     return {maxFiresBurning, maxFireBurnTime};
 }
 
@@ -369,7 +369,7 @@ auto MCScenario::LoadPalette(MCFitIniFile& file) -> void
     OldPalette = MCGameContext::Current().SetPalette(std::move(*palette));
     InitAlphaLookup(GamePalette()->Colors());
     GuiSystem()->ActivatePalette(GamePalette()->RgbData.data(), 10, 0xf6);
-    UpdateDisplay(0, 1, 20, 1, 7);
+    UpdateDisplay(false, true, 20, true, 7);
 }
 
 auto MCScenario::LoadForces(MCFitIniFile& file) -> void
@@ -379,7 +379,7 @@ auto MCScenario::LoadForces(MCFitIniFile& file) -> void
 
     // The clan, allied (when the scenario has one) and Inner Sphere teams.
     MCGameContext::Current().SetForces(std::make_unique<MCForces>(haveAlliedTeam));
-    UpdateDisplay(0, 1, 30, 1, 10);
+    UpdateDisplay(false, true, 30, true, 10);
 
     RequireFitBlock(file, "Artillery", " could not find Artillery block in Scenario File ");
     const int32_t largeStrikes = OptionalFit<int32_t>(file, "NumLargeStrikes", 0);
@@ -422,7 +422,7 @@ auto MCScenario::LoadForces(MCFitIniFile& file) -> void
         forces->PlayerCommander = CommanderById(MultiPlayer()->CheckInId);
     }
 
-    UpdateDisplay(0, 1, 30, 1, 13);
+    UpdateDisplay(false, true, 30, true, 13);
 }
 
 auto MCScenario::LoadSettings(MCFitIniFile& file) -> void
@@ -454,7 +454,7 @@ auto MCScenario::LoadSettings(MCFitIniFile& file) -> void
     // The frame's draw list. The ElementSystem block's ElementHeapSize, MaxElements and MaxGroups sized the original's;
     // the port's grows.
     MCGameContext::Current().SetElementList(std::make_unique<MCElementBuffer>());
-    UpdateDisplay(0, 1, 30, 1, 15);
+    UpdateDisplay(false, true, 30, true, 15);
 }
 
 auto MCScenario::LoadSensorContactShapes(MCFitIniFile& file) -> void
@@ -518,7 +518,7 @@ auto MCScenario::LoadSystems(MCFitIniFile& file, int32_t maxFiresBurning, float 
         Fatal(0, std::format(" could start CameraSystem: {} ", cameras.error()));
     }
 
-    UpdateDisplay(0, 1, 30, 1, 20);
+    UpdateDisplay(false, true, 30, true, 20);
 
     // The type and object heap sizes and NumObjects (the watchers' count, which the original ignored too) are
     // required, then ignored.
@@ -577,7 +577,7 @@ auto MCScenario::LoadSystems(MCFitIniFile& file, int32_t maxFiresBurning, float 
     }
 
     MCGameContext::Current().SetContactSystem(std::move(*contacts));
-    UpdateDisplay(0, 1, 20, 1, 25);
+    UpdateDisplay(false, true, 20, true, 25);
 
     std::expected<std::unique_ptr<MCEffectSystem>, MCFitError> effects =
         MCEffectSystem::Create(file, maxFiresBurning, maxFireBurnTime);
@@ -588,7 +588,7 @@ auto MCScenario::LoadSystems(MCFitIniFile& file, int32_t maxFiresBurning, float 
     }
 
     MCGameContext::Current().SetEffectSystem(std::move(*effects));
-    UpdateDisplay(0, 1, 30, 1, 35);
+    UpdateDisplay(false, true, 30, true, 35);
 
     std::expected<std::unique_ptr<MCCollisionSystem>, std::string> collisions = MCCollisionSystem::Create(file);
 
@@ -598,7 +598,7 @@ auto MCScenario::LoadSystems(MCFitIniFile& file, int32_t maxFiresBurning, float 
     }
 
     MCGameContext::Current().SetCollisionSystem(std::move(*collisions));
-    UpdateDisplay(0, 1, 30, 1, 37);
+    UpdateDisplay(false, true, 30, true, 37);
     return 0;
 }
 
@@ -610,7 +610,7 @@ auto MCScenario::LoadTerrain(MCFitIniFile& file, std::string_view terrainName) -
         const auto terrainFileName =
             RequireFit<std::string>(file, "TerrainFileName", " could not find TerrainFileName in TerrainSystem block ");
         InstallTerrain(terrainFileName);
-        UpdateDisplay(0, 1, 30, 1, 50);
+        UpdateDisplay(false, true, 30, true, 50);
 
         // The movement maps: the terrain's .dat (the scenario map) and .gmm (the global map).
         MCFile mapFile;
@@ -628,10 +628,10 @@ auto MCScenario::LoadTerrain(MCFitIniFile& file, std::string_view terrainName) -
         }
 
         MCGameContext::Current().SetMoveSystem(MCMoveSystem::Load(mapFile, globalMapFile, SimpleMovePathRange * 2 + 1));
-        UpdateDisplay(0, 1, 30, 1, 60);
-        UpdateDisplay(0, 1, 30, 1, 65);
+        UpdateDisplay(false, true, 30, true, 60);
+        UpdateDisplay(false, true, 30, true, 65);
         Terrain()->UpdateAllObjects();
-        UpdateDisplay(0, 1, 30, 1, 70);
+        UpdateDisplay(false, true, 30, true, 70);
     }
     else
     {
@@ -666,7 +666,7 @@ auto MCScenario::LoadScript(MCFitIniFile& file) -> void
         }
     }
 
-    UpdateDisplay(0, 1, 30, 1, 73);
+    UpdateDisplay(false, true, 30, true, 73);
 
     RequireFitBlock(file, "Script", " could not find Script Block ");
     ScenarioScript = RequireFit<std::string>(file, "ScenarioScript", " could not find ScenarioScript in Script Block ");
@@ -679,7 +679,7 @@ auto MCScenario::LoadScript(MCFitIniFile& file) -> void
     }
 
     WindowTitle = windowTitle;
-    UpdateDisplay(0, 1, 30, 1, 75);
+    UpdateDisplay(false, true, 30, true, 75);
 
     ScenarioScriptHandle = AblPreProcess(GamePath(MissionPath, ScenarioScript, ".abl"));
     Assert(-1 < ScenarioScriptHandle, static_cast<uint32_t>(ScenarioScriptHandle), " Bad Scenario Script ");
@@ -705,7 +705,7 @@ auto MCScenario::LoadWarriors(MCFitIniFile& file) -> void
     const MCFitResult<std::string> brainParameterFile = file.Read<std::string>("BrainParameterFile");
     // Read twice in the original.
     readCaptureChance();
-    UpdateDisplay(0, 1, 30, 1, 77);
+    UpdateDisplay(false, true, 30, true, 77);
 
     NumMarines = 0;
     _Warriors.clear();
@@ -753,7 +753,7 @@ auto MCScenario::LoadWarriors(MCFitIniFile& file) -> void
         }
     }
 
-    UpdateDisplay(0, 1, 30, 1, 80);
+    UpdateDisplay(false, true, 30, true, 80);
 }
 
 auto MCScenario::LoadParts(MCFitIniFile& file) -> void
@@ -770,13 +770,13 @@ auto MCScenario::LoadParts(MCFitIniFile& file) -> void
 
     for (int32_t i = 1; i <= static_cast<int32_t>(numParts); i++)
     {
-        UpdateDisplay(0, 1, 30, 1,
+        UpdateDisplay(false, true, 30, true,
                       static_cast<int32_t>(static_cast<double>(i) / static_cast<int32_t>(numParts) * 10.0 + 80.0));
         Parts[static_cast<size_t>(i)] = ReadScenarioPart(file, i);
         CreatePartObject(i);
     }
 
-    UpdateDisplay(0, 1, 20, 1, 90);
+    UpdateDisplay(false, true, 20, true, 90);
 }
 
 auto MCScenario::LoadCarriers(MCFitIniFile& file) -> void
@@ -831,7 +831,7 @@ auto MCScenario::LoadCarriers(MCFitIniFile& file) -> void
         }
     }
 
-    UpdateDisplay(0, 1, 20, 1, 92);
+    UpdateDisplay(false, true, 20, true, 92);
 
     if (file.SeekBlock("Elemental Carriers") == 0)
     {
@@ -866,7 +866,7 @@ auto MCScenario::LoadCarriers(MCFitIniFile& file) -> void
         }
     }
 
-    UpdateDisplay(0, 1, 20, 1, 93);
+    UpdateDisplay(false, true, 20, true, 93);
 
     if (file.SeekBlock("BusBlock") == 0)
     {
@@ -927,7 +927,7 @@ auto MCScenario::LoadObjectives(MCFitIniFile& file) -> void
 
     for (uint32_t i = 0; i < numObjectives; i++)
     {
-        UpdateDisplay(0, 1, 20, 1,
+        UpdateDisplay(false, true, 20, true,
                       static_cast<int32_t>(static_cast<double>(i) / static_cast<int32_t>(numObjectives) * 5.0 + 93.0));
     }
 
@@ -940,7 +940,7 @@ auto MCScenario::LoadGroups(MCFitIniFile& file) -> void
     for (int32_t commanderId = 0; commanderId < NumCommanders(); commanderId++)
     {
         MCCommander* commander = CommanderById(commanderId);
-        UpdateDisplay(0, 1, 30, 1, 98);
+        UpdateDisplay(false, true, 30, true, 98);
 
         if (file.SeekBlock(std::format("Commander:{}", commanderId)) == 0)
         {
@@ -1057,7 +1057,7 @@ auto MCScenario::CreatePartObject(int32_t partNumber) -> void
         mech->CalcWeaponEffectiveness(1);
         mech->CalcWeaponEffectiveness(0);
         mech->CalcWeaponRangeRatings();
-        mech->Captureable = part.Captureable ? 1 : 0;
+        mech->Captureable = part.Captureable;
         const int32_t paintScheme = (part.PaintScheme == -1) ? pilot->PaintScheme : part.PaintScheme;
         static_cast<MCMechActor*>(mech->Appearance.get())->FadeTableIndex = paintScheme;
     }

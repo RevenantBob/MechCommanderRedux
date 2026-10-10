@@ -1,0 +1,116 @@
+# clang-tidy for MCCore (modernization step P4). Run it with `python tools/ci/tidy.py [filters]`.
+#
+# The groups are modernize-*, bugprone-*, readability-* and cppcoreguidelines-owning-memory. Each check turned off
+# below has its reason. Most are style checks that the port's conventions overrule, or checks whose fixes would change
+# MCX.EXE's arithmetic (behaviour stays the same: the baseline decides).
+Checks: >
+  -*,
+  modernize-*,
+  bugprone-*,
+  readability-*,
+  cppcoreguidelines-owning-memory,
+
+  -modernize-use-trailing-return-type,
+  -modernize-use-nodiscard,
+  -modernize-use-auto,
+  -modernize-use-designated-initializers,
+  -modernize-return-braced-init-list,
+  -modernize-avoid-c-arrays,
+  -modernize-use-integer-sign-comparison,
+  -modernize-use-std-numbers,
+
+  -bugprone-easily-swappable-parameters,
+  -bugprone-reserved-identifier,
+  -bugprone-narrowing-conversions,
+  -bugprone-implicit-widening-of-multiplication-result,
+  -bugprone-misplaced-widening-cast,
+  -bugprone-signed-char-misuse,
+  -bugprone-integer-division,
+  -bugprone-incorrect-roundings,
+  -bugprone-float-loop-counter,
+  -bugprone-unchecked-string-to-number-conversion,
+  -bugprone-switch-missing-default-case,
+  -bugprone-branch-clone,
+  -bugprone-parent-virtual-call,
+  -bugprone-unused-return-value,
+  -bugprone-exception-escape,
+  -bugprone-throwing-static-initialization,
+  -bugprone-derived-method-shadowing-base-method,
+  -modernize-loop-convert,
+  -readability-redundant-string-cstr,
+
+  -readability-magic-numbers,
+  -readability-identifier-length,
+  -readability-uppercase-literal-suffix,
+  -readability-math-missing-parentheses,
+  -readability-implicit-bool-conversion,
+  -readability-function-cognitive-complexity,
+  -readability-named-parameter,
+  -readability-avoid-nested-conditional-operator,
+  -readability-use-std-min-max,
+  -readability-enum-initial-value,
+  -readability-suspicious-call-argument
+
+# Why each one is off:
+#
+# Conventions (CLAUDE.md, translation.md):
+#   modernize-use-trailing-return-type   both forms are used; the port doesn't require one.
+#   modernize-use-nodiscard              results the game ignores are ignored on purpose; [[nodiscard]] is put where
+#                                        a dropped result is a bug (the std::expected loaders).
+#   modernize-use-auto                   explicit types on purpose: the integer widths are the data's.
+#   modernize-use-designated-initializers, modernize-return-braced-init-list   style only.
+#   bugprone-reserved-identifier         `_PascalCase` is the port's private-field convention (user decision).
+#   bugprone-easily-swappable-parameters the original interfaces take runs of ints (x, y, width, height).
+#   readability-identifier-length        `i`, `x`, `y`, `dx` are the clearest names in loops and geometry.
+#   readability-uppercase-literal-suffix, readability-math-missing-parentheses,
+#   readability-avoid-nested-conditional-operator, readability-named-parameter   style only.
+#   readability-function-cognitive-complexity   the game's functions keep MCX.EXE's control flow; splitting them
+#                                        further risks the order the state hash checks.
+#
+# Data and behaviour (the fix would change what MCX.EXE computes or reads):
+#   readability-magic-numbers            the numbers are the game's own (art indices, screen positions, table
+#                                        values); names would be invented. Rules the player sees are named.
+#   readability-implicit-bool-conversion int32_t flags that are left are file or network data (R8); the rest are
+#                                        C-style tests of counts and pointers.
+#   readability-enum-initial-value       enumerators carry the values the data files and packets use.
+#   readability-use-std-min-max          the clamps compare mixed types and floats; std::min/max would change the
+#                                        promoted type or the NaN result.
+#   modernize-use-integer-sign-comparison std::cmp_* would change what a negative value compares as.
+#   modernize-use-std-numbers            the game's pi literals differ from std::numbers::pi in the last bits.
+#   modernize-avoid-c-arrays             constant lookup tables, tables read from the FIT files in their file
+#                                        shape, VFX pixel code (R10) and arrays handed to SDL/Vulkan C structs.
+#   bugprone-narrowing-conversions, bugprone-implicit-widening-of-multiplication-result,
+#   bugprone-misplaced-widening-cast, bugprone-integer-division, bugprone-incorrect-roundings,
+#   bugprone-signed-char-misuse, bugprone-float-loop-counter   MCX.EXE's arithmetic: its truncations, int products
+#                                        (bounded by map and bitmap sizes), (x + 0.5) rounding, signed bytes and
+#                                        float timers. Changing them changes the state hash.
+#   bugprone-unchecked-string-to-number-conversion   atoi/atof on game text: bad text reads as 0, as it did.
+#   bugprone-switch-missing-default-case, bugprone-branch-clone   the switches and chains are MCX.EXE's.
+#   bugprone-parent-virtual-call         a skipped base level is the call MCX.EXE made.
+#   bugprone-derived-method-shadowing-base-method   the hidden methods (Init, Activate, Lport, SetID, ...) weren't
+#                                        virtual in MCX.EXE: a call through the base type runs the base's, as it did.
+#   modernize-loop-convert               the index loops walk lists the body can grow or shrink (GUI children,
+#                                        lances, players); a range-for would be invalidated.
+#   readability-redundant-string-cstr    `.data()` into a string_view parameter stops at the first NUL, as the C
+#                                        string did; some strings are buffers padded with NULs to a fixed size.
+#   readability-suspicious-call-argument the swapped-looking calls are deliberate and commented (the combo box's
+#                                        drop button is sized height by width).
+#
+# Left on with known findings:
+#   readability-else-after-return        its 9 findings are the 9 SDL_assert calls: SDL's macro has an else after
+#                                        continue. (Its fix-its also strip the macro name: don't --fix this check.)
+#
+# Error handling:
+#   bugprone-unused-return-value         the results left are discarded on purpose with static_cast<void>.
+#   bugprone-exception-escape, bugprone-throwing-static-initialization   only std::bad_alloc can escape; ending the
+#                                        program there is the intended response (no memory budget, R2).
+
+CheckOptions:
+  # A FILE* or SDL buffer goes straight into a std::unique_ptr with its deleter; malloc and friends stay flagged.
+  cppcoreguidelines-owning-memory.LegacyResourceProducers: '::malloc;::aligned_alloc;::realloc;::calloc'
+  cppcoreguidelines-owning-memory.LegacyResourceConsumers: '::realloc'
+  readability-braces-around-statements.ShortStatementLines: 0
+  # A negated float comparison is MCX.EXE's test; the De Morgan form gives another answer for NaN.
+  readability-simplify-boolean-expr.SimplifyDeMorgan: false
+HeaderFilterRegex: '.*[\\/]MCCore[\\/].*'
+ExcludeHeaderFilterRegex: '.*[Ss][Dd][Ll]-release.*'

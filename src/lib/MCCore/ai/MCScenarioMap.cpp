@@ -41,7 +41,7 @@ auto MCScenarioMap::Write(MCFile& mapFile) const -> void
     mapFile.Write(std::span(reinterpret_cast<const uint8_t*>(Map.data()), Map.size() * sizeof(MCMapTile)));
 }
 
-auto MCScenarioMap::WorldToMapPos(MCVector3D pos, int32_t& tileR, int32_t& tileC, int32_t& cellR, int32_t& cellC) const
+auto MCScenarioMap::WorldToMapPos(MCVector3D pos, int32_t& tileR, int32_t& tileC, int32_t& cellR, int32_t& cellC)
     -> void
 {
     WorldToMapTilePos(pos, tileR, tileC);
@@ -49,7 +49,7 @@ auto MCScenarioMap::WorldToMapPos(MCVector3D pos, int32_t& tileR, int32_t& tileC
     cellR = static_cast<int32_t>((static_cast<double>(TileRowToWorld(tileR)) - pos.Y) / MetersPerCell());
 }
 
-auto MCScenarioMap::WorldToMapTilePos(MCVector3D pos, int32_t& tileR, int32_t& tileC) const -> void
+auto MCScenarioMap::WorldToMapTilePos(MCVector3D pos, int32_t& tileR, int32_t& tileC) -> void
 {
     tileC = static_cast<int16_t>(static_cast<int32_t>(
         std::floor(static_cast<double>(MCTerrain::OneOvermetersPerVertex) * pos.X + VerticesMapSideDivTwo())));
@@ -128,57 +128,6 @@ auto MCScenarioMap::PlaceObjects(MCObjectList* objectList) -> void
         {
             PlaceObject(object->GetPosition(), object->GetObjectType()->ExtentRadius);
         }
-    }
-}
-
-auto MCScenarioMap::PlaceTerrainObjects(MCObjectBlockManager* blockManager) -> void
-{
-    MCPacketFile* objectFile = blockManager->ObjectFile();
-
-    for (int32_t block = 0; block < MCTerrain::BlocksMapSide * MCTerrain::BlocksMapSide; block++)
-    {
-        if (objectFile == nullptr || objectFile->IsOpen() == 0)
-        {
-            continue;
-        }
-
-        objectFile->SeekPacket(block);
-        const uint32_t packetSize = static_cast<uint32_t>(objectFile->GetPacketSize());
-
-        if (packetSize == 0)
-        {
-            continue;
-        }
-
-        std::vector<uint8_t> data(packetSize, 0xff);
-        objectFile->ReadPacket(block, data.data());
-        const uint32_t numRecords = packetSize / sizeof(MCObjData);
-
-        for (uint32_t i = 0; i < numRecords; i++)
-        {
-            MCObjData record;
-            std::memcpy(&record, data.data() + i * sizeof(MCObjData), sizeof(MCObjData));
-
-            if (record.ObjTypeNum == -1)
-            {
-                continue;
-            }
-
-            // Each object is made, placed and updated, then dropped: placeTerrainObject did nothing in MCX.
-            const std::unique_ptr<MCGameObject> object(CreateObject(record.ObjTypeNum));
-            MCVector2D position(static_cast<float>(record.PixelOffsetX), static_cast<float>(record.PixelOffsetY));
-            MCVector2D numbers(static_cast<float>(static_cast<uint16_t>(record.VertexNumber)),
-                               static_cast<float>(static_cast<uint16_t>(record.BlockNumber)));
-            object->SetTerrainPosition(position, numbers);
-            object->Update();
-        }
-    }
-
-    // Original behaviour (OB-033): the footprint was never written (placeTerrainObject does nothing), so the tiles'
-    // overlay bits 7-8 all end up cleared.
-    for (MCMapTile& tile : Map)
-    {
-        tile.Overlay &= 0xfffffe7f;
     }
 }
 
@@ -344,28 +293,6 @@ auto MCScenarioMap::GetClanMine(int32_t tileR, int32_t tileC, int32_t cellR, int
 {
     const uint32_t layout = (TileAt(tileR, tileC).Overlay >> 13) & 3;
     return MineLayout[layout][static_cast<size_t>(cellR * MapCellDim + cellC)];
-}
-
-auto MCScenarioMap::GetLof(MCVector3D position) const -> bool
-{
-    int32_t tileR = 0;
-    int32_t tileC = 0;
-    int32_t cellR = 0;
-    int32_t cellC = 0;
-    WorldToMapPos(position, tileR, tileC, cellR, cellC);
-
-    if (position.Z < GetTerrainElevationUnrounded(position))
-    {
-        return false;
-    }
-
-    // Port fix: the original reads outside the map for a point off it. Off the map blocks.
-    if (!OnMap(tileR, tileC))
-    {
-        return false;
-    }
-
-    return TileAt(tileR, tileC).GetCellPassable(cellR, cellC) != 0;
 }
 
 auto MCScenarioMap::LineOfSight(MCVector3D start, MCVector3D target) -> bool
@@ -543,12 +470,6 @@ auto MCScenarioMap::Print(std::string_view fileName, int32_t uLr, int32_t uLc, i
 
     debugFile.WriteString("\n");
     debugFile.Close();
-}
-
-auto MCScenarioMap::GetTile(int32_t tileR, int32_t tileC) const -> MCMapTile
-{
-    Assert(OnMap(tileR, tileC), 0, " Map Tile out of bounds ");
-    return TileAt(tileR, tileC);
 }
 
 auto MCScenarioMap::GetOverlayWeight(int32_t tileR, int32_t tileC, int32_t cellR, int32_t cellC, MCMover* mover) const

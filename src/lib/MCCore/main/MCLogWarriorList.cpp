@@ -337,7 +337,7 @@ auto MCLogWarriorList::GetID(int32_t index) const -> int32_t
     return index < GetWarriorCount() && position < Warriors.size() ? Warriors[position]->Id : -1;
 }
 
-auto MCLogWarriorList::SaveWarriorText(std::string_view fileName, int32_t index) -> int32_t
+auto MCLogWarriorList::SaveWarriorText(std::string_view fileName, int32_t index) const -> int32_t
 {
     MCLogWarrior* warrior = nullptr;
 

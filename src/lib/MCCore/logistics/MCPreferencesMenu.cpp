@@ -291,7 +291,7 @@ void SlideFXVolume(MCGuiObject* object, MCGuiEvent* event)
         SoundSystem()->DigitalMasterVolume = *volume;
     }
 
-    SoundSystem()->PlayDigitalSample(0xf, 1, nullptr, 0, 0);
+    SoundSystem()->PlayDigitalSample(0xf, 1, nullptr, false, false);
 }
 
 void EasyToggle()

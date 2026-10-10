@@ -92,7 +92,7 @@ auto MCPUAppearanceType::GetShape(MCPUActorState state, int32_t rotation, int32_
     uint32_t packet = basePacket + static_cast<uint32_t>(rotationIndex);
 
     // Scaled types keep their zoomed out rotations after the full size ones.
-    if (Eye != nullptr && Eye->CameraScale == 1 && Scaled)
+    if (Eye != nullptr && MCCamera::CameraScale == 1 && Scaled)
     {
         packet += numRotations;
     }

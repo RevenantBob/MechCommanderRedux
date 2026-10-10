@@ -22,7 +22,7 @@ namespace
         void Queue(MCMover& mover, MCTacticalOrder& order) override
         {
             mover.GetPilot()->AddQueuedTacOrder(order);
-            mover.GetPilot()->TacOrderQueueExecuting = 1;
+            mover.GetPilot()->TacOrderQueueExecuting = true;
         }
 
         void SendToServer(MCTacticalOrder& order, bool queued, std::span<int32_t> moverParts,

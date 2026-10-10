@@ -48,7 +48,7 @@ auto MCTree::IsVisible(MCCamera* cam) -> bool
         return false;
     }
 
-    int visible = cam->VertexProject(BlockNumber, VertexNumber, ScreenPos);
+    int visible = MCCamera::VertexProject(BlockNumber, VertexNumber, ScreenPos);
 
     if (Appearance != nullptr)
     {
@@ -58,7 +58,7 @@ auto MCTree::IsVisible(MCCamera* cam) -> bool
     // The shadow can stick out past the tree: on screen when any of its box is.
     if (uint8_t* shadow = static_cast<MCTreeType*>(ObjType)->NormalShadow.Data(); shadow != nullptr)
     {
-        const float scale = cam->CameraScale != 1 ? 1.0f : 0.5f;
+        const float scale = MCCamera::CameraScale != 1 ? 1.0f : 0.5f;
         const int32_t minXY = VfxShapeMinxy(shadow, 0);
         const float left = static_cast<float>(minXY >> 16) * scale + ScreenPos.X;
         const float top = static_cast<float>(static_cast<int16_t>(minXY)) * scale + ScreenPos.Y;
@@ -103,7 +103,7 @@ auto MCTree::Update() -> int32_t
     TileRow = cell.Row;
     TileWorldY = cell.WorldY();
     const float elevation = cell.Elevation(" tree MapTile Out of Bounds ");
-    Appearance->Visible = 1;
+    Appearance->Visible = true;
     TileElevation = elevation;
 
     // Every tree measures the type's extent radius from its appearance's diagonal.
@@ -176,7 +176,7 @@ auto MCTree::Render() -> void
 
     if (Appearance != nullptr)
     {
-        Appearance->Visible = IsVisible(Eye) ? 1 : 0;
+        Appearance->Visible = IsVisible(Eye);
 
         // A falling tree comes to rest: fallen, or fallen burnt.
         if (Appearance->Update() == 0 && Falling)
@@ -226,14 +226,14 @@ auto MCTree::Render() -> void
         {
             if (uint8_t* shadow = type->DestroyedShadow.Data(); shadow != nullptr)
             {
-                ElementList()->OpenGroup(static_cast<int32_t>(ScreenPos.Y), 1);
+                ElementList()->OpenGroup(static_cast<int32_t>(ScreenPos.Y), true);
                 ElementList()->Add(
                     ElementList()->Make<MCVfxElement>(shadow, ScreenPos.X, ScreenPos.Y, 0, 0, hazePalette, 0));
             }
         }
         else if (uint8_t* shadow = type->NormalShadow.Data(); shadow != nullptr)
         {
-            ElementList()->OpenGroup(static_cast<int32_t>(-ScreenPos.Y), 1);
+            ElementList()->OpenGroup(static_cast<int32_t>(-ScreenPos.Y), true);
             ElementList()->Add(
                 ElementList()->Make<MCVfxElement>(shadow, ScreenPos.X, ScreenPos.Y, 0, 0, hazePalette, 0));
         }

@@ -181,7 +181,7 @@ void AGShapeTranslateTransform(MCPane* pane, void* shapeTable, int32_t shapeNum,
     TransformShape(pane, shapeTable, shapeNum, hotX, hotY, mirror, fullSize, Lookaside);
 }
 
-void CopySprite(MCPane* pane, uint8_t* sprite, int x, int y, int width, int height, int mirror, int fullSize)
+void CopySprite(MCPane* pane, const uint8_t* sprite, int x, int y, int width, int height, int mirror, int fullSize)
 {
     MCAlphaBlitCommand command;
 
@@ -206,14 +206,4 @@ void CopySprite(MCPane* pane, MCWindow* sprite, int x, int y, int width, int hei
     command.Texture = sprite->Texture;
     command.Sprite = sprite->Buffer;
     MCRenderer::For(pane->Window).AlphaBlit(pane->Window, command);
-}
-
-void AGShapeFill(MCPane* pane, void* shapeTable, int32_t shapeNum, int32_t hotX, int32_t hotY)
-{
-    MCAgDrawShape(pane, shapeTable, shapeNum, hotX, hotY, MCShapeOp::Fill, nullptr);
-}
-
-void AGShapeTranslateFill(MCPane* pane, void* shapeTable, int32_t shapeNum, int32_t hotX, int32_t hotY)
-{
-    MCAgDrawShape(pane, shapeTable, shapeNum, hotX, hotY, MCShapeOp::XlatFill, Lookaside);
 }

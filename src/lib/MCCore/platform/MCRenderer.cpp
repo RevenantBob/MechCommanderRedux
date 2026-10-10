@@ -754,7 +754,7 @@ std::optional<MCGpuDrawing> MCGpuDrawingFromName(std::string_view name)
     for (const auto& [text, drawing] : {std::pair{"off", MCGpuDrawing::Off}, std::pair{"on", MCGpuDrawing::On},
                                         std::pair{"mirror", MCGpuDrawing::Mirror}})
     {
-        if (name.size() == std::strlen(text) && SDL_strncasecmp(name.data(), text, name.size()) == 0)
+        if (MCIEquals(name, text))
         {
             return drawing;
         }

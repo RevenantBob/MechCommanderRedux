@@ -213,7 +213,7 @@ auto MCCompInventoryBlock::OfferSale() -> void
                        [this](int32_t result, int32_t quantity) { OnSellConfirmed(result, quantity); });
 }
 
-auto MCCompInventoryBlock::OnSellConfirmed(int32_t result, int32_t quantity) -> void
+auto MCCompInventoryBlock::OnSellConfirmed(int32_t result, int32_t quantity) const -> void
 {
     if (result == 0)
     {
@@ -225,7 +225,7 @@ auto MCCompInventoryBlock::OnSellConfirmed(int32_t result, int32_t quantity) -> 
 
     if (sold->Count == 0)
     {
-        GlobalLogPtr->PurchaseScreen->CreateCompInvBlock();
+        MCPurchaseScreen::CreateCompInvBlock();
         GlobalLogPtr->PurchaseScreen->SetUpCompInv(false, true);
     }
     else
@@ -248,7 +248,7 @@ auto MCCompInventoryBlock::HandleEvent(MCGuiEvent* event) -> void
     if (CompDrag.Idle())
     {
         // The info block: picture, range, damage, recycle time and description.
-        screen->DrawBlankInvInfoBlock(-1);
+        MCLogInvScreen::DrawBlankInvInfoBlock(-1);
         PrepareInfoDescription(Item->Description);
         screen->ShowComponentInfo(this, false);
     }
@@ -269,7 +269,7 @@ auto MCCompInventoryBlock::HandleEvent(MCGuiEvent* event) -> void
         }
         else
         {
-            screen->CreateCompInvBlock();
+            MCLogInvScreen::CreateCompInvBlock();
             screen->SetUpCompInv(false, true);
         }
 
@@ -300,7 +300,7 @@ auto MCCompInventoryBlock::HandleEvent(MCGuiEvent* event) -> void
                 }
                 else
                 {
-                    screen->CreateCompInvBlock();
+                    MCLogInvScreen::CreateCompInvBlock();
                     screen->SetUpCompInv(false, false);
                 }
             }
@@ -399,7 +399,7 @@ auto MCCompInventoryBlock::HandleEvent(MCGuiEvent* event) -> void
             GuiSystem()->SetCursorVisible(true);
             GuiSystem()->Release();
             MCDragIcon::Remove();
-            screen->CreateCompInvBlock();
+            MCLogInvScreen::CreateCompInvBlock();
             screen->SetUpCompInv(false, true);
 
             if (OnRepairScreen())

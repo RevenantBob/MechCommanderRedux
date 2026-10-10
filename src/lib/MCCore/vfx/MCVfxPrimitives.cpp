@@ -28,33 +28,6 @@ int32_t VfxPixelWrite(MCPane* pane, int32_t x, int32_t y, uint8_t color)
     return previous;
 }
 
-int32_t VfxPixelRead(MCPane* pane, int32_t x, int32_t y)
-{
-    MCVfxClip clip;
-    const int32_t status = MCVfxClipPane(pane, clip);
-
-    if (status != 0)
-    {
-        return status;
-    }
-
-    x += clip.PaneX;
-    y += clip.PaneY;
-
-    if (x < clip.X0 || x > clip.X1 || y < clip.Y0 || y > clip.Y1)
-    {
-        return VfxErrClipped;
-    }
-
-    // Port: a view has no pixels to read.
-    if (clip.Buffer == nullptr)
-    {
-        return VfxErrBadWindow;
-    }
-
-    return *clip.At(x, y);
-}
-
 namespace
 {
     /// <summary>How VFX_line_draw paints a line's pixels (its mode and parm).</summary>
@@ -486,38 +459,6 @@ int32_t VfxLineTranslate(MCPane* pane, int32_t x0, int32_t y0, int32_t x1, int32
     return LineDraw(pane, x0, y0, x1, y1, MCLinePaint{0, table, nullptr});
 }
 
-int32_t VfxLineExecute(MCPane* pane, int32_t x0, int32_t y0, int32_t x1, int32_t y1, const MCVfxLineCallback& callback)
-{
-    return LineDraw(pane, x0, y0, x1, y1, MCLinePaint{0, nullptr, &callback});
-}
-
-int32_t VfxRectangleHash(MCPane* pane, int32_t x0, int32_t y0, int32_t x1, int32_t y1, uint8_t color)
-{
-    MCVfxClip clip;
-    const int32_t status = MCVfxClipPane(pane, clip);
-
-    if (status != 0)
-    {
-        return status;
-    }
-
-    x0 = std::max(x0 + clip.PaneX, clip.X0);
-    y0 = std::max(y0 + clip.PaneY, clip.Y0);
-    x1 = std::min(x1 + clip.PaneX, clip.X1);
-    y1 = std::min(y1 + clip.PaneY, clip.Y1);
-    const int32_t width = x1 - x0 + 1;
-
-    if (width <= 0 || y1 < y0)
-    {
-        return VfxErrBadShape;
-    }
-
-    // The pattern's phase follows the number of rows below the current one: rows an even distance above y1 start
-    // at x0, the others one pixel in.
-    MCRenderer::For(pane->Window).Hash(pane->Window, MCRect{x0, y0, x1, y1}, color);
-    return 0;
-}
-
 int32_t VfxPaneWipe(MCPane* pane, int32_t color)
 {
     MCVfxClip clip;
@@ -711,11 +652,6 @@ namespace
         // Original behaviour: the outline's asm returned whatever EAX held (a leftover of the stepping); 0 here.
         return 0;
     }
-}
-
-int32_t VfxEllipseDraw(MCPane* pane, int32_t xc, int32_t yc, int32_t width, int32_t height, int32_t color)
-{
-    return DrawEllipse(pane, xc, yc, width, height, color, false);
 }
 
 int32_t VfxEllipseFill(MCPane* pane, int32_t xc, int32_t yc, int32_t width, int32_t height, int32_t color)

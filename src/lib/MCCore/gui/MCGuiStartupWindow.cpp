@@ -113,7 +113,7 @@ auto MCGuiStartupWindow::Step() -> void
     auto setLarge = [font](bool large)
     {
         font->Scale = large ? 1.6f : 1.0f;
-        font->Scaled = large ? 1 : 0;
+        font->Scaled = large;
     };
 
     // The text is typed two letters a frame: the first piece restarts the line, the next ones follow the width
@@ -215,7 +215,7 @@ auto MCGuiStartupWindow::Step() -> void
             break;
         case 0x3b:
         {
-            sounds->PlayDigitalSample(0x20, 1, nullptr, 0, 0);
+            sounds->PlayDigitalSample(0x20, 1, nullptr, false, false);
             sounds->Update();
             DoStatic();
             return;
@@ -241,7 +241,7 @@ auto MCGuiStartupWindow::Step() -> void
         {
             EndStatic();
             drawUplink();
-            sounds->PlayDigitalSample(0x10, 1, nullptr, 0, 0);
+            sounds->PlayDigitalSample(0x10, 1, nullptr, false, false);
             sounds->Update();
             AGEllipseFill(StaticPane(), pointX, pointY, 2, 2, 0xfc);
             return;
@@ -303,7 +303,7 @@ auto MCGuiStartupWindow::Step() -> void
             break;
         case 0x63:
         {
-            sounds->PlayDigitalSample(0x10, 1, nullptr, 0, 0);
+            sounds->PlayDigitalSample(0x10, 1, nullptr, false, false);
             sounds->Update();
             return;
         }
@@ -392,7 +392,7 @@ auto MCGuiStartupWindow::Step() -> void
         }
         case 0xa9:
         {
-            NoiseSample = sounds->PlayDigitalSample(0x21, 0, nullptr, 0, 0);
+            NoiseSample = sounds->PlayDigitalSample(0x21, 0, nullptr, false, false);
             sounds->Update();
             DoStatic();
             AGShapeDraw(StaticPane(), StaticImages[2].data(), 0, 0x140, 0xf0);
@@ -402,7 +402,7 @@ auto MCGuiStartupWindow::Step() -> void
             return;
     }
 
-    sounds->PlayDigitalSample(sample, 1, nullptr, 0, 0);
+    sounds->PlayDigitalSample(sample, 1, nullptr, false, false);
     sounds->Update();
 }
 
@@ -416,7 +416,7 @@ auto MCGuiStartupWindow::Draw() -> void
     }
 }
 
-auto MCGuiStartupWindow::StaticPane() -> MCPane*
+auto MCGuiStartupWindow::StaticPane() const -> MCPane*
 {
     return StaticPort->Frame();
 }

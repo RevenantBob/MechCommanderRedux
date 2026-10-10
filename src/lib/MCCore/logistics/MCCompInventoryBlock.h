@@ -53,7 +53,7 @@ public:
     /// <summary>
     /// The sale dialog's answer: a confirmed sale takes <paramref name="quantity"/> off the stack and pays for them.
     /// </summary>
-    void OnSellConfirmed(int32_t result, int32_t quantity);
+    void OnSellConfirmed(int32_t result, int32_t quantity) const;
 
     /// <summary>The range: "%.1f m", a short/medium/long word for weapons, "N/A" for probes.</summary>
     std::string RangeText;

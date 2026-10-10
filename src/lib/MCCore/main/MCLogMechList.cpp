@@ -551,7 +551,7 @@ auto MCLogMechList::GetMechInfo(int32_t index, MCLogMech*& mech) const -> int32_
     return mech != nullptr ? 0 : -1;
 }
 
-auto MCLogMechList::SaveMechText(std::string_view fileName, int32_t index) -> int32_t
+auto MCLogMechList::SaveMechText(std::string_view fileName, int32_t index) const -> int32_t
 {
     MCLogMech* mech = nullptr;
 

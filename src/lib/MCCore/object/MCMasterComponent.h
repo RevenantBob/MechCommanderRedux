@@ -41,12 +41,6 @@ public:
     /// with no stats (plain "Weapon").
     /// </summary>
     int32_t InitExcel(std::string_view dataLine, float weaponRangeFactor, float sensorRangeFactor);
-    /// <summary>Whether this is anything but an anti-missile system.</summary>
-    int IsOffensiveWeapon() const;
-    /// <summary>Whether this is an anti-missile system.</summary>
-    int IsDefensiveWeapon() const;
-    /// <summary>Scales the four weapon ranges by <paramref name="factor"/>, truncating each to a short.</summary>
-    void MultiplyWeaponRanges(float factor);
 
     /// <summary>Master id; -1 for an unused ("undefined") row.</summary>
     int32_t MasterID = -1;
@@ -119,8 +113,6 @@ public:
 /// </summary>
 int32_t InitMasterComponentListExcel(std::string_view fileName, int32_t numComponents, float weaponRangeFactor,
                                      float sensorRangeFactor);
-/// <summary>Scales every energy, ballistic and missile weapon's ranges.</summary>
-void MultiplyMasterWeaponRanges(float factor);
 /// <summary>Rows in <see cref="MasterComponentList"/>.</summary>
 inline int32_t NumMasterComponents();
 

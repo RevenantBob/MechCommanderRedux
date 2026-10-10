@@ -85,9 +85,9 @@ public:
     void Write(MCFile& mapFile) const;
 
     /// <summary>The tile and cell of a world position (floored).</summary>
-    void WorldToMapPos(MCVector3D pos, int32_t& tileR, int32_t& tileC, int32_t& cellR, int32_t& cellC) const;
+    static void WorldToMapPos(MCVector3D pos, int32_t& tileR, int32_t& tileC, int32_t& cellR, int32_t& cellC);
     /// <summary>The tile of a world position (floored).</summary>
-    void WorldToMapTilePos(MCVector3D pos, int32_t& tileR, int32_t& tileC) const;
+    static void WorldToMapTilePos(MCVector3D pos, int32_t& tileR, int32_t& tileC);
 
     /// <summary>
     /// Whether tile (tileR, tileC) is on the map (port helper). The original indexes <see cref="Map"/> with the tile of
@@ -130,8 +130,6 @@ public:
     void PlaceObject(MCVector3D position, float radius);
     /// <summary>Places every existing object of a list (see <see cref="PlaceObject"/>).</summary>
     void PlaceObjects(MCObjectList* objectList);
-    /// <summary>Creates the terrain objects of every block and records their footprint bits in the tiles.</summary>
-    void PlaceTerrainObjects(MCObjectBlockManager* blockManager);
     /// <summary>Places both mech lists with tile preservation on.</summary>
     void UpdateMovingObjects();
     /// <summary>Puts back the tiles saved by <see cref="SpreadState"/>.</summary>
@@ -147,8 +145,6 @@ public:
     uint32_t GetInnerSphereMine(int32_t tileR, int32_t tileC, int32_t cellR, int32_t cellC) const;
     /// <summary>The Clan mine of cell (cellR, cellC) of a tile.</summary>
     uint32_t GetClanMine(int32_t tileR, int32_t tileC, int32_t cellR, int32_t cellC) const;
-    /// <summary>Whether a position is above the ground and its cell passable (line of fire).</summary>
-    bool GetLof(MCVector3D position) const;
     /// <summary>Whether line of sight runs from <paramref name="start"/> to <paramref name="target"/>.</summary>
     bool LineOfSight(MCVector3D start, MCVector3D target);
     /// <summary>Whether line of fire runs from <paramref name="start"/> to <paramref name="target"/>.</summary>
@@ -158,9 +154,6 @@ public:
 
     /// <summary>Dumps a rectangle of the map to a text file.</summary>
     void Print(std::string_view fileName, int32_t uLr, int32_t uLc, int32_t height, int32_t width) const;
-
-    /// <summary>The tile at (tileR, tileC) (asserts it is on the map).</summary>
-    MCMapTile GetTile(int32_t tileR, int32_t tileC) const;
 
     /// <summary>
     /// The movement cost of cell (cellR, cellC) of a tile for <paramref name="mover"/>: 0 without an overlay, else

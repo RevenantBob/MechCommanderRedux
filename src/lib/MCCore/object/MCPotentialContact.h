@@ -79,11 +79,6 @@ public:
     /// freed last is taken first, as in the original.
     /// </summary>
     MCPotentialContact* Add(MCPotentialContactType type, MCBigGameObject* object, int8_t visibility);
-    /// <summary>
-    /// Counts what team <paramref name="teamId"/> knows of the enemy list (and, unless
-    /// <paramref name="enemiesOnly"/>, of every list): counts[0] tagged, [1] visual, [2] sensor contacts.
-    /// </summary>
-    int32_t GetContactCounts(int32_t* counts, int32_t teamId, int enemiesOnly);
     /// <summary>Takes <paramref name="contact"/> off every sensor and team list and back to the free ones.</summary>
     void Remove(MCPotentialContact* contact);
     /// <summary>Moves <paramref name="contact"/> to the front of list <paramref name="type"/> with a new
@@ -98,9 +93,6 @@ public:
     {
         return _Lists[static_cast<size_t>(type)];
     }
-
-    /// <summary>Contacts free to take without growing the pool.</summary>
-    size_t NumFree() const { return _Free.size(); }
 
 private:
     /// <summary>The contacts by id (a deque: contacts never move as it grows).</summary>

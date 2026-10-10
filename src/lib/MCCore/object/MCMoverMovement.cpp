@@ -170,7 +170,7 @@ auto MCMover::CalcOffsetMoveGoal(MCVector3D target, MCVector3D offset, MCVector3
         int32_t tileC;
         int32_t cellR;
         int32_t cellC;
-        GameMap()->WorldToMapPos(point, tileR, tileC, cellR, cellC);
+        MCScenarioMap::WorldToMapPos(point, tileR, tileC, cellR, cellC);
 
         // Port fix: the walk can leave the map, where the original reads outside it. Off the map is impassable.
         if (!GameMap()->OnMap(tileR, tileC))
@@ -263,7 +263,7 @@ auto MCMover::CalcMoveGoal(MCGameObject* target, MCVector3D moveGoal, int32_t is
     int32_t tileC;
     int32_t cellR;
     int32_t cellC;
-    GameMap()->WorldToMapPos(moveGoal, tileR, tileC, cellR, cellC);
+    MCScenarioMap::WorldToMapPos(moveGoal, tileR, tileC, cellR, cellC);
     const int32_t goalCellR = tileR * MapCellDim + cellR;
     const int32_t goalCellC = tileC * MapCellDim + cellC;
     const int32_t mapTileR0 = tileR - 6;
@@ -403,7 +403,7 @@ auto MCMover::CalcMoveGoal(MCGameObject* target, MCVector3D moveGoal, int32_t is
     int32_t myTileC;
     int32_t myCellR;
     int32_t myCellC;
-    GameMap()->WorldToMapPos(Position, myTileR, myTileC, myCellR, myCellC);
+    MCScenarioMap::WorldToMapPos(Position, myTileR, myTileC, myCellR, myCellC);
     int32_t myRow = myCellR + (myTileR - mapTileR0) * MapCellDim;
     int32_t myCol = myCellC + (myTileC - mapTileC0) * MapCellDim;
 
@@ -631,7 +631,7 @@ auto MCMover::CalcMoveGoal(MCGameObject* target, MCVector3D moveGoal, int32_t is
 
     newGoal.X = static_cast<float>((static_cast<double>(goalCol) + 0.5) * MetersPerCell() - halfMapSide);
     newGoal.Y = static_cast<float>(halfMapSide - (static_cast<double>(goalRow) + 0.5) * MetersPerCell());
-    newGoal.Z = Terrain()->GetTerrainElevation(newGoal);
+    newGoal.Z = MCTerrain::GetTerrainElevation(newGoal);
     CalcOffsetMoveGoal(Position, newGoal, newGoal);
     return 0;
 }
@@ -648,12 +648,12 @@ auto MCMover::CalcMovePath(MCMovePath* path, int32_t pathType, MCVector3D start,
     int32_t startTileC;
     int32_t startCellR;
     int32_t startCellC;
-    GameMap()->WorldToMapPos(start, startTileR, startTileC, startCellR, startCellC);
+    MCScenarioMap::WorldToMapPos(start, startTileR, startTileC, startCellR, startCellC);
     int32_t goalTileR;
     int32_t goalTileC;
     int32_t goalCellR;
     int32_t goalCellC;
-    GameMap()->WorldToMapPos(goal, goalTileR, goalTileC, goalCellR, goalCellC);
+    MCScenarioMap::WorldToMapPos(goal, goalTileR, goalTileC, goalCellR, goalCellC);
     path->Clear();
 
     int32_t numOffsets;
@@ -747,12 +747,12 @@ auto MCMover::CalcEscapePath(MCMovePath* path, MCVector3D start, MCVector3D goal
     int32_t startTileC;
     int32_t startCellR;
     int32_t startCellC;
-    GameMap()->WorldToMapPos(start, startTileR, startTileC, startCellR, startCellC);
+    MCScenarioMap::WorldToMapPos(start, startTileR, startTileC, startCellR, startCellC);
     int32_t goalTileR;
     int32_t goalTileC;
     int32_t goalCellR;
     int32_t goalCellC;
-    GameMap()->WorldToMapPos(goal, goalTileR, goalTileC, goalCellR, goalCellC);
+    MCScenarioMap::WorldToMapPos(goal, goalTileR, goalTileC, goalCellR, goalCellC);
     path->Clear();
 
     int32_t uLr = startTileR - SimpleMovePathRange;
@@ -1080,7 +1080,7 @@ auto MCMover::CalcMovePath(MCMovePath* path, MCVector3D start, int32_t thruArea,
     int32_t startTileC;
     int32_t startCellR;
     int32_t startCellC;
-    GameMap()->WorldToMapPos(start, startTileR, startTileC, startCellR, startCellC);
+    MCScenarioMap::WorldToMapPos(start, startTileR, startTileC, startCellR, startCellC);
     const int32_t sectorDim = GlobalMoveMap()->SectorDim;
 
     if (!PathFindMap()->SetUp(

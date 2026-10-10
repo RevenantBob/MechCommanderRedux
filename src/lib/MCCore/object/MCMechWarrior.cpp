@@ -324,7 +324,7 @@ auto MCMechWarrior::RadioMessage(int32_t messageId, int propogateIfMultiplayer) 
     LastMessage = played;
 }
 
-auto MCMechWarrior::GetAggressiveness(int current) -> int32_t
+auto MCMechWarrior::GetAggressiveness(int current) const -> int32_t
 {
     if (current != 0 && CurTacOrder.IsCombatOrder() != 0)
     {
@@ -383,7 +383,7 @@ auto MCMechWarrior::RemoveQueuedTacOrder(MCTacticalOrder* tacOrder) -> int32_t
     return 0;
 }
 
-auto MCMechWarrior::PeekQueuedTacOrder(MCTacticalOrder* tacOrder) -> int32_t
+auto MCMechWarrior::PeekQueuedTacOrder(MCTacticalOrder* tacOrder) const -> int32_t
 {
     if (QueuedOrders.Empty())
     {
@@ -466,7 +466,7 @@ auto MCMechWarrior::UpdateClientOrderQueue(int32_t tacOrderId) -> void
     }
 }
 
-auto MCMechWarrior::GetGroup() -> MCMoverGroup*
+auto MCMechWarrior::GetGroup() const -> MCMoverGroup*
 {
     if (Vehicle != nullptr)
     {
@@ -476,7 +476,7 @@ auto MCMechWarrior::GetGroup() -> MCMoverGroup*
     return nullptr;
 }
 
-auto MCMechWarrior::GetPoint() -> MCMover*
+auto MCMechWarrior::GetPoint() const -> MCMover*
 {
     if (GetGroup() != nullptr)
     {
@@ -486,12 +486,12 @@ auto MCMechWarrior::GetPoint() -> MCMover*
     return nullptr;
 }
 
-auto MCMechWarrior::OnHomeTeam() -> int
+auto MCMechWarrior::OnHomeTeam() const -> int
 {
     return Team == HomeTeam() ? 1 : 0;
 }
 
-auto MCMechWarrior::UnderHomeCommand() -> int
+auto MCMechWarrior::UnderHomeCommand() const -> int
 {
     if (Vehicle != nullptr)
     {
@@ -615,7 +615,7 @@ auto MCMechWarrior::Eject() -> void
 
     if (GetGroup() != nullptr)
     {
-        GetGroup()->HandleMateEjected(static_cast<uint32_t>(mover->PartId));
+        MCMoverGroup::HandleMateEjected(static_cast<uint32_t>(mover->PartId));
     }
 
     if (Radio != nullptr)
@@ -683,7 +683,7 @@ auto MCMechWarrior::RunBrain() -> int32_t
     return Brain->ReturnValue();
 }
 
-auto MCMechWarrior::GetVehicleStatus() -> int32_t
+auto MCMechWarrior::GetVehicleStatus() const -> int32_t
 {
     if (Vehicle != nullptr)
     {
@@ -804,20 +804,6 @@ auto MCMechWarrior::SetCurrentTarget(MCGameObject* target) -> void
     SetLastTarget(target, 0, 0);
 }
 
-auto MCMechWarrior::GetAttackTargetPosition(MCVector3D& pos) -> MCGameObject*
-{
-    MCGameObject* target = AttackOrders.Target;
-
-    if (target == nullptr)
-    {
-        ClearAttackOrders();
-        return nullptr;
-    }
-
-    pos = target->GetPosition();
-    return target;
-}
-
 auto MCMechWarrior::ClearAttackOrders() -> void
 {
     AttackOrders.Origin = 1;
@@ -850,23 +836,6 @@ auto MCMechWarrior::ClearMoveOrders() -> void
     MoveOrders.TimeOfLastStep = -1.0f;
     SetMoveGlobalPath({});
     PathManager()->Remove(this);
-}
-
-auto MCMechWarrior::SetDebugFlag(uint32_t flag, int on) -> void
-{
-    if (on != 0)
-    {
-        DebugFlags |= flag;
-    }
-    else
-    {
-        DebugFlags &= ~flag;
-    }
-}
-
-auto MCMechWarrior::GetDebugFlag(uint32_t flag) -> int
-{
-    return (DebugFlags & flag) != 0 ? 1 : 0;
 }
 
 auto MCMechWarrior::DebugPrint(std::string_view text, int debugMode) -> void
@@ -955,38 +924,6 @@ auto MCMechWarrior::DebugOrders() -> void
     DebugPrint(line, 0);
     MCGameObject* target = GetLastTarget();
     DebugPrint(std::format("     CURRENT TARGET: Object {}", target != nullptr ? target->PartId : 0), 0);
-}
-
-auto MCMechWarrior::SetMoveSpeedType(int32_t type) -> void
-{
-    MoveOrders.SpeedType = type;
-}
-
-auto MCMechWarrior::SetMoveSpeedVelocity(float speed) -> void
-{
-    MoveOrders.SpeedVelocity = speed;
-    int32_t state = 0;
-    int32_t throttle = 0;
-    static_cast<MCMover*>(Vehicle)->CalcSpriteSpeed(speed, 0, state, throttle);
-    MoveOrders.SpeedState = static_cast<int8_t>(state);
-    MoveOrders.SpeedThrottle = static_cast<int8_t>(throttle);
-}
-
-auto MCMechWarrior::MissionLog(MCFile* file, int32_t unitLevel) -> int32_t
-{
-    file->WriteString(std::string(static_cast<size_t>(std::max(unitLevel * 2, 0)), ' '));
-    file->WriteString(std::format("MechWarrior: {}\n", Name));
-
-    // The original's skill loop never advanced or wrote its line (an endless loop); this writes each skill's
-    // successes and tries once, in the original's format.
-    for (int32_t skill = 0; skill < NumSkills; skill++)
-    {
-        file->WriteString(std::string(static_cast<size_t>(std::max(unitLevel * 2 + 2, 0)), ' '));
-        file->WriteString(
-            std::format("{}: {:04}/04{}\n", SkillsTable[skill], NumSkillSuccesses[skill][1], NumSkillUses[skill][1]));
-    }
-
-    return 0;
 }
 
 auto MCMechWarrior::CalcRank() -> void

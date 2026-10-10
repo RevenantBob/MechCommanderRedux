@@ -97,7 +97,7 @@ MCVector3D PlaceOnVertex(MCVector3D position, int32_t blockNumber, int32_t verte
     const double axisAngle = (60.0 - offsetAngle) * MCMoverMath::DegreesToRadians;
     const auto alongAxis = static_cast<float>(std::sin(axisAngle) * offsetDistance / std::sin(SixtyDegrees));
     position.X = vertexX + blockX;
-    const float elevation = Terrain()->GetTerrainElevation(position);
+    const float elevation = MCTerrain::GetTerrainElevation(position);
     position.X =
         static_cast<float>(std::cos(SixtyDegrees) * alongAxis + std::cos(axisAngle) * offsetDistance + position.X);
     position.Y = position.Y - alongAxis;

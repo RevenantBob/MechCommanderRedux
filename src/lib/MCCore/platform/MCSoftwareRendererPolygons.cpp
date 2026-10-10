@@ -699,7 +699,10 @@ void MCPolygonSpans(const MCPolygonCommand& command, MCSpanState& state, const s
                                    std::swap(xa, xb);
                                }
 
-                               int32_t l, r, count, cut;
+                               int32_t l;
+                               int32_t r;
+                               int32_t count;
+                               int32_t cut;
 
                                if (!ClipSpan(xa, xb, poly.XMax, l, r, count, cut))
                                {

@@ -140,7 +140,9 @@ auto MCBattleMech::Init(MCObjectType* objType) -> int32_t
         return -0x5fff6;
     }
 
-    if ((result = actor->Init(apprType, this)) != 0)
+    result = actor->Init(apprType, this);
+
+    if (result != 0)
     {
         return result;
     }
@@ -775,7 +777,7 @@ auto MCBattleMech::GetPositionFromHS(uint32_t hotSpot) -> MCVector3D
     }
 
     auto* actor = static_cast<MCMechActor*>(Appearance.get());
-    const uint32_t gesture = actor->GetHotSpotIndex(static_cast<uint32_t>(actor->CurrentGesture));
+    const uint32_t gesture = MCMechActor::GetHotSpotIndex(static_cast<uint32_t>(actor->CurrentGesture));
     int32_t frameNumber = actor->CurrentFrame[0];
     const float* offsets = mechType->GestureHotSpots(gesture);
     const int32_t numFrames = static_cast<int32_t>(mechType->NumFramesPerHotSpot[gesture]);
@@ -861,10 +863,10 @@ auto MCBattleMech::OnScreen() -> int
 
         if (Terrain() != nullptr)
         {
-            Terrain()->ProjectTerrain(Position, screen100, screen50);
+            MCTerrain::ProjectTerrain(Position, screen100, screen50);
         }
 
-        if (camera->CameraScale == 1)
+        if (MCCamera::CameraScale == 1)
         {
             ScreenPos.X = (screen50.X - camera->ScreenUL50.X) + camera->HalfWidth;
             screenY = screen50.Y - camera->ScreenUL50.Y;
@@ -879,7 +881,7 @@ auto MCBattleMech::OnScreen() -> int
     }
     else
     {
-        const float scale = camera->CameraScale != 1 ? 1.0f : 0.5f;
+        const float scale = MCCamera::CameraScale != 1 ? 1.0f : 0.5f;
         MCVector3D relative(Position.X - camera->Position.X, Position.Y - camera->Position.Y,
                             Position.Z - camera->Position.Z);
         relative *= scale;
@@ -1005,7 +1007,7 @@ namespace
         printPos.X = offsetX * 20.0f + mech->Position.X;
         printPos.Y = offsetY * 20.0f + mech->Position.Y;
         CraterManager()->AddCrater(static_cast<MCBattleMechType*>(mech->ObjType)->FootprintType, printPos, direction);
-        SoundSystem()->PlayDigitalSample(0xd, 1, mech, 0, 0);
+        SoundSystem()->PlayDigitalSample(0xd, 1, mech, false, false);
     }
 
     /// <summary>A footprint's rotation (of 16) for <paramref name="degrees"/>.</summary>
@@ -1024,7 +1026,7 @@ namespace
 
 auto MCBattleMech::Update() -> int32_t
 {
-    TerrainNormal = Terrain()->GetTerrainNormal(Position);
+    TerrainNormal = MCTerrain::GetTerrainNormal(Position);
     UpdatePathLock(0);
 
     if (IsDestroyed() != 0 || IsDisabled() != 0)
@@ -1074,7 +1076,7 @@ auto MCBattleMech::Update() -> int32_t
         {
             actor->SetGestureGoal(8);
             actor->Visible = visibleNow;
-            actor->SetCombatMode(0);
+            actor->SetCombatMode(false);
             result = actor->Update();
 
             if (result != 1)
@@ -1084,7 +1086,12 @@ auto MCBattleMech::Update() -> int32_t
         }
 
         // Once the death animation is done, it blows up and leaves a crater.
-        if (LyingDead != 0 || (LyingDead = actor->LyingStill) != 0)
+        if (LyingDead == 0)
+        {
+            LyingDead = actor->LyingStill;
+        }
+
+        if (LyingDead != 0)
         {
             DeathTimer -= FrameLength;
 
@@ -1092,16 +1099,16 @@ auto MCBattleMech::Update() -> int32_t
             {
                 auto* mechType = static_cast<MCBattleMechType*>(ObjType);
                 mechType->CreateExplosion(Position, mechType->ExplDmg, mechType->ExplRad);
-                DeathExplosionDone = 1;
+                DeathExplosionDone = true;
                 return 1;
             }
 
             if (DeathTimer < 0.0 && WreckDone == 0)
             {
-                actor->Wrecked = 1;
+                actor->Wrecked = true;
                 CraterManager()->AddCrater(6, Position, 0);
                 TacticalInterface()->RemoveMech(PartId);
-                WreckDone = 1;
+                WreckDone = true;
                 return 1;
             }
         }
@@ -1139,7 +1146,7 @@ auto MCBattleMech::Update() -> int32_t
 
         if (GetAwake() == 0 && actor->SetGestureGoal(0) == 0)
         {
-            ShutDownThisFrame = 0;
+            ShutDownThisFrame = false;
         }
 
         result = Dynamics->Update();
@@ -1236,7 +1243,7 @@ auto MCBattleMech::Update() -> int32_t
                 }
             }
 
-            NewMoveChunk = 0;
+            NewMoveChunk = false;
         }
 
         MCVector3D newPosition;
@@ -1255,7 +1262,7 @@ auto MCBattleMech::Update() -> int32_t
         }
 
         MineCheck();
-        Position.Z = Terrain()->GetTerrainElevation(Position);
+        Position.Z = MCTerrain::GetTerrainElevation(Position);
 
         // Arms blown off this frame fly off to the side they were on.
         const float facing = FrameFacing(Frame);
@@ -1273,7 +1280,7 @@ auto MCBattleMech::Update() -> int32_t
                 ThrowArm(this, mechType->RightArmDebrisId, 0.0f);
             }
 
-            actor->RightArmGone = 1;
+            actor->RightArmGone = true;
         }
 
         if (controlData->BlowLeftArm != 0)
@@ -1287,7 +1294,7 @@ auto MCBattleMech::Update() -> int32_t
                 ThrowArm(this, mechType->LeftArmDebrisId, -180.0f);
             }
 
-            actor->LeftArmGone = 1;
+            actor->LeftArmGone = true;
         }
 
         const int visibleNow = OnScreen();
@@ -1330,7 +1337,7 @@ auto MCBattleMech::Update() -> int32_t
         if (visibleNow != 0 && FootPrints != 0 && gesture != 20 && IsRevealed() != 0)
         {
             const int32_t gestureNow = actor->CurrentGesture;
-            const uint32_t packetIndex = actor->GetHotSpotIndex(static_cast<uint32_t>(gestureNow));
+            const uint32_t packetIndex = MCMechActor::GetHotSpotIndex(static_cast<uint32_t>(gestureNow));
             const int32_t frameNow = actor->CurrentFrame[0];
 
             // The original's test let the index equal the packet count, reading the 32 bytes past the data.
@@ -1349,12 +1356,12 @@ auto MCBattleMech::Update() -> int32_t
                 {
                     if (walking)
                     {
-                        SecondStepPrinted = 0;
+                        SecondStepPrinted = false;
                     }
                 }
                 else if (SecondStepPrinted == 0)
                 {
-                    SecondStepPrinted = 1;
+                    SecondStepPrinted = true;
                     const float stepFacing = FrameFacing(Frame);
                     const auto snapped = static_cast<int32_t>(std::floor(static_cast<double>(stepFacing * 0.025f)));
                     const float angle = static_cast<float>(snapped) * 40.0f;
@@ -1365,12 +1372,12 @@ auto MCBattleMech::Update() -> int32_t
                 {
                     if (walking)
                     {
-                        FirstStepPrinted = 0;
+                        FirstStepPrinted = false;
                     }
                 }
                 else if (FirstStepPrinted == 0)
                 {
-                    FirstStepPrinted = 1;
+                    FirstStepPrinted = true;
                     const float stepFacing = FrameFacing(Frame);
                     const int32_t direction = FootprintDirection(stepFacing);
                     const auto snapped = static_cast<int32_t>(std::floor(static_cast<double>(stepFacing * 0.025f)));
@@ -1421,7 +1428,7 @@ namespace
     /// <summary>A world point on <see cref="Eye"/>'s screen (the camera's inline projection).</summary>
     MCVector2D EyeProject(const MCVector3D& point)
     {
-        const float scale = Eye->CameraScale != 1 ? 1.0f : 0.5f;
+        const float scale = MCCamera::CameraScale != 1 ? 1.0f : 0.5f;
         const float dy = point.Y - Eye->Position.Y;
         const float dz = point.Z - Eye->Position.Z;
         const float sx = (point.X - Eye->Position.X) * scale;
@@ -1483,7 +1490,7 @@ auto MCBattleMech::Render() -> void
         else if (contactType == 2)
         {
             // A sensor contact: a blip sized by tonnage, at the zoom's scale.
-            const int zoomedOut = Eye->CameraScale == 1;
+            const int zoomedOut = MCCamera::CameraScale == 1;
             int32_t shapeIndex;
             const char* shapeName;
 
@@ -1511,13 +1518,13 @@ auto MCBattleMech::Render() -> void
                 {
                     if (SoundSystem() != nullptr && UseSound != 0)
                     {
-                        SoundSystem()->PlayDigitalSample(0x14, 1, this, 0, 1);
+                        SoundSystem()->PlayDigitalSample(0x14, 1, this, false, true);
                     }
 
                     BlipFrame = 0;
                 }
 
-                ElementList()->OpenGroup(-100000, 1);
+                ElementList()->OpenGroup(-100000, true);
                 auto* element =
                     ElementList()->Make<MCVfxElement>(shape, ScreenPos.X, ScreenPos.Y, BlipFrame, 0, nullptr, 0);
                 ElementList()->Add(element);
@@ -1567,11 +1574,11 @@ auto MCBattleMech::Render() -> void
 
             MCVector3D from = path->StepList[i].Destination;
             MCVector3D to = path->StepList[i + 1].Destination;
-            from.Z = Terrain()->GetTerrainElevation(from);
-            to.Z = Terrain()->GetTerrainElevation(to);
+            from.Z = MCTerrain::GetTerrainElevation(from);
+            to.Z = MCTerrain::GetTerrainElevation(to);
             MCVector2D fromScreen = EyeProject(from);
             MCVector2D toScreen = EyeProject(to);
-            ElementList()->OpenGroup(-100000, 1);
+            ElementList()->OpenGroup(-100000, true);
             ElementList()->Add(ElementList()->Make<MCLineElement>(fromScreen, toScreen, 0xfc, nullptr, -100000, -1));
         }
     }
@@ -1606,7 +1613,7 @@ auto MCBattleMech::Render() -> void
 
             if (drawLines != 0)
             {
-                ElementList()->OpenGroup(-99999, 1);
+                ElementList()->OpenGroup(-99999, true);
                 ElementList()->Add(
                     ElementList()->Make<MCLineElement>(fromScreen, toScreen, 0xeb, nullptr, -100000, -1));
                 fromScreen = toScreen;
@@ -1614,7 +1621,7 @@ auto MCBattleMech::Render() -> void
             }
 
             const int32_t bounds = VfxShapeBounds(WaypointMarkerShapes(), marker);
-            ElementList()->OpenGroup(-100000, 1);
+            ElementList()->OpenGroup(-100000, true);
             auto* element = ElementList()->Make<MCVfxElement>(
                 WaypointMarkerShapes(), static_cast<float>((bounds >> 16) / 2) + toScreen.X,
                 toScreen.Y - static_cast<float>(bounds >> 1 & 0x7fff), marker, 1, nullptr, 1);

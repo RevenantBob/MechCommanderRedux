@@ -71,7 +71,7 @@ private:
     /// Puts the unit into empty slot <paramref name="slot"/> of <paramref name="lance"/>: false when it is too heavy
     /// (without the hammer down).
     /// </summary>
-    bool PlaceInEmptySlot(int32_t lance, int32_t slot);
+    bool PlaceInEmptySlot(int32_t lance, int32_t slot) const;
 
     /// <summary>Puts the block into the slot on the screen and recounts the tonnage.</summary>
     void Settle(int32_t lance, int32_t slot);

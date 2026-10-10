@@ -25,8 +25,8 @@ auto MCMovePathManager::Request(MCMechWarrior* pilot, int32_t selectionIndex, ui
     Remove(pilot);
 
     // Behind the last request of a higher priority (so ahead of those of the same priority).
-    const auto before = std::find_if(_Queue.begin(), _Queue.end(), [priority](const MCPathQueueRec& queued)
-                                     { return !(priority < queued.Priority); });
+    const auto before = std::ranges::find_if(_Queue, [priority](const MCPathQueueRec& queued)
+                                             { return !(priority < queued.Priority); });
     const auto rec = _Queue.insert(before, MCPathQueueRec{priority, pilot, selectionIndex, moveParams, initPath});
     pilot->MovePathRequest = &*rec;
 }

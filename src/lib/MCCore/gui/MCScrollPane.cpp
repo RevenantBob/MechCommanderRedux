@@ -365,7 +365,7 @@ auto MCScrollPane::ShowContent(MCLogPort* port, bool resetPosition) -> void
     }
 }
 
-auto MCScrollPane::Lport() -> MCLogPort*
+auto MCScrollPane::Lport() const -> MCLogPort*
 {
     return ContentPort;
 }
@@ -438,7 +438,7 @@ auto MCScrollPane::HandleEvent(MCGuiEvent* event) -> void
             {
                 // The up arrow.
                 _ArrowPressed = Arrow::Up;
-                GuiSystem()->AddTimer(this, ArrowTimer, 200, 0, 0, 0);
+                GuiSystem()->AddTimer(this, ArrowTimer, 200, 0, 0, false);
 
                 if (Child(0) == nullptr)
                 {
@@ -455,7 +455,7 @@ auto MCScrollPane::HandleEvent(MCGuiEvent* event) -> void
             if (mouseY > GlobalY() - ArrowHeight + WinHeight)
             {
                 // The down arrow.
-                GuiSystem()->AddTimer(this, ArrowTimer, 200, 0, 0, 0);
+                GuiSystem()->AddTimer(this, ArrowTimer, 200, 0, 0, false);
 
                 if (Child(0) == nullptr)
                 {
@@ -616,7 +616,7 @@ auto MCScrollPane::MouseWheel(int32_t steps, int32_t, int32_t) -> bool
     return true;
 }
 
-auto MCScrollPane::GetScrollOffset() -> int32_t
+auto MCScrollPane::GetScrollOffset() const -> int32_t
 {
     return static_cast<int32_t>(static_cast<double>(ScrollPos) * ScrollUnit);
 }

@@ -47,7 +47,7 @@ auto MCBriefingBox::DrawBackground() -> void
     GlobalLogPtr->BriefingScreen->ShowBox(this);
 }
 
-auto MCBriefingBox::PaintBox(MCPane* target, int32_t xPos, int32_t yPos) -> void
+auto MCBriefingBox::PaintBox(MCPane* target, int32_t xPos, int32_t yPos) const -> void
 {
     // The block paints in the briefing screen's layout (it looks at the current screen); a screen change's wipe draws
     // the box while another screen is current.
@@ -72,10 +72,6 @@ auto MCBriefingBox::PaintBox(MCPane* target, int32_t xPos, int32_t yPos) -> void
 
     GlobalLogPtr->CurrentScreen = current;
     GlobalLogPtr->Darken(0, LogisticFadetable, &work);
-}
-
-auto MCBriefingBox::DrawVehicleBackground() -> void
-{
 }
 
 auto MCBriefingBox::HandleEvent(MCGuiEvent* event) -> void

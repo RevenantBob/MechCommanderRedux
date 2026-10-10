@@ -35,10 +35,6 @@ public:
     MCFileTransferInfo(const MCFileTransferInfo&) = delete;
     MCFileTransferInfo& operator=(const MCFileTransferInfo&) = delete;
 
-    /// <summary>Reads the next 100 bytes of the file into the piece message (an FIFileDataMessage).</summary>
-    /// <returns>Whether this piece is the last (its last byte is 0).</returns>
-    bool PrepareNextMessage();
-
     /// <summary>Writes the file bytes of a received piece (<paramref name="piece"/>: the whole message) to the file.</summary>
     /// <returns>Whether this piece is the last (its last byte is 0).</returns>
     bool AddBytes(std::span<const uint8_t> piece);

@@ -180,7 +180,7 @@ auto MCLogChatInput::HandleEvent(MCGuiEvent* event) -> void
         {
             if (event->Data == 7)
             {
-                GuiSystem()->AddTimer(this, BlinkTimer, MCPort::CaretBlinkTime(), 0, 0, 0);
+                GuiSystem()->AddTimer(this, BlinkTimer, MCPort::CaretBlinkTime(), 0, 0, false);
             }
             else if (event->Data == 8)
             {

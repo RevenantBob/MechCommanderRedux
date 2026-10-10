@@ -67,8 +67,6 @@ MCObjectQueue* ObjectList();
 MCObjectList* ClanMechList();
 /// <summary>The Inner Sphere's mechs.</summary>
 MCObjectList* InnerSphereMechList();
-/// <summary>The icons' list.</summary>
-MCObjectList* IconList();
 /// <summary>The weapons (bullets, lasers, missiles) in flight.</summary>
 MCObjectList* WeaponList();
 /// <summary>The object types (null without an object system).</summary>

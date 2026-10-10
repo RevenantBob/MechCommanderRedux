@@ -18,8 +18,6 @@ public:
     /// <summary>Nulls and unregisters <paramref name="watcher"/>.</summary>
     /// <returns>Whether it was registered.</returns>
     bool RemoveWatch(MCBaseObject** watcher);
-    /// <summary>Nulls every registered watcher and empties the registry.</summary>
-    void Restart();
     /// <summary>Watchers registered.</summary>
     size_t Size() const { return _Watchers.size(); }
 

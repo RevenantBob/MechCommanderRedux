@@ -284,8 +284,8 @@ auto RunGame(std::string_view commandLine) -> int
     // The original noted the stack top and warned when the page file was under 48,000,000 bytes (GlobalMemoryStatus,
     // string 0x355), and refused a second instance; none of that applies.
     MCPort::SeedRand(static_cast<uint32_t>(std::time(nullptr)));
-    SavePath = "c:\\Program Files\\Honor Bound\\";
-    DirectXPath = "\\honorb\\directx\\";
+    SavePath = R"(c:\Program Files\Honor Bound\)";
+    DirectXPath = R"(\honorb\directx\)";
     TerrainPath = "data\\terrain\\";
     PalettePath = "data\\palette\\";
     ArtPath = "data\\art\\";

@@ -65,7 +65,7 @@ auto MCFloatHelp::Draw() -> void
     }
 
     font->Scale = 1.0f;
-    font->Scaled = 0;
+    font->Scaled = false;
     int32_t lineY = 2;
 
     for (const auto line : std::views::split(HelpText, '\n'))
@@ -150,7 +150,7 @@ auto MCFloatHelp::SetHelpText(std::string_view text) -> void
 
     const auto numLines = static_cast<int32_t>(std::ranges::count(HelpText, '\n')) + 1;
     font->Scale = 1.0f;
-    font->Scaled = 0;
+    font->Scaled = false;
     const int32_t textWidth = font->PrintWidth(HelpText, true) + 4;
 
     if (Width() == textWidth)

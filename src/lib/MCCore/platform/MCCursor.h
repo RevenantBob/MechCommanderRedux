@@ -63,7 +63,7 @@ namespace MCCursor
     /// Makes <paramref name="image"/>, not a preloaded shape (a dragged item over the cursor), the cursor over the
     /// attached display's window. Its SDL cursor is remade whenever the picture changes; cheap while it doesn't.
     /// </summary>
-    void Show(const MCCursorImage& image);
+    void Show(const MCCursorImage& picture);
 
     /// <summary>How many SDL cursors have been made (tests).</summary>
     uint64_t CursorsMade();

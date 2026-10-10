@@ -42,7 +42,7 @@ class MCPurVehicle
 {
 public:
     /// <summary>Sets <see cref="MCPurVehicleData::Cost"/> from the base cost and the components.</summary>
-    void CalcVehicleCost();
+    void CalcVehicleCost() const;
 
     std::unique_ptr<MCPurVehicleData> Data;
     MCGuiOwned<MCVehiclePurchaseBlock> Block;

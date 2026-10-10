@@ -34,7 +34,6 @@ public:
 
     /// <summary>Projects the shot to the screen; true when its appearance is visible to the main camera.</summary>
     bool IsVisible();
-    void SetOwner(MCBaseObject* newOwner) { Owner = static_cast<MCGameObject*>(newOwner); }
     /// <summary>Sets the position the shot flies to.</summary>
     void SetTargetPosition(MCVector3D position) { TargetPosition = position; }
     /// <summary>

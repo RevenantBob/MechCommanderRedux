@@ -167,7 +167,7 @@ auto MCMoverGroup::GetMovers(MCMover** moverList) -> int32_t
     return NumMovers();
 }
 
-auto MCMoverGroup::GetPointPilot() -> MCMechWarrior*
+auto MCMoverGroup::GetPointPilot() const -> MCMechWarrior*
 {
     if (Point != nullptr)
     {
@@ -218,7 +218,7 @@ auto CalcJumpGoals(MCVector3D goal, int32_t numGoals, MCVector3D* goalList, MCGa
     int32_t tileC = 0;
     int32_t cellR = 0;
     int32_t cellC = 0;
-    GameMap()->WorldToMapPos(goal, tileR, tileC, cellR, cellC);
+    MCScenarioMap::WorldToMapPos(goal, tileR, tileC, cellR, cellC);
     // Port fix: the original reads these from tileMulMAPCELL_DIM (tile * 3), past its ends for a goal on the map's
     // first row or column (tile - 1) or off the map. The port multiplies.
     const int32_t goalCellR = cellR + tileR * MapCellDim;
@@ -358,7 +358,7 @@ auto CalcJumpGoals(MCVector3D goal, int32_t numGoals, MCVector3D* goalList, MCGa
     return numPlaced;
 }
 
-auto MCMoverGroup::CalcMemberJumpGoals(MCVector3D goal, MCVector3D* goalList, MCGameObject* dfaTarget) -> int32_t
+auto MCMoverGroup::CalcMemberJumpGoals(MCVector3D goal, MCVector3D* goalList, MCGameObject* dfaTarget) const -> int32_t
 {
     return CalcJumpGoals(goal, NumMovers(), goalList, dfaTarget);
 }
@@ -417,7 +417,7 @@ auto MCMoverGroup::HandleTacticalOrder(MCTacticalOrder tacOrder, int32_t priorit
             // Sorted in a list as long as the 100-entry one the movers shared in MCX.EXE.
             MCSortList sortListStorage(100);
             MCSortList* sortList = &sortListStorage;
-            sortList->Clear(0);
+            sortList->Clear(false);
             int32_t numSorted = 0;
 
             for (int32_t i = 0; i < NumMovers(); i++)
@@ -445,7 +445,7 @@ auto MCMoverGroup::HandleTacticalOrder(MCTacticalOrder tacOrder, int32_t priorit
                 numSorted++;
             }
 
-            sortList->Sort(0);
+            sortList->Sort(false);
 
             // The followers' formation slots. The original works them out but orders every member to the goal itself.
             int32_t numFollowers = numSorted - 1;
@@ -531,7 +531,7 @@ auto MCMoverGroup::HandleTacticalOrder(MCTacticalOrder tacOrder, int32_t priorit
             break;
         default:
         {
-            Assert(0, 1,
+            Assert(false, 1,
                    std::format("Unit::handleTacticalOrder->Bad TacOrder Code ({})", static_cast<int>(tacOrder.Code)));
             return 1;
         }
@@ -581,7 +581,7 @@ auto MCMoverGroup::HandleTacticalOrder(MCTacticalOrder tacOrder, int32_t priorit
                     if (queueGroupOrder != 0)
                     {
                         mover->GetPilot()->AddQueuedTacOrder(tacOrder);
-                        mover->GetPilot()->TacOrderQueueExecuting = 1;
+                        mover->GetPilot()->TacOrderQueueExecuting = true;
                     }
                     else
                     {
@@ -640,44 +640,6 @@ auto MCMoverGroup::OrderMoveToObject(int setTacOrder, MCOrderOrigin origin, MCGa
         if (pilot != nullptr)
         {
             result = pilot->OrderMoveToObject(1, setTacOrder, origin, target, -1, params);
-        }
-    }
-
-    return result;
-}
-
-auto MCMoverGroup::OrderTraversePath(MCOrderOrigin origin, MCWayPath* wayPath, uint32_t params) -> int32_t
-{
-    int32_t result = 0;
-
-    for (int32_t i = 0; i < NumMovers(); i++)
-    {
-        MCMover* mover = Movers[i];
-        Assert(mover != nullptr, 0, " MoverGroup.orderTraversePath: NULL mover ");
-        MCMechWarrior* pilot = mover->GetPilot();
-
-        if (pilot != nullptr)
-        {
-            result = pilot->OrderTraversePath(1, 1, origin, wayPath, params);
-        }
-    }
-
-    return result;
-}
-
-auto MCMoverGroup::OrderPatrolPath(MCOrderOrigin origin, MCWayPath* wayPath) -> int32_t
-{
-    int32_t result = 0;
-
-    for (int32_t i = 0; i < NumMovers(); i++)
-    {
-        MCMover* mover = Movers[i];
-        Assert(mover != nullptr, 0, " MoverGroup.orderPatrolPath: NULL mover ");
-        MCMechWarrior* pilot = mover->GetPilot();
-
-        if (pilot != nullptr)
-        {
-            result = pilot->OrderPatrolPath(1, 1, origin, wayPath);
         }
     }
 
@@ -763,26 +725,6 @@ auto MCMoverGroup::OrderWithdraw(MCOrderOrigin origin, MCVector3D location) -> i
     return result;
 }
 
-auto MCMoverGroup::OrderEject(MCOrderOrigin origin) -> int32_t
-{
-    int32_t result = 0;
-
-    for (int32_t i = 0; i < NumMovers(); i++)
-    {
-        MCMover* mover = Movers[i];
-        // The original reuses orderWithdraw's message.
-        Assert(mover != nullptr, 0, " MoverGroup.orderWithdraw: NULL mover ");
-        MCMechWarrior* pilot = mover->GetPilot();
-
-        if (pilot != nullptr)
-        {
-            result = pilot->OrderEject(1, 1, origin);
-        }
-    }
-
-    return result;
-}
-
 auto MCMoverGroup::TriggerAlarm(MCPilotAlarmType alarm, uint32_t triggerId) -> void
 {
     for (int32_t i = 0; i < NumMovers(); i++)
@@ -794,17 +736,6 @@ auto MCMoverGroup::TriggerAlarm(MCPilotAlarmType alarm, uint32_t triggerId) -> v
             pilot->TriggerAlarm(alarm, triggerId);
         }
     }
-}
-
-auto MCMoverGroup::HandleMateCrippled(uint32_t mateId) -> int32_t
-{
-    TriggerAlarm(MCPilotAlarmType::FriendlyVehicleCrippled, mateId);
-    return 0;
-}
-
-auto MCMoverGroup::HandleMateDisabled(uint32_t) -> int32_t
-{
-    return 0;
 }
 
 auto MCMoverGroup::HandleMateDestroyed(uint32_t mateId) -> int32_t

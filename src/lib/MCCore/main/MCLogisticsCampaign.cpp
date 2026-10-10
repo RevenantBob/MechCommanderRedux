@@ -741,20 +741,20 @@ auto MCLogistics::LoadCampaign(std::string_view saveName, std::string_view exten
             index = 0;
         }
 
-        PurchaseScreen->CreatePurVehiclePane(false);
+        MCPurchaseScreen::CreatePurVehiclePane(false);
     }
     else
     {
         SetUpMPPurchasing(PurchaseFile);
-        PurchaseScreen->CreatePurVehiclePane(false);
+        MCPurchaseScreen::CreatePurVehiclePane(false);
     }
 
     packetFile.Close();
     MCLogInvScreen* screen = RepairScreen.get();
-    screen->CreateMechInvBlock();
+    MCLogInvScreen::CreateMechInvBlock();
     screen->CreatePilotInvBlock();
-    screen->CreateCompInvBlock();
-    screen->CreateVhclInvBlock();
+    MCLogInvScreen::CreateCompInvBlock();
+    MCLogInvScreen::CreateVhclInvBlock();
     screen->SetUpMechInv(true, true);
     screen->CreateVehiclePane();
     return 0;

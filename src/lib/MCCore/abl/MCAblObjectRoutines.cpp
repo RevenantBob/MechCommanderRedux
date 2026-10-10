@@ -366,8 +366,8 @@ auto ExecHbObjectVisible(MCAblRuntime& abl) -> MCAblType*
         }
         else
         {
-            for (MCBaseObject* looker = ObjectList()->FindObjectInGroup(nullptr, lookerId); looker;
-                 looker = ObjectList()->FindObjectInGroup(looker, lookerId))
+            for (MCBaseObject* looker = MCObjectQueue::FindObjectInGroup(nullptr, lookerId); looker;
+                 looker = MCObjectQueue::FindObjectInGroup(looker, lookerId))
             {
                 if (static_cast<MCGameObject*>(looker)->LineOfSight(target))
                 {
@@ -558,14 +558,14 @@ auto ExecHbSetObjActive(MCAblRuntime& abl) -> MCAblType*
     else
     {
         // Original behaviour: the walk stops at the first member already in the wanted state.
-        MCBaseObject* object = ObjectList()->FindObjectInGroup(nullptr, partId);
+        MCBaseObject* object = MCObjectQueue::FindObjectInGroup(nullptr, partId);
 
         while (object && static_cast<MCGameObject*>(object)->GetAwake() != active)
         {
             object->SetAwake(active);
             TacticalInterface()->ActivateMech(object->PartId);
             numChanged++;
-            object = ObjectList()->FindObjectInGroup(object, partId);
+            object = MCObjectQueue::FindObjectInGroup(object, partId);
         }
     }
 
@@ -627,8 +627,8 @@ auto ExecHbObjInWithdraw(MCAblRuntime& abl) -> MCAblType*
     }
     else
     {
-        for (MCBaseObject* object = ObjectList()->FindObjectInGroup(nullptr, partId); object && abl.Top().Integer == 1;
-             object = ObjectList()->FindObjectInGroup(object, partId))
+        for (MCBaseObject* object = MCObjectQueue::FindObjectInGroup(nullptr, partId); object && abl.Top().Integer == 1;
+             object = MCObjectQueue::FindObjectInGroup(object, partId))
         {
             if (!static_cast<MCGameObject*>(object)->IsWithdrawing())
             {
@@ -743,26 +743,6 @@ auto ExecHbGetBRValue(MCAblRuntime& abl) -> MCAblType*
     return IntegerTypePtr;
 }
 
-auto ExecHbSetBRValue(MCAblRuntime& abl) -> MCAblType*
-{
-    abl.GetCodeToken();
-    abl.GetCodeToken();
-    abl.ExecExpression();
-    int32_t partId = abl.Top().Integer;
-    abl.Pop();
-    int32_t newCV = abl.NextInteger();
-    MCGameObject* object = FindObject(abl, partId);
-
-    if (object)
-    {
-        object->SetCurCV(newCV);
-    }
-
-    // Original behaviour: nothing is left on the stack for the integer result.
-    abl.GetCodeToken();
-    return IntegerTypePtr;
-}
-
 auto ExecHbGetArmorPts(MCAblRuntime& abl) -> MCAblType*
 {
     abl.GetCodeToken();
@@ -778,34 +758,6 @@ auto ExecHbGetArmorPts(MCAblRuntime& abl) -> MCAblType*
         for (int32_t i = 0; i < mover->NumArmorLocations(); i++)
         {
             total = static_cast<int32_t>(static_cast<float>(total) + mover->Armor[i].CurArmor);
-        }
-
-        abl.Top().Integer = total;
-    }
-    else
-    {
-        abl.Top().Integer = 0;
-    }
-
-    abl.GetCodeToken();
-    return IntegerTypePtr;
-}
-
-auto ExecHbGetMaxArmor(MCAblRuntime& abl) -> MCAblType*
-{
-    abl.GetCodeToken();
-    abl.GetCodeToken();
-    abl.ExecExpression();
-    MCBaseObject* object = ObjectList()->FindObjectFromPart(abl.Top().Integer);
-
-    if (object && IsMover(object))
-    {
-        MCMover* mover = static_cast<MCMover*>(object);
-        int32_t total = 0;
-
-        for (int32_t i = 0; i < mover->NumArmorLocations(); i++)
-        {
-            total += mover->Armor[i].MaxArmor;
         }
 
         abl.Top().Integer = total;
@@ -897,8 +849,8 @@ auto ExecHbGetObjActive(MCAblRuntime& abl) -> MCAblType*
     {
         int32_t numAwake = 0;
 
-        for (MCBaseObject* object = ObjectList()->FindObjectInGroup(nullptr, partId); object && abl.Top().Integer == 0;
-             object = ObjectList()->FindObjectInGroup(object, partId))
+        for (MCBaseObject* object = MCObjectQueue::FindObjectInGroup(nullptr, partId); object && abl.Top().Integer == 0;
+             object = MCObjectQueue::FindObjectInGroup(object, partId))
         {
             if (static_cast<MCGameObject*>(object)->GetAwake())
             {
@@ -1004,24 +956,6 @@ auto ExecHbGetObjDmgPts(MCAblRuntime& abl) -> MCAblType*
         abl.Top().Integer = 0;
     }
 
-    abl.GetCodeToken();
-    return IntegerTypePtr;
-}
-
-auto ExecHbGetMaxDmg(MCAblRuntime& abl) -> MCAblType*
-{
-    abl.GetCodeToken();
-    abl.GetCodeToken();
-    abl.ExecExpression();
-    MCBaseObject* object = ObjectList()->FindObjectFromPart(abl.Top().Integer);
-    uint32_t damageLevel = 0;
-
-    if (IsDamageableScenery(object))
-    {
-        GetDamageLevel(static_cast<MCGameObject*>(object), damageLevel);
-    }
-
-    abl.Top().Integer = static_cast<int32_t>(damageLevel);
     abl.GetCodeToken();
     return IntegerTypePtr;
 }

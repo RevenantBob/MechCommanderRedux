@@ -117,7 +117,7 @@ auto MCVfxAppearanceType::GetShape(MCActorState state, uint8_t subState, int32_t
         frameRate = SubStates[subState].FrameRate;
     }
 
-    const bool zoomedOut = Eye != nullptr && Eye->CameraScale == 1;
+    const bool zoomedOut = Eye != nullptr && MCCamera::CameraScale == 1;
 
     // Scaled types alternate full size and zoomed out packets.
     if (Scaled)

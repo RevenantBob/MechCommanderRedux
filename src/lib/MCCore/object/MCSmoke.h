@@ -49,8 +49,6 @@ public:
 
     /// <summary>Ends the puffing now (the spheres already out fade on).</summary>
     void StopSmoking();
-    /// <summary>Restarts the puffing for a new duration, clearing the spheres.</summary>
-    void StartSmoking();
     /// <summary>Projects sphere <paramref name="sphereIndex"/> to the screen; true when it is in the camera's view.</summary>
     bool IsVisible(size_t sphereIndex);
     /// <summary>Starts the next sphere at the owner's position, with part of its velocity plus the random spreads.</summary>

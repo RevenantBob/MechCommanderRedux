@@ -53,9 +53,6 @@ public:
     /// <summary>The camera with id <paramref name="cameraId"/>, or null.</summary>
     MCCamera* FindCameraFromIDNumber(int32_t cameraId);
 
-    /// <summary>The cameras, in the file's order.</summary>
-    const std::vector<std::unique_ptr<MCCamera>>& Cameras() const { return _Cameras; }
-
     /// <summary>The current camera.</summary>
     MCCamera* CurrentCamera = nullptr;
 

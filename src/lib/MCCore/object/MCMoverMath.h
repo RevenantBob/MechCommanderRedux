@@ -68,7 +68,7 @@ namespace MCMoverMath
     inline double ExactFrameFacing(const MCFrameOfRef& frame)
     {
         const float cosine = UnitX.Z * frame.I.Z + UnitX.Y * frame.I.Y + UnitX.X * frame.I.X;
-        double facing = frame.MyAcos(cosine) * RadiansToDegrees;
+        double facing = MCFrameOfRef::MyAcos(cosine) * RadiansToDegrees;
 
         if (frame.I.Y < 0.0f)
         {

@@ -206,9 +206,9 @@ auto MCObjectBlockManager::LoadMiscTerrainObjects(std::span<const uint8_t> recor
 
             if (known)
             {
-                object->Destroyed = 1;
+                object->Destroyed = true;
                 object->Damage = static_cast<float>(static_cast<int32_t>(level + 1));
-                object->OverlayDestroyed = 1;
+                object->OverlayDestroyed = true;
             }
         }
 
@@ -319,7 +319,7 @@ auto MCObjectBlockManager::SetupObjectQueue(uint32_t blockNumber, std::span<cons
                 if (destroyed)
                 {
                     object->SetDamage(DestroyedDamage<MCGateType>(object.get()));
-                    static_cast<MCGate*>(object.get())->DestroyGate(1);
+                    static_cast<MCGate*>(object.get())->DestroyGate(true);
                 }
                 break;
             }

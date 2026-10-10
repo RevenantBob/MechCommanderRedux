@@ -7,7 +7,7 @@
 MCTicker::MCTicker()
 {
     // Original behaviour (OB-072): the timer's id is 4, but HandleEvent only scrolls on timer 7.
-    GuiSystem()->AddTimer(this, ScrollTimer, 0x4b, 0, 0, 0);
+    GuiSystem()->AddTimer(this, ScrollTimer, 0x4b, 0, 0, false);
 }
 
 MCTicker::~MCTicker()
@@ -51,7 +51,7 @@ auto MCTicker::HandleEvent(MCGuiEvent* event) -> void
     }
 }
 
-auto MCTicker::DrawLine(MCPane* target) -> void
+auto MCTicker::DrawLine(MCPane* target) const -> void
 {
     const int32_t x = XPos;
     const int32_t y = YPos;

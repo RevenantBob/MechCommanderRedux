@@ -163,26 +163,8 @@ public:
         return ToLegacy(ReadArray(varName, std::span(result, numElements)));
     }
 
-    /// <summary>Reads <c>ul[n] varName = ...</c>.</summary>
-    int32_t ReadIdULongArray(std::string_view varName, uint32_t* result, uint32_t numElements)
-    {
-        return ToLegacy(ReadArray(varName, std::span(result, numElements)));
-    }
-
-    /// <summary>Reads <c>s[n] varName = ...</c>.</summary>
-    int32_t ReadIdShortArray(std::string_view varName, int16_t* result, uint32_t numElements)
-    {
-        return ToLegacy(ReadArray(varName, std::span(result, numElements)));
-    }
-
     /// <summary>Reads <c>us[n] varName = ...</c>.</summary>
     int32_t ReadIdUShortArray(std::string_view varName, uint16_t* result, uint32_t numElements)
-    {
-        return ToLegacy(ReadArray(varName, std::span(result, numElements)));
-    }
-
-    /// <summary>Reads <c>c[n] varName = ...</c>.</summary>
-    int32_t ReadIdCharArray(std::string_view varName, char* result, uint32_t numElements)
     {
         return ToLegacy(ReadArray(varName, std::span(result, numElements)));
     }
@@ -197,14 +179,6 @@ public:
     uint32_t GetIdFloatArrayElements(std::string_view varName) { return ToLegacyCount(ArraySize<float>(varName)); }
     /// <summary>The n of <c>l[n] varName</c>, or an error code.</summary>
     uint32_t GetIdLongArrayElements(std::string_view varName) { return ToLegacyCount(ArraySize<int32_t>(varName)); }
-    /// <summary>The n of <c>ul[n] varName</c>, or an error code.</summary>
-    uint32_t GetIdULongArrayElements(std::string_view varName) { return ToLegacyCount(ArraySize<uint32_t>(varName)); }
-    /// <summary>The n of <c>s[n] varName</c>, or an error code.</summary>
-    uint32_t GetIdShortArrayElements(std::string_view varName) { return ToLegacyCount(ArraySize<int16_t>(varName)); }
-    /// <summary>The n of <c>us[n] varName</c>, or an error code.</summary>
-    uint32_t GetIdUShortArrayElements(std::string_view varName) { return ToLegacyCount(ArraySize<uint16_t>(varName)); }
-    /// <summary>The n of <c>c[n] varName</c>, or an error code.</summary>
-    uint32_t GetIdCharArrayElements(std::string_view varName) { return ToLegacyCount(ArraySize<char>(varName)); }
     /// <summary>The n of <c>uc[n] varName</c>, or an error code.</summary>
     uint32_t GetIdUCharArrayElements(std::string_view varName) { return ToLegacyCount(ArraySize<uint8_t>(varName)); }
 

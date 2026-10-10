@@ -37,7 +37,7 @@ public:
     }
 
     /// <summary>The number of frames of <paramref name="state"/> (0 when the type hasn't it).</summary>
-    int32_t StateExists(MCGVActorState state);
+    int32_t StateExists(MCGVActorState state) const;
 
     /// <summary>The type.</summary>
     MCGVAppearanceType* AppearType = nullptr;

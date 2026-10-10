@@ -43,15 +43,6 @@ public:
 
     int32_t GetFrameNumber() override { return CurrentFrame; }
 
-    /// <summary>The gesture playing.</summary>
-    int32_t GetGesture() const { return CurrentGesture; }
-
-    /// <summary>The frames of gesture <paramref name="gesture"/>.</summary>
-    float GetNumFramesInGesture(uint32_t gesture);
-
-    /// <summary>The velocity of gesture <paramref name="gesture"/>.</summary>
-    float GetVelocityOfGesture(uint32_t gesture);
-
     /// <summary>Prepares a jump of <paramref name="jumpDistance"/>: the velocity that covers it in the jump's time.</summary>
     int32_t SetJumpParameters(float jumpDistance);
 

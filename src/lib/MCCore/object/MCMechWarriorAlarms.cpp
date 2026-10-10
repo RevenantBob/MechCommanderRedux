@@ -245,7 +245,7 @@ auto MCMechWarrior::HandleOwnVehicleIncapacitation(uint32_t cause) -> int32_t
     return 0;
 }
 
-auto MCMechWarrior::HandleOwnVehicleDestruction(uint32_t cause) -> int32_t
+auto MCMechWarrior::HandleOwnVehicleDestruction(uint32_t cause) const -> int32_t
 {
     Assert(Vehicle != nullptr, 0, "handleOwnVehicleDestruction:pilot has no vehicle ");
     return 0;

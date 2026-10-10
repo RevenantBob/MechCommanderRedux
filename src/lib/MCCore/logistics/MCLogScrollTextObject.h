@@ -39,7 +39,7 @@ public:
     void Resize(int32_t width, int32_t height) override;
 
     /// <summary>Appends a line of <paramref name="text"/> in <paramref name="color"/>.</summary>
-    void Print(std::string_view text, uint8_t color);
+    void Print(std::string_view line, uint8_t color);
 
     /// <summary>Appends an empty line (the port doesn't grow for it).</summary>
     void PrintBlank(uint8_t color);

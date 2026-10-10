@@ -62,7 +62,7 @@ public:
     /// Makes the type's explosion object at <paramref name="position"/>; with a nonzero <paramref name="radius"/>
     /// it also gets that radius and <paramref name="damage"/>. The explosion goes on the end of the first object list.
     /// </summary>
-    void CreateExplosion(MCVector3D& position, float damage, float radius);
+    void CreateExplosion(MCVector3D& position, float damage, float radius) const;
 
     /// <summary>The type's number: its packet in the object file.</summary>
     int32_t ObjTypeNum = 0;

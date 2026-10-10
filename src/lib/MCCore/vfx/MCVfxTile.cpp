@@ -12,7 +12,7 @@
 //
 // A row of length 0 is empty.
 
-int32_t VfxNTileDraw(MCPane* pane, uint8_t* tile, int32_t x, int32_t y, uint8_t* xlat)
+int32_t VfxNTileDraw(MCPane* pane, const uint8_t* tile, int32_t x, int32_t y, const uint8_t* xlat)
 {
     const MCWindow* window = pane->Window;
     const int32_t stride = window->XMax + 1;

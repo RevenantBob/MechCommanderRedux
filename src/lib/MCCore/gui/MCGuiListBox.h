@@ -59,9 +59,9 @@ public:
 
 private:
     /// <summary>Tells an active scroll bar the new top line without it posting back.</summary>
-    void SetBarPosition(int32_t position);
+    void SetBarPosition(int32_t position) const;
     /// <summary>Selects and highlights <paramref name="item"/>.</summary>
     void Choose(int32_t item);
     /// <summary>Sets the scroll bar's range to the lines past the visible ones.</summary>
-    void UpdateScrollRange();
+    void UpdateScrollRange() const;
 };

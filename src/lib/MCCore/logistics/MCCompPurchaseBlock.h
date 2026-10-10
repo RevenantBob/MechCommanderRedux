@@ -25,13 +25,13 @@ public:
     /// Readies row <paramref name="row"/>: the description. Port: the row is drawn by <see cref="DrawRow"/> (the
     /// original painted it here).
     /// </summary>
-    void DrawBackground(int32_t row, int32_t unused);
+    void DrawBackground(int32_t row, int32_t unused) const;
 
     /// <summary>
     /// Port: draws the row into <paramref name="port"/> (the store's view) with its top at <paramref name="top"/>:
     /// what the original's <c>drawBackground</c> painted into the store's picture.
     /// </summary>
-    void DrawRow(MCLogPort* port, int32_t top);
+    void DrawRow(MCLogPort* port, int32_t top) const;
 
     /// <summary>
     /// Port: draws the drag icon's picture into <paramref name="surface"/>: a 0x20 square of the row, over the store's
@@ -43,7 +43,7 @@ public:
     /// The purchase dialog's answer: a confirmed purchase moves <paramref name="quantity"/> from the store's stock to
     /// the spare components (a new one gets its inventory row) and pays for them.
     /// </summary>
-    void OnBuyConfirmed(int32_t result, int32_t quantity);
+    void OnBuyConfirmed(int32_t result, int32_t quantity) const;
 
     /// <summary>The list position the row is drawn at.</summary>
     int32_t Row = 0;

@@ -24,7 +24,8 @@ int32_t VfxCharacterWidth(void* font, int32_t character)
     return MCVfxRead32(Glyph(font, character));
 }
 
-int32_t VfxCharacterDraw(MCPane* pane, int32_t x, int32_t y, void* font, int32_t character, uint8_t* colorTranslate)
+int32_t VfxCharacterDraw(MCPane* pane, int32_t x, int32_t y, void* font, int32_t character,
+                         const uint8_t* colorTranslate)
 {
     MCVfxClip clip;
     const int32_t status = MCVfxClipPane(pane, clip);

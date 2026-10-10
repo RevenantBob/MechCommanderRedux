@@ -244,25 +244,6 @@ auto MCMasterComponent::InitExcel(std::string_view dataLine, float weaponRangeFa
     return 0;
 }
 
-auto MCMasterComponent::IsOffensiveWeapon() const -> int
-{
-    return MasterID != MasterClanAntiMissileSystemID && MasterID != MasterInnerSphereAntiMissileSystemID ? 1 : 0;
-}
-
-auto MCMasterComponent::IsDefensiveWeapon() const -> int
-{
-    return MasterID != MasterClanAntiMissileSystemID && MasterID != MasterInnerSphereAntiMissileSystemID ? 0 : 1;
-}
-
-auto MCMasterComponent::MultiplyWeaponRanges(float factor) -> void
-{
-    // x87: the product at double precision, truncated to a 32-bit int, of which only the low 16 bits are kept.
-    for (float& range : WeaponRange)
-    {
-        range = static_cast<float>(static_cast<int16_t>(static_cast<int32_t>(static_cast<double>(factor) * range)));
-    }
-}
-
 auto InitMasterComponentListExcel(std::string_view fileName, int32_t numComponents, float weaponRangeFactor,
                                   float sensorRangeFactor) -> int32_t
 {
@@ -281,7 +262,8 @@ auto InitMasterComponentListExcel(std::string_view fileName, int32_t numComponen
     }
 
     std::array<uint8_t, 512> dataLine{};
-    const auto line = [&dataLine] { return std::string_view(reinterpret_cast<const char*>(dataLine.data())); };
+    const auto lineText = [&dataLine] { return reinterpret_cast<const char*>(dataLine.data()); };
+    const auto line = [&lineText] { return std::string_view(lineText()); };
     const auto readHeaderLine = [&]
     {
         if (componentFile.ReadLine(dataLine.data(), 0x1ff) == 0)
@@ -293,13 +275,13 @@ auto InitMasterComponentListExcel(std::string_view fileName, int32_t numComponen
     // A header line, the four special ids, a line skipped, and the column titles.
     readHeaderLine();
     readHeaderLine();
-    std::sscanf(line().data(), "MasterArmActuatorID = %d", &MasterArmActuatorID);
+    std::sscanf(lineText(), "MasterArmActuatorID = %d", &MasterArmActuatorID);
     readHeaderLine();
-    std::sscanf(line().data(), "MasterLegActuatorID = %d", &MasterLegActuatorID);
+    std::sscanf(lineText(), "MasterLegActuatorID = %d", &MasterLegActuatorID);
     readHeaderLine();
-    std::sscanf(line().data(), "MasterClanAntiMissileSystemID = %d", &MasterClanAntiMissileSystemID);
+    std::sscanf(lineText(), "MasterClanAntiMissileSystemID = %d", &MasterClanAntiMissileSystemID);
     readHeaderLine();
-    std::sscanf(line().data(), "MasterInnerSphereAntiMissileSystemID = %d", &MasterInnerSphereAntiMissileSystemID);
+    std::sscanf(lineText(), "MasterInnerSphereAntiMissileSystemID = %d", &MasterInnerSphereAntiMissileSystemID);
     componentFile.ReadLine(dataLine.data(), 0x1ff);
     readHeaderLine();
 
@@ -315,15 +297,4 @@ auto InitMasterComponentListExcel(std::string_view fileName, int32_t numComponen
 
     componentFile.Close();
     return 0;
-}
-
-auto MultiplyMasterWeaponRanges(float factor) -> void
-{
-    for (MCMasterComponent& component : MasterComponentList)
-    {
-        if (component.Form > MCComponentForm::Weapon && component.Form < MCComponentForm::Ammo)
-        {
-            component.MultiplyWeaponRanges(factor);
-        }
-    }
 }

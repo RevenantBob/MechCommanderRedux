@@ -89,7 +89,7 @@ public:
     /// <summary>Leaves the pane without content (the old content is freed if the pane owned it).</summary>
     void ClearDisplayPort();
     /// <summary>The content port.</summary>
-    MCLogPort* Lport();
+    MCLogPort* Lport() const;
     /// <summary>
     /// Dragging the slider, the arrows (pressed art, then repeating on a 200 ms timer, id 6) and the track (a page per
     /// click), and passing the rest to the children. The arrows step one row of the first child's height, or a
@@ -102,7 +102,7 @@ public:
     /// </summary>
     bool MouseWheel(int32_t steps, int32_t xPos, int32_t yPos) override;
     /// <summary>The first content row shown.</summary>
-    int32_t GetScrollOffset();
+    int32_t GetScrollOffset() const;
     /// <summary>The content row just below the shown part.</summary>
     int32_t GetScrollBottom();
 

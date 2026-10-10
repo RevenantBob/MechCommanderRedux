@@ -72,10 +72,6 @@ MCAblType* ExecStdTrunc(MCAblRuntime& abl);
 MCAblType* ExecStdRandom(MCAblRuntime& abl);
 /// <summary>ABL getmodulehandle (13).</summary>
 MCAblType* ExecStdGetModHandle(MCAblRuntime& abl);
-/// <summary>ABL getmodulename (14).</summary>
-MCAblType* ExecStdGetModName(MCAblRuntime& abl);
-/// <summary>ABL setmodulename (15).</summary>
-void ExecStdSetModName(MCAblRuntime& abl);
 /// <summary>ABL setmaxloops (10): MaxLoopIterations = argument + 1.</summary>
 MCAblType* ExecStdSetMaxLoops(MCAblRuntime& abl);
 /// <summary>ABL fatal (11).</summary>
@@ -242,12 +238,8 @@ MCAblType* ExecHbGetWeaponAmmo(MCAblRuntime& abl);
 MCAblType* ExecHbGetSensors(MCAblRuntime& abl);
 /// <summary>ABL getcurrentbrvalue (143).</summary>
 MCAblType* ExecHbGetBRValue(MCAblRuntime& abl);
-/// <summary>ABL setcurrentbrvalue (144) by its name; never called (the key has no dispatch case).</summary>
-MCAblType* ExecHbSetBRValue(MCAblRuntime& abl);
 /// <summary>ABL getarmorpts (145): a mover's armor points left (0 for other objects).</summary>
 MCAblType* ExecHbGetArmorPts(MCAblRuntime& abl);
-/// <summary>ABL getmaxarmor (146) by its name; never called (the key has no dispatch case).</summary>
-MCAblType* ExecHbGetMaxArmor(MCAblRuntime& abl);
 /// <summary>ABL getpilotid (147).</summary>
 MCAblType* ExecHbGetPilotId(MCAblRuntime& abl);
 /// <summary>ABL getpilotwounds (148).</summary>
@@ -260,11 +252,6 @@ MCAblType* ExecHbGetObjActive(MCAblRuntime& abl);
 MCAblType* ExecHbGetObjDamage(MCAblRuntime& abl);
 /// <summary>The dispatch sends ABL getobjectmaxdmg (152) here.</summary>
 MCAblType* ExecHbGetObjDmgPts(MCAblRuntime& abl);
-/// <summary>
-/// The damage that destroys an object, by its name. Never called: getobjectdmgpts (151) has no dispatch case
-/// (it is an undefined-routine Fatal) and getobjectmaxdmg runs execHbGetObjDmgPts.
-/// </summary>
-MCAblType* ExecHbGetMaxDmg(MCAblRuntime& abl);
 /// <summary>ABL setobjectdamage (154).</summary>
 void ExecHbSetObjDamage(MCAblRuntime& abl);
 /// <summary>ABL damageobject (101).</summary>
@@ -308,8 +295,6 @@ MCAblType* ExecHbPlayBetty(MCAblRuntime& abl);
 MCAblType* ExecHbGetGlobalValue(MCAblRuntime& abl);
 /// <summary>ABL setglobalvalue (156).</summary>
 void ExecHbSetGlobalValue(MCAblRuntime& abl);
-/// <summary>Writes <see cref="MissionScriptMessageLog"/> to the debug output.</summary>
-void DebugMissionScriptMessages();
 /// <summary>ABL sendmessage (194).</summary>
 void ExecHbSendMessage(MCAblRuntime& abl);
 /// <summary>ABL getmessage (195).</summary>

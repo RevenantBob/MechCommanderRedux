@@ -56,8 +56,6 @@ public:
 
     /// <summary>Updates every object of every block list (finding each by index from the list's start).</summary>
     void UpdateAllObjects();
-    /// <summary>The map's <c>.obj</c> packet file.</summary>
-    MCPacketFile* ObjectFile() const { return _ObjectFile.get(); }
 
 private:
     /// <summary>Reads every block packet and makes its object lists.</summary>

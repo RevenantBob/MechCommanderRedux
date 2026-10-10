@@ -368,7 +368,7 @@ auto MCAblRuntime::PushAddress(MCAddress address) -> void
 auto MCAblRuntime::GetCodeSymbol() -> MCAblSymbol*
 {
     MCAblSymbol* nodePtr;
-    std::memcpy(&nodePtr, _Code, AblCodeSymbolSize);
+    std::memcpy(static_cast<void*>(&nodePtr), _Code, AblCodeSymbolSize);
     _Code += AblCodeSymbolSize;
     return nodePtr;
 }

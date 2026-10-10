@@ -102,7 +102,7 @@ auto MCLogDialogBox::Activate() -> void
 {
     NeedBackground = true;
     GuiSystem()->Grab(this);
-    BringToFront(0);
+    BringToFront(false);
     DrawBackground();
     ShowGuiWindow(true);
 }

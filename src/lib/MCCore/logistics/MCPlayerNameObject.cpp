@@ -33,7 +33,7 @@ auto MCPlayerNameObject::Draw() -> void
     if (NumberArt != nullptr)
     {
         VfxPaneWipe(_Port->Frame(), static_cast<uint32_t>(NumberBack));
-        NumberArt->CopyTo(_Port->Frame(), 1, 1, 0);
+        NumberArt->CopyTo(_Port->Frame(), 1, 1, false);
     }
 
     const auto color = static_cast<uint8_t>(BackgroundColor);

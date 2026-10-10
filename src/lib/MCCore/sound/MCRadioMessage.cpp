@@ -33,20 +33,13 @@ void MCRadioMessage::CloseMovie()
 
 bool MCRadioQueue::MayQueue(const MCMechWarrior* pilot, uint8_t priority, MCRadioMessageType type) const
 {
-    for (const std::unique_ptr<MCRadioMessage>& message : _Waiting)
-    {
-        if (message->Pilot == pilot && priority > message->Priority)
-        {
-            return false;
-        }
-
-        if (message->Priority >= 2 && message->MsgType == type)
-        {
-            return false;
-        }
-    }
-
-    return true;
+    // Refused while the pilot has a waiting message of lower priority, or an urgent one (2+) of this type waits.
+    return std::ranges::none_of(_Waiting,
+                                [&](const std::unique_ptr<MCRadioMessage>& message)
+                                {
+                                    return (message->Pilot == pilot && priority > message->Priority) ||
+                                           (message->Priority >= 2 && message->MsgType == type);
+                                });
 }
 
 void MCRadioQueue::RemoveDuplicates(const MCRadioMessage& message)

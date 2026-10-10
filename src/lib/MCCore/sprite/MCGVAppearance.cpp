@@ -194,7 +194,7 @@ auto MCGVAppearance::Render(int32_t depthFixup) -> int32_t
         CurrentShape[1] = AppearType->GetShape(CurrentState, static_cast<int32_t>(TurretRotation), 1, FrameRate);
     }
 
-    ElementList()->OpenGroup(static_cast<int32_t>(static_cast<float>(depthFixup) - ScreenPos.Y), 0);
+    ElementList()->OpenGroup(static_cast<int32_t>(static_cast<float>(depthFixup) - ScreenPos.Y), false);
 
     for (int32_t part = 0; part < NumParts; part++)
     {
@@ -328,7 +328,7 @@ auto MCGVAppearance::Update() -> int32_t
     return 1;
 }
 
-auto MCGVAppearance::StateExists(MCGVActorState state) -> int32_t
+auto MCGVAppearance::StateExists(MCGVActorState state) const -> int32_t
 {
     const int32_t numStates = (AppearType->HasExtraState ? 1 : 0) + 3;
 
@@ -365,7 +365,7 @@ auto MCGVAppearance::DrawBars() -> void
         {
             // A refit vehicle shows the refit points left against the turret's full armor.
             const auto capacity = static_cast<float>(vehicle->Armor[GroundVehicleTurret].MaxArmor);
-            health = static_cast<float>(vehicle->GetRefitPoints() / capacity * health);
+            health = vehicle->GetRefitPoints() / capacity * health;
         }
     }
     else if (objectClass == MCObjectClass::Turret)
@@ -415,16 +415,16 @@ auto MCGVAppearance::DrawBars() -> void
         barColor = 0x101;
     }
 
-    ElementList()->OpenGroup(-50000, 1);
+    ElementList()->OpenGroup(-50000, true);
     MCPolyElementData data;
     data.NumVertices = 0;
-    data.TextureMapOff = 0;
+    data.TextureMapOff = false;
     data.Texture = nullptr;
     data.TextureWidth = 0;
     data.TextureHeight = 0;
     data.FadeTable = nullptr;
-    data.Translate = 0;
-    data.StatusBar = 1;
+    data.Translate = false;
+    data.StatusBar = true;
     data.BarColor = barColor;
     data.Vertices[0].X = static_cast<int32_t>(barX - 1.0f);
     data.Vertices[0].Y = static_cast<int32_t>(barY - 1.0f);

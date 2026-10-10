@@ -49,7 +49,7 @@ namespace
             return;
         }
 
-        camera->ChangeTarget(mover, 0);
+        camera->ChangeTarget(mover, false);
         TacticalInterface()->FloatingTags[0]->ShowGuiWindow(true);
     }
 
@@ -115,7 +115,7 @@ auto MCFriendlyMechIcon::Enter() -> void
 
         if (shown->GetWindowsVisible() == Turn)
         {
-            tag->ShowGuiWindow(1);
+            tag->ShowGuiWindow(true);
         }
     }
 
@@ -247,7 +247,7 @@ auto MCFriendlyMechIcon::DrawIcon(MCGuiPort* target) -> void
     // The icon's picture held its background, drawn over each time.
     if (IconBackground != nullptr)
     {
-        IconBackground->CopyTo(target->Frame(), 0, 0, 0);
+        IconBackground->CopyTo(target->Frame(), 0, 0, false);
     }
 
     auto* shown = static_cast<MCMover*>(Mover);
@@ -573,7 +573,7 @@ auto MechIconHandleEvent(MCGuiObject* icon, MCGuiEvent* event) -> void
             }
 
             iface->CommandParser->AddSubject(iconPartId);
-            SoundSystem()->PlayDigitalSample(0x10, 1, nullptr, 0, 0);
+            SoundSystem()->PlayDigitalSample(0x10, 1, nullptr, false, false);
             break;
         }
 
@@ -662,7 +662,7 @@ auto MechIconHandleEvent(MCGuiObject* icon, MCGuiEvent* event) -> void
             iface->SetUnit(groupId, movers, pointIndex);
             iface->MechBar->PlaceButtons(true);
             iface->SetMode(MCInterfaceMode::None);
-            GuiSystem()->CursorHidden = 0;
+            GuiSystem()->CursorHidden = false;
             icon->Enter();
             iface->SelectLance(HomeCommander()->GetGroup(groupId));
             iface->CommandParser->AddSubject(HomeCommander()->GetGroup(groupId));
@@ -672,7 +672,7 @@ auto MechIconHandleEvent(MCGuiObject* icon, MCGuiEvent* event) -> void
 
         case MCInterfaceMode::Info:
         {
-            TacticalMap()->HideMe(0);
+            TacticalMap()->HideMe(false);
             TacticalMap()->SetDisplayType(MCTacmapPage::Info);
             TacticalMap()->SetID(mechIcon->PartId);
             iface->UpdateInterface();

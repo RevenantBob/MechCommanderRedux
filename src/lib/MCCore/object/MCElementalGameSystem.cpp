@@ -20,6 +20,6 @@ auto LoadElementalGameSystem(MCFitIniFile& sysFile) -> int32_t
     }
 
     const int32_t result = MCGameSystemReader::ReadValue(sysFile, "NoJumpRange", ElementalTargetNoJumpDistance);
-    Assert(result == 0 ? 1 : 0, 0, " Unable to find Elemental NoJumpRange in gamesys.fit ");
+    Assert(result == 0, 0, " Unable to find Elemental NoJumpRange in gamesys.fit ");
     return 0;
 }

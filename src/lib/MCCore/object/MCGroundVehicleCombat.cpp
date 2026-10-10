@@ -153,7 +153,7 @@ auto MCGroundVehicle::CalcCriticalHitV(int32_t& hitLocation) -> int
             // The engine is knocked out.
             Inventory[Engine].Health = 0;
             Inventory[Engine].Disabled = 1;
-            MovementEnabled = 0;
+            MovementEnabled = false;
             return 0;
         }
         case 5:
@@ -169,7 +169,7 @@ auto MCGroundVehicle::CalcCriticalHitV(int32_t& hitLocation) -> int
         }
         case 7:
         {
-            MovementEnabled = 0;
+            MovementEnabled = false;
             return 0;
         }
         case 9:
@@ -191,14 +191,14 @@ auto MCGroundVehicle::CalcCriticalHitV(int32_t& hitLocation) -> int
             if (MaxRunSpeed <= 0.0f)
             {
                 MaxRunSpeed = 0.0f;
-                MovementEnabled = 0;
+                MovementEnabled = false;
             }
 
             return 0;
         }
         case 10:
         {
-            TurretEnabled = 0;
+            TurretEnabled = false;
             return 0;
         }
         default:
@@ -316,7 +316,7 @@ auto MCGroundVehicle::HandleWeaponHit(MCWeaponShotInfo* shotInfo, int addMultipl
         // A sweeper sweeps with its front: a hit there ends that.
         if (shotInfo->HitLocation == GroundVehicleFront)
         {
-            MineSweeper = 0;
+            MineSweeper = false;
         }
     }
 
@@ -774,7 +774,7 @@ auto MCGroundVehicle::FireWeapon(MCGameObject* target, float targetTime, int32_t
                     targetHotSpot = TargetHotSpotOf(target, hitLocation);
                 }
 
-                Assert(hitLocation != -2 ? 1 : 0, 0, " GroundVehicle.FireWeapon: Bad Hit Location ");
+                Assert(hitLocation != -2, 0, " GroundVehicle.FireWeapon: Bad Hit Location ");
                 MCWeaponShotInfo shot;
                 shot.Init(this, item.MasterID, fired.Damage * static_cast<float>(missilesLeft), hitLocation,
                           entryAngle);
@@ -804,7 +804,7 @@ auto MCGroundVehicle::FireWeapon(MCGameObject* target, float targetTime, int32_t
                 hitLocation = target->CalcHitLocation(this, weaponIndex, 0, attackType);
             }
 
-            Assert(hitLocation != -2 ? 1 : 0, 0, " GroundVehicle.FireWeapon: Bad Hit Location ");
+            Assert(hitLocation != -2, 0, " GroundVehicle.FireWeapon: Bad Hit Location ");
             MCWeaponShotInfo shot;
             shot.Init(this, item.MasterID, fired.Damage, hitLocation, entryAngle);
 
@@ -909,15 +909,14 @@ auto MCGroundVehicle::HandleWeaponFire(int32_t weaponIndex, MCGameObject* target
 
     if (hit == 0)
     {
-        Assert(target == nullptr ? 1 : 0, 0, " GVehicl.handleWeaponFire: target should be NULL with network miss! ");
-        Assert(targetPoint != nullptr ? 1 : 0, 0,
-               " GVehicl.handleWeaponFire: MUST have targetpoint with network miss! ");
+        Assert(target == nullptr, 0, " GVehicl.handleWeaponFire: target should be NULL with network miss! ");
+        Assert(targetPoint != nullptr, 0, " GVehicl.handleWeaponFire: MUST have targetpoint with network miss! ");
 
         if (isStreak != 0)
         {
             CurMoverWeaponFireChunk.Unpack(this);
             DebugWeaponFireChunk(&CurMoverWeaponFireChunk, nullptr, this);
-            Assert(0, 0, " GVehicl.handleWeaponFire: streaks shouldn't miss! ");
+            Assert(false, 0, " GVehicl.handleWeaponFire: streaks shouldn't miss! ");
         }
 
         if (numShots != UNLIMITED_SHOTS)
@@ -958,7 +957,7 @@ auto MCGroundVehicle::HandleWeaponFire(int32_t weaponIndex, MCGameObject* target
             if (missilesPastAMS != 0)
             {
                 std::unique_ptr<MCGameObject> fx = CreateWeaponFX(fired);
-                Assert(hitLocation != -2 ? 1 : 0, static_cast<uint32_t>(TargetRolo),
+                Assert(hitLocation != -2, static_cast<uint32_t>(TargetRolo),
                        " GroundVehicle.handleWeaponFire: Bad Hit Location ");
                 const int32_t targetHotSpot = TargetHotSpotOf(target, hitLocation);
                 shot.Init(this, item.MasterID, fired.Damage * static_cast<float>(missilesPastAMS), hitLocation,

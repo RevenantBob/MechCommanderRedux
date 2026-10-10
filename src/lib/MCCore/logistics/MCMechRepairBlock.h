@@ -37,10 +37,10 @@ public:
     /// Port: draws the mech's details into the repair screen's info box (see <c>MCInvInfoBox</c>): its diagram,
     /// tonnage, classes, speed and description.
     /// </summary>
-    void DrawInfo(MCLogPort* port);
+    void DrawInfo(MCLogPort* port) const;
 
     /// <summary>Takes the mech out of its drop slot.</summary>
-    void UndeployMech();
+    void UndeployMech() const;
 
     /// <summary>Sliders, repair buttons, pilot and item drag and drop.</summary>
     void HandleEvent(MCGuiEvent* event) override;
@@ -69,13 +69,13 @@ public:
     /// Port: draws the picked-up mech's drag icon into <paramref name="surface"/> (0x20 square): its body diagram at
     /// (2, 1) over colour 0x10.
     /// </summary>
-    void OnBeginDragMech(MCLogPort* surface);
+    void OnBeginDragMech(MCLogPort* surface) const;
 
     /// <summary>
     /// Port: draws the drag icon of <paramref name="item"/>, picked out of the weapon list, into
     /// <paramref name="surface"/> (0x20 square): its picture (<c>lscicc</c>) at (1, 1).
     /// </summary>
-    void OnBeginDragItem(MCLogPort* surface, MCLogInventoryItem* item);
+    static void OnBeginDragItem(MCLogPort* surface, MCLogInventoryItem* item);
 
     /// <summary>Works out whether the repair buttons are live; draws them into a <paramref name="port"/> given.</summary>
     void DrawButtons(MCLogPort* port);
@@ -134,9 +134,6 @@ public:
     /// <summary>Port: drawn with the pilot's stats.</summary>
     void SetPilotHealth(MCLogPort* port);
 
-    /// <summary>Empty.</summary>
-    void SetMechStats();
-
     /// <summary>
     /// Rebuilds the short-, medium- and long-range weapon lists and the equipment list from the mech's inventory (an
     /// entry per copy), and sorts the weapon lists by damage.
@@ -153,16 +150,16 @@ public:
     /// The inventory item of entry <paramref name="index"/> of <paramref name="list"/>. The entry's copy is found by
     /// counting the equal entries before it; that copy's item number goes to <paramref name="itemNum"/>.
     /// </summary>
-    MCLogInventoryItem* GetInvItem(const std::vector<int32_t>& list, int32_t index, uint8_t& itemNum);
+    MCLogInventoryItem* GetInvItem(const std::vector<int32_t>& list, int32_t index, uint8_t& itemNum) const;
 
     /// <summary>
     /// Repairs <paramref name="points"/> armor points (all of it when negative): the head first, then one point at a
     /// time to the location most damaged (the center torso, the rear and the cockpit count as more damaged).
     /// </summary>
-    void RepairArmor(int32_t points);
+    void RepairArmor(int32_t points) const;
 
     /// <summary>Repairs <paramref name="points"/> internal structure points (all of it when negative), most damaged first.</summary>
-    void RepairInternal(int32_t points);
+    void RepairInternal(int32_t points) const;
 
     /// <summary>
     /// Makes the weapon list's content for <paramref name="pane"/> (the block's own when null): in multiplayer only for
@@ -177,7 +174,7 @@ public:
     void DrawWeaponList(MCLogPort* content);
 
     /// <summary>The item on line <paramref name="line"/> of the weapon list (null on a heading).</summary>
-    MCLogInventoryItem* GetItemFromScrollPane(int32_t line, uint8_t& itemNum);
+    MCLogInventoryItem* GetItemFromScrollPane(int32_t line, uint8_t& itemNum) const;
 
     /// <summary>
     /// Starts dragging the copy <paramref name="itemNum"/> of <paramref name="item"/> out of the mech: makes the drag
@@ -186,7 +183,7 @@ public:
     void SetUpItemDragIcon(MCLogInventoryItem* item, uint8_t itemNum, MCGuiEvent* event);
 
     /// <summary>Returns 0.</summary>
-    int DebugFunction1(int32_t arg1, int32_t arg2);
+    static int DebugFunction1(int32_t arg1, int32_t arg2);
 
     /// <summary>
     /// The refit dialog's OK: every damaged weapon or piece of equipment with no replacement in the spare components
@@ -244,7 +241,7 @@ private:
     void PaintBase(MCLogPort* port, int32_t top, bool briefing, bool framed);
     /// <summary>The repair buttons, live when <paramref name="items"/> / <paramref name="structure"/>.</summary>
     void PaintButtons(MCLogPort* port, int32_t top, bool onRows, bool items, bool structure);
-    void PaintDiagram(MCLogPort* port, int32_t top, int32_t xPos);
+    void PaintDiagram(MCLogPort* port, int32_t top, int32_t xPos) const;
     void PaintBR(MCLogPort* port, int32_t top);
     void PaintSlider(MCLogPort* port, int32_t top, int32_t slider, bool briefing);
     void PaintStatusBar(MCLogPort* port, int32_t top, float status, bool repairLayout);

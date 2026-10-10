@@ -498,7 +498,7 @@ auto MCAblScanner::LanguageDirective() -> void
         {"stringfuncs_off", &MCAblDirectives::StringFunctions, false},
     };
 
-    const auto found = std::ranges::find(Switches, directive, &MCSwitch::Directive);
+    const auto* const found = std::ranges::find(Switches, directive, &MCSwitch::Directive);
 
     if (found == std::end(Switches))
     {
@@ -583,7 +583,7 @@ auto MCAblScanner::ScanWord() -> void
         _Word = lowerCase(_Text);
     }
 
-    const auto keyword = std::ranges::find(ReservedWords, std::string_view(_Word), &MCReservedWord::Word);
+    const auto* const keyword = std::ranges::find(ReservedWords, std::string_view(_Word), &MCReservedWord::Word);
     _Token = keyword != std::end(ReservedWords) ? keyword->Token : MCAblToken::Identifier;
 }
 

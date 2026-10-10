@@ -1,6 +1,7 @@
 #include "stdafx.h"
 #include "MCTest.h"
 #include "fixtures/MCTinyMap.h"
+#include "ai/MCMoveGeometry.h"
 #include "ai/MCMoveSystem.h"
 #include "ai/MCTacticalOrder.h"
 #include "main/MCGameContext.h"
@@ -521,6 +522,120 @@ TEST_CASE("move chunk: steps pack into one word and unpack to the same cells")
     CHECK(received.StepPos[1] == (std::array<int32_t, 4>{10, 21, 1, 0}));
     CHECK(received.StepPos[2] == (std::array<int32_t, 4>{10, 21, 2, 1}));
     CHECK(received.StepPos[3] == (std::array<int32_t, 4>{11, 21, 0, 1}));
+}
+
+/// <summary>
+/// The direction from a cell to a neighbour, clockwise from north (0) to north-west (7), across tile edges; the cell
+/// itself and a cell further away have none (-2).
+/// </summary>
+TEST_CASE("move geometry: the direction to a neighbouring cell runs clockwise from north, across tile edges")
+{
+    // From tile (5, 5) cell (1, 1), the middle of its tile.
+    const std::array<std::pair<std::pair<int32_t, int32_t>, int32_t>, 8> neighbours = {
+        {{{0, 1}, 0}, {{0, 2}, 1}, {{1, 2}, 2}, {{2, 2}, 3}, {{2, 1}, 4}, {{2, 0}, 5}, {{1, 0}, 6}, {{0, 0}, 7}}};
+
+    for (const auto& [cell, direction] : neighbours)
+    {
+        MCTest::Scope scope(std::format("cell ({}, {})", cell.first, cell.second));
+        CHECK_EQ(CellDirToCell(5, 5, 1, 1, 5, 5, cell.first, cell.second), direction);
+    }
+
+    CHECK_EQ(CellDirToCell(5, 5, 1, 1, 5, 5, 1, 1), -2);
+    // Cell (0, 2) of tile (5, 5): east is tile (5, 6)'s cell (0, 0), north-east tile (4, 6)'s cell (2, 0).
+    CHECK_EQ(CellDirToCell(5, 5, 0, 2, 5, 6, 0, 0), 2);
+    CHECK_EQ(CellDirToCell(5, 5, 0, 2, 4, 6, 2, 0), 1);
+    CHECK_EQ(CellDirToCell(5, 5, 0, 2, 5, 6, 0, 1), -2);
+    CHECK_EQ(CellDirToCell(5, 5, 1, 1, 7, 5, 1, 1), -2);
+}
+
+/// <summary>
+/// A gate (overlays 67-74) behaves by the mover's alignment: alignment -1 sees each gate as its opposite (67 as 71,
+/// 71 as 67), alignment 0 sees every gate closed (-1), alignment 1 sees it as it is. Other overlays are themselves for
+/// everyone.
+/// </summary>
+TEST_CASE("move geometry: a gate overlay is open to one side, its opposite to the other")
+{
+    for (uint32_t gate = 67; gate <= 74; gate++)
+    {
+        MCTest::Scope scope(std::format("overlay {}", gate));
+        const uint32_t opposite = gate < 71 ? gate + 4 : gate - 4;
+        CHECK_EQ(GateOverlay(gate, -1), static_cast<int32_t>(opposite));
+        CHECK_EQ(GateOverlay(gate, 0), -1);
+        CHECK_EQ(GateOverlay(gate, 1), static_cast<int32_t>(gate));
+    }
+
+    CHECK_EQ(GateOverlay(66, -1), 66);
+    CHECK_EQ(GateOverlay(75, 0), 75);
+}
+
+/// <summary>
+/// World positions and map cells convert both ways: the map's north-west corner is cell (0, 0), x runs east along the
+/// columns and y north against the rows, a tile is three cells a side; a cell's world position is its centre.
+/// </summary>
+TEST_CASE("move geometry: world positions and map cells convert both ways")
+{
+    MCTinyMap tiny(8);
+    const float cellSide = MCTinyMap::MetersPerTile / MapCellDim;
+    const float halfSide = MCTinyMap::MetersPerTile * 8 / 2;
+
+    for (const auto [row, col] : {std::pair(0, 0), std::pair(12, 12), std::pair(5, 17), std::pair(23, 23)})
+    {
+        MCTest::Scope scope(std::format("cell ({}, {})", row, col));
+        const MCVector3D centre(-halfSide + (static_cast<float>(col) + 0.5f) * cellSide,
+                                halfSide - (static_cast<float>(row) + 0.5f) * cellSide, 0.0f);
+        int32_t cellR = -1;
+        int32_t cellC = -1;
+        WorldCoordToMapCell(centre, cellR, cellC);
+        CHECK_EQ(cellR, row);
+        CHECK_EQ(cellC, col);
+
+        int32_t tileR = -1;
+        int32_t tileC = -1;
+        WorldCoordToMapCoord(centre, tileR, tileC, cellR, cellC);
+        CHECK_EQ(tileR, row / MapCellDim);
+        CHECK_EQ(tileC, col / MapCellDim);
+        CHECK_EQ(cellR, row % MapCellDim);
+        CHECK_EQ(cellC, col % MapCellDim);
+
+        const MCVector3D fromCell = MapCellToWorldPos(row, col);
+        CHECK(std::abs(fromCell.X - centre.X) < 0.01f);
+        CHECK(std::abs(fromCell.Y - centre.Y) < 0.01f);
+        const MCVector3D fromTile =
+            MapTileCellToWorldPos(row / MapCellDim, col / MapCellDim, row % MapCellDim, col % MapCellDim);
+        CHECK(std::abs(fromTile.X - centre.X) < 0.01f);
+        CHECK(std::abs(fromTile.Y - centre.Y) < 0.01f);
+    }
+}
+
+/// <summary>
+/// The point a distance away at an angle (0 degrees is south: the reach is negative): an open point is itself; a
+/// blocked one is walked back toward the start in steps of a sixth of a tile, and (OB-032) the result is the last
+/// blocked point before the walk got out, one step short.
+/// </summary>
+TEST_CASE("move geometry: a point at an angle and distance walks back out of blocked cells, a step short (OB-032)")
+{
+    MCTinyMap tiny(8);
+    const float savedUnits = WorldUnitsPerMeter;
+    WorldUnitsPerMeter = 1.0f;
+    const MCVector3D start = tiny.CellCentre(6, 12);
+
+    const MCVector3D open = RelativePositionToPoint(start, 0.0f, 200.0f, 0);
+    CHECK(std::abs(open.X - start.X) < 0.01f);
+    CHECK(std::abs(open.Y - (start.Y - 200.0f)) < 0.01f);
+
+    // The point lands in cell (10, 12) or near it; block the cells around it, back toward the start.
+    for (int32_t row = 9; row <= 12; row++)
+    {
+        tiny.Block(row, 12);
+    }
+
+    const MCVector3D walked = RelativePositionToPoint(start, 0.0f, 200.0f, 0);
+    CHECK(std::abs(walked.X - start.X) < 0.01f);
+    CHECK(!GameMap()->CellPassable(walked));
+    const float step = MCTinyMap::MetersPerTile / 6.0f;
+    CHECK(GameMap()->CellPassable(MCVector3D(walked.X, walked.Y + step, 0.0f)));
+    CHECK(walked.Y > start.Y - 200.0f);
+    WorldUnitsPerMeter = savedUnits;
 }
 
 TEST_CASE("path manager: requests are served by priority, the newest of a priority first, one per pilot")

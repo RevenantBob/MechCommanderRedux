@@ -60,24 +60,6 @@ MCFileTransferInfo::MCFileTransferInfo(std::string_view homeDirectory, uint32_t 
 
 MCFileTransferInfo::~MCFileTransferInfo() = default;
 
-bool MCFileTransferInfo::PrepareNextMessage()
-{
-    // The piece is built in place: the header word, cleared send counters and the transfer id, then the file bytes.
-    // Original behaviour: the piece's transfer id is always 0 (fileID is never copied in), so two transfers at once
-    // would be mixed up by the receivers.
-    MCFIGuaranteedMessageHeader header;
-    header.Header = LinkupHeader(MCLinkupMessageType::FileData, FIMSG_GUARANTEED);
-    uint8_t* buffer = Message->MessageBuffer();
-    std::memcpy(buffer, &header, sizeof(header));
-    buffer[FileIDOffset] = 0;
-
-    // Port fix: an unopened file reads as empty (the original read through a null FILE).
-    const size_t bytesRead =
-        _File != nullptr ? std::fread(buffer + FileDataOffset, 1, FileDataPieceSize, _File.get()) : 0;
-    Message->MessageSize = static_cast<uint32_t>(bytesRead + FileDataOffset);
-    return buffer[Message->MessageSize - 1] == 0;
-}
-
 bool MCFileTransferInfo::AddBytes(std::span<const uint8_t> piece)
 {
     if (_File != nullptr && piece.size() > FileDataOffset)

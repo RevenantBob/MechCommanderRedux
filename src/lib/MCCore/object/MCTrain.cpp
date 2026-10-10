@@ -20,7 +20,7 @@ void LockTrackCells(MCTrainCar* car, int32_t trackDirection, uint32_t locked)
     int32_t tileC = 0;
     int32_t cellR = 0;
     int32_t cellC = 0;
-    GameMap()->WorldToMapPos(car->GetPosition(), tileR, tileC, cellR, cellC);
+    MCScenarioMap::WorldToMapPos(car->GetPosition(), tileR, tileC, cellR, cellC);
     // The cell index is not wrapped at the tile's edge (a car in the last column locks index row * 3 + 3).
     const auto lock = [&]
     {

@@ -23,13 +23,13 @@ public:
     /// Readies row <paramref name="row"/>: the description. Port: the row is drawn by <see cref="DrawRow"/> (the
     /// original painted it here).
     /// </summary>
-    void DrawBackground(int32_t row);
+    void DrawBackground(int32_t row) const;
 
     /// <summary>
     /// Port: draws the row into <paramref name="port"/> (the store's view) with its top at <paramref name="top"/>:
     /// what the original's <c>drawBackground</c> painted into the store's picture. A hired pilot draws nothing.
     /// </summary>
-    void DrawRow(MCLogPort* port, int32_t top);
+    void DrawRow(MCLogPort* port, int32_t top) const;
 
     /// <summary>
     /// Port: draws the drag icon's picture into <paramref name="surface"/>: a 0x20 square of the row, over the pilot
@@ -40,7 +40,7 @@ public:
     /// <summary>
     /// The hiring dialog's answer: a confirmed hire adds the pilot to the inventory, takes it off the store and pays.
     /// </summary>
-    void OnHireConfirmed(int32_t result);
+    void OnHireConfirmed(int32_t result) const;
 
     /// <summary>The list position the row is drawn at.</summary>
     int32_t Row = 0;

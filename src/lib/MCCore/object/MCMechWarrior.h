@@ -98,13 +98,13 @@ public:
     }
 
     /// <summary>The aggressiveness; halfway to 100 while on a combat order when <paramref name="current"/>.</summary>
-    int32_t GetAggressiveness(int current);
+    int32_t GetAggressiveness(int current) const;
     /// <summary>Queues a player order (0; 2 when full); starts it when it is the only one.</summary>
     int32_t AddQueuedTacOrder(MCTacticalOrder tacOrder);
     /// <summary>Takes the first queued order (0; 2 when empty).</summary>
     int32_t RemoveQueuedTacOrder(MCTacticalOrder* tacOrder);
     /// <summary>Reads the first queued order without taking it (0; 2 when empty).</summary>
-    int32_t PeekQueuedTacOrder(MCTacticalOrder* tacOrder);
+    int32_t PeekQueuedTacOrder(MCTacticalOrder* tacOrder) const;
     void ClearTacOrderQueue();
     /// <summary>Makes the next queued order the player order.</summary>
     void ExecuteTacOrderQueue();
@@ -117,11 +117,11 @@ public:
     /// or the last executed one when 0).
     /// </summary>
     void UpdateClientOrderQueue(int32_t tacOrderId);
-    MCMoverGroup* GetGroup();
-    MCMover* GetPoint();
-    int OnHomeTeam();
+    MCMoverGroup* GetGroup() const;
+    MCMover* GetPoint() const;
+    int OnHomeTeam() const;
     /// <summary>Whether the vehicle belongs to a player (its net player id is set).</summary>
-    int UnderHomeCommand();
+    int UnderHomeCommand() const;
     /// <summary>Rolls a skill check (counting the try and a success); returns the margin, negative on a failure.</summary>
     int32_t CheckSkill(int32_t skillId, float factor);
     /// <summary>Adds wounds; at 6 the pilot dies (or ejects when <paramref name="checkEject"/> and the roll allowed
@@ -131,13 +131,13 @@ public:
     void Eject();
     void SetTeam(MCTeam* newTeam);
     void SetVehicle(MCGameObject* newVehicle);
-    MCGameObject* GetVehicle() { return Vehicle; }
+    MCGameObject* GetVehicle() const { return Vehicle; }
     void SetBrainName(std::string_view brainName) { BrainStr = brainName; }
     /// <summary>Replaces the brain with a new module of <paramref name="brainHandle"/> and finds its alarm handlers.</summary>
     int32_t SetBrain(int32_t brainHandle);
     int32_t RunBrain();
     /// <summary>The vehicle's status, -1 without one.</summary>
-    int32_t GetVehicleStatus();
+    int32_t GetVehicleStatus() const;
     void UpdateAttackerStatus(uint32_t attackerId, float time);
     MCAttackerRec* GetAttackerInfo(uint32_t attackerId);
     /// <summary>The attackers of the last <paramref name="seconds"/>.</summary>
@@ -151,7 +151,6 @@ public:
     /// </summary>
     void SetLastTarget(MCGameObject* target, int obliterate = 0, int conserveAmmo = 0);
     void SetCurrentTarget(MCGameObject* target);
-    MCGameObject* GetAttackTargetPosition(MCVector3D& pos);
     void ClearAttackOrders();
     void ClearMoveOrders();
     /// <summary>Sets the move goal: <paramref name="type"/> -1 none, 0 a location, else an object's part id.</summary>
@@ -164,7 +163,7 @@ public:
     /// </summary>
     void ReachedPathEnd();
     float GetMoveDistanceLeft();
-    int IsJumping(MCVector3D* jumpGoal);
+    int IsJumping(MCVector3D* jumpGoal) const;
     /// <summary>The path being walked; when it is done, swaps in the next leg.</summary>
     MCMovePath* GetMovePath();
     void SetMoveWayPath(MCWayPath* wayPath, int patrol);
@@ -178,16 +177,16 @@ public:
     /// </summary>
     int32_t CalcMovePath(int32_t selectionIndex, uint32_t moveParams, int32_t source);
     /// <summary>The first way point of a queued move order, if the next queued order is one.</summary>
-    int GetNextWayPoint(MCVector3D& nextPoint, int incWayPoint);
+    int GetNextWayPoint(MCVector3D& nextPoint, int incWayPoint) const;
     /// <summary>
     /// Per weapon, whether it can fire at the target now (the attack chance, or -1 not ready, -2 no ammo, -3 out
     /// of range, -4 not locked, -5 no chance); returns how many can, or -1 can't fire, -2 no target, -3 out of range.
     /// </summary>
-    int32_t CalcWeaponsStatus(MCGameObject* target, int32_t* weaponList, MCVector3D* targetPoint);
+    int32_t CalcWeaponsStatus(MCGameObject* target, int32_t* weaponList, MCVector3D* targetPoint) const;
     /// <summary>Fires what can fire at the last target; out of ammo ends the order.</summary>
     int32_t CombatDecisionTree();
     /// <summary>A point away from the enemy, walking the escape vector until off the map or blocked.</summary>
-    MCVector3D CalcWithdrawGoal(float withdrawRange);
+    MCVector3D CalcWithdrawGoal(float withdrawRange) const;
     /// <summary>Whether the vehicle is on, or its path crosses, a blown bridge.</summary>
     int MovingOverBlownBridge();
     /// <summary>Times out moves, reroutes around gates and blown bridges, and keeps attack moves in range.</summary>
@@ -218,14 +217,10 @@ public:
     int32_t MainDecisionTree();
     /// <summary>A captured vehicle drops its orders; else the combat and movement trees run.</summary>
     void UpdateActions();
-    void SetDebugFlag(uint32_t flag, int on);
-    int GetDebugFlag(uint32_t flag);
     /// <summary>Prints <paramref name="text"/> in the ABL debugger, if one is up (stopping in it with
     /// <paramref name="debugMode"/>).</summary>
-    void DebugPrint(std::string_view text, int debugMode);
+    static void DebugPrint(std::string_view text, int debugMode);
     void DebugOrders();
-    void SetMoveSpeedType(int32_t type);
-    void SetMoveSpeedVelocity(float speed);
     int32_t OrderWait(int unitOrder, MCOrderOrigin origin, int32_t seconds, int clearLastTarget);
     int32_t OrderStop(int unitOrder, int setTacOrder);
     int32_t OrderMoveToPoint(int unitOrder, int setTacOrder, MCOrderOrigin origin, MCVector3D location,
@@ -241,40 +236,37 @@ public:
     int32_t OrderPatrolPath(int unitOrder, int setTacOrder, MCOrderOrigin origin, MCWayPath* wayPath);
     int32_t OrderPowerUp(int unitOrder, MCOrderOrigin origin);
     int32_t OrderPowerDown(int unitOrder, MCOrderOrigin origin);
-    int32_t OrderUseSpeed(float speed);
     int32_t OrderAttackObject(int unitOrder, MCOrderOrigin origin, MCGameObject* target, int32_t type, int32_t method,
                               int32_t range, int32_t aimLocation, uint32_t params);
     int32_t OrderAttackPoint(int unitOrder, MCOrderOrigin origin, MCVector3D location, int32_t type, int32_t method,
                              int32_t range, uint32_t params);
     void SetAttackTargetPoint(MCVector3D location) { AttackOrders.TargetPoint = location; }
-    MCVector3D GetAttackTargetPoint() { return AttackOrders.TargetPoint; }
+    MCVector3D GetAttackTargetPoint() const { return AttackOrders.TargetPoint; }
     int32_t OrderWithdraw(int unitOrder, MCOrderOrigin origin, MCVector3D location);
     int32_t OrderEject(int unitOrder, int setTacOrder, MCOrderOrigin origin);
     int32_t OrderUseFireRange(int32_t range);
-    int32_t OrderUseFireOdds(int32_t odds);
     int32_t OrderRefit(MCOrderOrigin origin, MCGameObject* target, uint32_t params);
     int32_t OrderGetFixed(MCOrderOrigin origin, MCGameObject* target, uint32_t params);
     int32_t OrderLoadIntoCarrier(MCOrderOrigin origin, MCGameObject* target, uint32_t params);
     int32_t OrderDeployElementals(MCOrderOrigin origin, uint32_t params);
     int32_t OrderCapture(MCOrderOrigin origin, MCGameObject* target, uint32_t params);
-    int32_t HandleTargetOfWeaponFire();
+    static int32_t HandleTargetOfWeaponFire();
     int32_t HandleHitByWeaponFire();
     int32_t HandleCollision();
-    int32_t HandleDamageTakenRate();
+    static int32_t HandleDamageTakenRate();
     int32_t HandleUnitMateDeath();
-    int32_t HandleFriendlyVehicleCrippled();
-    int32_t HandleFriendlyVehicleDestruction();
+    static int32_t HandleFriendlyVehicleCrippled();
+    static int32_t HandleFriendlyVehicleDestruction();
     int32_t HandleOwnVehicleIncapacitation(uint32_t cause);
-    int32_t HandleOwnVehicleDestruction(uint32_t cause);
+    int32_t HandleOwnVehicleDestruction(uint32_t cause) const;
     int32_t HandleOwnVehicleWithdrawn();
     int32_t HandleMoraleBreak();
     /// <summary>Counts the kill, calls it in, and scores gunnery skill points (a tenth for an ally's).</summary>
     int32_t HandleKilledTarget();
-    int32_t HandleUnitMateFiredWeapon();
+    static int32_t HandleUnitMateFiredWeapon();
     int32_t HandlePlayerOrder();
     int32_t HandleNoMovePath();
-    int32_t HandleGateClosing();
-    int32_t MissionLog(MCFile* file, int32_t unitLevel);
+    static int32_t HandleGateClosing();
     /// <summary>The rank from the weighted skill ranks (<see cref="SkillWeightings"/>, <see cref="WarriorRankScale"/>).</summary>
     void CalcRank();
     /// <summary>Reads section "Warrior<paramref name="warriorId"/>": the brain's memory cells and static variables.</summary>
@@ -449,12 +441,6 @@ public:
     /// <summary>Pilots alive (a new pilot's updates are staggered by it).</summary>
     static int32_t NumWarriors;
 };
-
-/// <summary>
-/// Walks from <paramref name="start"/> toward <paramref name="end"/> (from the end back when <paramref
-/// name="reverse"/>) in half-cell steps to the first passable cell, and returns the point on the ground there.
-/// </summary>
-MCVector3D VectorOffset(MCVector3D start, MCVector3D end, int32_t reverse);
 
 /// <summary>The skill names as the pilot files spell them.</summary>
 extern const std::array<std::string_view, NumSkills> SkillsTable;

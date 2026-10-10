@@ -89,7 +89,7 @@ auto MCCompPurchaseBlock::Destroy() -> void
     MCLogObject::Destroy();
 }
 
-auto MCCompPurchaseBlock::OnBuyConfirmed(int32_t result, int32_t quantity) -> void
+auto MCCompPurchaseBlock::OnBuyConfirmed(int32_t result, int32_t quantity) const -> void
 {
     if (result == 0)
     {
@@ -109,13 +109,13 @@ auto MCCompPurchaseBlock::OnBuyConfirmed(int32_t result, int32_t quantity) -> vo
         stockItem = spares->GetItemInfo(spares->GetIndexFromMasterID(bought->MasterID));
         stockItem->Count = quantity;
         MCInventoryList::MakeInventoryBlock(stockItem)->InventoryIndex = spares->NumItems() - 1;
-        GlobalLogPtr->PurchaseScreen->CreateCompInvBlock();
+        MCPurchaseScreen::CreateCompInvBlock();
         GlobalLogPtr->PurchaseScreen->SetUpCompInv(false, true);
     }
     else if (stockItem->Count == 0)
     {
         stockItem->Count = quantity;
-        GlobalLogPtr->PurchaseScreen->CreateCompInvBlock();
+        MCPurchaseScreen::CreateCompInvBlock();
         GlobalLogPtr->PurchaseScreen->SetUpCompInv(false, true);
     }
     else
@@ -240,12 +240,12 @@ auto MCCompPurchaseBlock::HandleEvent(MCGuiEvent* event) -> void
     PlayLogSound(0x33);
 }
 
-auto MCCompPurchaseBlock::DrawBackground(int32_t, int32_t) -> void
+auto MCCompPurchaseBlock::DrawBackground(int32_t, int32_t) const -> void
 {
     PrepareInfoDescription(Item->Description);
 }
 
-auto MCCompPurchaseBlock::DrawRow(MCLogPort* port, int32_t top) -> void
+auto MCCompPurchaseBlock::DrawRow(MCLogPort* port, int32_t top) const -> void
 {
     MCPurchaseScreen* screen = GlobalLogPtr->PurchaseScreen.get();
     std::unique_ptr<MCLogBlockPort> work = RowPicture(screen->CompTabPort.get(), port, top, true);

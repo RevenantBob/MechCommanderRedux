@@ -168,7 +168,7 @@ auto MCReusableDialog::Activate() -> void
 
     if (Timeout > 0)
     {
-        GuiSystem()->AddTimer(this, TimeoutTimer, Timeout, 0, 0, 0);
+        GuiSystem()->AddTimer(this, TimeoutTimer, Timeout, 0, 0, false);
     }
 }
 

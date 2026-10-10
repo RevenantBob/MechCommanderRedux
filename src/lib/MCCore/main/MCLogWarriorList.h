@@ -70,7 +70,7 @@ public:
     int32_t GetID(int32_t index) const;
 
     /// <summary>Writes the warrior at <paramref name="index"/> as a profile text file.</summary>
-    int32_t SaveWarriorText(std::string_view fileName, int32_t index);
+    int32_t SaveWarriorText(std::string_view fileName, int32_t index) const;
 
     /// <summary>The warrior at <paramref name="index"/> into <paramref name="warrior"/> (null past the end).</summary>
     /// <returns>0, or -1 past the end.</returns>

@@ -26,7 +26,7 @@ auto MCMechBar::Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, 
     MCRenderer::DestroyTexture(Port()->Bitmap());
     MCGuiPort::FreePixels(Port()->Bitmap()->Buffer);
     Port()->Bitmap()->Buffer = nullptr;
-    ShowGuiWindow(0);
+    ShowGuiWindow(false);
     Dancing = false;
     SpacingX = 0x34;
     SpacingY = 0x2e;
@@ -102,7 +102,7 @@ auto MCMechBar::HandleEvent(MCGuiEvent* event) -> void
     // A broadcast (a resolution change): back to the bottom of the screen.
     if (event->Type == 0x12)
     {
-        MoveTo(1, GuiSystem()->Height() - Height() - 1, 0);
+        MoveTo(1, GuiSystem()->Height() - Height() - 1, false);
     }
 
     event->Target = MainHolder()->GetActivePane();
@@ -148,7 +148,7 @@ auto MCMechBar::AddButton(MCGuiOwned<MCFriendlyMechIcon> button) -> bool
         return false;
     }
 
-    button->MoveTo((SpacingX + 1) * static_cast<int32_t>(Buttons.size()) + 2, 0xf, 0);
+    button->MoveTo((SpacingX + 1) * static_cast<int32_t>(Buttons.size()) + 2, 0xf, false);
     AddChild(button.get());
     Buttons.push_back(std::move(button));
     return true;
@@ -242,7 +242,7 @@ auto MCMechBar::PlaceButtons(bool animate) -> void
 
             if (buttonLance < static_cast<int32_t>(NumLances) && LanceIcons[buttonLance] != nullptr)
             {
-                LanceIcons[buttonLance]->MoveTo(xPos, 2, 0);
+                LanceIcons[buttonLance]->MoveTo(xPos, 2, false);
             }
 
             xPos++;
@@ -257,7 +257,7 @@ auto MCMechBar::PlaceButtons(bool animate) -> void
     {
         for (const MCGuiOwned<MCFriendlyMechIcon>& button : Buttons)
         {
-            button->MoveTo(button->TargetX, button->Y(), 0);
+            button->MoveTo(button->TargetX, button->Y(), false);
         }
 
         const int32_t linkWidth = SpacingX - 1;
@@ -278,7 +278,7 @@ auto MCMechBar::PlaceButtons(bool animate) -> void
         _DanceCallback = std::make_unique<MCGuiCallback>();
         _DanceCallback->SetExec([] { TacticalInterface()->MechBar->Dance(); });
         GuiSystem()->AddCallback(_DanceCallback.get());
-        SoundSystem()->PlayDigitalSample(0x42, 1, nullptr, 0, 0);
+        SoundSystem()->PlayDigitalSample(0x42, 1, nullptr, false, false);
     }
 }
 
@@ -323,7 +323,7 @@ auto MCMechBar::Dance() -> void
     {
         for (const MCGuiOwned<MCFriendlyMechIcon>& button : Buttons)
         {
-            button->MoveTo(button->TargetX, button->Y(), 0);
+            button->MoveTo(button->TargetX, button->Y(), false);
         }
 
         _DanceStep++;
@@ -333,7 +333,7 @@ auto MCMechBar::Dance() -> void
     {
         for (const MCGuiOwned<MCLanceIcon>& lanceIcon : LanceIcons)
         {
-            lanceIcon->MoveTo(lanceIcon->X(), lanceIcon->Y() + step, 0);
+            lanceIcon->MoveTo(lanceIcon->X(), lanceIcon->Y() + step, false);
             lanceIcon->SetDepth(-10);
         }
 
@@ -341,7 +341,7 @@ auto MCMechBar::Dance() -> void
         {
             if (button->TargetX < button->X())
             {
-                button->MoveTo(button->X(), button->Y() - step, 0);
+                button->MoveTo(button->X(), button->Y() - step, false);
                 button->SetDepth(10);
             }
         }
@@ -350,12 +350,12 @@ auto MCMechBar::Dance() -> void
     {
         for (const MCGuiOwned<MCFriendlyMechIcon>& button : Buttons)
         {
-            button->MoveTo(button->X() + button->ShuffleStep, button->Y(), 0);
+            button->MoveTo(button->X() + button->ShuffleStep, button->Y(), false);
         }
 
         for (const MCGuiOwned<MCLanceIcon>& lanceIcon : LanceIcons)
         {
-            lanceIcon->ShowGuiWindow(0);
+            lanceIcon->ShowGuiWindow(false);
         }
     }
     else if (_DanceStep == 2)
@@ -367,7 +367,7 @@ auto MCMechBar::Dance() -> void
                 lanceIcon->NumActiveMovers = lanceIcon->GetNumActiveMovers();
             }
 
-            lanceIcon->MoveTo(lanceIcon->X(), lanceIcon->Y() - step, 0);
+            lanceIcon->MoveTo(lanceIcon->X(), lanceIcon->Y() - step, false);
             lanceIcon->ShowTest();
         }
 
@@ -375,7 +375,7 @@ auto MCMechBar::Dance() -> void
         {
             if (button->Y() != 0xf)
             {
-                button->MoveTo(button->X(), button->Y() + step, 0);
+                button->MoveTo(button->X(), button->Y() + step, false);
             }
         }
 
@@ -390,14 +390,14 @@ auto MCMechBar::Dance() -> void
             for (const MCGuiOwned<MCLanceIcon>& lanceIcon : LanceIcons)
             {
                 lanceIcon->SetDepth(0);
-                lanceIcon->MoveTo(lanceIcon->X(), 2, 0);
+                lanceIcon->MoveTo(lanceIcon->X(), 2, false);
                 lanceIcon->Resize(lanceIcon->GetNumActiveMovers() * (SpacingX - 1) + 3, lanceIcon->Height());
             }
 
             Dancing = false;
             GuiSystem()->RemoveCallback(_DanceCallback.get());
             Draw();
-            SoundSystem()->PlayDigitalSample(0x43, 1, nullptr, 0, 0);
+            SoundSystem()->PlayDigitalSample(0x43, 1, nullptr, false, false);
             _DanceFrames++;
             // The callback running this goes last (aCallback's run allows it, OB-109).
             _DanceCallback.reset();

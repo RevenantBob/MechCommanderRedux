@@ -245,7 +245,7 @@ auto MCAblDebugger::StatementText() const -> std::string
             case MCAblToken::String:
             {
                 MCAblSymbol* idPtr = nullptr;
-                std::memcpy(&idPtr, next, sizeof(idPtr));
+                std::memcpy(static_cast<void*>(&idPtr), next, sizeof(MCAblSymbol*));
                 text += ' ';
                 text += idPtr->Name;
                 next += AblCodeSymbolSize;
@@ -778,8 +778,8 @@ auto MCAblDebugger::DebugMode() -> void
 
         if (ApplicationActive)
         {
-            UpdateDisplay(TakeScreenShot, 0, 0, 0, 0);
-            TakeScreenShot = 0;
+            UpdateDisplay(TakeScreenShot, false, 0, false, 0);
+            TakeScreenShot = false;
             PerfStopTime = MCPort::PerformanceCounter();
 
             if (MultiPlayer())

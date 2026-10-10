@@ -147,7 +147,7 @@ auto MCGroundVehicleType::Init(MCFile* objFile, uint32_t fileSize) -> int32_t
     MinesToLay = vehicleFile.Read<int32_t>("MinesToLay").value_or(0);
     ElementalCarrier = vehicleFile.Read<bool>("ElementalCarrier").value_or(false);
     Seats = vehicleFile.Read<uint8_t>("Seats").value_or(0);
-    Assert(Seats <= MaxGroundVehicleSeats ? 1 : 0, Seats, "Too many seats");
+    Assert(Seats <= MaxGroundVehicleSeats, Seats, "Too many seats");
     ExplRad = vehicleFile.Read<float>("ExplosionRadius").value_or(0.0f);
     ExplDmg = vehicleFile.Read<float>("ExplosionDamage").value_or(0.0f);
 
@@ -337,7 +337,7 @@ auto MCGroundVehicleType::HandleCollision(MCGameObject* collidee, MCGameObject* 
             return 0;
     }
 
-    SoundSystem()->PlayDigitalSample(4, 1, collidee, 0, 0);
+    SoundSystem()->PlayDigitalSample(4, 1, collidee, false, false);
     return 0;
 }
 
@@ -366,7 +366,7 @@ auto MCGroundVehicleType::HandleDestruction(MCGameObject* collidee, MCGameObject
     {
         vehicle->GetPilot()->TriggerAlarm(MCPilotAlarmType::VehicleDestroyed,
                                           collider == nullptr ? 0 : collider->IdNumber);
-        vehicle->DeathExplosionDone = 0;
+        vehicle->DeathExplosionDone = false;
         vehicle->Status = 2;
 
         if (vehicle->GetAlignment() == HomeTeam()->Alignment)

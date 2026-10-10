@@ -62,7 +62,7 @@ auto MCVehicleRepairBlock::Destroy() -> void
     MCLogObject::Destroy();
 }
 
-auto MCVehicleRepairBlock::LeaveForce() -> void
+auto MCVehicleRepairBlock::LeaveForce() const -> void
 {
     const int32_t vehicleSlot = SlotIndex - GlobalLogPtr->ForceMechList->GetMechCount();
 
@@ -98,8 +98,8 @@ auto MCVehicleRepairBlock::LeaveForce() -> void
     }
 
     MCLogVehicle* leaving = Vehicle;
-    leaving->Deployed = 0;
-    leaving->Assigned = 0;
+    leaving->Deployed = false;
+    leaving->Assigned = false;
 
     if (leaving == RepairScreen()->SelectedVehicle)
     {
@@ -115,7 +115,7 @@ auto MCVehicleRepairBlock::LeaveForce() -> void
     }
 
     RepairScreen()->RemoveVehicleFromList(leaving);
-    RepairScreen()->CreateVhclInvBlock();
+    MCRepairScreen::CreateVhclInvBlock();
     RepairScreen()->SetUpVhclInv(true, true);
 }
 
@@ -254,7 +254,7 @@ auto MCVehicleRepairBlock::HandleEvent(MCGuiEvent* event) -> void
     }
 }
 
-auto MCVehicleRepairBlock::DrawDamageDiagram(MCLogPort* port) -> void
+auto MCVehicleRepairBlock::DrawDamageDiagram(MCLogPort* port) const -> void
 {
     std::array<int32_t, 5> shade = {};
 
@@ -296,13 +296,13 @@ auto MCVehicleRepairBlock::DrawRow(MCLogPort* port, int32_t top) -> void
     PaintRow(port, top, false, RepairScreen()->SelectedVehicle == Vehicle);
 }
 
-auto MCVehicleRepairBlock::OnBeginDrag(MCLogPort* surface) -> void
+auto MCVehicleRepairBlock::OnBeginDrag(MCLogPort* surface) const -> void
 {
     VfxPaneWipe(surface->Frame(), 0x10);
 
     for (int32_t location = 0; location < 5; ++location)
     {
-        GlobalLogPtr->DrawVehicleBodyLoc(Vehicle, location, surface, 2, 0);
+        MCLogistics::DrawVehicleBodyLoc(Vehicle, location, surface, 2, 0);
     }
 }
 
@@ -437,16 +437,4 @@ auto MCVehicleRepairBlock::SetBar(MCLogPort* port, int32_t xPos) -> void
     {
         DrawLine(port->Frame(), xPos, y, end, y, color);
     }
-}
-
-auto MCVehicleRepairBlock::SetPilotStats() -> void
-{
-}
-
-auto MCVehicleRepairBlock::SetPilotHealth(int32_t, MCLogPort*) -> void
-{
-}
-
-auto MCVehicleRepairBlock::ClearPilot() -> void
-{
 }

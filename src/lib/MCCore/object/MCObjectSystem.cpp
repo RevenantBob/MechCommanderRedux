@@ -74,12 +74,6 @@ auto InnerSphereMechList() -> MCObjectList*
     return system != nullptr ? system->InnerSphereMechs : nullptr;
 }
 
-auto IconList() -> MCObjectList*
-{
-    MCObjectSystem* system = ObjectSystem();
-    return system != nullptr ? system->Icons : nullptr;
-}
-
 auto WeaponList() -> MCObjectList*
 {
     MCObjectSystem* system = ObjectSystem();

@@ -127,7 +127,6 @@ public:
     void InitWayPath(std::span<const MCWayPathPoint> path);
     MCVector3D GetWayPoint(int32_t index) const;
     void SetWayPoint(int32_t index, MCVector3D wayPoint);
-    void AddWayPoint(MCVector3D wayPoint, int32_t run);
     /// <summary>The target of a ramming attack, else null.</summary>
     MCGameObject* GetRamTarget() const;
     /// <summary>The target of a JumpToPoint order, else null.</summary>
@@ -196,7 +195,7 @@ private:
     /// <summary>The order's first waypoint.</summary>
     MCVector3D FirstWayPoint() const { return GetWayPoint(0); }
     /// <summary>Status of a Capture order: the prize taken once the vehicle is within 30 m.</summary>
-    bool CaptureStatus(MCMechWarrior* pilot);
+    bool CaptureStatus(MCMechWarrior* pilot) const;
     /// <summary>Status of a Refit order: drive up, power the mech down, repair in rounds, power it up.</summary>
     bool RefitStatus(MCMechWarrior* pilot);
     /// <summary>Status of a GetFixed order: drive into the bay, power down, repair in rounds, drive out.</summary>

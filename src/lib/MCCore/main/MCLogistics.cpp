@@ -199,7 +199,7 @@ auto MCLogistics::Start() -> void
     {
         ChatWindow = MCMakeGui<MCLogChatWindow>();
         ChatWindow->Init(7, 0x44, 0xbf, 0x101, 100000);
-        ChatWindow->ShowGuiWindow(0);
+        ChatWindow->ShowGuiWindow(false);
         MultiplayerScreen = std::make_unique<MCSplashScreen>();
         SerialScreen = std::make_unique<MCSplashScreen>();
         LanScreen = std::make_unique<MCSplashScreen>();
@@ -254,7 +254,7 @@ auto MCLogistics::Start() -> void
 
             playersField->InitBuffer(2, MCLogInputType::Port);
             playersField->SetStringBuffer("6");
-            ScreenElement<MCLogButton>(screen, 6)->Disabled = 1;
+            ScreenElement<MCLogButton>(screen, 6)->Disabled = true;
             screen->ShowBlock(0);
         }
 
@@ -296,7 +296,7 @@ auto MCLogistics::Start() -> void
             auto* players = ScreenElement<MCLogScrollTextObject>(screen, 3);
             players->SetEventRoutine(ReadyRoomPlayerListHandleEvent);
             players->FontIndex = 1;
-            ScreenElement<MCLogButton>(screen, 2)->Disabled = 1;
+            ScreenElement<MCLogButton>(screen, 2)->Disabled = true;
         }
     }
 
@@ -374,8 +374,8 @@ auto MCLogistics::Start() -> void
     Ticker->SetScreen(CurrentScreen);
     CurrentScreen->AddChild(Ticker.get());
     Ticker->SetFont(MedWhiteFont);
-    Ticker->BringToFront(0);
-    Ticker->ShowGuiWindow(1);
+    Ticker->BringToFront(false);
+    Ticker->ShowGuiWindow(true);
     {
         const std::unique_ptr<MCLogPort> tickerBack = NewPort(0xcd, MedWhiteFont->Height());
         VfxPaneWipe(tickerBack->Frame(), 0xed);
@@ -613,14 +613,14 @@ MCLogistics::~MCLogistics()
     EmptyFile.clear();
 }
 
-auto MCLogistics::ShowLogScreen(bool show, bool redraw) -> void
+auto MCLogistics::ShowLogScreen(bool show, bool redraw) const -> void
 {
     if (redraw)
     {
         GuiSystem()->ActivatePaletteFromTga(ArtPath + "logart\\lsrupm05.tga");
     }
 
-    CurrentScreen->ShowGuiWindow(show ? 1 : 0);
+    CurrentScreen->ShowGuiWindow(show);
 }
 
 auto MCLogistics::SetUpMainScreen(bool fromMenu) -> int32_t
@@ -649,7 +649,7 @@ auto MCLogistics::SetUpMainScreen(bool fromMenu) -> int32_t
 
         MCGameContext::Current().SetMultiPlayer(nullptr);
         MCBriefingScreen* briefing = BriefingScreen.get();
-        briefing->ChatBlinking = 0;
+        briefing->ChatBlinking = false;
 
         if (briefing->ChatTimerOn != 0)
         {
@@ -670,7 +670,7 @@ auto MCLogistics::SetUpMainScreen(bool fromMenu) -> int32_t
 
         if (PurchaseDialog != nullptr)
         {
-            PurchaseDialog->ShowGuiWindow(0);
+            PurchaseDialog->ShowGuiWindow(false);
         }
     }
 
@@ -714,12 +714,12 @@ namespace
     {
         if (pane->BackgroundCopy != nullptr)
         {
-            pane->BackgroundCopy->CopyTo(dest->Frame(), backX, 1, 1);
+            pane->BackgroundCopy->CopyTo(dest->Frame(), backX, 1, true);
         }
 
         VfxPaneWipe(scratch->Frame(), 0xff);
         pane->DrawContentTo(scratch->Frame(), 0, 0);
-        scratch->CopyTo(dest->Frame(), 0, 1, 1);
+        scratch->CopyTo(dest->Frame(), 0, 1, true);
         pane->DrawSliderColumn(dest->Frame(), dest->Width() - 0xe, 1, true);
     }
 
@@ -745,13 +745,13 @@ auto MCLogistics::SetUpPurchaseScreen(bool animate) -> int32_t
                 GuiSystem()->RemoveTimer(PurchaseScreen.get(), 7);
                 // Original behaviour (OB-096): clears the repair screen's flag instead of the purchase screen's, so
                 // the purchase screen's chat button does not blink again until the flag is cleared elsewhere.
-                RepairScreen->ChatBlinking = 0;
+                RepairScreen->ChatBlinking = false;
             }
         }
         else if (PurchaseScreen->ChatBlinking == 0)
         {
-            GuiSystem()->AddTimer(PurchaseScreen.get(), 7, 0xfa, 0, 0, 0);
-            PurchaseScreen->ChatBlinking = 1;
+            GuiSystem()->AddTimer(PurchaseScreen.get(), 7, 0xfa, 0, 0, false);
+            PurchaseScreen->ChatBlinking = true;
         }
     }
 
@@ -773,25 +773,25 @@ auto MCLogistics::SetUpPurchaseScreen(bool animate) -> int32_t
     {
         case 0:
         {
-            screen->SetUpMechInv(1, 1);
+            screen->SetUpMechInv(true, true);
             screen->SetUpMechPurchase();
             break;
         }
         case 1:
         {
-            screen->SetUpPilotInv(1, 1);
+            screen->SetUpPilotInv(true, true);
             screen->SetUpPilotPurchase();
             break;
         }
         case 2:
         {
-            screen->SetUpCompInv(1, 1);
+            screen->SetUpCompInv(true, true);
             screen->SetUpCompPurchase();
             break;
         }
         case 3:
         {
-            screen->SetUpVhclInv(1, 1);
+            screen->SetUpVhclInv(true, true);
             screen->SetUpVehiclePurchase();
             break;
         }
@@ -825,15 +825,15 @@ auto MCLogistics::SetUpPurchaseScreen(bool animate) -> int32_t
             direction = 0;
         }
 
-        pane->ShowGuiWindow(0);
+        pane->ShowGuiWindow(false);
         Transition(WorkPort1.get(), WorkPort0.get(), direction);
-        pane->ShowGuiWindow(1);
+        pane->ShowGuiWindow(true);
     }
 
     return 0;
 }
 
-auto MCLogistics::DrawScreenButtons() -> void
+auto MCLogistics::DrawScreenButtons() const -> void
 {
     MCLogObject* screen = CurrentScreen;
 
@@ -863,7 +863,7 @@ auto MCLogistics::DrawScreenChrome(MCLogObject* screen, MCPane* target) -> void
     {
         if (MCLogPort* back = LogScreenArt("lsc_p0.tga"))
         {
-            back->CopyTo(target, 0xd3, 0, 0);
+            back->CopyTo(target, 0xd3, 0, false);
         }
     }
 
@@ -872,7 +872,7 @@ auto MCLogistics::DrawScreenChrome(MCLogObject* screen, MCPane* target) -> void
         // Button 0 is the main menu in single player, exit in multiplayer; the screen's own button is grayed, the one
         // under the mouse lit, and the briefing button blinks while the chat is unread.
         const std::array<const std::array<std::unique_ptr<MCLogPort>, 3>*, 4> ports = {
-            MultiPlayer() == nullptr ? &ScreenButtonPorts[0] : &ScreenButtonPorts[1], &ScreenButtonPorts[2],
+            MultiPlayer() == nullptr ? ScreenButtonPorts.data() : &ScreenButtonPorts[1], &ScreenButtonPorts[2],
             &ScreenButtonPorts[3], &ScreenButtonPorts[4]};
         const int32_t own = screen == BriefingScreen.get() ? 1 : (screen == PurchaseScreen.get() ? 2 : 3);
 
@@ -883,7 +883,7 @@ auto MCLogistics::DrawScreenChrome(MCLogObject* screen, MCPane* target) -> void
 
             if (MCLogPort* face = faces[button == own ? 2 : 0].get(); face != nullptr)
             {
-                face->CopyTo(target, 2, top, 0);
+                face->CopyTo(target, 2, top, false);
             }
 
             const bool blinking = button == 1 && chrome->BlinkLit && BriefingScreen->ChatBlinking != 0;
@@ -938,7 +938,7 @@ auto MCLogistics::SetUpBriefingScreen(bool animate) -> int32_t
     CurrentScreen = briefing;
     LogisticsState = 3;
     ShowLogScreen(true, previous != RepairScreen.get() && previous != PurchaseScreen.get());
-    briefing->MovieStarted = 0;
+    briefing->MovieStarted = false;
     briefing->SetUpMission();
     briefing->MissionPane->SetScrollPos(0.0f);
     briefing->DeployPane->SetScrollPos(0.0f);
@@ -947,7 +947,7 @@ auto MCLogistics::SetUpBriefingScreen(bool animate) -> int32_t
 
     if (MultiPlayer() == nullptr)
     {
-        ChatWindow->ShowGuiWindow(0);
+        ChatWindow->ShowGuiWindow(false);
     }
     else
     {
@@ -963,15 +963,15 @@ auto MCLogistics::SetUpBriefingScreen(bool animate) -> int32_t
             }
 
             briefing->AddChild(chat);
-            chat->MoveTo(2, 0x65, 0);
+            chat->MoveTo(2, 0x65, false);
         }
 
         MoveLights(PlayerLights.get(), briefing);
 
         if (briefing->ChatBlinking != 0 && briefing->ChatTimerOn == 0)
         {
-            GuiSystem()->AddTimer(briefing, 5, 500, 0, 0, 0);
-            briefing->ChatTimerOn = 1;
+            GuiSystem()->AddTimer(briefing, 5, 500, 0, 0, false);
+            briefing->ChatTimerOn = true;
         }
 
         briefing->SetUpOperation();
@@ -1019,11 +1019,11 @@ auto MCLogistics::SetUpSessionScreen() -> int32_t
         DestroyMultiplayer();
     }
 
-    CurrentScreen->ShowGuiWindow(0);
+    CurrentScreen->ShowGuiWindow(false);
     CurrentScreen = SessionScreen.get();
     ShowLogScreen(true, true);
     LogisticsState = 8;
-    SessionScreen->Activate(0);
+    SessionScreen->Activate(false);
     return 0;
 }
 
@@ -1041,13 +1041,13 @@ auto MCLogistics::SetUpRepairScreen(bool animate) -> int32_t
             if (repair->ChatBlinking != 0)
             {
                 GuiSystem()->RemoveTimer(repair, 8);
-                repair->ChatBlinking = 0;
+                repair->ChatBlinking = false;
             }
         }
         else if (repair->ChatBlinking == 0)
         {
-            GuiSystem()->AddTimer(repair, 8, 0xfa, 0, 0, 0);
-            repair->ChatBlinking = 1;
+            GuiSystem()->AddTimer(repair, 8, 0xfa, 0, 0, false);
+            repair->ChatBlinking = true;
         }
     }
 
@@ -1067,16 +1067,16 @@ auto MCLogistics::SetUpRepairScreen(bool animate) -> int32_t
     switch (CurrentInvTab)
     {
         case 0:
-            repair->SetUpMechInv(1, 1);
+            repair->SetUpMechInv(true, true);
             break;
         case 1:
-            repair->SetUpPilotInv(1, 1);
+            repair->SetUpPilotInv(true, true);
             break;
         case 2:
-            repair->SetUpCompInv(1, 1);
+            repair->SetUpCompInv(true, true);
             break;
         case 3:
-            repair->SetUpVhclInv(1, 1);
+            repair->SetUpVhclInv(true, true);
             break;
     }
 
@@ -1111,9 +1111,9 @@ auto MCLogistics::SetUpRepairScreen(bool animate) -> int32_t
             VfxPaneCopy(look->Frame(), 0xd3, 0x10, WorkPort1->Frame(), 0, 0, -1);
         }
 
-        repair->UnitPane->ShowGuiWindow(0);
+        repair->UnitPane->ShowGuiWindow(false);
         Transition(WorkPort1.get(), WorkPort0.get(), 0);
-        repair->UnitPane->ShowGuiWindow(1);
+        repair->UnitPane->ShowGuiWindow(true);
     }
 
     return 0;
@@ -1140,12 +1140,12 @@ namespace
 
             if (Direction == 0)
             {
-                From->CopyTo(target, 0, 0, 1);
+                From->CopyTo(target, 0, 0, true);
                 VfxPaneCopy(To->Frame(), 0x1ab - Offset, 0, target, 0, 0, -1);
             }
             else
             {
-                To->CopyTo(target, 0, 0, 1);
+                To->CopyTo(target, 0, 0, true);
                 VfxPaneCopy(From->Frame(), Offset, 0, target, 0, 0, -1);
             }
         }
@@ -1163,7 +1163,7 @@ namespace
     };
 }
 
-auto MCLogistics::Transition(MCLogPort* from, MCLogPort* to, int direction) -> void
+auto MCLogistics::Transition(MCLogPort* from, MCLogPort* to, int direction) const -> void
 {
     // A pane over the screen's right part, redrawn each frame for a quarter of a second: direction 0 slides the new
     // picture in from the right over the old one, any other slides the old one out to the left off the new one.
@@ -1173,9 +1173,9 @@ auto MCLogistics::Transition(MCLogPort* from, MCLogPort* to, int direction) -> v
     wipe->To = to;
     wipe->Direction = direction;
     CurrentScreen->AddChild(wipe.get());
-    wipe->ShowGuiWindow(1);
+    wipe->ShowGuiWindow(true);
     wipe->SetDepth(100);
-    SoundSystem()->PlayDigitalSample(0x36, 1, nullptr, 0, 0);
+    SoundSystem()->PlayDigitalSample(0x36, 1, nullptr, false, false);
     const int64_t frequency = MCPort::PerformanceFrequency();
     float elapsed = 0.0f;
 
@@ -1183,7 +1183,7 @@ auto MCLogistics::Transition(MCLogPort* from, MCLogPort* to, int direction) -> v
     {
         const int64_t start = MCPort::PerformanceCounter();
         wipe->Offset = static_cast<int32_t>(static_cast<double>(elapsed) * 4.0 * 427.0);
-        UpdateDisplay(0, 0, 0, 0, 0);
+        UpdateDisplay(false, false, 0, false, 0);
         const int64_t end = MCPort::PerformanceCounter();
         // The original divided the low 32 bits of the tick difference by the low 32 bits of the frequency.
         const auto ticks = static_cast<uint32_t>(end - start);
@@ -1191,7 +1191,7 @@ auto MCLogistics::Transition(MCLogPort* from, MCLogPort* to, int direction) -> v
     } while (elapsed < 0.25);
 }
 
-auto MCLogistics::Darken(int32_t amount, char* fadeTable, MCLogPort* port) -> void
+auto MCLogistics::Darken(int32_t amount, char* fadeTable, MCLogPort* port) const -> void
 {
     // Darkens row block amount (of the port's height) through the fade table; with no port, the repair screen's
     // unit pane (0x19d x 0x70 blocks).
@@ -1228,7 +1228,7 @@ void MCLogistics::DarkenRect(MCLogPort* port, int32_t xPos, int32_t yPos, int32_
     VfxTranslatePolygon(port->Frame(), corners, reinterpret_cast<const uint8_t*>(fadeTable));
 }
 
-auto MCLogistics::ReIndexInventory() -> int32_t
+auto MCLogistics::ReIndexInventory() const -> int32_t
 {
     // Give each component with copies the next inventory row, in the order of the widgets' inventory indexes;
     // components with none get -1.
@@ -1290,14 +1290,4 @@ auto CancelBool(int32_t) -> void
     }
 
     Cancel();
-}
-
-auto BackToSession() -> void
-{
-    GlobalLogPtr->SetUpSessionScreen();
-}
-
-auto BackToSessionBool(int32_t) -> void
-{
-    GlobalLogPtr->SetUpSessionScreen();
 }

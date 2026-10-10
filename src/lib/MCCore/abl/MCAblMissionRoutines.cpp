@@ -88,7 +88,7 @@ auto ExecHbSetTimer(MCAblRuntime& abl) -> MCAblType*
     {
         // Original behaviour: the time is read as a real even when the script passed an integer.
         GuiSystem()->AddTimer(GuiSystem(), timerId, static_cast<int32_t>(static_cast<double>(abl.Top().Real) * 1000.0),
-                              0x1406, 0, 0);
+                              0x1406, 0, false);
     }
 
     abl.Top().Integer = timerId;
@@ -385,7 +385,7 @@ auto ExecHbSendMessage(MCAblRuntime& abl) -> void
         if (abl.MissionScriptMessages.size() == MissionScriptMessageReport)
         {
             DebugMissionScriptMessages();
-            Assert(0, static_cast<uint32_t>(MissionScriptMessageReport), " Way too many Mission Script Messages! ");
+            Assert(false, static_cast<uint32_t>(MissionScriptMessageReport), " Way too many Mission Script Messages! ");
         }
 
         abl.MissionScriptMessages.push_back({static_cast<int16_t>(abl.LineNumber()),

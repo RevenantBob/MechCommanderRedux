@@ -470,7 +470,7 @@ namespace MCInput
         MCInputState& input = state();
         std::deque<MCPostedMessage> posted;
         {
-            std::lock_guard<std::mutex> lock(input.QueueLock);
+            std::scoped_lock lock(input.QueueLock);
             posted.swap(input.Posted);
         }
 
@@ -527,7 +527,7 @@ namespace MCInput
         }
 
         MCInputState& input = state();
-        std::lock_guard<std::mutex> lock(input.QueueLock);
+        std::scoped_lock lock(input.QueueLock);
         input.Posted.push_back({message, wParam, lParam});
     }
 
@@ -826,7 +826,7 @@ namespace MCInput
         }
 
         {
-            std::lock_guard<std::mutex> lock(input.QueueLock);
+            std::scoped_lock lock(input.QueueLock);
             input.Posted.clear();
         }
 

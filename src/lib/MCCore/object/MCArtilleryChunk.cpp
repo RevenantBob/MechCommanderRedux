@@ -28,7 +28,7 @@ auto MCArtilleryChunk::Unpack() -> void
     Seconds = static_cast<int8_t>(static_cast<uint8_t>(Data >> 26) - 1);
 }
 
-auto MCArtilleryChunk::EqualTo(MCArtilleryChunk* chunk) -> int
+auto MCArtilleryChunk::EqualTo(MCArtilleryChunk* chunk) const -> int
 {
     return CommanderId == chunk->CommanderId && StrikeType == chunk->StrikeType && CellRow == chunk->CellRow &&
                    CellCol == chunk->CellCol && Seconds == chunk->Seconds

@@ -31,7 +31,8 @@ public:
         using difference_type = std::ptrdiff_t;
 
         Iterator() = default;
-        Iterator(Objects::const_iterator position, Objects::const_iterator end) : _Position(position), _End(end)
+        Iterator(Objects::const_iterator position, Objects::const_iterator end)
+            : _Position(std::move(position)), _End(std::move(end))
         {
             SkipEmpty();
         }

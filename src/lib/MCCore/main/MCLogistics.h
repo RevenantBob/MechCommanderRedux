@@ -76,10 +76,11 @@ public:
     void Start();
 
     /// <summary>Draws the damage state of location <paramref name="location"/> of a mech into <paramref name="port"/>.</summary>
-    void DrawMechBodyLoc(MCLogMech* mech, int32_t location, MCLogPort* port, int32_t xPos, int32_t yPos);
+    static void DrawMechBodyLoc(MCLogMech* mech, int32_t location, MCLogPort* port, int32_t xPos, int32_t yPos);
 
     /// <summary>Draws the damage state of location <paramref name="location"/> of a vehicle into <paramref name="port"/>.</summary>
-    void DrawVehicleBodyLoc(MCLogVehicle* vehicle, int32_t location, MCLogPort* port, int32_t xPos, int32_t yPos);
+    static void DrawVehicleBodyLoc(MCLogVehicle* vehicle, int32_t location, MCLogPort* port, int32_t xPos,
+                                   int32_t yPos);
 
     /// <summary>Makes the multiplayer lists and drop slots and reads the net mech/warrior/vehicle lists.</summary>
     void InitializeMultiplayer();
@@ -88,7 +89,7 @@ public:
     void DestroyMultiplayer();
 
     /// <summary>Shows or hides the current logistics screen (activating the logistics palette when <paramref name="redraw"/>).</summary>
-    void ShowLogScreen(bool show, bool redraw);
+    void ShowLogScreen(bool show, bool redraw) const;
 
     /// <summary>
     /// Switches to the main screen; leaving a multiplayer game takes the session down. <paramref name="fromMenu"/>:
@@ -110,7 +111,7 @@ public:
     void SetUpPurchasing(MCPacketFile& file);
 
     /// <summary>Changes what can be bought by an old-style purchase file (counts added to the shop's).</summary>
-    void SetUpOldPurchasing(std::string_view purchaseFile);
+    void SetUpOldPurchasing(std::string_view purchaseFile) const;
 
     /// <summary>Switches to the purchase screen (with the slide when <paramref name="animate"/>).</summary>
     int32_t SetUpPurchaseScreen(bool animate);
@@ -119,13 +120,13 @@ public:
     /// Painted the screen switch buttons on the current screen: each normal, the current screen's grayed, none lit.
     /// Port: the buttons are drawn each frame (<see cref="DrawScreenChrome"/>); this puts out the lit one.
     /// </summary>
-    void DrawScreenButtons();
+    void DrawScreenButtons() const;
 
     /// <summary>
     /// Port: screen button <paramref name="button"/> of <paramref name="screen"/> is under the mouse and shows lit
     /// (the original copied the lit picture over it).
     /// </summary>
-    void HoverScreenButton(MCLogObject* screen, int32_t button);
+    static void HoverScreenButton(MCLogObject* screen, int32_t button);
 
     /// <summary>
     /// Port: draws the shared places of <paramref name="screen"/> from the state (<see cref="MCLogScreenChrome"/>): the
@@ -146,7 +147,7 @@ public:
     void LoadQuickStart(MCFitIniFile& file);
 
     /// <summary>Saves the campaign as <paramref name="fileName"/>.</summary>
-    int32_t SaveCampaign(std::string_view fileName);
+    static int32_t SaveCampaign(std::string_view fileName);
 
     /// <summary>
     /// Loads a campaign (or a saved game) and its force: save <paramref name="saveName"/> with extension
@@ -159,31 +160,31 @@ public:
     int32_t PrepareScenario(std::string_view scenarioName, std::string_view startFile);
 
     /// <summary>Gives mech <paramref name="mechIndex"/> pilot <paramref name="pilotIndex"/> (a negative one takes it off).</summary>
-    void SetPilot(int32_t mechIndex, int32_t pilotIndex);
+    void SetPilot(int32_t mechIndex, int32_t pilotIndex) const;
 
     /// <summary>Moves assigned mechs into the force list and unassigned ones back, then renumbers their rows.</summary>
-    void ReorderMechs();
+    void ReorderMechs() const;
 
     /// <summary>As <see cref="ReorderMechs"/> for vehicles.</summary>
-    void ReorderVehicles();
+    void ReorderVehicles() const;
 
     /// <summary>Moves assigned pilots into the assigned list and unassigned ones back, then renumbers their rows.</summary>
-    void ReorderWarriors();
+    void ReorderWarriors() const;
 
     /// <summary>Shifts the force mechs' pilot indexes from <paramref name="from"/> on by <paramref name="amount"/>.</summary>
-    void ShiftPilots(int32_t from, int32_t amount);
+    void ShiftPilots(int32_t from, int32_t amount) const;
 
     /// <summary>Whether every required mech and vehicle is in the drop.</summary>
-    bool RequiredAssigned();
+    bool RequiredAssigned() const;
 
     /// <summary>Reads the current mission's tonnage, briefing, map and drop zones.</summary>
     void GetCurrentMission();
 
     /// <summary>Slides from <paramref name="from"/> to <paramref name="to"/> (a screen change).</summary>
-    void Transition(MCLogPort* from, MCLogPort* to, int direction);
+    void Transition(MCLogPort* from, MCLogPort* to, int direction) const;
 
     /// <summary>Darkens <paramref name="port"/> through the fade table.</summary>
-    void Darken(int32_t amount, char* fadeTable, MCLogPort* port);
+    void Darken(int32_t amount, char* fadeTable, MCLogPort* port) const;
 
     /// <summary>
     /// Port: <see cref="Darken"/> of a <paramref name="width"/> x <paramref name="height"/> block of
@@ -194,7 +195,7 @@ public:
     static void DarkenRect(MCLogPort* port, int32_t xPos, int32_t yPos, int32_t width, int32_t height, char* fadeTable);
 
     /// <summary>Renumbers the component inventory's rows.</summary>
-    int32_t ReIndexInventory();
+    int32_t ReIndexInventory() const;
 
     /// <summary>Handles a multiplayer "deploy force" message: adds the other player's mech or vehicle to its drop slot.</summary>
     void HandleDeployForceMessage(uint32_t playerID, const void* message);
@@ -205,17 +206,17 @@ public:
     /// <summary>Blinks the chat button and passes a chat message to the chat window.</summary>
     void HandleChatMessage(uint32_t playerID, const void* message);
 
-    void SendRemoveForceMessage(int lance, int slot);
+    void SendRemoveForceMessage(int lance, int slot) const;
 
-    void SendAddMechMessage(MCLogMech* mech, int lance, int slot);
+    void SendAddMechMessage(MCLogMech* mech, int lance, int slot) const;
 
-    void SendAddVehicleMessage(MCLogVehicle* vehicle, int lance, int slot);
+    void SendAddVehicleMessage(MCLogVehicle* vehicle, int lance, int slot) const;
 
     /// <summary>A player left: tells the player (once any exiting dialog is answered).</summary>
-    void HandleLostPlayer(uint32_t playerID, int hostLeft);
+    void HandleLostPlayer(uint32_t playerID, int hostLeft) const;
 
     /// <summary>The host started the mission.</summary>
-    void HandlePrepareScenarioMessage();
+    void HandlePrepareScenarioMessage() const;
 
     /// <summary>Writes the multiplayer start file <paramref name="startFile"/> (every player's drop slots) and the profiles.</summary>
     int32_t PrepareMultiplayerScenario(std::string_view scenarioName, std::string_view startFile);
@@ -224,16 +225,16 @@ public:
     void ProcessCheatCode(int16_t key);
 
     /// <summary>Draws the bar of the pilot's skill <paramref name="skill"/> (an index into its skills).</summary>
-    void DrawPilotSkillBar(MCLogWarrior* warrior, int32_t skill, int32_t xPos, int32_t yPos, int32_t row, int32_t width,
-                           int32_t rowHeight, MCLogPort* port);
+    static void DrawPilotSkillBar(MCLogWarrior* warrior, int32_t skill, int32_t xPos, int32_t yPos, int32_t row,
+                                  int32_t width, int32_t rowHeight, MCLogPort* port);
 
     /// <summary>
     /// Draws a 4-pixel skill bar <paramref name="width"/> wide at (<paramref name="xPos"/>, <paramref name="yPos"/> +
     /// <paramref name="row"/> * <paramref name="rowHeight"/>), filled in proportion to <paramref name="value"/>
     /// between <c>MinPilotSkill</c> and <c>MaxPilotSkill</c>.
     /// </summary>
-    void DrawPilotSkillBar(int32_t value, int32_t xPos, int32_t yPos, int32_t row, int32_t width, int32_t rowHeight,
-                           MCLogPort* port);
+    static void DrawPilotSkillBar(int32_t value, int32_t xPos, int32_t yPos, int32_t row, int32_t width,
+                                  int32_t rowHeight, MCLogPort* port);
 
 protected:
     /// <summary>Marks which of the 12 drop slots are the local player's.</summary>
@@ -246,10 +247,10 @@ protected:
     MCLogVehicleList* FindMPVehicleList(uint32_t playerID, bool teammate);
 
     /// <summary>Builds a mech (with its pilot and inventory) from a deploy force message.</summary>
-    MCLogPart* AddMechFromNetworkMessage(MCLogMechList& list, const MCDeployForce& force);
+    MCLogPart* AddMechFromNetworkMessage(MCLogMechList& list, const MCDeployForce& force) const;
 
     /// <summary>Builds a vehicle (with its inventory) from a deploy force message.</summary>
-    MCLogPart* AddVehicleFromNetworkMessage(MCLogVehicleList& list, const MCDeployForce& force);
+    MCLogPart* AddVehicleFromNetworkMessage(MCLogVehicleList& list, const MCDeployForce& force) const;
 
     /// <summary>Empties drop slot <paramref name="slot"/> of the player's (or, without <paramref name="teamTable"/>, the opponents') table.</summary>
     bool RemoveForceAtDropSlot(int32_t slot, uint32_t playerID, bool teamTable);
@@ -470,12 +471,6 @@ std::optional<std::string> MyGetUserName();
 
 /// <summary>A dialog's answer: cancels (and quits a game launched from a lobby).</summary>
 void CancelBool(int32_t answer);
-
-/// <summary>Returns to the multiplayer session screen.</summary>
-void BackToSession();
-
-/// <summary>A dialog's answer: returns to the session screen.</summary>
-void BackToSessionBool(int32_t answer);
 
 /// <summary>The "player left" dialog's answer.</summary>
 void LostPlayerHandler(int32_t answer);

@@ -38,11 +38,11 @@ public:
     /// Whether the sensors work: on a team, the owner alive and awake, and (for a mover) its sensor component
     /// present and undamaged.
     /// </summary>
-    int Enabled();
+    int Enabled() const;
     /// <summary>Drops every contact and leaves the team.</summary>
     void Disable();
     /// <summary>The weaker of <paramref name="team"/>'s jamming and its ECM at the owner's position.</summary>
-    float CalcTeamEffect(MCTeam* team);
+    float CalcTeamEffect(MCTeam* team) const;
     /// <summary>Once per scenario time: each team's effect on these sensors, and the one that applies.</summary>
     void CalcTeamMultipliers();
     /// <summary>Adds <paramref name="contact"/> unless already held.</summary>
@@ -72,8 +72,6 @@ public:
     /// working; a probe extends the range for hidden (status 5) targets.
     /// </summary>
     int OnSensors(MCGameObject* target);
-    /// <summary>The contacts held, by <c>MCPotentialContact::Id</c>.</summary>
-    std::span<const uint16_t> Contacts() const { return _Contacts; }
     /// <summary>Contacts held.</summary>
     int32_t NumContacts() const { return static_cast<int32_t>(_Contacts.size()); }
 
@@ -140,8 +138,6 @@ public:
     MCSensorSystem* Sensor(int32_t id) const { return _Sensors[id].get(); }
     /// <summary>Sensors made.</summary>
     size_t Size() const { return _Sensors.size(); }
-    /// <summary>Sensors free to take without making one.</summary>
-    size_t NumFree() const { return _Free.size(); }
 
 private:
     /// <summary>Makes the next sensor.</summary>

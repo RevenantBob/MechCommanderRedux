@@ -298,7 +298,7 @@ auto MCGuiTitleBar::ShowCloseButton(bool show) -> void
     }
 }
 
-auto MCGuiTitleBar::ShowZoomButton(bool show) -> void
+auto MCGuiTitleBar::ShowZoomButton(bool show) const -> void
 {
     if (ZoomButton != nullptr)
     {
@@ -306,7 +306,7 @@ auto MCGuiTitleBar::ShowZoomButton(bool show) -> void
     }
 }
 
-auto MCGuiTitleBar::ShowZoomButtons(bool show) -> void
+auto MCGuiTitleBar::ShowZoomButtons(bool show) const -> void
 {
     if (ZoomButton != nullptr)
     {
@@ -319,7 +319,7 @@ auto MCGuiTitleBar::ShowZoomButtons(bool show) -> void
     }
 }
 
-auto MCGuiTitleBar::ShowSwoopyButton(bool show) -> void
+auto MCGuiTitleBar::ShowSwoopyButton(bool show) const -> void
 {
     if (SwoopyButton != nullptr)
     {
@@ -334,7 +334,7 @@ auto MCGuiTitleBar::Resize(int32_t newWidth, int32_t newHeight) -> void
     SwoopyButton->MoveTo(WinWidth - CloseButton->Width() - SwoopyButton->Width(), 0);
 }
 
-auto MCGuiTitleBar::ResizeOK(int32_t newWidth) -> bool
+auto MCGuiTitleBar::ResizeOK(int32_t newWidth) const -> bool
 {
     int32_t needed = 4;
 

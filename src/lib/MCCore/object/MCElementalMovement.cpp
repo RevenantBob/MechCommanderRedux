@@ -41,11 +41,6 @@ namespace
     }
 }
 
-auto MCElemental::GetThrottle() -> int32_t
-{
-    return static_cast<MCElementalControlData*>(Control->ControlData.get())->Throttle;
-}
-
 auto MCElemental::IsJumping(MCVector3D* jumpGoalOut) -> int
 {
     if (jumpGoalOut != nullptr)
@@ -91,7 +86,7 @@ auto MCElemental::UpdateJump() -> int
         if (actor->JumpSetup == 0)
         {
             // Landed: on to the step after the jump.
-            InJump = 0;
+            InJump = false;
             MCMovePath* path = Pilot->GetMovePath();
             path->NumSteps = path->NumStepsWhenNotPaused;
             path->CurStep++;
@@ -491,7 +486,7 @@ auto MCElemental::SetControlSettings(char& newRotate, char& newThrottleSetting, 
     if (InJump != 0 && actor->Jumping == 0)
     {
         // The jump is over: back on the path.
-        InJump = 0;
+        InJump = false;
         MCMovePath* path = Pilot->GetMovePath();
         path->NumSteps = path->NumStepsWhenNotPaused;
     }
@@ -532,7 +527,7 @@ auto MCElemental::SetControlSettings(char& newRotate, char& newThrottleSetting, 
                 break;
             case 2:
             {
-                InJump = 1;
+                InJump = true;
                 newThrottleSetting = 0;
                 break;
             }
@@ -567,9 +562,9 @@ auto MCElemental::UpdateMovement() -> void
         // Elementals just stand still for these; the requests clear once the actor stops.
         if (Appearance->SetGestureGoal(0) == 0)
         {
-            DisableThisFrame = 0;
-            ShutDownThisFrame = 0;
-            StartUpThisFrame = 0;
+            DisableThisFrame = false;
+            ShutDownThisFrame = false;
+            StartUpThisFrame = false;
         }
 
         controlData->Throttle = 0;

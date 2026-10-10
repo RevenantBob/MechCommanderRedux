@@ -101,7 +101,7 @@ auto MCTreeType::HandleCollision(MCGameObject* collidee, MCGameObject* collider)
 
     tree->Falling = true;
     const MCVector3D colliderPos = collider->GetPosition();
-    const auto facing = static_cast<float>(tree->RelFacingTo(colliderPos, -1));
+    const auto facing = tree->RelFacingTo(colliderPos, -1);
     MCFrameOfRef frame = tree->GetFrame();
     const auto s = static_cast<float>(std::sin(facing * MCMoverMath::DegreesToRadians));
     const auto c = static_cast<float>(std::cos(facing * MCMoverMath::DegreesToRadians));
@@ -134,7 +134,7 @@ auto MCTreeType::HandleCollision(MCGameObject* collidee, MCGameObject* collider)
 
     if (UseSound != 0 && SoundSystem() != nullptr && 1 < static_cast<int32_t>(numFrames))
     {
-        SoundSystem()->PlayDigitalSample(0xe, 1, tree, 0, 0);
+        SoundSystem()->PlayDigitalSample(0xe, 1, tree, false, false);
     }
 
     return 1;

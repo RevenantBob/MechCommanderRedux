@@ -340,7 +340,7 @@ auto MCTurret::IsVisible(MCCamera* cam) -> int
         return 0;
     }
 
-    int visible = cam->VertexProject(BlockNumber, VertexNumber, ScreenPos);
+    int visible = MCCamera::VertexProject(BlockNumber, VertexNumber, ScreenPos);
 
     if (Appearance != nullptr)
     {
@@ -364,7 +364,7 @@ auto MCTurret::Update() -> int32_t
     {
         // Set the turret on its vertex: the block's corner, the vertex within it, then the offset within the tile
         // (turned into the isometric grid's 60-degree axes).
-        JustCreated = 0;
+        JustCreated = false;
         const int32_t verticesBlockSide = MCTerrain::VerticesBlockSide;
         float blockX = static_cast<float>(BlockNumber % MCTerrain::BlocksMapSide - MCTerrain::BlocksMapSide / 2) *
                        MCTerrain::MetersBlockSide;
@@ -397,7 +397,7 @@ auto MCTurret::Update() -> int32_t
         const double axisAngle = (60.0 - offsetAngle) * MCMoverMath::DegreesToRadians;
         const auto alongAxis = static_cast<float>(std::sin(axisAngle) * offsetDistance / std::sin(SIXTY_DEGREES));
         Position.X = vertexX + blockX;
-        const float elevation = Terrain()->GetTerrainElevation(Position);
+        const float elevation = MCTerrain::GetTerrainElevation(Position);
         Position.X =
             static_cast<float>(std::cos(SIXTY_DEGREES) * alongAxis + std::cos(axisAngle) * offsetDistance + Position.X);
         Position.Y = Position.Y - alongAxis;
@@ -414,7 +414,7 @@ auto MCTurret::Update() -> int32_t
         Assert(inBounds(), 0, " Map Tile out of bounds ");
         const MCMapTile& tile = GameMap()->Map[GameMap()->Width * TileRow + TileCol];
         const int32_t elevationLevel = static_cast<int32_t>((tile.Cells >> 7) & 0x3f) + GameMap()->BaseElevation;
-        Appearance->Visible = 1;
+        Appearance->Visible = true;
         TileElevation = static_cast<float>(elevationLevel) * MCTerrain::MetersPerElevLevel;
         Appearance->Update();
         Appearance->RecalcBounds(Eye);
@@ -461,12 +461,12 @@ auto MCTurret::Update() -> int32_t
         if (Alignment == 1)
         {
             Terrain()->MarkSeen(Position, lookVector, 360.0f, Scenario()->MaxVisualRange, 1);
-            MarkedSeenInnerSphere = 1;
+            MarkedSeenInnerSphere = true;
         }
         else if (Alignment == -1)
         {
             Terrain()->MarkSeen(Position, lookVector, 360.0f, Scenario()->MaxVisualRange, 2);
-            MarkedSeenClan = 1;
+            MarkedSeenClan = true;
         }
     }
 
@@ -500,12 +500,12 @@ auto MCTurret::Update() -> int32_t
 
         if (FixedTurret == 0)
         {
-            combatState = static_cast<MCPUAppearance*>(Appearance.get())->SetCombatMode(1);
+            combatState = static_cast<MCPUAppearance*>(Appearance.get())->SetCombatMode(true);
         }
 
         if (WeaponDeployed == 0)
         {
-            WeaponDeployed = FixedTurret == 0 ? (combatState == 2 ? 1 : 0) : 1;
+            WeaponDeployed = FixedTurret == 0 ? (combatState == 2 ? 1 : 0) : true;
         }
     }
     else if (Awake == 0)
@@ -513,7 +513,7 @@ auto MCTurret::Update() -> int32_t
         // Asleep: close up.
         if (FixedTurret == 0)
         {
-            WeaponDeployed = static_cast<MCPUAppearance*>(Appearance.get())->SetCombatMode(0) == 2 ? 1 : 0;
+            WeaponDeployed = static_cast<MCPUAppearance*>(Appearance.get())->SetCombatMode(false) == 2;
         }
     }
     else
@@ -523,12 +523,12 @@ auto MCTurret::Update() -> int32_t
 
         if (FixedTurret == 0)
         {
-            combatState = static_cast<MCPUAppearance*>(Appearance.get())->SetCombatMode(0);
+            combatState = static_cast<MCPUAppearance*>(Appearance.get())->SetCombatMode(false);
         }
 
         if (WeaponDeployed != 0)
         {
-            WeaponDeployed = FixedTurret == 0 ? (combatState == 2 ? 1 : 0) : 0;
+            WeaponDeployed = FixedTurret == 0 ? (combatState == 2 ? 1 : 0) : false;
         }
     }
 
@@ -546,7 +546,7 @@ auto MCTurret::Update() -> int32_t
     return 1;
 }
 
-auto MCTurret::IsWeaponReady() -> int
+auto MCTurret::IsWeaponReady() const -> int
 {
     return ReadyTime <= ScenarioTime && WeaponDeployed != 0 && WeaponEnabled != 0 ? 1 : 0;
 }
@@ -556,11 +556,6 @@ auto MCTurret::IsWeaponMissile() -> int
     return MasterComponentList[static_cast<MCTurretType*>(ObjType)->WeaponType].Form == MCComponentForm::WeaponMissile
                ? 1
                : 0;
-}
-
-auto MCTurret::IsWeaponStreak() -> int
-{
-    return MasterComponentList[static_cast<MCTurretType*>(ObjType)->WeaponType].WeaponFlags & 1;
 }
 
 auto MCTurret::CalcAttackChance(MCGameObject* target, int32_t* range) -> float
@@ -638,7 +633,7 @@ auto MCTurret::LineOfFire(MCGameObject* target) -> int
     int32_t tileC;
     int32_t cellR;
     int32_t cellC;
-    GameMap()->WorldToMapPos(target->GetPosition(), tileR, tileC, cellR, cellC);
+    MCScenarioMap::WorldToMapPos(target->GetPosition(), tileR, tileC, cellR, cellC);
     MCByteFlag* visibleBits;
 
     if (Alignment == 1)
@@ -751,7 +746,7 @@ auto MCTurret::UpdateWeaponFireChunks(int32_t which) -> int32_t
                 if (chunkTarget == nullptr)
                 {
                     DebugWeaponFireChunk(&chunk, nullptr, this);
-                    Assert(0, 0, missing);
+                    Assert(false, 0, missing);
                 }
 
                 HandleWeaponFire(0, static_cast<MCGameObject*>(chunkTarget), nullptr, chunk.Hit,
@@ -893,7 +888,7 @@ auto MCTurret::FireWeapon(MCGameObject* target) -> void
             {
                 std::unique_ptr<MCGameObject> fx = CreateWeaponFX(weapon);
                 const int32_t hitLocation = target->CalcHitLocation(this, type->WeaponType, 0, 1);
-                Assert(hitLocation != -2 ? 1 : 0, 0, " Turret.FireWeapon: Bad Hit Location ");
+                Assert(hitLocation != -2, 0, " Turret.FireWeapon: Bad Hit Location ");
                 const int32_t targetHotSpot = TargetHotSpotOf(target, hitLocation);
                 MCWeaponShotInfo shot;
                 shot.Init(this, type->WeaponType, weapon.Damage * static_cast<float>(missilesLeft), hitLocation,
@@ -911,7 +906,7 @@ auto MCTurret::FireWeapon(MCGameObject* target) -> void
         else
         {
             const int32_t hitLocation = target->CalcHitLocation(this, type->WeaponType, 0, 1);
-            Assert(hitLocation != -2 ? 1 : 0, 0, " Turret.FireWeapon: Bad Hit Location 2 ");
+            Assert(hitLocation != -2, 0, " Turret.FireWeapon: Bad Hit Location 2 ");
             MCWeaponShotInfo shot;
             shot.Init(this, type->WeaponType, weapon.Damage, hitLocation, entryAngle);
 
@@ -1016,7 +1011,7 @@ auto MCTurret::HandleWeaponFire(int32_t, MCGameObject* target, MCVector3D* targe
             if (0 < numHits)
             {
                 std::unique_ptr<MCGameObject> fx = CreateWeaponFX(weapon);
-                Assert(hitLocation != -2 ? 1 : 0, 0, " Turret.handleWeaponFire: Bad Hit Location ");
+                Assert(hitLocation != -2, 0, " Turret.handleWeaponFire: Bad Hit Location ");
                 const int32_t targetHotSpot = TargetHotSpotOf(target, hitLocation);
                 MCWeaponShotInfo shot;
                 shot.Init(this, masterId, weapon.Damage * static_cast<float>(numHits), hitLocation, entryAngle);
@@ -1138,23 +1133,13 @@ auto MCTurret::LightOnFire(float timeToBurn) -> void
     if (FireObject != nullptr)
     {
         FireObject->AddTimeLeftToBurn(timeToBurn);
-        OnFire = 1;
+        OnFire = true;
     }
 }
 
 auto MCTurret::IsRevealed() -> int
 {
     MCByteFlag* visibleBits = Terrain()->HomeVisibleBits();
-    uint32_t row;
-    uint32_t col;
-    VertexRowCol(this, row, col);
-    return CountVisibleCorners(visibleBits, row, col, 1) != 0 ? 1 : 0;
-}
-
-auto MCTurret::EnemyRevealed() -> int
-{
-    MCByteFlag* visibleBits =
-        HomeTeam()->Alignment == -1 ? Terrain()->ISVisibleBits.get() : Terrain()->ClanVisibleBits.get();
     uint32_t row;
     uint32_t col;
     VertexRowCol(this, row, col);
@@ -1202,13 +1187,13 @@ auto MCTurret::Render() -> void
             {
                 if (SoundSystem() != nullptr && UseSound != 0)
                 {
-                    SoundSystem()->PlayDigitalSample(0x14, 1, this, 0, 1);
+                    SoundSystem()->PlayDigitalSample(0x14, 1, this, false, true);
                 }
 
                 BlipFrame = 0;
             }
 
-            ElementList()->OpenGroup(-100000, 1);
+            ElementList()->OpenGroup(-100000, true);
             auto* element =
                 ElementList()->Make<MCVfxElement>(shape, ScreenPos.X, ScreenPos.Y, BlipFrame, 0, nullptr, 0);
             ElementList()->Add(element);
@@ -1273,12 +1258,12 @@ auto MCTurret::Render() -> void
         // Debug: the extent radius as an ellipse.
         float radius = ObjType->ExtentRadius;
 
-        if (Eye->CameraScale == 1)
+        if (MCCamera::CameraScale == 1)
         {
             radius *= 0.5f;
         }
 
-        const float scale = Eye->CameraScale != 1 ? 1.0f : 0.5f;
+        const float scale = MCCamera::CameraScale != 1 ? 1.0f : 0.5f;
         const float sx = (Position.X - Eye->Position.X) * scale;
         const float sy = (Position.Y - Eye->Position.Y) * scale;
         MCVector2D center;
@@ -1286,7 +1271,7 @@ auto MCTurret::Render() -> void
         center.Y =
             ((sx * Eye->SinAngle + Eye->HalfHeight) - sy * Eye->SinAngle) - scale * (Position.Z - Eye->Position.Z);
         MCVector2D size(radius, radius);
-        ElementList()->OpenGroup(-50000, 1);
+        ElementList()->OpenGroup(-50000, true);
         // Port: an overlay, on the screen over the view: it follows the object through the zoom.
         center = MCOverlayPoint(center);
         size.X *= MCOverlay.ScaleX;
@@ -1305,7 +1290,7 @@ auto MCTurret::Init(MCObjectType* objType) -> int32_t
     }
 
     const uint32_t appearId = objType->AppearName;
-    JustCreated = 1;
+    JustCreated = true;
     MCAppearanceType* apprType = AppearanceTypeList()->GetAppearance(appearId);
 
     if (apprType == nullptr)
@@ -1327,13 +1312,15 @@ auto MCTurret::Init(MCObjectType* objType) -> int32_t
                 return -0x2fff6;
             }
 
-            if ((result = fixedAppearance->Init(apprType, this)) != 0)
+            result = fixedAppearance->Init(apprType, this);
+
+            if (result != 0)
             {
                 return result;
             }
 
-            WeaponDeployed = 1;
-            FixedTurret = 1;
+            WeaponDeployed = true;
+            FixedTurret = true;
             break;
         }
 
@@ -1349,13 +1336,15 @@ auto MCTurret::Init(MCObjectType* objType) -> int32_t
                 return -0x2fff6;
             }
 
-            if ((result = popUpAppearance->Init(apprType, this)) != 0)
+            result = popUpAppearance->Init(apprType, this);
+
+            if (result != 0)
             {
                 return result;
             }
 
-            WeaponDeployed = 0;
-            FixedTurret = 0;
+            WeaponDeployed = false;
+            FixedTurret = false;
             break;
         }
 
@@ -1365,7 +1354,7 @@ auto MCTurret::Init(MCObjectType* objType) -> int32_t
 
     auto* type = static_cast<MCTurretType*>(this->ObjType);
     ObjectClass = MCObjectClass::Turret;
-    Destroyed = 0;
+    Destroyed = false;
     Alignment = -1;
     ReadyTime = 0.0f;
 
@@ -1412,7 +1401,7 @@ auto MCTurret::HandleWeaponHit(MCWeaponShotInfo* shotInfo, int addMultiplayChunk
     }
 
     // Destroyed: the wreck, its smoke, fire and explosion.
-    Destroyed = 1;
+    Destroyed = true;
 
     if (FixedTurret == 0)
     {
@@ -1468,7 +1457,7 @@ auto MCTurret::HandleWeaponHit(MCWeaponShotInfo* shotInfo, int addMultiplayChunk
                     FireObject->SetPotentialContact(3);
                     FireObject->BurningObject = this;
                     FireObject->SetTonnage(40.0f);
-                    OnFire = 1;
+                    OnFire = true;
                 }
                 else
                 {

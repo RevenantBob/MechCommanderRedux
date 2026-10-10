@@ -23,7 +23,7 @@ namespace
     }
 }
 
-int32_t FastShapeDraw(MCPane* pane, void* shapeTable, int32_t shapeNum, int32_t hotX, int32_t hotY, uint8_t* xlat)
+int32_t FastShapeDraw(MCPane* pane, void* shapeTable, int32_t shapeNum, int32_t hotX, int32_t hotY, const uint8_t* xlat)
 {
     uint8_t* table = static_cast<uint8_t*>(shapeTable);
     const uint8_t* shape = table + MCVfxRead32(table + 8 + static_cast<intptr_t>(shapeNum) * 4);

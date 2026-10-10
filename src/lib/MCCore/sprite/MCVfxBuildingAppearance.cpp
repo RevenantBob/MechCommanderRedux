@@ -203,7 +203,7 @@ auto MCVfxBuildingAppearance::Render(int32_t) -> int32_t
     const bool fullSize = scale == 1.0;
 
     // The tile goes under everything; zoomed out uses the table's second (small) frame.
-    ElementList()->OpenGroup(20000000, 1);
+    ElementList()->OpenGroup(20000000, true);
 
     if (tile != nullptr && tile->FrameList != nullptr)
     {
@@ -232,7 +232,7 @@ auto MCVfxBuildingAppearance::Render(int32_t) -> int32_t
             frame = CurrentFrame;
         }
 
-        ElementList()->OpenGroup(static_cast<int32_t>(-ScreenPos.Y), 1);
+        ElementList()->OpenGroup(static_cast<int32_t>(-ScreenPos.Y), true);
         AddShape(shape->FrameList, ScreenPos.X, ScreenPos.Y, frame, FadeTable);
     }
 

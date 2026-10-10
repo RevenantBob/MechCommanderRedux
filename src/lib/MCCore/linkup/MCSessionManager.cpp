@@ -40,7 +40,7 @@ MCSessionManager::MCSessionManager(const _GUID& appGUID) : _AppGuid(appGUID)
 
 MCSessionManager::~MCSessionManager()
 {
-    std::lock_guard lock(CriticalSection);
+    std::scoped_lock lock(CriticalSection);
     DestroyDirectPlayInterface();
 }
 
@@ -66,14 +66,14 @@ void MCSessionManager::DestroyDirectPlayInterface()
 
 void MCSessionManager::AddMessageToEmptyQueue(MCFidpMessage* msg)
 {
-    std::lock_guard lock(_EmptyQueueLock);
+    std::scoped_lock lock(_EmptyQueueLock);
     msg->Clear();
     _EmptyMessages.push_back(msg);
 }
 
 MCFidpMessage* MCSessionManager::GetMessageFromEmptyQueue()
 {
-    std::lock_guard lock(_EmptyQueueLock);
+    std::scoped_lock lock(_EmptyQueueLock);
 
     // Port fix: the pool grows when it is used up (the original's senders went on with the null they got).
     if (_EmptyMessages.empty())
@@ -100,7 +100,7 @@ void MCSessionManager::EnumerateConnections()
 {
     Assert(DirectPlay != nullptr, 0);
     Connections.clear();
-    DirectPlay->EnumConnections(
+    MCDirectPlay::EnumConnections(
         &_AppGuid,
         [](const _GUID* serviceProvider, void* connection, uint32_t connectionSize, const DPNAME* name, uint32_t,
            void* context)
@@ -521,7 +521,7 @@ int32_t MCSessionManager::CreatePlayer(std::string_view playerName)
     }
 
     {
-        std::lock_guard lock(_EmptyQueueLock);
+        std::scoped_lock lock(_EmptyQueueLock);
 
         for (int i = 0; i < 900; i++)
         {
@@ -552,7 +552,7 @@ void MCSessionManager::NewPlayerEnumeration(uint32_t playerID, const DPNAME& nam
     MCFidpPlayer* player = nullptr;
 
     {
-        std::lock_guard lock(CriticalSection);
+        std::scoped_lock lock(CriticalSection);
 
         if (GetPlayer(playerID) != nullptr)
         {
@@ -750,7 +750,7 @@ bool MCSessionManager::RemovePlayerFromGroup(uint32_t groupID, uint32_t playerID
     return true;
 }
 
-void MCSessionManager::SetGroupData(uint32_t groupID, std::span<const uint8_t> data, uint32_t flags)
+void MCSessionManager::SetGroupData(uint32_t groupID, std::span<const uint8_t> data, uint32_t flags) const
 {
     if (!data.empty())
     {

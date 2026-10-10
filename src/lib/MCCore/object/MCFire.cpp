@@ -105,7 +105,7 @@ auto MCFire::HandleStaticCollision() -> void
 
         for (int32_t col = 0; col < 3; col++)
         {
-            CollisionSystem()->DetectBlockCollisions(this, rowStart + col);
+            MCCollisionSystem::DetectBlockCollisions(this, rowStart + col);
         }
     }
 }
@@ -178,7 +178,7 @@ auto MCFire::IsRevealed() -> int
     int32_t tileC = 0;
     int32_t cellR = 0;
     int32_t cellC = 0;
-    GameMap()->WorldToMapPos(Position, tileR, tileC, cellR, cellC);
+    MCScenarioMap::WorldToMapPos(Position, tileR, tileC, cellR, cellC);
     // Faithful: tile coordinates are looked up in the vertex-resolution visibility bits.
     return MCVertexCell{tileR, tileC}.AnyCornerVisible() ? 1 : 0;
 }
@@ -304,7 +304,7 @@ auto MCFire::Render() -> void
 
             const bool visibleNow = IsVisible(i);
             MCVfxAppearance* flameAppearance = flame.Appearance.get();
-            flameAppearance->Visible = visibleNow ? 1 : 0;
+            flameAppearance->Visible = visibleNow;
 
             if (0.0f < flame.StartDelay)
             {
@@ -368,13 +368,13 @@ auto MCFire::Render() -> void
     {
         if (SoundSystem() != nullptr && UseSound != 0)
         {
-            SoundSystem()->PlayDigitalSample(0x14, 1, this, 0, 1);
+            SoundSystem()->PlayDigitalSample(0x14, 1, this, false, true);
         }
 
         BlipFrame = 0;
     }
 
-    ElementList()->OpenGroup(-100000, 1);
+    ElementList()->OpenGroup(-100000, true);
     ElementList()->Add(ElementList()->Make<MCVfxElement>(shape, ScreenPos.X, ScreenPos.Y, BlipFrame, 0, nullptr, 0));
     BlipTime = FrameLength + BlipTime;
 

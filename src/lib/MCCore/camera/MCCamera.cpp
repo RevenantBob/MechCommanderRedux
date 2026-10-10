@@ -125,7 +125,7 @@ MCCamera::~MCCamera()
     _TitleWindow.reset();
 }
 
-auto MCCamera::GetScaleFactor() const -> float
+auto MCCamera::GetScaleFactor() -> float
 {
     return 1.0f;
 }
@@ -237,17 +237,17 @@ auto MCCamera::Load(MCFitIniFile& cameraFile, bool objectCamera, int32_t cameraI
 
             if (_TitleWindow->TitleBar != nullptr)
             {
-                _TitleWindow->TitleBar->ShowZoomButton(1);
+                _TitleWindow->TitleBar->ShowZoomButton(true);
             }
 
             if (_TitleWindow->ResizeButton != nullptr)
             {
-                _TitleWindow->ResizeButton->ShowGuiWindow(1);
+                _TitleWindow->ResizeButton->ShowGuiWindow(true);
             }
 
             if (_TitleWindow->TitleBar != nullptr)
             {
-                _TitleWindow->TitleBar->ShowCloseButton(1);
+                _TitleWindow->TitleBar->ShowCloseButton(true);
             }
         }
         else if (std::expected<MCMainWindow*, std::string> holder = list.EnsureMainHolder(); !holder.has_value())
@@ -266,7 +266,7 @@ auto MCCamera::Load(MCFitIniFile& cameraFile, bool objectCamera, int32_t cameraI
         if (!mainWindow)
         {
             _TitleWindow->AddPane(_View.get());
-            _View->MoveTo(0, 0, 0);
+            _View->MoveTo(0, 0, false);
         }
         else
         {
@@ -339,7 +339,7 @@ auto MCCamera::Project(const MCVector3D& point) const -> MCVector2D
     return MCVector2D((screen100.X - ScreenUL.X) + HalfWidth, (screen100.Y - ScreenUL.Y) + HalfHeight);
 }
 
-auto MCCamera::InverseProject(const MCVector2D& screenPos, MCVector3D& point) -> void
+auto MCCamera::InverseProject(const MCVector2D& screenPos, MCVector3D& point) const -> void
 {
     const MCTerrainWindow& terrain = *TerrainWindow;
     const MCVertex* closestVertex = nullptr;
@@ -985,6 +985,6 @@ auto MCCamera::SetPosition(MCVector3D newPosition) -> void
     // Inside: sit on the ground. (MCX.EXE also has an unreachable " Impossible Camera Clip Situation " Fatal.)
     if (Terrain() != nullptr)
     {
-        Position.Z = Terrain()->GetTerrainElevation(Position);
+        Position.Z = MCTerrain::GetTerrainElevation(Position);
     }
 }

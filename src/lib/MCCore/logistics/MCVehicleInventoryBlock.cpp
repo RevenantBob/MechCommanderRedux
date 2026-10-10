@@ -62,15 +62,15 @@ auto MCVehicleInventoryBlock::OfferSale() -> bool
     return true;
 }
 
-auto MCVehicleInventoryBlock::OnSellConfirmed(int32_t result) -> void
+auto MCVehicleInventoryBlock::OnSellConfirmed(int32_t result) const -> void
 {
     MCLogVehicle* sold = Vehicle;
 
     if (result == 0)
     {
-        sold->Assigned = 0;
+        sold->Assigned = false;
         GlobalLogPtr->ReorderVehicles();
-        GlobalLogPtr->PurchaseScreen->CreateVhclInvBlock();
+        MCPurchaseScreen::CreateVhclInvBlock();
         GlobalLogPtr->PurchaseScreen->SetUpVhclInv(false, true);
         return;
     }
@@ -93,7 +93,7 @@ auto MCVehicleInventoryBlock::HandleEvent(MCGuiEvent* event) -> void
     if (VehicleDrag.Idle())
     {
         // The info block: diagram, tonnage, classes, speed and description.
-        screen->DrawBlankInvInfoBlock(-1);
+        MCLogInvScreen::DrawBlankInvInfoBlock(-1);
         PrepareInfoDescription(Vehicle->Description);
         screen->ShowInfo(MCInvInfoBox::Kind::Vehicle, this);
     }
@@ -103,9 +103,9 @@ auto MCVehicleInventoryBlock::HandleEvent(MCGuiEvent* event) -> void
 
     auto backToInventory = [&]
     {
-        Vehicle->Assigned = 0;
+        Vehicle->Assigned = false;
         GlobalLogPtr->ReorderVehicles();
-        screen->CreateVhclInvBlock();
+        MCLogInvScreen::CreateVhclInvBlock();
         screen->SetUpVhclInv(false, true);
     };
 
@@ -146,9 +146,9 @@ auto MCVehicleInventoryBlock::HandleEvent(MCGuiEvent* event) -> void
             if (event->Type == 1)
             {
                 VehicleDrag.Dragging = true;
-                Vehicle->Assigned = 1;
+                Vehicle->Assigned = true;
                 GlobalLogPtr->ReorderVehicles();
-                screen->CreateVhclInvBlock();
+                MCLogInvScreen::CreateVhclInvBlock();
                 screen->SetUpVhclInv(false, false);
             }
             else
@@ -248,9 +248,9 @@ auto MCVehicleInventoryBlock::HandleEvent(MCGuiEvent* event) -> void
             GuiSystem()->SetCursorVisible(true);
             GuiSystem()->Release();
             MCDragIcon::Remove();
-            Vehicle->Assigned = 1;
+            Vehicle->Assigned = true;
             GlobalLogPtr->ReorderVehicles();
-            screen->CreateVhclInvBlock();
+            MCLogInvScreen::CreateVhclInvBlock();
             screen->SetUpVhclInv(false, true);
 
             if (OnRepairScreen())
@@ -296,7 +296,7 @@ auto MCVehicleInventoryBlock::DrawBackground() -> void
 
     for (int32_t location = 0; location < 5; ++location)
     {
-        GlobalLogPtr->DrawVehicleBodyLoc(Vehicle, location, PicturePort.get(), 0, 0);
+        MCLogistics::DrawVehicleBodyLoc(Vehicle, location, PicturePort.get(), 0, 0);
     }
 }
 

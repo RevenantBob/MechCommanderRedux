@@ -59,7 +59,7 @@ public:
     int32_t Update();
 
     /// <summary>Draws the camera views into <paramref name="window"/>.</summary>
-    int32_t Render(MCGuiObject* window);
+    static int32_t Render(MCGuiObject* window);
 
     /// <summary>One frame: updates the world, runs the scenario's ABL brain and takes its result.</summary>
     int32_t Run();
@@ -81,10 +81,10 @@ public:
 
     /// <summary>(Re)starts objective <paramref name="objectiveNumber"/>'s timer at <paramref name="time"/> milliseconds.</summary>
     /// <returns>0, or <see cref="MCObjectiveList::BadObjective"/>.</returns>
-    int32_t SetObjectiveTimer(int32_t objectiveNumber, float time);
+    int32_t SetObjectiveTimer(int32_t objectiveNumber, float time) const;
 
     /// <summary>Seconds left on objective <paramref name="objectiveNumber"/>'s timer (0 when none).</summary>
-    float CheckObjectiveTimer(int32_t objectiveNumber);
+    float CheckObjectiveTimer(int32_t objectiveNumber) const;
 
     /// <summary>
     /// The resource points the scenario earned: the points of the objectives that succeeded (all of them when the
@@ -99,10 +99,10 @@ public:
     /// Runs the brain's <c>handlemessage</c> function with a multiplayer message (the runtime's
     /// <c>MissionMessageCode</c> and <c>MissionMessageParam</c>).
     /// </summary>
-    void HandleMultiplayMessage(int32_t code, int32_t param);
+    void HandleMultiplayMessage(int32_t code, int32_t param) const;
 
     /// <summary>Checks whether any of the warriors is fighting an enemy (for the music).</summary>
-    void CheckAnyoneInCombat();
+    void CheckAnyoneInCombat() const;
 
     /// <summary>Warrior <paramref name="number"/> (1-based), or null.</summary>
     MCMechWarrior* Warrior(uint32_t number) const;
@@ -189,16 +189,16 @@ private:
     /// <summary>Shows the scenario's palette (the interface's is kept in <see cref="OldPalette"/>).</summary>
     void LoadPalette(MCFitIniFile& file);
     /// <summary>Makes the teams and commanders and hands out the support strikes.</summary>
-    void LoadForces(MCFitIniFile& file);
+    static void LoadForces(MCFitIniFile& file);
     /// <summary>Reads the music, game scale and visual range blocks and makes the draw list.</summary>
     void LoadSettings(MCFitIniFile& file);
     /// <summary>Loads the sensor contact blips.</summary>
     void LoadSensorContactShapes(MCFitIniFile& file);
     /// <summary>Starts the craters, cameras, objects, sprites, appearances, contacts, effects and collisions.</summary>
     /// <returns>0, or the effect system's FIT error.</returns>
-    int32_t LoadSystems(MCFitIniFile& file, int32_t maxFiresBurning, float maxFireBurnTime);
+    static int32_t LoadSystems(MCFitIniFile& file, int32_t maxFiresBurning, float maxFireBurnTime);
     /// <summary>Loads the terrain and, unless <paramref name="terrainName"/> is given, its move maps.</summary>
-    void LoadTerrain(MCFitIniFile& file, std::string_view terrainName);
+    static void LoadTerrain(MCFitIniFile& file, std::string_view terrainName);
     /// <summary>Loads the ABL libraries and the scenario's own brain.</summary>
     void LoadScript(MCFitIniFile& file);
     /// <summary>Loads the warriors, their brains and brain parameters.</summary>
@@ -246,8 +246,6 @@ extern int32_t MineLayThrottle;
 extern int32_t MineSweepThrottle;
 /// <summary>Mission "MineWaitTime": the seconds a mine layer waits on a cell before laying.</summary>
 extern float MineWaitTime;
-/// <summary>The scenario's frame (turn) counter.</summary>
-extern int32_t Turn;
 /// <summary>Kept limit: the <c>VisualRangeTable</c> of the game system file has 256 entries (data format).</summary>
 inline constexpr int32_t VisualRangeTableSize = 256;
 /// <summary>The <c>VisualRangeTable</c> of the game system file (the scenario may replace it).</summary>

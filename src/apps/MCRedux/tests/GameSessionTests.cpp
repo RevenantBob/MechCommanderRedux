@@ -4,6 +4,8 @@
 #include "fakes/MCMemoryFileSource.h"
 #include "gui/MCGuiGlobals.h"
 #include "gui/MCGuiSystem.h"
+#include "gui/MCUpdateDisplay.h"
+#include "iface/MCTacticalInterface.h"
 #include "lib/MCFastFileSet.h"
 #include "lib/MCFitIniFile.h"
 #include "logistics/MCBriefingScreen.h"
@@ -23,6 +25,7 @@
 #include "mission/MCScenario.h"
 #include "network/MCMultiPlayer.h"
 #include "platform/MCPresenter.h"
+#include "platform/MCRenderer.h"
 #include "sound/MCSoundSystem.h"
 #include "sprite/MCSpriteManager.h"
 #include "terrain/MCTerrainTiles.h"
@@ -262,7 +265,8 @@ TEST_CASE("system config: Brightness overrides Gamma, and without it the gamma l
 
 /// <summary>
 /// The game session made at the start holds the mission (with the campaign loaded), the sound system and the palette
-/// callback, while SYSTEM.CFG's FastFiles are open; the GUI system's stop takes all of them down.
+/// callback, while SYSTEM.CFG's FastFiles are open; the GUI system's stop takes all of them down, with the tactical
+/// interface and the cursor shapes' memory.
 /// </summary>
 TEST_CASE_ISOLATED("game: the game session holds the game's systems and the stop takes them all down")
 {
@@ -272,6 +276,11 @@ TEST_CASE_ISOLATED("game: the game session holds the game's systems and the stop
     }
 
     REQUIRE(MCTestGame::StartLogistics());
+    REQUIRE(TacticalInterface() != nullptr);
+    REQUIRE(CursorShapes != nullptr);
+    const uint8_t* cursor = CursorShapes[0];
+    REQUIRE(cursor != nullptr);
+    CHECK(MCRenderer::DataBlockOf(cursor) != nullptr);
     MCGuiSystem* gui = GuiSystem();
     REQUIRE(gui->Session != nullptr);
     CHECK(Mission() != nullptr);
@@ -289,6 +298,9 @@ TEST_CASE_ISOLATED("game: the game session holds the game's systems and the stop
     CHECK(SoundSystem() == nullptr);
     CHECK(MCGameContext::Current().FastFiles().Files().empty());
     CHECK(std::ranges::find(gui->Callbacks(), color) == gui->Callbacks().end());
+    CHECK(TacticalInterface() == nullptr);
+    CHECK(CursorShapes == nullptr);
+    CHECK(MCRenderer::DataBlockOf(cursor) == nullptr);
 }
 
 namespace

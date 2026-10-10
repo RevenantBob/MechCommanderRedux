@@ -138,7 +138,7 @@ public:
     void HideMe(bool hide) override;
 
     /// <summary>Draws <c>&lt;terrainPath&gt;&lt;name&gt;.gif</c> (the pre-revealed parts) into the fog of war.</summary>
-    void SetRevealedBitmap(std::string_view fileName);
+    void SetRevealedBitmap(std::string_view fileName) const;
 
     /// <summary>
     /// Builds the MFD at (<paramref name="xPos"/>, <paramref name="yPos"/>): the map ports (the map picture, and
@@ -151,10 +151,10 @@ public:
     /// pixels at the current zoom and scroll; without, pixels of the whole map's 130-pixel square
     /// (<see cref="MCTacmapProjection::WorldToMap"/>).
     /// </summary>
-    void WorldToTacMap(MCVector3D& pos, bool scrolled);
+    void WorldToTacMap(MCVector3D& pos, bool scrolled) const;
 
     /// <summary>The inverse of <see cref="WorldToTacMap"/>, standing the point on the ground.</summary>
-    void TacMapToWorld(MCVector3D& pos, bool scrolled);
+    void TacMapToWorld(MCVector3D& pos, bool scrolled) const;
 
     /// <summary>Draws the objectives, units, contacts and sensor ranges on the map.</summary>
     void DrawObjects();
@@ -178,8 +178,6 @@ public:
     /// <summary>Switches the MFD page.</summary>
     void SetDisplayType(MCTacmapPage type);
 
-    void CenterOnObject(MCGameObject* obj);
-
     /// <summary>Scrolls the map picture; each axis only moves if the zoomed view stays on the picture.</summary>
     void ScrollMap(int32_t dx, int32_t dy);
 
@@ -190,7 +188,7 @@ public:
     void SetScrollMapPosition(int32_t x, int32_t y);
 
     /// <summary>The screen area the video window's picture occupies (below its name line).</summary>
-    tagRECT GetVideoRect();
+    tagRECT GetVideoRect() const;
 
     /// <summary>Adds a salvageable object to the salvage page.</summary>
     /// <returns>Nonzero (-1) when it is (now) listed.</returns>
@@ -223,12 +221,6 @@ public:
     {
         return MCTacmapProjection{MetersPerPixel, Zoom, MapWidth, MapHeight, ScrollX, ScrollY};
     }
-
-    /// <summary>
-    /// How far <paramref name="pos"/> lies off the tactical map: <paramref name="pos"/> minus the nearest point on it
-    /// (in world units), or zero when it is on the map.
-    /// </summary>
-    MCVector3D PositionOnMap(MCVector3D pos);
 
     /// <summary>Passes a chat message to the chat window and blinks the chat tab.</summary>
     void HandleChatMessage(uint32_t fromID, const void* message);
@@ -382,7 +374,7 @@ public:
 
 private:
     /// <summary>Appends the salvage line of <paramref name="obj"/> to the salvage page.</summary>
-    void AddSalvageString(MCGameObject* obj);
+    void AddSalvageString(MCGameObject* obj) const;
 
     /// <summary>Draws the selected unit's effectiveness bar.</summary>
     void DrawBar();
@@ -395,7 +387,7 @@ private:
 
     void DrawPilot(MCMechWarrior* pilot);
 
-    void DrawWeapons();
+    void DrawWeapons() const;
 
     /// <summary>Draws the map page: the timer, the map, the fog of war, the camera views and the objects.</summary>
     void DrawMapPage();

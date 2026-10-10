@@ -41,7 +41,8 @@ auto MCObjectMap::Unlink(MCObjectPosition* position) -> void
 auto MCObjectMap::AddObject(MCGameObject* object) -> void
 {
     auto position = std::make_unique<MCObjectPosition>();
-    GameMap()->WorldToMapPos(object->GetPosition(), position->TileR, position->TileC, position->CellR, position->CellC);
+    MCScenarioMap::WorldToMapPos(object->GetPosition(), position->TileR, position->TileC, position->CellR,
+                                 position->CellC);
     position->Object = object;
     MCObjectPosition* record = position.get();
     _Positions.emplace(record, std::move(position));
@@ -56,7 +57,7 @@ auto MCObjectMap::UpdateObject(MCGameObject* object) -> bool
     int32_t tileC = 0;
     int32_t cellR = 0;
     int32_t cellC = 0;
-    map->WorldToMapPos(object->GetPosition(), tileR, tileC, cellR, cellC);
+    MCScenarioMap::WorldToMapPos(object->GetPosition(), tileR, tileC, cellR, cellC);
 
     if (cellR < 0 || cellR > 2 || cellC < 0 || cellC > 2)
     {

@@ -21,7 +21,7 @@ MCSoundRenderer::~MCSoundRenderer()
 {
     // Movies opened from now on play silent rather than on the mixer going away.
     SmackSoundUseDirectSound(nullptr);
-    std::lock_guard lock(_Lock);
+    std::scoped_lock lock(_Lock);
     _Channels.clear();
     _Resources.clear();
 }
@@ -43,7 +43,7 @@ void MCSoundRenderer::Uninstall()
 
 MCSoundResource* MCSoundRenderer::Adopt(std::unique_ptr<MCSoundResource> resource)
 {
-    std::lock_guard lock(_Lock);
+    std::scoped_lock lock(_Lock);
     return _Resources.emplace_back(std::move(resource)).get();
 }
 
@@ -59,7 +59,7 @@ MCSoundResource* MCSoundRenderer::CreateResource(MCSoundResourceType type, std::
 
 void MCSoundRenderer::DestroyResource(MCSoundResource* resource)
 {
-    std::lock_guard lock(_Lock);
+    std::scoped_lock lock(_Lock);
 
     for (int32_t i = 0; i < ChannelCount(); i++)
     {
@@ -85,7 +85,7 @@ void MCSoundRenderer::Play(int32_t channel, MCSoundResource* resource)
         return;
     }
 
-    std::lock_guard lock(_Lock);
+    std::scoped_lock lock(_Lock);
     MCSoundChannel& soundChannel = *_Channels[channel];
 
     if (resource->Type != MCSoundResourceType::Stream)
@@ -107,7 +107,7 @@ void MCSoundRenderer::Play(int32_t channel, MCSoundResource* resource)
 
 void MCSoundRenderer::Stop(int32_t channel)
 {
-    std::lock_guard lock(_Lock);
+    std::scoped_lock lock(_Lock);
     MCSoundChannel& soundChannel = *_Channels[channel];
 
     if (soundChannel.Resource == nullptr)
@@ -156,7 +156,7 @@ MCSoundResource* MCSoundRenderer::ChannelResource(int32_t channel) const
 
 void MCSoundRenderer::ServiceStreams()
 {
-    std::lock_guard lock(_Lock);
+    std::scoped_lock lock(_Lock);
 
     for (const std::unique_ptr<MCSoundChannel>& channel : _Channels)
     {

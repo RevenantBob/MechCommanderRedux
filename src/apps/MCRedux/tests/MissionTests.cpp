@@ -46,39 +46,6 @@ namespace
     }
 }
 
-/// <summary>
-/// Mission 1 boots headless and its movers start on passable cells (the game itself puts nothing on forest or water).
-/// </summary>
-TEST_CASE_ISOLATED("game: mission 1 boots and every mover stands on a passable cell")
-{
-    if (!MCTestGame::Available())
-    {
-        return;
-    }
-
-    REQUIRE(MCTestGame::StartMission(1));
-
-    for (int32_t partId = MCMover::FirstPartId; partId < MCMover::EndPartId; partId++)
-    {
-        MCMover* mover = GetMoverFromPartId(partId);
-
-        if (mover == nullptr)
-        {
-            continue;
-        }
-
-        const MCVector3D position = mover->GetPosition();
-        const auto [row, col] = CellAt(position);
-
-        // Vehicles may be parked in a building's cells; only the mechs are held to it.
-        if (mover->ObjectClass == MCObjectClass::BattleMech)
-        {
-            MCTest::Scope scope("part " + std::to_string(partId));
-            CHECK(CellPassable(row, col));
-        }
-    }
-}
-
 namespace
 {
     /// <summary>What one mover did in the cells it entered.</summary>
@@ -172,7 +139,8 @@ namespace
 /// wounds (the original's 6.0 misread), so the mech walked on in a straight line. Movers move only along passable
 /// cells, so none, the Uller or anyone else, may cross blocked cells. Cutting a corner between two diagonal cells can
 /// graze one blocked cell, so a run of one is allowed; two blocked cells in a row is walking through. The camera
-/// follows the Uller, as the player did.
+/// follows the Uller, as the player did. Before the battle, every mech starts on a passable cell (the game itself puts
+/// nothing on forest or water; vehicles may be parked in a building's cells).
 /// </summary>
 TEST_CASE_ISOLATED("game: mission 1's battle keeps every mover on passable cells")
 {
@@ -182,6 +150,19 @@ TEST_CASE_ISOLATED("game: mission 1's battle keeps every mover on passable cells
     }
 
     REQUIRE(MCTestGame::StartMission(1));
+
+    for (int32_t partId = MCMover::FirstPartId; partId < MCMover::EndPartId; partId++)
+    {
+        MCMover* mover = GetMoverFromPartId(partId);
+
+        if (mover != nullptr && mover->ObjectClass == MCObjectClass::BattleMech)
+        {
+            MCTest::Scope scope(std::format("start of part {}", partId));
+            const auto [row, col] = CellAt(mover->GetPosition());
+            CHECK(CellPassable(row, col));
+        }
+    }
+
     MCMover* uller = GetMoverFromPartId(896);
     REQUIRE(uller != nullptr);
     REQUIRE(uller->ObjectClass == MCObjectClass::BattleMech);

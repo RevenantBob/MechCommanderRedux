@@ -258,7 +258,7 @@ namespace
             {
                 if (SinglePlayerCheats() && event->CtrlKey != 0 && event->AltKey != 0)
                 {
-                    Scenario()->StartingUp = 0;
+                    Scenario()->StartingUp = false;
                     Mission()->EndScenarioRequested = -1;
                     ScenarioResult = 5;
                     Scenario()->StartUpCountdown = 0;
@@ -381,11 +381,11 @@ namespace
 
             if (delta > 0)
             {
-                TacticalInterface()->ZoomIn(step, false);
+                MCTacticalInterface::ZoomIn(step, false);
             }
             else if (delta < 0)
             {
-                TacticalInterface()->ZoomOut(step, false);
+                MCTacticalInterface::ZoomOut(step, false);
             }
 
             return;
@@ -652,7 +652,7 @@ auto ScrollScreen() -> void
 
     if (camera != nullptr)
     {
-        if (camera->CameraScale == 100)
+        if (MCCamera::CameraScale == 100)
         {
             speed = static_cast<int16_t>(speed / 2);
         }
@@ -773,7 +773,7 @@ auto ScrollScreen() -> void
             MCVector3D point;
             camera->InverseProject(anchor, point);
             camera->ScrollCamera(dx, dy);
-            const float scale = camera->CameraScale == 1 ? 0.5f : 1.0f;
+            const float scale = MCCamera::CameraScale == 1 ? 0.5f : 1.0f;
             const float offsetX = (point.X - camera->Position.X) * scale;
             const float offsetY = (point.Y - camera->Position.Y) * scale;
             const float offsetZ = scale * (point.Z - camera->Position.Z);
@@ -876,7 +876,7 @@ auto WindowProc(uint32_t message, uint32_t wParam, int32_t lParam) -> int32_t
         {
             if (gui->DisplayReady() && GFullScreen == 0)
             {
-                UpdateDisplay(0, 0, 0, 0, 0);
+                UpdateDisplay(false, false, 0, false, 0);
             }
             break;
         }
@@ -899,7 +899,7 @@ auto WindowProc(uint32_t message, uint32_t wParam, int32_t lParam) -> int32_t
 
             if (ApplicationActive && gui->DisplayReady())
             {
-                UpdateDisplay(0, 0, 0, 0, 0);
+                UpdateDisplay(false, false, 0, false, 0);
             }
             break;
         }

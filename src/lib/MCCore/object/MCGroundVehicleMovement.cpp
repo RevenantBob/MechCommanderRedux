@@ -72,7 +72,7 @@ auto MCGroundVehicle::HandleStaticCollision() -> void
     int32_t vertexNumber = 0;
     GetBlockAndVertexNumber(blockNumber, vertexNumber);
     MCObjectList* list = ObjectList()->FindList(std::format("TBlk{}", blockNumber));
-    Assert(list != nullptr ? 1 : 0, blockNumber, "Could not find objlist for block");
+    Assert(list != nullptr, blockNumber, "Could not find objlist for block");
 
     // Port fix: the original reads the objects of a missing list through null.
     if (list == nullptr)
@@ -121,7 +121,7 @@ auto MCGroundVehicle::HandleStaticCollision() -> void
 
         if (vertexNumber == otherVertex && collides != 0)
         {
-            CollisionSystem()->DetectStaticCollision(this, other);
+            MCCollisionSystem::DetectStaticCollision(this, other);
         }
     }
 }
@@ -143,7 +143,7 @@ auto MCGroundVehicle::MineCheck() -> void
 
         if ((state & 3) == 0)
         {
-            MineCellHandled = 0;
+            MineCellHandled = false;
             const int32_t tileR = ObjPosition->TileR;
             const int32_t tileC = ObjPosition->TileC;
             MCMapTile& here = map->Map[map->Width * tileR + tileC];
@@ -205,7 +205,7 @@ auto MCGroundVehicle::MineCheck() -> void
         for (int32_t col = firstCol; col < firstCol + 3; col++)
         {
             const bool inMap = row >= 0 && row < GameMap()->Height && col >= 0 && col < GameMap()->Width;
-            Assert(inMap ? 1 : 0, 0, " Map Tile out of bounds ");
+            Assert(inMap, 0, " Map Tile out of bounds ");
 
             // Port fix: the original goes on to touch the tile past the map's edge.
             if (!inMap)
@@ -252,7 +252,7 @@ auto MCGroundVehicle::MineCheck() -> void
 
         if (Armor[GroundVehicleFront].CurArmor == 0.0f)
         {
-            MineSweeper = 0;
+            MineSweeper = false;
             SweepTime = -1.0f;
             Pilot->ClearCurTacOrder(1, 0);
         }
@@ -263,7 +263,7 @@ auto MCGroundVehicle::MineCheck() -> void
     {
         if (MineLayer != 0)
         {
-            MineCellHandled = 1;
+            MineCellHandled = true;
             return;
         }
 
@@ -302,7 +302,7 @@ auto MCGroundVehicle::MineCheck() -> void
                                     Alignment != -1 ? 1 : 0, 3, chunkResult);
     }
 
-    MineCellHandled = 1;
+    MineCellHandled = true;
 }
 
 auto MCGroundVehicle::PivotTo() -> int
@@ -953,9 +953,9 @@ auto MCGroundVehicle::UpdateMovement() -> void
 
     if (DisableThisFrame != 0)
     {
-        DisableThisFrame = 0;
-        ShutDownThisFrame = 0;
-        StartUpThisFrame = 0;
+        DisableThisFrame = false;
+        ShutDownThisFrame = false;
+        StartUpThisFrame = false;
         Status = 1;
         controlData->Throttle = 0;
         return;
@@ -964,8 +964,8 @@ auto MCGroundVehicle::UpdateMovement() -> void
     if (ShutDownThisFrame != 0)
     {
         controlData->Throttle = 0;
-        ShutDownThisFrame = 0;
-        StartUpThisFrame = 0;
+        ShutDownThisFrame = false;
+        StartUpThisFrame = false;
         Status = 5;
         return;
     }
@@ -973,7 +973,7 @@ auto MCGroundVehicle::UpdateMovement() -> void
     if (StartUpThisFrame != 0)
     {
         controlData->Throttle = 100;
-        StartUpThisFrame = 0;
+        StartUpThisFrame = false;
         Status = 0;
         return;
     }
@@ -1050,7 +1050,7 @@ auto MCGroundVehicle::CrashAvoidanceSystem() -> int
     int32_t tileC;
     int32_t cellR;
     int32_t cellC;
-    GameMap()->WorldToMapPos(lookAhead, tileR, tileC, cellR, cellC);
+    MCScenarioMap::WorldToMapPos(lookAhead, tileR, tileC, cellR, cellC);
 
     int cornerBlocked = 0;
     const int32_t direction = static_cast<int8_t>(path->StepList[path->CurStep].Direction);

@@ -225,7 +225,7 @@ auto MCLogVehicleList::GetVehicleInfo(int32_t index, MCLogVehicle*& vehicle) con
     return vehicle != nullptr ? 0 : -1;
 }
 
-auto MCLogVehicleList::SaveVehicleText(std::string_view fileName, int32_t index) -> int32_t
+auto MCLogVehicleList::SaveVehicleText(std::string_view fileName, int32_t index) const -> int32_t
 {
     MCLogVehicle* vehicle = nullptr;
 

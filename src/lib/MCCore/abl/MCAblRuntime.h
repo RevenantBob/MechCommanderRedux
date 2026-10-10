@@ -226,9 +226,6 @@ public:
     /// <summary>Where the statement being executed starts (for the debugger).</summary>
     const char* StatementStart() const { return _StatementStart; }
 
-    /// <summary>Executions so far.</summary>
-    int32_t ExecutionCount() const { return _ExecutionCount; }
-
     /// <summary>The current routine's scope level while executing (1 for a module's code).</summary>
     int32_t Level() const { return _Level; }
 
@@ -251,9 +248,6 @@ public:
 
     /// <summary>Reads the next code token.</summary>
     void GetCodeToken() { _Token = static_cast<MCAblToken>(*_Code++); }
-
-    /// <summary>The code token being executed.</summary>
-    MCAblToken CodeToken() const { return _Token; }
 
     /// <summary>Reads a symbol operand.</summary>
     MCAblSymbol* GetCodeSymbol();
@@ -303,12 +297,6 @@ public:
 
     /// <summary>ABL <c>return [(value)]</c>: stores the value in the routine's frame and leaves the routine.</summary>
     void ExecReturn();
-
-    /// <summary>
-    /// Returns from a tactical order with <paramref name="returnValue"/>: stores it in the order's frame, sets the
-    /// exit flag, and (unless it is 1) jumps to the end of the routine.
-    /// </summary>
-    void ExecOrderReturn(int32_t returnValue);
 
 private:
     /// <summary>Compiles <paramref name="fileName"/> (the library <paramref name="library"/>, or a module) and registers it.</summary>

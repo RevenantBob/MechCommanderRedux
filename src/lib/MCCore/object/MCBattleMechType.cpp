@@ -532,7 +532,7 @@ auto MCBattleMechType::HandleCollision(MCGameObject* collidee, MCGameObject* col
             return 0;
     }
 
-    SoundSystem()->PlayDigitalSample(sampleId, 1, collidee, 0, 0);
+    SoundSystem()->PlayDigitalSample(sampleId, 1, collidee, false, false);
     return 0;
 }
 
@@ -566,8 +566,8 @@ auto MCBattleMechType::HandleDestruction(MCGameObject* collidee, MCGameObject* c
 
     mech->GetPilot()->HandleAlarm(MCPilotAlarmType::VehicleDestroyed, collider == nullptr ? 0 : collider->IdNumber);
     mech->Status = 2;
-    mech->LyingDead = 0;
-    mech->DeathExplosionDone = 0;
+    mech->LyingDead = false;
+    mech->DeathExplosionDone = false;
 
     for (int32_t location = 0; location < mech->NumBodyLocations(); location++)
     {
@@ -791,7 +791,7 @@ auto MCBattleMechType::LayOutHotSpotPackets(const std::vector<std::vector<uint8_
 
         if (self + 1 < blocks.size() && blocks[self + 1].Bytes != nullptr && blocks[self + 1].Size >= sizeof(float))
         {
-            std::memcpy(&packet[0], blocks[self + 1].Bytes + blocks[self + 1].Size - sizeof(float), sizeof(float));
+            std::memcpy(packet.data(), blocks[self + 1].Bytes + blocks[self + 1].Size - sizeof(float), sizeof(float));
         }
 
         if (shipped != 0)

@@ -97,7 +97,7 @@ MCGameSession::MCGameSession()
     // port has no lobby (MCDirectPlay), so it is always dropped here.
     MCGameContext::Current().SetMultiPlayer(std::make_unique<MCMultiPlayer>());
     MultiPlayer()->Start();
-    LaunchedFromLobby = MultiPlayer()->SessionManager->WasLaunchedFromLobby();
+    LaunchedFromLobby = MCSessionManager::WasLaunchedFromLobby();
 
     if (!LaunchedFromLobby)
     {

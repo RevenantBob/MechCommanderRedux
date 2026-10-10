@@ -54,13 +54,9 @@ public:
     /// <returns>The window, or null when none is free.</returns>
     MCTerrainWindow* NewWindow(MCCamera* cam);
 
-    /// <summary>Frees the windows of <paramref name="cam"/>.</summary>
-    void KillWindow(MCCamera* cam);
-
-    void SetOverlayTile(int32_t blockNum, int32_t vertexNum, int32_t value);
-    int32_t GetOverlayTile(int32_t blockNum, int32_t vertexNum);
-    void SetTile(int32_t blockNum, int32_t vertexNum, int32_t value);
-    int32_t GetTile(int32_t blockNum, int32_t vertexNum);
+    void SetOverlayTile(int32_t blockNum, int32_t vertexNum, int32_t value) const;
+    int32_t GetOverlayTile(int32_t blockNum, int32_t vertexNum) const;
+    int32_t GetTile(int32_t blockNum, int32_t vertexNum) const;
 
     /// <summary>
     /// Projects a world position to the isometric screen at full (<paramref name="screen100"/>) and half
@@ -79,28 +75,26 @@ public:
     void DrawLines();
 
     /// <summary>The terrain height at <paramref name="pos"/>.</summary>
-    float GetTerrainElevation(const MCVector3D& pos);
+    static float GetTerrainElevation(const MCVector3D& pos);
 
-    /// <summary>The slope at <paramref name="pos"/> (and the face normal in <paramref name="normal"/>).</summary>
-    float GetTerrainAngle(const MCVector3D& pos, MCVector3D* normal);
-
-    MCVector3D GetTerrainNormal(const MCVector3D& pos);
+    static MCVector3D GetTerrainNormal(const MCVector3D& pos);
 
     /// <summary>Updates the objects of every object block.</summary>
-    void UpdateAllObjects();
+    void UpdateAllObjects() const;
 
     /// <summary>
     /// Marks the circle a looker at <paramref name="looker"/> sees as visible for <paramref name="who"/> (1: the
     /// Inner Sphere bits, else the Clan bits). Only full-circle looks (<paramref name="angle"/> 360) are handled;
     /// the radius comes from <c>VisualRangeTable</c> for the highest cell elevation around the looker.
     /// </summary>
-    void MarkSeen(const MCVector3D& looker, const MCVector3D& lookVector, float angle, float range, uint8_t who);
+    void MarkSeen(const MCVector3D& looker, const MCVector3D& lookVector, float angle, float range, uint8_t who) const;
 
     /// <summary>
     /// Marks a circle of <paramref name="range"/> around <paramref name="looker"/> as visible (only for a
     /// 360-degree <paramref name="angle"/>).
     /// </summary>
-    void MarkRadiusSeen(const MCVector3D& looker, const MCVector3D& lookVector, float angle, float range, uint8_t who);
+    void MarkRadiusSeen(const MCVector3D& looker, const MCVector3D& lookVector, float angle, float range,
+                        uint8_t who) const;
 
     /// <summary>The home team's visible-this-frame bits (the Clans' when the home team's alignment is -1).</summary>
     MCByteFlag* HomeVisibleBits() const;

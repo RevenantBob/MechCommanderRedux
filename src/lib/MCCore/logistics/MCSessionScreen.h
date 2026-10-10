@@ -94,10 +94,7 @@ public:
     void FillDpidArray(uint32_t* ids, int32_t* count, bool myTeam);
 
     /// <summary>Lights the start button when every player is on a team and a mission is loaded.</summary>
-    void CheckGoodToGo();
-
-    /// <summary>Takes <paramref name="playerId"/> off the screen.</summary>
-    void RemovePlayer(uint32_t playerId);
+    void CheckGoodToGo() const;
 
     /// <summary>Sets team <paramref name="team"/>'s tech base (1 Inner Sphere, -1 Clan) and its toggles.</summary>
     void SetTeamTechBase(int8_t team, int8_t techBase);
@@ -112,10 +109,10 @@ public:
     void LockControls(bool lock);
 
     /// <summary>Sets team 1's resource points text.</summary>
-    void SetTeam1RP(int32_t resourcePoints);
+    void SetTeam1RP(int32_t resourcePoints) const;
 
     /// <summary>Sets team 2's resource points text.</summary>
-    void SetTeam2RP(int32_t resourcePoints);
+    void SetTeam2RP(int32_t resourcePoints) const;
 
     /// <summary>The tab back to the session list.</summary>
     MCGuiOwned<MCLogToolButton> SessionButton;
@@ -178,7 +175,7 @@ public:
     bool MapBoxWiped = false;
 
     /// <summary>Port: draws the map box (<see cref="MapPicture"/>) into <paramref name="target"/>.</summary>
-    void DrawMap(MCPane* target);
+    void DrawMap(MCPane* target) const;
 
     /// <summary>Port: frees <see cref="MapPicture"/>.</summary>
     void ClearMap();
@@ -188,7 +185,7 @@ private:
     void LayOutUnassigned(uint32_t skipId, size_t names, bool skipEmpty);
 
     /// <summary>The spinners' and tech toggles' live state (the host's, or an unlocked mission's).</summary>
-    void SetTeamControls(bool live);
+    void SetTeamControls(bool live) const;
 
     /// <summary>Shows <paramref name="text"/> in the message dialog with one button running <paramref name="onOk"/>.</summary>
     static void ShowDialog(std::string_view text, std::function<void()> onOk, std::string_view upArt,

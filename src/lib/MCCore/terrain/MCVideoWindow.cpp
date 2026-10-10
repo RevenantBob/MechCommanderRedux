@@ -32,12 +32,12 @@ auto MCVideoWindow::Draw() -> void
     }
 
     // The pilot's name.
-    LineFont()->Scaled = 0;
+    LineFont()->Scaled = false;
     LineFont()->Scale = 1.0f;
     FillBox(1, 1, static_cast<int16_t>(Width() - 2), 0xb, 0x10);
     LineFont()->Print(3, 3, Star->Callsign, 0xe3, DisplayPort->Frame());
     LineFont()->Scale = 2.0f;
-    LineFont()->Scaled = 1;
+    LineFont()->Scaled = true;
 }
 
 auto MCVideoWindow::Update() -> void

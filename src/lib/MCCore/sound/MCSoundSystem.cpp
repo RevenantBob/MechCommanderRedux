@@ -108,7 +108,7 @@ int32_t SoundPanPosition(float dx, float dy)
     toSound.Z = 0.0f;
     up.Normalize();
     toSound.Normalize();
-    double angle = AcosMatherr(static_cast<double>(up | toSound)) * 0x1.ca5dc1a6402aap+5;
+    double angle = AcosMatherr(up | toSound) * 0x1.ca5dc1a6402aap+5;
 
     if (upX * dy - upY * dx <= 0.0f)
     {
@@ -559,7 +559,8 @@ void MCSoundSystem::UpdateRadio()
     MCGuiSmackerWindow* window = CurrentMessage->MovieWindow.get();
 
     if (window != nullptr && CurrentMessage->Movie != nullptr && tacMap->IsHidden() == 0 &&
-        tacMap->DisplayType == MCTacmapPage::Map && window->StartSmackerMovie(std::move(CurrentMessage->Movie), 0) == 0)
+        tacMap->DisplayType == MCTacmapPage::Map &&
+        window->StartSmackerMovie(std::move(CurrentMessage->Movie), false) == 0)
     {
         window->SetDepth(0x5a);
         ScreenWindow()->AddChild(window);

@@ -123,7 +123,7 @@ auto MCMechIcon::Enter() -> void
 auto MCMechIcon::Leave() -> void
 {
     auto* bar = static_cast<MCMechBar*>(Parent);
-    TacticalInterface()->FloatingTags[0]->ShowGuiWindow(0);
+    TacticalInterface()->FloatingTags[0]->ShowGuiWindow(false);
 
     if (bar != nullptr)
     {

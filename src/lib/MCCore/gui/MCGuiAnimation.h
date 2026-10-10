@@ -31,7 +31,7 @@ public:
     /// <summary>The first shape's height.</summary>
     int32_t Height() const { return ShapeHeight; }
     /// <summary>Draws shape <paramref name="frame"/> at (<paramref name="xPos"/>, <paramref name="yPos"/>).</summary>
-    void DrawFrame(int32_t frame, MCPane* pane, int32_t xPos, int32_t yPos);
+    void DrawFrame(int32_t frame, MCPane* pane, int32_t xPos, int32_t yPos) const;
     /// <summary>Draws the current frame, and moves to the next once a frame's time has passed.</summary>
     void Draw(MCPane* pane, int32_t xPos, int32_t yPos);
     /// <summary>The frame after the current one (wrapping to 0).</summary>

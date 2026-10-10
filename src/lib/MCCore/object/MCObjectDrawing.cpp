@@ -30,7 +30,7 @@ MCVector2D ProjectToScreen(const MCVector3D& position, const MCCamera& camera)
     MCVector2D screen;
     float screenY;
 
-    if (camera.CameraScale == 1)
+    if (MCCamera::CameraScale == 1)
     {
         screen.X = (screen50.X - camera.ScreenUL50.X) + camera.HalfWidth;
         screenY = screen50.Y - camera.ScreenUL50.Y;
@@ -64,19 +64,19 @@ uint8_t* HazePaletteFor(int32_t numVisible)
 
 void DrawExtentEllipse(const MCVector3D& position, MCVector2D size)
 {
-    if (Eye->CameraScale == 1)
+    if (MCCamera::CameraScale == 1)
     {
         size.X *= 0.5f;
         size.Y *= 0.5f;
     }
 
-    const float scale = Eye->CameraScale != 1 ? 1.0f : 0.5f;
+    const float scale = MCCamera::CameraScale != 1 ? 1.0f : 0.5f;
     const float sx = (position.X - Eye->Position.X) * scale;
     const float sy = (position.Y - Eye->Position.Y) * scale;
     MCVector2D center;
     center.X = sx * Eye->CosAngle + sy * Eye->CosAngle + Eye->HalfWidth;
     center.Y = ((sx * Eye->SinAngle + Eye->HalfHeight) - sy * Eye->SinAngle) - scale * (position.Z - Eye->Position.Z);
-    ElementList()->OpenGroup(-50000, 1);
+    ElementList()->OpenGroup(-50000, true);
     // Port: an overlay, on the screen over the view: it follows the object through the zoom.
     center = MCOverlayPoint(center);
     size.X *= MCOverlay.ScaleX;

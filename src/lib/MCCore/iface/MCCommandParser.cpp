@@ -198,7 +198,7 @@ auto MCCommandParser::SendTacOrder(MCTacticalOrder order, bool sortMovers) -> bo
         return false;
     }
 
-    SoundSystem()->PlayDigitalSample(0xf, 1, nullptr, 0, 0);
+    SoundSystem()->PlayDigitalSample(0xf, 1, nullptr, false, false);
     MCOrderSink& sink = _Owner.Orders();
 
     if (MultiPlayer() != nullptr && MultiPlayer()->IsServer == 0)
@@ -317,7 +317,7 @@ auto MCCommandParser::SendTacOrder(MCTacticalOrder order, bool sortMovers) -> bo
         }
     }
 
-    SoundSystem()->PlayDigitalSample(0x11, 1, nullptr, 0, 0);
+    SoundSystem()->PlayDigitalSample(0x11, 1, nullptr, false, false);
 
     if (_Owner.OneShotMode)
     {

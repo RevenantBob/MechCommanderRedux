@@ -100,7 +100,7 @@ public:
 
     void SetModalObject(MCGuiObject* obj);
     /// <summary>The modal object: only it and its children take events.</summary>
-    MCGuiObject* ModalObject() { return Modal; }
+    MCGuiObject* ModalObject() const { return Modal; }
     void ClearModal();
     /// <summary>Gives <paramref name="obj"/> the mouse.</summary>
     void Grab(MCGuiObject* obj);
@@ -113,9 +113,9 @@ public:
     void Release();
     /// <summary>Lets go of the keyboard focus.</summary>
     void ReleaseText();
-    MCGuiObject* GrabbedObject();
-    MCGuiObject* TextObject();
-    MCGuiObject* CurrentObject();
+    MCGuiObject* GrabbedObject() const;
+    MCGuiObject* TextObject() const;
+    MCGuiObject* CurrentObject() const;
 
     /// <summary>
     /// Sets <paramref name="count"/> palette entries from <paramref name="first"/> (cut to 10..245 unless a movie
@@ -138,11 +138,11 @@ public:
     void ActivateSmackerPalette(const uint8_t* colors);
 
     int32_t AddTimer(MCGuiObject* target, int16_t id, int32_t interval, int32_t eventType, int32_t eventData,
-                     bool useScenarioTime);
+                     bool useScenarioTime) const;
     int32_t AddUniqueTimer(MCGuiObject* target, int16_t id, int32_t interval, int32_t eventType, int32_t eventData,
-                           bool useScenarioTime);
-    void RemoveTimer(MCGuiObject* target, int16_t id);
-    void RemoveTimers(MCGuiObject* target);
+                           bool useScenarioTime) const;
+    void RemoveTimer(MCGuiObject* target, int16_t id) const;
+    void RemoveTimers(MCGuiObject* target) const;
     /// <summary>Sets the mouse cursor (ignored while the cursor is hidden).</summary>
     void SetCurrentCursor(MCCursorType cursor);
     void SetCursorVisible(bool show);

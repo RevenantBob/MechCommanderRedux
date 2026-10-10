@@ -378,7 +378,7 @@ namespace
     int32_t PackGame(MCPacketFile& packFile, std::string_view fitName, int32_t numProfiles,
                      std::string_view purchaseName)
     {
-        packFile.Reserve(numProfiles + 2, 1);
+        packFile.Reserve(numProfiles + 2, true);
         MCFile source;
 
         if (const int32_t result = PackFileInto(packFile, source, fitName, 0); result != 0)
@@ -570,7 +570,7 @@ namespace MCMissionLogisticsBridge
 
             WritePacketBlock(file, "Mech", mechIndex, packet);
             auto* mech = static_cast<MCBattleMech*>(salvage);
-            mech->NotMineYet = 0;
+            mech->NotMineYet = false;
 
             if (const int32_t result = MissionResultsMechProfileWriter(ProfileName(packet), mech, true); result != 0)
             {
@@ -613,7 +613,7 @@ namespace MCMissionLogisticsBridge
         MCPacketFile packFile;
         packFile.Create(GamePath(SavePath, fileName, ".pkk"));
         const auto numProfiles = static_cast<int32_t>(numMechs + numWarriors);
-        packFile.Reserve(numProfiles + 1, 1);
+        packFile.Reserve(numProfiles + 1, true);
         MCFile source;
 
         if (const int32_t result = PackFileInto(packFile, source, fitName, 0); result != 0)

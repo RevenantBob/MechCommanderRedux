@@ -129,7 +129,7 @@ auto MCBattleMech::HandleStaticCollision() -> void
 
         if (vertexNumber == otherVertex && collides != 0)
         {
-            CollisionSystem()->DetectStaticCollision(this, other);
+            MCCollisionSystem::DetectStaticCollision(this, other);
         }
     }
 }
@@ -215,7 +215,7 @@ auto MCBattleMech::MineCheck() -> void
 
         if ((state & 3) == 0)
         {
-            SteppedOnMine = 0;
+            SteppedOnMine = false;
             const int32_t tileR = ObjPosition->TileR;
             const int32_t tileC = ObjPosition->TileC;
             MCMapTile& here = map->Map[map->Width * tileR + tileC];
@@ -277,7 +277,7 @@ auto MCBattleMech::MineCheck() -> void
         for (int32_t col = firstCol; col < firstCol + 3; col++)
         {
             const bool inMap = row >= 0 && row < GameMap()->Height && col >= 0 && col < GameMap()->Width;
-            Assert(inMap ? 1 : 0, 0, " Map Tile out of bounds ");
+            Assert(inMap, 0, " Map Tile out of bounds ");
 
             // Port fix: the original goes on to touch the tile past the map's edge.
             if (!inMap)
@@ -337,7 +337,7 @@ auto MCBattleMech::MineCheck() -> void
         GetPilot()->RadioMessage(MCRadioMessageType::HittingMines, 1);
     }
 
-    SteppedOnMine = 1;
+    SteppedOnMine = true;
 }
 
 auto MCBattleMech::UpdateJump() -> int
@@ -353,7 +353,7 @@ auto MCBattleMech::UpdateJump() -> int
     if (actor->InJump == 0 && actor->JumpSetup == 0)
     {
         // Landed.
-        InJump = 0;
+        InJump = false;
         JumpTime = ScenarioTime;
         MCMovePath* path = Pilot->GetMovePath();
         Pilot->ResumePath();
@@ -1053,7 +1053,7 @@ auto MCBattleMech::SetControlSettings(char& newRotate, char& newThrottleSetting,
 
     if (InJump != 0 && actor->InJump == 0)
     {
-        InJump = 0;
+        InJump = false;
         Pilot->ResumePath();
     }
 
@@ -1108,7 +1108,7 @@ auto MCBattleMech::SetControlSettings(char& newRotate, char& newThrottleSetting,
         {
             if (gestureGoal == 6)
             {
-                InJump = 1;
+                InJump = true;
             }
 
             if (gestureGoal != 2)
@@ -1167,11 +1167,11 @@ auto MCBattleMech::UpdateMovement() -> void
     {
         if (Appearance->SetGestureGoal(fallGesture()) == 0)
         {
-            DisableThisFrame = 0;
-            ShutDownThisFrame = 0;
-            StartUpThisFrame = 0;
-            HitFromFrontThisFrame = 0;
-            HitFromBehindThisFrame = 0;
+            DisableThisFrame = false;
+            ShutDownThisFrame = false;
+            StartUpThisFrame = false;
+            HitFromFrontThisFrame = false;
+            HitFromBehindThisFrame = false;
         }
 
         controlData->Throttle = static_cast<int8_t>(maxThrottle);
@@ -1181,12 +1181,12 @@ auto MCBattleMech::UpdateMovement() -> void
     if (ShutDownThisFrame != 0)
     {
         const int32_t result = Appearance->SetGestureGoal(0);
-        SoundSystem()->PlayDigitalSample(0x3c, 1, this, 0, 0);
+        SoundSystem()->PlayDigitalSample(0x3c, 1, this, false, false);
 
         if (result == 0 || result == -0x1521ffff)
         {
-            ShutDownThisFrame = 0;
-            StartUpThisFrame = 0;
+            ShutDownThisFrame = false;
+            StartUpThisFrame = false;
 
             if (result == -0x1521ffff)
             {
@@ -1201,12 +1201,12 @@ auto MCBattleMech::UpdateMovement() -> void
     if (StartUpThisFrame != 0)
     {
         const int32_t result = Appearance->SetGestureGoal(1);
-        SoundSystem()->PlayDigitalSample(0x3d, 1, this, 0, 0);
+        SoundSystem()->PlayDigitalSample(0x3d, 1, this, false, false);
 
         if (result == 0 || result == -0x1521ffff)
         {
-            StartUpThisFrame = 0;
-            ShutDownThisFrame = 0;
+            StartUpThisFrame = false;
+            ShutDownThisFrame = false;
 
             if (result == -0x1521ffff)
             {
@@ -1234,7 +1234,7 @@ auto MCBattleMech::UpdateMovement() -> void
 
         if (result == 0 || result == -0x1521ffff)
         {
-            PilotingCheckPending = 0;
+            PilotingCheckPending = false;
         }
 
         controlData->Throttle = static_cast<int8_t>(maxThrottle);
@@ -1372,7 +1372,7 @@ auto MCBattleMech::CrashAvoidanceSystem() -> int
     int32_t tileC;
     int32_t cellR;
     int32_t cellC;
-    GameMap()->WorldToMapPos(lookAhead, tileR, tileC, cellR, cellC);
+    MCScenarioMap::WorldToMapPos(lookAhead, tileR, tileC, cellR, cellC);
 
     int cornerBlocked = 0;
     const int32_t direction = static_cast<int8_t>(path->StepList[path->CurStep].Direction);
@@ -1425,15 +1425,6 @@ auto MCBattleMech::CrashAvoidanceSystem() -> int
     warrior->ReachedPathEnd();
     Control->ControlData->Brake();
     return 1;
-}
-
-auto MCBattleMech::StartJump(MCVector3D jumpGoal) -> int32_t
-{
-    this->JumpGoal.X = jumpGoal.X;
-    this->JumpGoal.Z = jumpGoal.Z;
-    InJump = 1;
-    this->JumpGoal.Y = jumpGoal.Y;
-    return 0;
 }
 
 auto MCBattleMech::IsJumping(MCVector3D* jumpGoal) -> int

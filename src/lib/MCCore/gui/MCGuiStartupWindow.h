@@ -77,7 +77,7 @@ private:
     /// </summary>
     void Step();
     /// <summary>Port: <see cref="StaticPort"/>'s pane, where the sequence draws.</summary>
-    MCPane* StaticPane();
+    MCPane* StaticPane() const;
     /// <summary>Lets the renderers forget the art and frees it.</summary>
     void FreeImages();
 };

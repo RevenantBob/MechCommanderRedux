@@ -104,7 +104,7 @@ namespace
     {
         if (picture != nullptr)
         {
-            picture->CopyTo(target, x, y, 0);
+            picture->CopyTo(target, x, y, false);
         }
     }
 
@@ -192,7 +192,7 @@ auto MCMissionResultsScreen::Init() -> int32_t
     _MoveOnButton->SetDownPicture(const_cast<char*>("mr_ms02.tga"));
     AddChild(_MoveOnButton.get());
     _MoveOnButton->SetEventRoutine(MoveOnButtonHandleEvent);
-    _MoveOnButton->SetTransparent(1);
+    _MoveOnButton->SetTransparent(true);
 
     if (MultiPlayer() != nullptr)
     {
@@ -200,7 +200,7 @@ auto MCMissionResultsScreen::Init() -> int32_t
         switchButton->Init(0xe4, 0x1e, 0x148, 0xb, nullptr);
         switchButton->SetUpPicture(const_cast<char*>("mrm_bkgd00.tga"));
         switchButton->SetDownPicture(const_cast<char*>("mrm_bkgd01.tga"));
-        switchButton->Framed = 0;
+        switchButton->Framed = false;
         switchButton->Draw();
         switchButton->Draw();
         AddChild(switchButton.get());
@@ -225,9 +225,9 @@ auto MCMissionResultsScreen::Init() -> int32_t
             button->SetDrawsLive();
             button->Init(0, 0, 0xb, 0xb, nullptr);
             button->SetBackground(const_cast<char*>(picture));
-            button->ShowGuiWindow(0);
+            button->ShowGuiWindow(false);
             AddChild(button.get());
-            button->MoveTo(x, y, 0);
+            button->MoveTo(x, y, false);
             return button;
         };
 
@@ -258,7 +258,7 @@ auto MCMissionResultsScreen::Destroy() -> void
     // The debriefing text box belongs to the tactical map; it is only taken off the screen.
     RemoveChild(_TextObject);
     MCGuiObject::Destroy();
-    GuiSystem()->CursorHidden = 0;
+    GuiSystem()->CursorHidden = false;
 
     if (!_ScenarioEnded && Scenario() != nullptr)
     {
@@ -270,14 +270,14 @@ auto MCMissionResultsScreen::Destroy() -> void
         {
             if (!mission->GameOver)
             {
-                GamePaused = 0;
+                GamePaused = false;
                 mission->State = MCMissionState::Logistics;
                 return;
             }
 
             if (InDemo != 0)
             {
-                GamePaused = 0;
+                GamePaused = false;
                 mission->CurrentMovie = 2;
                 mission->State = MCMissionState::FeatureScreen;
                 mission->NextState = MCMissionState::FeatureScreen;
@@ -289,7 +289,7 @@ auto MCMissionResultsScreen::Destroy() -> void
             mission->NextState = MCMissionState::PlayMovie;
         }
 
-        GamePaused = 0;
+        GamePaused = false;
     }
 }
 
@@ -321,8 +321,8 @@ auto MCMissionResultsScreen::HandleEvent(MCGuiEvent* event) -> void
             if (PtInRect(&_ScrollUpRect, point))
             {
                 GuiSystem()->Grab(this);
-                _ScrollUpButton->ShowGuiWindow(1);
-                GuiSystem()->AddTimer(this, ScrollDelayTimer, TacticalInterface()->ScrollStart, 0, 0, 0);
+                _ScrollUpButton->ShowGuiWindow(true);
+                GuiSystem()->AddTimer(this, ScrollDelayTimer, TacticalInterface()->ScrollStart, 0, 0, false);
                 _TextObject->ReceiveClick(-1, 0);
                 return;
             }
@@ -330,8 +330,8 @@ auto MCMissionResultsScreen::HandleEvent(MCGuiEvent* event) -> void
             if (PtInRect(&_ScrollDownRect, point))
             {
                 GuiSystem()->Grab(this);
-                _ScrollDownButton->ShowGuiWindow(1);
-                GuiSystem()->AddTimer(this, ScrollDelayTimer, TacticalInterface()->ScrollStart, 0, 0, 0);
+                _ScrollDownButton->ShowGuiWindow(true);
+                GuiSystem()->AddTimer(this, ScrollDelayTimer, TacticalInterface()->ScrollStart, 0, 0, false);
                 _TextObject->ReceiveClick(1, 0);
                 return;
             }
@@ -353,12 +353,12 @@ auto MCMissionResultsScreen::HandleEvent(MCGuiEvent* event) -> void
 
             if (_ScrollUpButton != nullptr)
             {
-                _ScrollUpButton->ShowGuiWindow(0);
+                _ScrollUpButton->ShowGuiWindow(false);
             }
 
             if (_ScrollDownButton != nullptr)
             {
-                _ScrollDownButton->ShowGuiWindow(0);
+                _ScrollDownButton->ShowGuiWindow(false);
             }
             break;
         }
@@ -379,7 +379,7 @@ auto MCMissionResultsScreen::HandleEvent(MCGuiEvent* event) -> void
             {
                 // The first repeat delay has passed: repeat five times as fast.
                 GuiSystem()->RemoveTimer(this, ScrollDelayTimer);
-                GuiSystem()->AddTimer(this, ScrollRepeatTimer, TacticalInterface()->ScrollStart / 5, 0, 0, 0);
+                GuiSystem()->AddTimer(this, ScrollRepeatTimer, TacticalInterface()->ScrollStart / 5, 0, 0, false);
             }
             else if (timerId != ScrollRepeatTimer)
             {
@@ -474,7 +474,7 @@ auto MCMissionResultsScreen::Draw() -> void
 
     if (_MoveOnPort != nullptr)
     {
-        _MoveOnPort->CopyTo(Port()->Frame(), 4, 4, 1);
+        _MoveOnPort->CopyTo(Port()->Frame(), 4, 4, true);
     }
 
     if (MultiPlayer() == nullptr)
@@ -518,7 +518,7 @@ auto MCMissionResultsScreen::StepResourcePoints() -> void
 
         if (!_SkipAnimation)
         {
-            SoundSystem()->PlayDigitalSample(0x43, 1, nullptr, 0, 0);
+            SoundSystem()->PlayDigitalSample(0x43, 1, nullptr, false, false);
         }
     }
     else
@@ -528,7 +528,7 @@ auto MCMissionResultsScreen::StepResourcePoints() -> void
 
         if (!_SkipAnimation)
         {
-            SoundSystem()->PlayDigitalSample(0x42, 1, nullptr, 0, 0);
+            SoundSystem()->PlayDigitalSample(0x42, 1, nullptr, false, false);
         }
 
         _StepIndex++;
@@ -551,11 +551,11 @@ auto MCMissionResultsScreen::StepStatistics() -> void
 
     if (!_SkipAnimation)
     {
-        SoundSystem()->PlayDigitalSample(0x47, 1, nullptr, 0, 0);
+        SoundSystem()->PlayDigitalSample(0x47, 1, nullptr, false, false);
     }
 }
 
-auto MCMissionResultsScreen::ShowsTonnageBonus() const -> bool
+auto MCMissionResultsScreen::ShowsTonnageBonus() -> bool
 {
     const MCScenario* scenario = Scenario();
     const MCScenarioObjective& bonus = scenario->Objectives[scenario->Objectives.Count()];
@@ -591,7 +591,7 @@ auto MCMissionResultsScreen::StepObjectives() -> void
     {
         if (!_SkipAnimation)
         {
-            SoundSystem()->PlayDigitalSample(0x47, 1, nullptr, 0, 0);
+            SoundSystem()->PlayDigitalSample(0x47, 1, nullptr, false, false);
         }
 
         _NextDrawTime = ResultsStepTicks + MouseTicks;
@@ -617,14 +617,14 @@ auto MCMissionResultsScreen::StepPilots() -> void
 
     if (!_SkipAnimation)
     {
-        SoundSystem()->PlayDigitalSample(0x10, 1, nullptr, 0, 0);
+        SoundSystem()->PlayDigitalSample(0x10, 1, nullptr, false, false);
     }
 }
 
 auto MCMissionResultsScreen::StepDebriefing() -> void
 {
     MCGuiScrollTextObject* text = _TextObject;
-    text->ShowGuiWindow(1);
+    text->ShowGuiWindow(true);
 
     if (text->TextBuffer.empty())
     {
@@ -639,7 +639,7 @@ auto MCMissionResultsScreen::StepDebriefing() -> void
 
     if (!_SkipAnimation)
     {
-        SoundSystem()->PlayDigitalSample(0x32, 1, nullptr, 0, 0);
+        SoundSystem()->PlayDigitalSample(0x32, 1, nullptr, false, false);
     }
 }
 
@@ -706,12 +706,12 @@ auto MCMissionResultsScreen::DrawObjectiveList() -> void
 
                 if (objective.Status == MCScenarioObjective::Succeeded)
                 {
-                    _SuccessPort->CopyTo(Port()->Frame(), 0xb, y - 1, 0);
+                    _SuccessPort->CopyTo(Port()->Frame(), 0xb, y - 1, false);
                     font = GreenFont;
                 }
                 else if (objective.Status == MCScenarioObjective::Failed)
                 {
-                    _FailurePort->CopyTo(Port()->Frame(), 0xb, y - 1, 0);
+                    _FailurePort->CopyTo(Port()->Frame(), 0xb, y - 1, false);
                     font = RedFont;
                 }
                 else if (objective.Status != MCScenarioObjective::Pending)
@@ -744,7 +744,7 @@ auto MCMissionResultsScreen::DrawObjectiveList() -> void
                 WriteText(BlueFont, Port()->Frame(), 0xf, y, bonusHeader);
                 const int32_t markY = y + 10;
                 y += 0xb;
-                _SuccessPort->CopyTo(Port()->Frame(), 0xb, markY, 0);
+                _SuccessPort->CopyTo(Port()->Frame(), 0xb, markY, false);
                 WriteText(GreenFont, Port()->Frame(), 0x17, y, bonus.Name);
                 const int32_t nameY = y;
                 y = nameY + 10;
@@ -981,12 +981,12 @@ auto MCMissionResultsScreen::DrawMPObjectives() -> void
 
         if (objective.Status == MCScenarioObjective::Succeeded)
         {
-            _SuccessPort->CopyTo(Port()->Frame(), 0xb, y - 1, 0);
+            _SuccessPort->CopyTo(Port()->Frame(), 0xb, y - 1, false);
             font = GreenFont;
         }
         else if (objective.Status == MCScenarioObjective::Failed)
         {
-            _FailurePort->CopyTo(Port()->Frame(), 0xb, y - 1, 0);
+            _FailurePort->CopyTo(Port()->Frame(), 0xb, y - 1, false);
             font = RedFont;
         }
         else if (objective.Status != MCScenarioObjective::Pending)
@@ -1007,9 +1007,9 @@ auto MCMissionResultsScreen::Activate() -> int32_t
     EventsToMissionResultsScreen = 1;
     _SkipAnimation = false;
     Mission()->StopScenarioCallbacks();
-    GuiSystem()->CursorHidden = 0;
+    GuiSystem()->CursorHidden = false;
     GuiSystem()->SetCurrentCursor(static_cast<MCCursorType>(0));
-    GuiSystem()->CursorHidden = 1;
+    GuiSystem()->CursorHidden = true;
     GuiSystem()->Release();
 
     _StepIndex = 0;
@@ -1052,9 +1052,9 @@ auto MCMissionResultsScreen::Activate() -> int32_t
         tacMap->RemoveChild(tacMap->SalvageText.get());
         _TextObject = tacMap->SalvageText.get();
         AddChild(_TextObject);
-        _TextObject->MoveTo(10, 0x15b, 0);
+        _TextObject->MoveTo(10, 0x15b, false);
         _TextObject->Resize(0xc4, 0x59);
-        _TextObject->ShowGuiWindow(0);
+        _TextObject->ShowGuiWindow(false);
 
         SoundSystem()->PlayBettySample(ScenarioResult < 4 ? 0xb : 0x12);
     }
@@ -1062,7 +1062,7 @@ auto MCMissionResultsScreen::Activate() -> int32_t
     {
         if (IsMPlayerGame != 0)
         {
-            GuiSystem()->AddTimer(this, TimeoutTimer, 90000, 0, 0, 0);
+            GuiSystem()->AddTimer(this, TimeoutTimer, 90000, 0, 0, false);
         }
 
         _Results = GatherMultiplayerResults(scenario);
@@ -1107,7 +1107,7 @@ auto MCMissionResultsScreen::Activate() -> int32_t
     if (MultiPlayer() != nullptr && MultiPlayer()->SessionManager != nullptr && Mission()->EndScenarioRequested != 0)
     {
         MultiPlayer()->LeaveSession();
-        MultiPlayer()->InMission = 1;
+        MultiPlayer()->InMission = true;
     }
 
     SomethingOnFire = 0;

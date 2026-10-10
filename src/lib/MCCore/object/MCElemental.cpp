@@ -94,7 +94,9 @@ auto MCElemental::Init(MCObjectType* objType) -> int32_t
         return -0x5fff6;
     }
 
-    if ((result = actor->Init(apprType, this)) != 0)
+    result = actor->Init(apprType, this);
+
+    if (result != 0)
     {
         return result;
     }
@@ -487,10 +489,10 @@ auto MCElemental::OnScreen() -> int
 
         if (Terrain() != nullptr)
         {
-            Terrain()->ProjectTerrain(Position, screen100, screen50);
+            MCTerrain::ProjectTerrain(Position, screen100, screen50);
         }
 
-        if (camera->CameraScale == 1)
+        if (MCCamera::CameraScale == 1)
         {
             ScreenPos.X = (screen50.X - camera->ScreenUL50.X) + camera->HalfWidth;
             screenY = screen50.Y - camera->ScreenUL50.Y;
@@ -505,7 +507,7 @@ auto MCElemental::OnScreen() -> int
     }
     else
     {
-        const float scale = camera->CameraScale != 1 ? 1.0f : 0.5f;
+        const float scale = MCCamera::CameraScale != 1 ? 1.0f : 0.5f;
         MCVector3D relative(Position.X - camera->Position.X, Position.Y - camera->Position.Y,
                             Position.Z - camera->Position.Z);
         relative *= scale;
@@ -545,7 +547,7 @@ auto MCElemental::Update() -> int32_t
         {
             ObjType->CreateExplosion(Position, 0.0f, 0.0f);
             CraterManager()->AddCrater(7, Position, 0);
-            DeathExplosionDone = 1;
+            DeathExplosionDone = true;
             return 1;
         }
 
@@ -633,7 +635,7 @@ auto MCElemental::Update() -> int32_t
             static_cast<float>(std::sqrt(static_cast<double>(move.X) * move.X + static_cast<double>(move.Y) * move.Y +
                                          static_cast<double>(move.Z) * move.Z) +
                                DistanceSinceMarkSeen);
-        Position.Z = Terrain()->GetTerrainElevation(Position);
+        Position.Z = MCTerrain::GetTerrainElevation(Position);
 
         const int visibleNow = OnScreen();
         const int offScreen = visibleNow == 0 ? 1 : 0;
@@ -643,7 +645,7 @@ auto MCElemental::Update() -> int32_t
             if (visibleNow == 0)
             {
                 ObjType->HandleDestruction(this, nullptr);
-                Removed = 1;
+                Removed = true;
             }
         }
 
@@ -651,7 +653,7 @@ auto MCElemental::Update() -> int32_t
         if (offScreen && ElementalCanJump == 0)
         {
             RemoveMarine(0.8f);
-            Removed = 1;
+            Removed = true;
         }
 
         if (Appearance != nullptr)
@@ -712,13 +714,13 @@ auto MCElemental::Render() -> void
                     {
                         if (SoundSystem() != nullptr && UseSound != 0)
                         {
-                            SoundSystem()->PlayDigitalSample(0x14, 1, this, 0, 1);
+                            SoundSystem()->PlayDigitalSample(0x14, 1, this, false, true);
                         }
 
                         BlipFrame = 0;
                     }
 
-                    ElementList()->OpenGroup(-100000, 1);
+                    ElementList()->OpenGroup(-100000, true);
                     ElementList()->Add(
                         ElementList()->Make<MCVfxElement>(shape, ScreenPos.X, ScreenPos.Y, BlipFrame, 0, nullptr, 0));
                     BlipFrame++;
@@ -743,7 +745,7 @@ auto MCElemental::Render() -> void
                 else
                 {
                     RemoveMarine(0.8f);
-                    Removed = 1;
+                    Removed = true;
                 }
             }
         }
@@ -764,11 +766,11 @@ auto MCElemental::Render() -> void
 
             MCVector3D from = path->StepList[i].Destination;
             MCVector3D to = path->StepList[i + 1].Destination;
-            from.Z = Terrain()->GetTerrainElevation(from);
-            to.Z = Terrain()->GetTerrainElevation(to);
+            from.Z = MCTerrain::GetTerrainElevation(from);
+            to.Z = MCTerrain::GetTerrainElevation(to);
             const auto project = [](const MCVector3D& point)
             {
-                const float scale = Eye->CameraScale != 1 ? 1.0f : 0.5f;
+                const float scale = MCCamera::CameraScale != 1 ? 1.0f : 0.5f;
                 const float sx = (point.X - Eye->Position.X) * scale;
                 const float sy = (point.Y - Eye->Position.Y) * scale;
                 MCVector2D screen;
@@ -780,7 +782,7 @@ auto MCElemental::Render() -> void
 
             MCVector2D fromScreen = project(from);
             MCVector2D toScreen = project(to);
-            ElementList()->OpenGroup(-100000, 1);
+            ElementList()->OpenGroup(-100000, true);
             ElementList()->Add(ElementList()->Make<MCLineElement>(fromScreen, toScreen, 0xfe, nullptr, -100000, -1));
         }
     }
@@ -814,6 +816,6 @@ auto MCElemental::RemoveMarine(float deathTime) -> void
     DeathTimer = deathTime;
     Pilot->TriggerAlarm(MCPilotAlarmType::VehicleDestroyed, 0);
     Status = 2;
-    DeathExplosionDone = 0;
+    DeathExplosionDone = false;
     TacticalInterface()->RemoveMech(PartId);
 }

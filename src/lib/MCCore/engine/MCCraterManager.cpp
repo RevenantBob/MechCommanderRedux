@@ -95,7 +95,7 @@ auto MCCraterManager::AddCrater(int32_t craterType, const MCVector3D& position, 
 {
     int32_t tileR;
     int32_t tileC;
-    GameMap()->WorldToMapTilePos(position, tileR, tileC);
+    MCScenarioMap::WorldToMapTilePos(position, tileR, tileC);
 
     if (tileR < 0 || tileR >= GameMap()->Height || tileC < 0 || tileC >= GameMap()->Width)
     {
@@ -160,14 +160,14 @@ auto MCCraterManager::Render() -> void
 
         if (Terrain() != nullptr)
         {
-            Terrain()->ProjectTerrain(crater.Position, screen100, screen50);
+            MCTerrain::ProjectTerrain(crater.Position, screen100, screen50);
         }
 
         int32_t shapeId = crater.CraterShapeId;
         float screenX;
         float screenY;
 
-        if (Eye->CameraScale == 1)
+        if (MCCamera::CameraScale == 1)
         {
             shapeId += _TypeCount;
             screenX = (screen50.X - Eye->ScreenUL50.X) + Eye->HalfWidth;

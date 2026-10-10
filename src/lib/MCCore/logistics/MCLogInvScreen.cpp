@@ -496,7 +496,7 @@ auto MCLogInvScreen::CreateVhclInvBlock() -> void
     }
 }
 
-auto MCLogInvScreen::CreatePilotInvBlock() -> void
+auto MCLogInvScreen::CreatePilotInvBlock() const -> void
 {
     const auto& warriors = GlobalLogPtr->WarriorList->Warriors;
     const int32_t height =
@@ -556,14 +556,14 @@ auto MCLogInvScreen::SetUpMechInv(bool resetScroll, bool redrawTabs) -> void
         MCMechInventoryBlock* block = mech->InventoryBlock.get();
         InventoryPane->AddChild(block);
         block->ShowGuiWindow(true);
-        block->BringToFront(0);
+        block->BringToFront(false);
         block->MoveTo(0, block->ListIndex * InvBlockHeight, false);
     }
 
     ShowInvTab(0, resetScroll);
 }
 
-auto MCLogInvScreen::SetUpMechPurchase() -> void
+auto MCLogInvScreen::SetUpMechPurchase() const -> void
 {
     MCPurchaseScreen* screen = GlobalLogPtr->PurchaseScreen.get();
 
@@ -582,7 +582,7 @@ auto MCLogInvScreen::SetUpMechPurchase() -> void
         UnitPane->AddChild(block);
         block->ShowGuiWindow(true);
         block->MoveTo(0, block->Height() * row, false);
-        block->BringToFront(0);
+        block->BringToFront(false);
         // Show the first variant still on sale.
         int32_t variant = 0;
 
@@ -626,7 +626,7 @@ auto MCLogInvScreen::SetUpPilotInv(bool resetScroll, bool redrawTabs) -> void
         MCPilotInventoryBlock* block = warrior->InventoryBlock.get();
         InventoryPane->AddChild(block);
         block->ShowGuiWindow(true);
-        block->BringToFront(0);
+        block->BringToFront(false);
         block->DrawBackground();
 
         if (resetScroll)
@@ -657,7 +657,7 @@ auto MCLogInvScreen::SetUpCompInv(bool resetScroll, bool redrawTabs) -> void
 
         InventoryPane->AddChild(block);
         block->ShowGuiWindow(true);
-        block->BringToFront(0);
+        block->BringToFront(false);
         block->MoveTo(0, block->ListIndex * InvBlockHeight, false);
         block->DrawBackground();
     }
@@ -677,7 +677,7 @@ auto MCLogInvScreen::SetUpVhclInv(bool resetScroll, bool redrawTabs) -> void
         MCVehicleInventoryBlock* block = vehicle->InventoryBlock.get();
         InventoryPane->AddChild(block);
         block->ShowGuiWindow(true);
-        block->BringToFront(0);
+        block->BringToFront(false);
         block->MoveTo(0, yPos, false);
         yPos += InvBlockHeight;
     }
@@ -685,7 +685,7 @@ auto MCLogInvScreen::SetUpVhclInv(bool resetScroll, bool redrawTabs) -> void
     ShowInvTab(3, resetScroll);
 }
 
-auto MCLogInvScreen::SetUpVehiclePurchase() -> void
+auto MCLogInvScreen::SetUpVehiclePurchase() const -> void
 {
     MCPurchaseScreen* screen = GlobalLogPtr->PurchaseScreen.get();
 
@@ -703,14 +703,14 @@ auto MCLogInvScreen::SetUpVehiclePurchase() -> void
         UnitPane->AddChild(block);
         block->ShowGuiWindow(true);
         block->MoveTo(0, block->Height() * row, false);
-        block->BringToFront(0);
+        block->BringToFront(false);
         ++row;
     }
 
     screen->UnitPane->SetDisplayPort(screen->PurVehiclePort.get(), true);
 }
 
-auto MCLogInvScreen::SetUpPilotPurchase() -> void
+auto MCLogInvScreen::SetUpPilotPurchase() const -> void
 {
     MCPurchaseScreen* screen = GlobalLogPtr->PurchaseScreen.get();
 
@@ -733,7 +733,7 @@ auto MCLogInvScreen::SetUpPilotPurchase() -> void
         UnitPane->AddChild(block);
         block->ShowGuiWindow(true);
         block->MoveTo(0, block->Height() * row, false);
-        block->BringToFront(0);
+        block->BringToFront(false);
         ++row;
     }
 
@@ -747,7 +747,7 @@ auto MCLogInvScreen::ReIndexComponents() -> void
     ReIndexPass();
 }
 
-auto MCLogInvScreen::SetUpCompPurchase() -> void
+auto MCLogInvScreen::SetUpCompPurchase() const -> void
 {
     MCPurchaseScreen* screen = GlobalLogPtr->PurchaseScreen.get();
 
@@ -765,7 +765,7 @@ auto MCLogInvScreen::SetUpCompPurchase() -> void
         UnitPane->AddChild(block);
         block->ShowGuiWindow(true);
         block->MoveTo(0, block->Height() * block->Row, false);
-        block->BringToFront(0);
+        block->BringToFront(false);
     }
 
     screen->UnitPane->SetDisplayPort(screen->PurCompPort.get(), true);

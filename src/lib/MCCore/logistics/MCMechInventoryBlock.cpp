@@ -64,7 +64,7 @@ auto MCMechInventoryBlock::DrawBackground() -> void
 
     for (int32_t location = 0; location < 8; ++location)
     {
-        GlobalLogPtr->DrawMechBodyLoc(Mech, location, DiagramPort.get(), 2, 0);
+        MCLogistics::DrawMechBodyLoc(Mech, location, DiagramPort.get(), 2, 0);
     }
 
     // The battle rating bar along the left edge: 26 pixels at 18010.
@@ -123,7 +123,7 @@ auto MCMechInventoryBlock::OfferSale() -> void
 
     std::string title =
         std::format("{:.0f} Ton {} 'Mech", Mech->CurTonnage, LoadGameString(WeightClassString(Mech->CurTonnage), 0xfe));
-    Mech->CalcMechCost(0);
+    Mech->CalcMechCost(false);
     int32_t price = SalePrice(Mech->ResourcePoints);
     // The dialog shows a copy of the diagram over the store's colour.
     MCLogPort picture;
@@ -134,15 +134,15 @@ auto MCMechInventoryBlock::OfferSale() -> void
                        [this](int32_t result, int32_t) { OnSellConfirmed(result); });
 }
 
-auto MCMechInventoryBlock::OnSellConfirmed(int32_t result) -> void
+auto MCMechInventoryBlock::OnSellConfirmed(int32_t result) const -> void
 {
     MCLogMech* sold = Mech;
 
     if (result == 0)
     {
-        sold->Assigned = 0;
+        sold->Assigned = false;
         GlobalLogPtr->ReorderMechs();
-        GlobalLogPtr->PurchaseScreen->CreateMechInvBlock();
+        MCPurchaseScreen::CreateMechInvBlock();
         GlobalLogPtr->PurchaseScreen->SetUpMechInv(false, true);
         return;
     }
@@ -178,7 +178,7 @@ auto MCMechInventoryBlock::OnSellConfirmed(int32_t result) -> void
         }
     }
 
-    GlobalLogPtr->PurchaseScreen->CreateCompInvBlock();
+    MCPurchaseScreen::CreateCompInvBlock();
     int32_t index = GlobalLogPtr->ForceMechList->GetMechIndex(sold);
     GlobalLogPtr->ForceMechList->RemoveMech(static_cast<uint8_t>(index));
     GlobalLogPtr->ReorderMechs();
@@ -197,7 +197,7 @@ auto MCMechInventoryBlock::HandleEvent(MCGuiEvent* event) -> void
     if (MechDrag.Idle())
     {
         // The info block: the row's diagram, tonnage, classes, speed and description.
-        screen->DrawBlankInvInfoBlock(-1);
+        MCLogInvScreen::DrawBlankInvInfoBlock(-1);
         PrepareInfoDescription(Mech->Description);
         screen->ShowInfo(MCInvInfoBox::Kind::Mech, this);
 
@@ -209,9 +209,9 @@ auto MCMechInventoryBlock::HandleEvent(MCGuiEvent* event) -> void
             GuiSystem()->Grab(this);
             MechDrag.Dragging = true;
             MakeDragIcon(MechDrag, event);
-            Mech->Assigned = 1;
+            Mech->Assigned = true;
             GlobalLogPtr->ReorderMechs();
-            screen->CreateMechInvBlock();
+            MCLogInvScreen::CreateMechInvBlock();
             screen->SetUpMechInv(false, false);
             MCDragIcon::Current()->Raise();
         }
@@ -224,9 +224,9 @@ auto MCMechInventoryBlock::HandleEvent(MCGuiEvent* event) -> void
     // Back to the inventory.
     auto backToInventory = [&]
     {
-        Mech->Assigned = 0;
+        Mech->Assigned = false;
         GlobalLogPtr->ReorderMechs();
-        screen->CreateMechInvBlock();
+        MCLogInvScreen::CreateMechInvBlock();
         screen->SetUpMechInv(false, true);
     };
 
@@ -331,9 +331,9 @@ auto MCMechInventoryBlock::HandleEvent(MCGuiEvent* event) -> void
             GuiSystem()->SetCursorVisible(true);
             GuiSystem()->Release();
             MCDragIcon::Remove();
-            Mech->Assigned = 1;
+            Mech->Assigned = true;
             GlobalLogPtr->ReorderMechs();
-            screen->CreateMechInvBlock();
+            MCLogInvScreen::CreateMechInvBlock();
             screen->SetUpMechInv(false, true);
 
             if (OnRepairScreen())

@@ -115,7 +115,7 @@ auto MCPurVehicleData::LoadDescription(int32_t descIndex) -> void
     }
 }
 
-auto MCPurVehicle::CalcVehicleCost() -> void
+auto MCPurVehicle::CalcVehicleCost() const -> void
 {
     Data->Cost = Data->BaseCost;
 

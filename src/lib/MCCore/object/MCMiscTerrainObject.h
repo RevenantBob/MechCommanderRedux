@@ -79,7 +79,7 @@ public:
 
     using MCGameObject::GetScreenPos;
     /// <summary>Its vertex projected through the main camera.</summary>
-    MCVector2D GetScreenPos();
+    MCVector2D GetScreenPos() const;
     /// <summary>Draws the damage bar (green, yellow, red) above <paramref name="screenPos"/>.</summary>
     void DrawBars(MCVector2D screenPos);
     /// <summary>A 1-point hit, and more burning time for its fire if it has one.</summary>

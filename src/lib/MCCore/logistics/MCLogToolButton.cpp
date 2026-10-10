@@ -114,7 +114,7 @@ auto MCLogSpinnerButton::HandleEvent(MCGuiEvent* event) -> void
                 // Run the callback now, then repeat it after half a second held.
                 Toggled = true;
                 GuiSystem()->Grab(this);
-                GuiSystem()->AddTimer(this, DelayTimer, 500, 0, 0, 0);
+                GuiSystem()->AddTimer(this, DelayTimer, 500, 0, 0, false);
                 ButtonCallback.Execute();
                 sample = PressSound;
             }
@@ -136,7 +136,7 @@ auto MCLogSpinnerButton::HandleEvent(MCGuiEvent* event) -> void
             if (event->Data == DelayTimer)
             {
                 GuiSystem()->RemoveTimer(this, DelayTimer);
-                GuiSystem()->AddTimer(this, RepeatTimer, 100, 0, 0, 0);
+                GuiSystem()->AddTimer(this, RepeatTimer, 100, 0, 0, false);
             }
 
             if (event->Data == RepeatTimer)
@@ -159,7 +159,7 @@ auto MCLogSpinnerButton::Draw() -> void
 
     if (picture != nullptr)
     {
-        picture->CopyTo(_Port->Frame(), 0, 0, 0);
+        picture->CopyTo(_Port->Frame(), 0, 0, false);
     }
 
     MCLogObject::Draw();

@@ -144,7 +144,7 @@ auto MCCameraDrone::Update() -> int32_t
 
     int32_t tileR = 0;
     int32_t tileC = 0;
-    GameMap()->WorldToMapTilePos(Position, tileR, tileC);
+    MCScenarioMap::WorldToMapTilePos(Position, tileR, tileC);
 
     if (tileR < 0 || tileR >= GameMap()->Height || tileC < 0 || tileC >= GameMap()->Width)
     {

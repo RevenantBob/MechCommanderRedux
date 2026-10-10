@@ -52,7 +52,12 @@ auto MCObjectList::After(MCBaseObject* current) const -> MCBaseObject*
 
     auto position = std::ranges::find(*this, current);
 
-    if (position == end() || ++position == end())
+    if (position != end())
+    {
+        ++position;
+    }
+
+    if (position == end())
     {
         return nullptr;
     }
@@ -222,7 +227,7 @@ auto MCObjectList::FindObjectFromEvent(MCObjectEvent* event, int skipDisabled) -
 
             // The box sits 70 pixels below the vertex: 50 pixels each way for kind 5, 30 otherwise, halved when
             // zoomed out.
-            const float scale = cam->CameraScale == 1 ? 0.5f : 1.0f;
+            const float scale = MCCamera::CameraScale == 1 ? 0.5f : 1.0f;
             const float halfSize = misc->Kind == MCMiscTerrainKind::Bridge ? 50.0f : 30.0f;
             const float centerX = static_cast<float>(screenX);
             const float centerY =
@@ -253,7 +258,7 @@ auto MCObjectList::FindObjectFromEvent(MCObjectEvent* event, int skipDisabled) -
                                 type->BoundsLowerRightX != 0 || type->BoundsLowerRightY != 0))
         {
             // Zoomed out, the type's pixel bounds are halved.
-            const int shift = Eye->CameraScale == 1 ? 1 : 0;
+            const int shift = MCCamera::CameraScale == 1 ? 1 : 0;
             const int32_t left = type->BoundsUpperLeftX >> shift;
             const int32_t top = type->BoundsUpperLeftY >> shift;
             const int32_t right = type->BoundsLowerRightX >> shift;

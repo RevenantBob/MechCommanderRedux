@@ -51,31 +51,6 @@ namespace
     }
 }
 
-int32_t MCMultiPlayer::SendToHost(MCFIMessageHeader* msg, int32_t size, bool guaranteed)
-{
-    if (SessionManager == nullptr)
-    {
-        return -1;
-    }
-
-    if (IsHost)
-    {
-        return -2;
-    }
-
-    if (!guaranteed)
-    {
-        SessionManager->SendPlainMessage(HostID, msg, static_cast<uint32_t>(size));
-    }
-    else
-    {
-        SessionManager->SendMessageToPlayerGuaranteed(HostID, static_cast<MCFIGuaranteedMessageHeader*>(msg),
-                                                      static_cast<uint32_t>(size), true);
-    }
-
-    return 0;
-}
-
 int32_t MCMultiPlayer::SendChat(uint32_t toID, std::string_view text)
 {
     if (SessionManager == nullptr)
@@ -146,15 +121,6 @@ int32_t MCMultiPlayer::SendPlayerSetup(uint32_t toID, uint32_t setupInnerSphereG
         HandleAppPlayerSetup(SessionManager->MyPlayer->Id, MsgBuffer);
     }
 
-    return 0;
-}
-
-int32_t MCMultiPlayer::SendPlayerCheckInReceipt(int32_t playerCheckInId)
-{
-    Assert(!IsServer, 0);
-    auto* receipt = static_cast<MCMPLongMessage*>(StartGuaranteedMessage(MCMPMessageType::PlayerCheckInReceipt));
-    receipt->Value = playerCheckInId;
-    SessionManager->SendMessageToServerGuaranteed(receipt, sizeof(MCMPLongMessage));
     return 0;
 }
 
@@ -617,13 +583,6 @@ int32_t MCMultiPlayer::SendWorldStateUpdate()
     return 0;
 }
 
-int32_t MCMultiPlayer::SendFile(std::string_view fileName, std::string_view directory)
-{
-    // Original behaviour (OB-107): the directory goes as the file name and the name as the directory.
-    SessionManager->BroadcastFile(directory, fileName, nullptr);
-    return 0;
-}
-
 int32_t MCMultiPlayer::SendFileInquiry(std::string_view fileName)
 {
     MCFIGuaranteedMessageHeader* header = StartGuaranteedMessage(MCMPMessageType::FileInquiry);
@@ -662,19 +621,6 @@ int32_t MCMultiPlayer::UpdateClients()
     {
         SendTurretUpdate();
         NextTurretUpdateTime += TurretUpdateFrequency;
-    }
-
-    return 0;
-}
-
-int32_t MCMultiPlayer::UpdateServer()
-{
-    if (NextPlayerUpdateTime < ScenarioTime)
-    {
-        // Original behaviour: 6 bytes are sent from the header word on (the rest is what the buffer last held).
-        MCFIMessageHeader* header = StartPlainMessage(MCMPMessageType::PlayerUpdate);
-        SessionManager->SendMessageToServer(header, 6);
-        NextPlayerUpdateTime += 1.0f;
     }
 
     return 0;

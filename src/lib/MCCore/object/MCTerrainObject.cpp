@@ -52,7 +52,7 @@ auto MCTerrainObject::IsVisible(MCCamera* cam) -> bool
         return false;
     }
 
-    int visible = cam->VertexProject(BlockNumber, VertexNumber, ScreenPos);
+    int visible = MCCamera::VertexProject(BlockNumber, VertexNumber, ScreenPos);
 
     if (Appearance != nullptr)
     {
@@ -91,7 +91,7 @@ auto MCTerrainObject::Update() -> int32_t
     // No extent radius in the FIT: measure it (twice the appearance's diagonal) for the whole type.
     if (ObjType->ExtentRadius < 0.0f)
     {
-        Appearance->Visible = 1;
+        Appearance->Visible = true;
         Appearance->Update();
         Appearance->RecalcBounds(Eye);
         const float dx = Appearance->UpperLeft.X - Appearance->LowerRight.X;
@@ -138,7 +138,7 @@ auto MCTerrainObject::Render() -> void
 
     if (Appearance != nullptr)
     {
-        Appearance->Visible = visibleNow ? 1 : 0;
+        Appearance->Visible = visibleNow;
         Appearance->Update();
     }
 

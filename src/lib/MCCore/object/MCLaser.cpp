@@ -240,7 +240,7 @@ auto MCLaser::Update() -> int32_t
             DamageApplied = false;
             PpcFrameTimeLeft = type->LengthPpc;
             PpcAnimTimeLeft = type->AnimPpc;
-            SoundSystem()->PlayDigitalSample(type->SoundEffectId, 1, this, 0, 0);
+            SoundSystem()->PlayDigitalSample(type->SoundEffectId, 1, this, false, false);
         }
 
         JustCreated = false;
@@ -353,7 +353,7 @@ auto MCLaser::Render() -> void
     float endX;
     float endY;
 
-    if (Eye->CameraScale == 1)
+    if (MCCamera::CameraScale == 1)
     {
         startX = (start50.X - Eye->ScreenUL50.X) + Eye->HalfWidth;
         startY = (start50.Y - Eye->ScreenUL50.Y) + Eye->HalfHeight;
@@ -377,7 +377,7 @@ auto MCLaser::Render() -> void
         // Original behaviour (OB-018): the facing is in degrees, and gets multiplied by 57.3 again before cos/sin.
         float crossX = static_cast<float>(std::cos(shooter->RelViewFacingTo(end) * RadiansToDegrees) * width);
         float crossY = static_cast<float>(std::sin(shooter->RelViewFacingTo(end) * RadiansToDegrees) * width);
-        ElementList()->OpenGroup(static_cast<int32_t>(startY), 1);
+        ElementList()->OpenGroup(static_cast<int32_t>(startY), true);
         const auto depth = static_cast<int32_t>((endY + startY) * 0.5f);
         const MCFixed16 color = static_cast<MCFixed16>(CoolColor << 16);
         ElementList()->Add(
@@ -403,7 +403,7 @@ auto MCLaser::Render() -> void
     MCRenderer::UnlockTexture(canvas.Texture);
     const float width = static_cast<float>(type->PixelWidth);
     const auto top = static_cast<int32_t>(startY);
-    ElementList()->OpenGroup(top, 1);
+    ElementList()->OpenGroup(top, true);
     const auto left = static_cast<int32_t>(startX);
     const auto right = static_cast<int32_t>(endX);
     MCPolyElementData data;

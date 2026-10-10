@@ -68,9 +68,6 @@ public:
     /// <summary>What kind of file this is.</summary>
     virtual MCFileClass GetFileClass() const { return MCFileClass::Base; }
 
-    /// <summary>Closes the file if it is open and not a child (despite the name, nothing is deleted from disk).</summary>
-    void DeleteFile();
-
     /// <summary>Moves the read position (<paramref name="from"/> is SEEK_SET, SEEK_CUR or SEEK_END).</summary>
     int32_t Seek(int32_t pos, int32_t from = SEEK_SET);
 
@@ -116,24 +113,11 @@ public:
     /// <returns>The line's length plus one.</returns>
     int32_t ReadLine(uint8_t* buffer, int32_t maxLength);
 
-    /// <summary>Reads a line up to and including its LF.</summary>
-    /// <returns>The line's length plus two.</returns>
-    int32_t ReadLineEx(uint8_t* buffer, int32_t maxLength);
-
     /// <summary>Writes one byte.</summary>
     int32_t WriteByte(uint8_t value);
 
-    /// <summary>Writes a 16-bit value.</summary>
-    int32_t WriteWord(int16_t value);
-
-    /// <summary>Writes a 16-bit value.</summary>
-    int32_t WriteShort(int16_t value);
-
     /// <summary>Writes a 32-bit value.</summary>
     int32_t WriteLong(int32_t value);
-
-    /// <summary>Writes a 32-bit float.</summary>
-    int32_t WriteFloat(float value);
 
     /// <summary>Writes a string without a terminator.</summary>
     /// <returns>Its length, or -1 when the file can't be written.</returns>

@@ -72,9 +72,9 @@ public:
     /// to the closest zoom, with the original's sound; the tactical map's zoom button follows. (The original switched
     /// the camera between scales 100 and 1.) The mouse wheel zooms without the sound.
     /// </summary>
-    void ZoomIn(float factor = ZoomKeyStep, bool sound = true);
+    static void ZoomIn(float factor = ZoomKeyStep, bool sound = true);
     /// <summary>The zoom-out key, as <see cref="ZoomIn"/>: <paramref name="factor"/> times more lines.</summary>
-    void ZoomOut(float factor = ZoomKeyStep, bool sound = true);
+    static void ZoomOut(float factor = ZoomKeyStep, bool sound = true);
 
     /// <summary>Makes the command parser, starts the edge scrolling and the lance icons.</summary>
     void StartScenario();
@@ -87,11 +87,11 @@ public:
     /// </summary>
     void AddMech(int32_t partId, int32_t lance, bool active, bool onBar);
     /// <summary>Brings a mover's icon into play and re-places the buttons.</summary>
-    void ActivateMech(int32_t partId);
+    void ActivateMech(int32_t partId) const;
     /// <summary>Drops a (dead) mover from the selection, its lance's selection and the parser.</summary>
     void RemoveMech(int32_t partId);
     /// <summary>Redraws the mech bar.</summary>
-    void UpdateInterface();
+    void UpdateInterface() const;
 
     bool IsSelected(int32_t partId) const;
     bool IsSelected(const MCMoverGroup* group) const;
@@ -103,7 +103,7 @@ public:
     /// Deselects the mover; a lance it was selected through breaks up, its other movers staying selected on their own.
     /// </summary>
     void DeselectMech(int32_t partId);
-    void DeselectEnemy();
+    void DeselectEnemy() const;
     /// <summary>Selects a lance: a linked lance as a whole, an unlinked one mover by mover.</summary>
     void SelectLance(MCMoverGroup* group);
     void DeselectLance(MCMoverGroup* group);
@@ -127,14 +127,14 @@ public:
     /// <paramref name="target"/>'s): for the home commander's team when <paramref name="forCommander"/>, else for the
     /// Inner Sphere (or the clans with <paramref name="forClans"/>); in multiplayer it goes over the network.
     /// </summary>
-    void CallStrike(int32_t strikeType, MCVector3D* position, MCGameObject* target, bool forCommander, bool forClans,
-                    float delay);
+    static void CallStrike(int32_t strikeType, MCVector3D* position, MCGameObject* target, bool forCommander,
+                           bool forClans, float delay);
     /// <summary>Hides the twelve floating tags.</summary>
     void HideTags();
     /// <summary>Makes the selected <paramref name="movers"/> lance <paramref name="groupId"/> and relinks their icons.</summary>
-    void SetUnit(int32_t groupId, std::span<MCMover*> movers, int32_t pointIndex);
+    void SetUnit(int32_t groupId, std::span<MCMover*> movers, int32_t pointIndex) const;
     /// <summary>Marks (or unmarks) a mover's icon as its lance's point.</summary>
-    void SetPoint(int32_t partId, bool isPoint);
+    void SetPoint(int32_t partId, bool isPoint) const;
     /// <summary>Picks the cursor's direction (<see cref="CursorOffset"/>) from the selection's centre to <paramref name="screenPos"/>.</summary>
     void SetCursorOffset(MCVector2D screenPos);
     /// <summary>Whether the one selected mover, a live refit vehicle, can refit <paramref name="target"/>.</summary>
@@ -172,9 +172,9 @@ public:
     uint32_t Key(MCKeyCommand command) const { return Keys[static_cast<size_t>(command)]; }
 
     /// <summary>Restores every live mech bar mover's armour, internal structure, weapons and ammunition (a cheat).</summary>
-    void CheatHealAll();
+    void CheatHealAll() const;
     /// <summary>Sets every live mech bar mover's pilot gunnery skill to 120 (a cheat).</summary>
-    void CheatDeadEye();
+    void CheatDeadEye() const;
 
     /// <summary>Shows <paramref name="mover"/>'s callsign and name on <paramref name="tag"/> (not yet shown).</summary>
     static void TagMover(MCFloatHelp& tag, MCGameObject& mover);

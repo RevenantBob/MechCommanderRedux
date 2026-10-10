@@ -78,7 +78,7 @@ auto MCBigGameObject::OnScreen() -> int
     }
 
     // At camera scale 1 everything is drawn at half size.
-    const float scale = camera->CameraScale != 1 ? 1.0f : 0.5f;
+    const float scale = MCCamera::CameraScale != 1 ? 1.0f : 0.5f;
     const float dx = (Position.X - camera->Position.X) * scale;
     const float dy = (Position.Y - camera->Position.Y) * scale;
     const float dz = scale * Position.Z - camera->Position.Z;

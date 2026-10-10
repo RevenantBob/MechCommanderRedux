@@ -97,7 +97,7 @@ auto MCGuiComboBox::Resize(int32_t newWidth, int32_t newHeight) -> void
     TextField->Resize(buttonX - 2, newHeight - 4);
 }
 
-auto MCGuiComboBox::ChangeItemString(int32_t item, std::string_view text) -> bool
+auto MCGuiComboBox::ChangeItemString(int32_t item, std::string_view text) const -> bool
 {
     if (!ListBox->ChangeItemString(item, text))
     {
@@ -112,7 +112,7 @@ auto MCGuiComboBox::ChangeItemString(int32_t item, std::string_view text) -> boo
     return true;
 }
 
-auto MCGuiComboBox::SelectItem(int32_t item) -> bool
+auto MCGuiComboBox::SelectItem(int32_t item) const -> bool
 {
     if (!ListBox->SelectItem(item))
     {

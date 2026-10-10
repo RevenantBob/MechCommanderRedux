@@ -100,7 +100,7 @@ namespace
     /// </summary>
     void WaitWithCancel(MCGenericScreen* screen, int32_t timer, uint32_t stringId, void (*cancelExec)(), bool enable)
     {
-        GuiSystem()->AddTimer(screen, timer, 1000, 0, 0, 0);
+        GuiSystem()->AddTimer(screen, timer, 1000, 0, 0, false);
         WhackTimer = false;
         MCReusableDialog* dialog = GlobalLogPtr->MessageDialog.get();
         dialog->SetText(LoadGameString(stringId, 0xfe));
@@ -510,7 +510,7 @@ void JoinModemSession()
 
     if (MultiPlayer()->JoinSession("MC Modem Game", playerName) != 0)
     {
-        GuiSystem()->AddTimer(GlobalLogPtr->ModemScreen.get(), 1, 1000, 0, 0, 0);
+        GuiSystem()->AddTimer(GlobalLogPtr->ModemScreen.get(), 1, 1000, 0, 0, false);
         WhackTimer = false;
         return;
     }
@@ -537,7 +537,7 @@ int32_t DialModemSession()
         return 0;
     }
 
-    GuiSystem()->AddTimer(GlobalLogPtr->ModemScreen.get(), 0, 1000, 0, 0, 0);
+    GuiSystem()->AddTimer(GlobalLogPtr->ModemScreen.get(), 0, 1000, 0, 0, false);
     WhackTimer = false;
     return result == DialStillConnecting ? 2 : 1;
 }
@@ -635,7 +635,7 @@ void WaitForCall()
     GlobalLogPtr->CurrentScreen = GlobalLogPtr->ConnectScreen.get();
     GlobalLogPtr->LogisticsState = 0xe;
     GuiSystem()->SetText(GlobalLogPtr->ModemScreen->Elements[4]);
-    GuiSystem()->AddTimer(GlobalLogPtr->ModemScreen->Elements[4], 0, MCPort::CaretBlinkTime(), 0, 0, 0);
+    GuiSystem()->AddTimer(GlobalLogPtr->ModemScreen->Elements[4], 0, MCPort::CaretBlinkTime(), 0, 0, false);
 }
 
 void GetNumber()

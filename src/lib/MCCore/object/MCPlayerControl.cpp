@@ -94,7 +94,7 @@ namespace
                 break;
             case '8':
             case 'T':
-                actor->HitMech(-1);
+                MCMechActor::HitMech(-1);
                 break;
             case 'Z':
                 mech->GetObjectType()->HandleDestruction(mech, nullptr);
@@ -117,13 +117,13 @@ namespace
             }
 
             case 'Y':
-                actor->HitMech(1);
+                MCMechActor::HitMech(1);
                 break;
             case 'G':
-                actor->SetCombatMode(1);
+                actor->SetCombatMode(true);
                 break;
             case 'F':
-                actor->SetCombatMode(0);
+                actor->SetCombatMode(false);
                 break;
             case 'C':
                 data->BlowLeftArm = 1;

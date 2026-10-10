@@ -40,7 +40,7 @@ auto MCPilotPurchaseBlock::Destroy() -> void
     MCLogObject::Destroy();
 }
 
-auto MCPilotPurchaseBlock::OnHireConfirmed(int32_t result) -> void
+auto MCPilotPurchaseBlock::OnHireConfirmed(int32_t result) const -> void
 {
     if (result == 0)
     {
@@ -50,13 +50,13 @@ auto MCPilotPurchaseBlock::OnHireConfirmed(int32_t result) -> void
     MCPurchaseScreen* screen = GlobalLogPtr->PurchaseScreen.get();
     MCPurPilotData* pilot = Pilot;
     float scrollPos = screen->UnitPane->ScrollPos;
-    GlobalLogPtr->WarriorList->AddWarrior(pilot->FileName.data(), 1);
+    GlobalLogPtr->WarriorList->AddWarrior(pilot->FileName.data(), true);
     GlobalLogPtr->ReorderWarriors();
     screen->CreatePilotInvBlock();
     screen->SetUpPilotInv(true, true);
     pilot->Health = 0;
     GlobalLogPtr->PurPilotList->SetPilotStatus(pilot->DescIndex, MCPurPilotData::Hired);
-    screen->RemovePilot(Row);
+    MCPurchaseScreen::RemovePilot(Row);
     screen->SetUpPilotPurchase();
     ResourcePoints -= GlobalLogPtr->PurchaseDialog->UnitCost;
     SoundSystem()->PlayPilotSpeech(pilot->PilotAudio.data(), 2);
@@ -170,12 +170,12 @@ auto MCPilotPurchaseBlock::HandleEvent(MCGuiEvent* event) -> void
     }
 }
 
-auto MCPilotPurchaseBlock::DrawBackground(int32_t) -> void
+auto MCPilotPurchaseBlock::DrawBackground(int32_t) const -> void
 {
     PrepareInfoDescription(Pilot->Description);
 }
 
-auto MCPilotPurchaseBlock::DrawRow(MCLogPort* port, int32_t top) -> void
+auto MCPilotPurchaseBlock::DrawRow(MCLogPort* port, int32_t top) const -> void
 {
     // A hired pilot (health cleared by OnHireConfirmed) is not drawn.
     if (Pilot->Health == 0)
@@ -197,10 +197,10 @@ auto MCPilotPurchaseBlock::DrawRow(MCLogPort* port, int32_t top) -> void
     }
 
     WriteText(YellowDropFont, work.get(), 0x9a, 0x2a, text);
-    GlobalLogPtr->DrawPilotSkillBar(Pilot->Gunnery, 0x54, 0x22, 0, 0x36, 4, work.get());
-    GlobalLogPtr->DrawPilotSkillBar(Pilot->Piloting, 0x54, 0x2b, 0, 0x36, 4, work.get());
-    GlobalLogPtr->DrawPilotSkillBar(Pilot->Jumping, 0x54, 0x34, 0, 0x36, 4, work.get());
-    GlobalLogPtr->DrawPilotSkillBar(Pilot->Sensors, 0x54, 0x3d, 0, 0x36, 4, work.get());
+    MCLogistics::DrawPilotSkillBar(Pilot->Gunnery, 0x54, 0x22, 0, 0x36, 4, work.get());
+    MCLogistics::DrawPilotSkillBar(Pilot->Piloting, 0x54, 0x2b, 0, 0x36, 4, work.get());
+    MCLogistics::DrawPilotSkillBar(Pilot->Jumping, 0x54, 0x34, 0, 0x36, 4, work.get());
+    MCLogistics::DrawPilotSkillBar(Pilot->Sensors, 0x54, 0x3d, 0, 0x36, 4, work.get());
     // One pip per point of health.
     int32_t x = 0xe;
 

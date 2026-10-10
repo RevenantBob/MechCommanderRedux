@@ -340,7 +340,7 @@ auto MCGuiObject::DrawFramed(bool pushed, bool fill) -> void
     VfxLineDraw(pane, 2, Height() - 3, Width() - 3, Height() - 3, outerBottomRight);
 }
 
-auto MCGuiObject::FillBox(int16_t left, int16_t top, int16_t right, int16_t bottom, uint8_t color) -> void
+auto MCGuiObject::FillBox(int16_t left, int16_t top, int16_t right, int16_t bottom, uint8_t color) const -> void
 {
     MCPane box = *DisplayPort->Frame();
     box.X0 = left;

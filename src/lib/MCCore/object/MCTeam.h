@@ -42,10 +42,6 @@ public:
 
     /// <summary>Fills <paramref name="objects"/> with the roster's movers that still exist; returns how many.</summary>
     int32_t GetRoster(MCGameObject** objects);
-    /// <summary>Counts an enemy contact; the home team is then in contact.</summary>
-    void IncNumEnemyContacts();
-    /// <summary>Uncounts an enemy contact; fatal when it goes negative.</summary>
-    void DecNumEnemyContacts();
     /// <summary>Adds a sensor to the team's list.</summary>
     void AddSensor(MCSensorSystem* sensor);
     /// <summary>Takes a sensor off the list (the last one fills its slot).</summary>
@@ -60,7 +56,7 @@ public:
     /// </summary>
     int32_t GetContacts(MCGameObject* looker, int32_t* contacts, int32_t contactCriteria, int32_t sortType);
     /// <summary>How the team knows <paramref name="object"/> (<see cref="MCContactStatus"/>).</summary>
-    int32_t GetContactType(MCGameObject* object);
+    int32_t GetContactType(MCGameObject* object) const;
     /// <summary>Forces every sensor to scan now.</summary>
     void ScanBattlefield();
     /// <summary>Counts the scenario's mover parts on this team and keeps their part ids.</summary>
@@ -73,7 +69,7 @@ public:
     /// Whether <paramref name="object"/> is a contact that passes the filter flags (1 enemies only, 2 visual only,
     /// 8 not already challenged).
     /// </summary>
-    int IsContact(MCGameObject* object, int32_t contactCriteria);
+    int IsContact(MCGameObject* object, int32_t contactCriteria) const;
     /// <summary>Adds a LOS contact.</summary>
     void AddLosContact(MCPotentialContact* contact);
     /// <summary>Drops the LOS contact in slot <paramref name="index"/> (the last fills the gap).</summary>
@@ -121,13 +117,11 @@ public:
     /// </summary>
     void StatusCount(int32_t* counts);
     /// <summary>Whether <paramref name="position"/> is visible to the team (its terrain visibility bits).</summary>
-    int LineOfSight(MCVector3D position);
+    int LineOfSight(MCVector3D position) const;
     /// <summary>The team's sensors.</summary>
     std::span<MCSensorSystem* const> Sensors() const { return _Sensors; }
     /// <summary>The LOS contacts, by <c>MCPotentialContact::Id</c>.</summary>
     std::span<const uint16_t> LosContacts() const { return _LosContacts; }
-    /// <summary>The sensor contacts, by <c>MCPotentialContact::Id</c>.</summary>
-    std::span<const uint16_t> SensorContacts() const { return _SensorContacts; }
     /// <summary>LOS contacts.</summary>
     int32_t NumLosContacts() const { return static_cast<int32_t>(_LosContacts.size()); }
     /// <summary>Sensor contacts.</summary>
@@ -166,6 +160,3 @@ private:
 void DisableHomeTeamTargets();
 /// <summary>Debug key: <see cref="MCTeam::DestroyTargets"/> for the home team.</summary>
 void KillHomeTeamTargets();
-
-/// <summary>Set while the home team has an enemy contact.</summary>
-extern int InContact;

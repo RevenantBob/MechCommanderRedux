@@ -17,8 +17,6 @@ public:
     /// window, and clears the rest.
     /// </summary>
     void Init(int32_t newId, MCGuiEvent* event);
-    /// <summary>A combat event from <paramref name="attacker"/> to <paramref name="target"/> (their part ids).</summary>
-    void InitCombat(int32_t newId, MCGameObject* attacker, MCGameObject* target);
 
     /// <summary>0 for a mouse event, 2 for a combat event.</summary>
     int32_t Type = 0;

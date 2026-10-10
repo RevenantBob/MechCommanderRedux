@@ -125,12 +125,12 @@ auto MCMechActor::SetGesture(uint32_t gesture) -> int32_t
     return 0;
 }
 
-auto MCMechActor::GetNumFramesInGesture(uint32_t gesture) -> float
+auto MCMechActor::GetNumFramesInGesture(uint32_t gesture) const -> float
 {
     return static_cast<float>(MechTree->Gestures[gesture].NumFrames);
 }
 
-auto MCMechActor::GetVelocityOfGesture(uint32_t gesture) -> float
+auto MCMechActor::GetVelocityOfGesture(uint32_t gesture) const -> float
 {
     if (static_cast<int32_t>(gesture) < static_cast<int32_t>(MechTree->NumGestures))
     {
@@ -145,7 +145,7 @@ auto MCMechActor::GetHotSpotIndex(uint32_t location) -> uint32_t
     return HotSpotFinderArray[location];
 }
 
-auto MCMechActor::PreloadGestures() -> void
+auto MCMechActor::PreloadGestures() const -> void
 {
     MechTree->PreloadGestures();
 }
@@ -378,9 +378,11 @@ auto MCMechActor::GetVelocityMagnitude() -> float
     const int32_t numGestures = MechTree->NumGestures;
     const float startVelocity = gesture < numGestures ? MechTree->Gestures[gesture].StartVelocity : -1.0f;
     const float endVelocity = gesture < numGestures ? MechTree->Gestures[gesture].EndVelocity : -1.0f;
-    float velocity = 0.0f;
+    // Gestures 14 to 19 have no velocity of their own.
+    const bool hasVelocity = gesture < 14 || gesture > 19;
+    const float velocity = hasVelocity ? startVelocity : 0.0f;
 
-    if ((gesture < 14 || gesture > 19) && (velocity = startVelocity, startVelocity != endVelocity))
+    if (hasVelocity && startVelocity != endVelocity)
     {
         // Ease from the start velocity to the end one over the gesture.
         if (startVelocity >= -1999.0 && endVelocity >= -1999.0)
@@ -417,11 +419,6 @@ auto MCMechActor::SetMovePath(MCMovePath* path) -> int32_t
 
     StopCountdown = 0.0f;
     return 0;
-}
-
-auto MCMechActor::ForceStop() -> void
-{
-    StopCountdown = 0.0f;
 }
 
 auto MCMechActor::CheckStop() const -> bool
@@ -498,7 +495,7 @@ auto MCMechActor::RecalcBounds(MCCamera* cam) -> int
     }
 
     // Faithful: the top-left offset is added twice.
-    const float scale = cam->CameraScale == 1 ? 0.5f : 1.0f;
+    const float scale = MCCamera::CameraScale == 1 ? 0.5f : 1.0f;
     UpperLeft.X = scale * ShapeMinX + scale * ShapeMinX + UpperLeft.X;
     UpperLeft.Y = scale * ShapeMinY + scale * ShapeMinY + UpperLeft.Y;
     LowerRight.X = scale * ShapeMaxX + LowerRight.X;
@@ -612,7 +609,7 @@ auto MCMechActor::RenderJump() -> void
     const MCVector3D raised(position.X + offset.X, position.Y + offset.Y, position.Z + offset.Z);
     MCCamera* cam = Eye;
     const MCVector3D camPosition = cam->Position;
-    const float scale = cam->GetScaleFactor();
+    const float scale = MCCamera::GetScaleFactor();
     MCVector3D relative(raised.X - camPosition.X, raised.Y - camPosition.Y, raised.Z - camPosition.Z);
     relative.X *= scale;
     relative.Y *= scale;
@@ -638,7 +635,7 @@ auto MCMechActor::Render(int32_t depthFixup) -> int32_t
     const float x = ScreenPos.X;
     const float y = ScreenPos.Y;
     // The 90-pixel part PAKs are the full size ones.
-    const bool largeSprites = Eye->CameraScale != 1;
+    const bool largeSprites = MCCamera::CameraScale != 1;
     RenderJump();
 
     auto* mech = static_cast<MCBattleMech*>(Owner);
@@ -697,7 +694,7 @@ auto MCMechActor::Render(int32_t depthFixup) -> int32_t
     }
 
     // The shadow, one of 32 facings.
-    ElementList()->OpenGroup(static_cast<int16_t>(static_cast<int32_t>(std::floor(static_cast<double>(-y)))), 1);
+    ElementList()->OpenGroup(static_cast<int16_t>(static_cast<int32_t>(std::floor(static_cast<double>(-y)))), true);
     auto* shadow = ElementList()->Make<MCVfxElement>(SpriteManager()->MechShadow(0), x, y, CalcRotation(facing, 0x20),
                                                      0, nullptr, 0);
 
@@ -705,7 +702,7 @@ auto MCMechActor::Render(int32_t depthFixup) -> int32_t
 
     ElementList()->OpenGroup(static_cast<int16_t>(static_cast<int32_t>(
                                  std::floor(static_cast<double>(static_cast<float>(depthFixup) - ScreenPos.Y)))),
-                             1);
+                             true);
 
     for (int32_t i = 0; i < MechPartCount; i++)
     {
@@ -1359,7 +1356,7 @@ auto MCMechActor::Update() -> int32_t
             // The footstep of the fall-down gestures.
             if (CurrentFrame[MCMechPart::Legs] == 10 && (gesture == 0xe || gesture == 0xf))
             {
-                SoundSystem()->PlayDigitalSample(0x1d, 1, Owner, 0, 0);
+                SoundSystem()->PlayDigitalSample(0x1d, 1, Owner, false, false);
             }
         }
         else if (NextStep != 0)
@@ -1567,16 +1564,16 @@ auto MCMechActor::DrawBars() -> void
         barColor = 0x101;
     }
 
-    ElementList()->OpenGroup(-50000, 1);
+    ElementList()->OpenGroup(-50000, true);
     MCPolyElementData data;
     data.NumVertices = 0;
-    data.TextureMapOff = 0;
+    data.TextureMapOff = false;
     data.Texture = nullptr;
     data.TextureWidth = 0;
     data.TextureHeight = 0;
     data.FadeTable = nullptr;
-    data.Translate = 0;
-    data.StatusBar = 1;
+    data.Translate = false;
+    data.StatusBar = true;
     data.BarColor = barColor;
     auto floorInt = [](float value)
     {
@@ -1599,67 +1596,5 @@ auto MCMechActor::DrawBars() -> void
     if (mech->IsDisabled() == 0 && mech->IsDestroyed() == 0)
     {
         ElementList()->Add(ElementList()->Make<MCPolygonElement>(data, -50000));
-    }
-}
-
-auto MCMechActor::DrawTargetDamage() -> void
-{
-    MCGameObject* obj = Owner;
-
-    if (obj == nullptr || obj->ObjectClass != MCObjectClass::BattleMech)
-    {
-        return;
-    }
-
-    auto* mech = static_cast<MCBattleMech*>(obj);
-    // The enemy mechs.
-    MCObjectList* enemies = mech->GetAlignment() == 1 ? ClanMechList() : InnerSphereMechList();
-
-    // A ring around the mech, with a line out to each enemy it can see, as long as its expected damage to it.
-    // Port: overlays, on the screen over the view: the ring follows the sprite through the zoom.
-    MCVector2D center =
-        MCOverlayPoint(MCVector2D((UpperLeft.X + LowerRight.X) * 0.5f, (UpperLeft.Y + LowerRight.Y) * 0.5f));
-    const float radius = std::sqrt((UpperLeft.X - LowerRight.X) * (UpperLeft.X - LowerRight.X) +
-                                   (UpperLeft.Y - LowerRight.Y) * (UpperLeft.Y - LowerRight.Y)) *
-                         0.375f * MCOverlay.ScaleX;
-    const MCVector2D ownPos = MCOverlayPoint(ScreenPos);
-    MCVector2D size(radius, radius);
-
-    for (MCBaseObject* current : *enemies)
-    {
-        auto* target = static_cast<MCGameObject*>(current);
-
-        if (target->IsDisabled() != 0)
-        {
-            continue;
-        }
-
-        if (target->GetContactType(mech->GetTeam()->Id) != 1)
-        {
-            continue;
-        }
-
-        const float damage = mech->CalcExpectedTargetDamage(target);
-
-        if (!(damage > 0.0f))
-        {
-            continue;
-        }
-
-        ElementList()->OpenGroup(-50000, 1);
-        ElementList()->Add(ElementList()->Make<MCEllipseElement>(center, size, 0xb, -50000));
-
-        const MCVector2D targetPos = MCOverlayPoint(target->GetScreenPos(0));
-        const double dx = static_cast<double>(targetPos.X) - ownPos.X;
-        const double dy = static_cast<double>(targetPos.Y) - ownPos.Y;
-        const double angle = std::atan(dy / dx);
-        const float c = static_cast<float>(std::fabs(std::cos(angle)));
-        const float s = static_cast<float>(std::fabs(std::sin(angle)));
-        const float signX = dx <= 0.0 ? -1.0f : 1.0f;
-        const float signY = static_cast<float>(dy) <= 0.0f ? -1.0f : 1.0f;
-        MCVector2D start(signX * c * radius + center.X, signY * s * radius + center.Y);
-        const float length = (damage / mech->MaxTargetDamage) * 60.0f;
-        MCVector2D end(signX * length * c + start.X, signY * length * s + start.Y);
-        ElementList()->Add(ElementList()->Make<MCLineElement>(start, end, 0xef, nullptr, -50000, -1));
     }
 }

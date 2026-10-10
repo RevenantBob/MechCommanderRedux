@@ -38,7 +38,7 @@ public:
     /// <summary>
     /// The sale dialog's answer: a confirmed sale removes the vehicle; otherwise it goes back to the inventory.
     /// </summary>
-    void OnSellConfirmed(int32_t result);
+    void OnSellConfirmed(int32_t result) const;
 
     /// <summary>The cached damage diagram (0x1c x 0x1e).</summary>
     std::unique_ptr<MCLogPort> PicturePort;

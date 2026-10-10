@@ -76,11 +76,9 @@ public:
     /// <summary>Projects the turret's vertex; true when the appearance is visible to <paramref name="cam"/>.</summary>
     int IsVisible(MCCamera* cam);
     /// <summary>Recycled, open and enabled.</summary>
-    int IsWeaponReady();
+    int IsWeaponReady() const;
     /// <summary>Whether the weapon's master component is a missile launcher (weapon type 9).</summary>
     int IsWeaponMissile();
-    /// <summary>Whether the weapon is a Streak launcher.</summary>
-    int IsWeaponStreak();
     /// <summary>
     /// The chance to hit <paramref name="target"/>: the range band's modifier plus the pilot skill, better against a
     /// still target; the band (short, medium, long) in <paramref name="range"/>.
@@ -114,8 +112,6 @@ public:
     /// be); without a blown effect it takes a point of damage instead.
     /// </summary>
     void LightOnFire(float timeToBurn);
-    /// <summary>Whether the turret's vertex is seen by the home team's enemy.</summary>
-    int EnemyRevealed();
 
     /// <summary>Set until the first update places the turret on the terrain.</summary>
     bool JustCreated = true;

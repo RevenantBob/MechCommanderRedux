@@ -166,7 +166,7 @@ auto MCGroundVehicle::Init(MCObjectType* objType) -> int32_t
 
     if (vehicleType->RefitPoints != 0)
     {
-        Refitter = 1;
+        Refitter = true;
     }
 
     MineSweeper = vehicleType->MineSweeper;
@@ -174,7 +174,7 @@ auto MCGroundVehicle::Init(MCObjectType* objType) -> int32_t
 
     if (MinesToLay > 0)
     {
-        MineLayer = 1;
+        MineLayer = true;
     }
 
     ElementalCarrier = vehicleType->ElementalCarrier;
@@ -204,13 +204,15 @@ auto MCGroundVehicle::Init(MCObjectType* objType) -> int32_t
                 return -0x2fff6;
             }
 
-            if ((result = vehicleAppearance->Init(apprType, this)) != 0)
+            result = vehicleAppearance->Init(apprType, this);
+
+            if (result != 0)
             {
                 return result;
             }
 
-            GvAppearance = 1;
-            WeaponsDeployed = 1;
+            GvAppearance = true;
+            WeaponsDeployed = true;
             break;
         }
 
@@ -226,13 +228,15 @@ auto MCGroundVehicle::Init(MCObjectType* objType) -> int32_t
                 return -0x2fff6;
             }
 
-            if ((result = turretAppearance->Init(apprType, this)) != 0)
+            result = turretAppearance->Init(apprType, this);
+
+            if (result != 0)
             {
                 return result;
             }
 
-            GvAppearance = 0;
-            WeaponsDeployed = 0;
+            GvAppearance = false;
+            WeaponsDeployed = false;
             break;
         }
 
@@ -697,10 +701,10 @@ auto MCGroundVehicle::OnScreen() -> int
 
         if (Terrain() != nullptr)
         {
-            Terrain()->ProjectTerrain(Position, screen100, screen50);
+            MCTerrain::ProjectTerrain(Position, screen100, screen50);
         }
 
-        if (camera->CameraScale == 1)
+        if (MCCamera::CameraScale == 1)
         {
             ScreenPos.X = (screen50.X - camera->ScreenUL50.X) + camera->HalfWidth;
             screenY = screen50.Y - camera->ScreenUL50.Y;
@@ -715,7 +719,7 @@ auto MCGroundVehicle::OnScreen() -> int
     }
     else
     {
-        const float scale = camera->CameraScale != 1 ? 1.0f : 0.5f;
+        const float scale = MCCamera::CameraScale != 1 ? 1.0f : 0.5f;
         MCVector3D relative(Position.X - camera->Position.X, Position.Y - camera->Position.Y,
                             Position.Z - camera->Position.Z);
         relative *= scale;
@@ -851,7 +855,7 @@ auto MCGroundVehicle::Update() -> int32_t
         return 1;
     }
 
-    TerrainNormal = Terrain()->GetTerrainNormal(Position);
+    TerrainNormal = MCTerrain::GetTerrainNormal(Position);
     UpdatePathLock(0);
 
     if (PotentialContact != nullptr)
@@ -945,7 +949,7 @@ auto MCGroundVehicle::Update() -> int32_t
 
             auto* vehicleType = static_cast<MCGroundVehicleType*>(ObjType);
             vehicleType->CreateExplosion(Position, vehicleType->ExplDmg, vehicleType->ExplRad);
-            DeathExplosionDone = 1;
+            DeathExplosionDone = true;
             // Port fix (OB-148): the original left a disabled vehicle's smoke behind, never freed.
             Smoke = CreateObjectAs<MCSmoke>(0x1c2);
             CollisionsOn = 0;
@@ -1025,7 +1029,7 @@ auto MCGroundVehicle::Update() -> int32_t
             const int combat =
                 Pilot->GetLastTarget() != nullptr || Pilot->CurTacOrder.Code == MCTacticalOrderCode::AttackPoint ? 1
                                                                                                                  : 0;
-            WeaponsDeployed = static_cast<MCPUAppearance*>(Appearance.get())->SetCombatMode(combat) == 2 ? 1 : 0;
+            WeaponsDeployed = static_cast<MCPUAppearance*>(Appearance.get())->SetCombatMode(combat) == 2;
         }
     }
 
@@ -1038,7 +1042,7 @@ auto MCGroundVehicle::Update() -> int32_t
     // terrain's normal.
     MCFrameOfRef turned = Frame;
     speed = -speed;
-    MCVector3D normal = Terrain()->GetTerrainNormal(Position);
+    MCVector3D normal = MCTerrain::GetTerrainNormal(Position);
     MCVector3D heading = Frame.J;
     const double headingLength =
         std::sqrt(static_cast<double>(heading.X) * heading.X + static_cast<double>(heading.Y) * heading.Y +
@@ -1109,7 +1113,7 @@ auto MCGroundVehicle::Update() -> int32_t
             }
         }
 
-        NewMoveChunk = 0;
+        NewMoveChunk = false;
     }
 
     DistanceSinceMarkSeen =
@@ -1162,7 +1166,7 @@ auto MCGroundVehicle::Update() -> int32_t
         }
     }
 
-    Position.Z = Terrain()->GetTerrainElevation(Position);
+    Position.Z = MCTerrain::GetTerrainElevation(Position);
     return 1;
 }
 
@@ -1171,7 +1175,7 @@ namespace
     /// <summary>A world point on <see cref="Eye"/>'s screen (the camera's inline projection).</summary>
     MCVector2D EyeProject(const MCVector3D& point)
     {
-        const float scale = Eye->CameraScale != 1 ? 1.0f : 0.5f;
+        const float scale = MCCamera::CameraScale != 1 ? 1.0f : 0.5f;
         const float dy = point.Y - Eye->Position.Y;
         const float dz = point.Z - Eye->Position.Z;
         const float sx = (point.X - Eye->Position.X) * scale;
@@ -1239,7 +1243,7 @@ auto MCGroundVehicle::Render() -> void
         else if (contactType == 2)
         {
             // A sensor contact: a blip sized by tonnage, at the zoom's scale.
-            const int zoomedOut = Eye->CameraScale == 1;
+            const int zoomedOut = MCCamera::CameraScale == 1;
             int32_t shapeIndex;
             const char* shapeName;
 
@@ -1267,13 +1271,13 @@ auto MCGroundVehicle::Render() -> void
                 {
                     if (SoundSystem() != nullptr && UseSound != 0)
                     {
-                        SoundSystem()->PlayDigitalSample(0x14, 1, this, 0, 1);
+                        SoundSystem()->PlayDigitalSample(0x14, 1, this, false, true);
                     }
 
                     BlipFrame = 0;
                 }
 
-                ElementList()->OpenGroup(-100000, 1);
+                ElementList()->OpenGroup(-100000, true);
                 auto* element =
                     ElementList()->Make<MCVfxElement>(shape, ScreenPos.X, ScreenPos.Y, BlipFrame, 0, nullptr, 0);
                 ElementList()->Add(element);
@@ -1293,14 +1297,14 @@ auto MCGroundVehicle::Render() -> void
         // Debug: the extent radius as an ellipse.
         float radius = GetExtentRadius();
 
-        if (Eye->CameraScale == 1)
+        if (MCCamera::CameraScale == 1)
         {
             radius *= 0.5f;
         }
 
         MCVector2D center = EyeProject(Position);
         MCVector2D size(radius, radius);
-        ElementList()->OpenGroup(-50000, 1);
+        ElementList()->OpenGroup(-50000, true);
         // Port: an overlay, on the screen over the view: it follows the object through the zoom.
         center = MCOverlayPoint(center);
         size.X *= MCOverlay.ScaleX;
@@ -1323,11 +1327,11 @@ auto MCGroundVehicle::Render() -> void
 
             MCVector3D from = path->StepList[i].Destination;
             MCVector3D to = path->StepList[i + 1].Destination;
-            from.Z = Terrain()->GetTerrainElevation(from);
-            to.Z = Terrain()->GetTerrainElevation(to);
+            from.Z = MCTerrain::GetTerrainElevation(from);
+            to.Z = MCTerrain::GetTerrainElevation(to);
             MCVector2D fromScreen = EyeProject(from);
             MCVector2D toScreen = EyeProject(to);
-            ElementList()->OpenGroup(-100000, 1);
+            ElementList()->OpenGroup(-100000, true);
             ElementList()->Add(ElementList()->Make<MCLineElement>(fromScreen, toScreen, 0xfd, nullptr, -100000, -1));
         }
     }
@@ -1361,7 +1365,7 @@ auto MCGroundVehicle::Render() -> void
 
             if (drawLines != 0)
             {
-                ElementList()->OpenGroup(-99999, 1);
+                ElementList()->OpenGroup(-99999, true);
                 ElementList()->Add(
                     ElementList()->Make<MCLineElement>(fromScreen, toScreen, 0xeb, nullptr, -100000, -1));
                 fromScreen = toScreen;
@@ -1369,7 +1373,7 @@ auto MCGroundVehicle::Render() -> void
             }
 
             const int32_t bounds = VfxShapeBounds(WaypointMarkerShapes(), marker);
-            ElementList()->OpenGroup(-100000, 1);
+            ElementList()->OpenGroup(-100000, true);
             auto* element = ElementList()->Make<MCVfxElement>(
                 WaypointMarkerShapes(), static_cast<float>((bounds >> 16) / 2) + toScreen.X,
                 toScreen.Y - static_cast<float>(bounds >> 1 & 0x7fff), marker, 1, nullptr, 1);

@@ -173,7 +173,7 @@ auto MCPUAppearance::Render(int32_t depthFixup) -> int32_t
     Rotation = static_cast<float>(360.0 / numRotations) * static_cast<float>(rotationIndex);
     CurrentShape = AppearType->GetShape(state, static_cast<int32_t>(Rotation), 0, FrameRate);
 
-    ElementList()->OpenGroup(static_cast<int32_t>(static_cast<float>(depthFixup) - ScreenPos.Y), 0);
+    ElementList()->OpenGroup(static_cast<int32_t>(static_cast<float>(depthFixup) - ScreenPos.Y), false);
 
     if (DrawTerrainGrid != 0)
     {
@@ -347,7 +347,7 @@ auto MCPUAppearance::Update() -> int32_t
     return 1;
 }
 
-auto MCPUAppearance::StateExists(MCPUActorState state) -> int32_t
+auto MCPUAppearance::StateExists(MCPUActorState state) const -> int32_t
 {
     if (static_cast<int32_t>(state) < PUActorStateCount && static_cast<int32_t>(state) >= 0)
     {
@@ -424,16 +424,16 @@ auto MCPUAppearance::DrawBars() -> void
         barLength = 1.0f;
     }
 
-    ElementList()->OpenGroup(-50000, 1);
+    ElementList()->OpenGroup(-50000, true);
     MCPolyElementData data;
     data.NumVertices = 0;
-    data.TextureMapOff = 0;
+    data.TextureMapOff = false;
     data.Texture = nullptr;
     data.TextureWidth = 0;
     data.TextureHeight = 0;
     data.FadeTable = nullptr;
-    data.Translate = 0;
-    data.StatusBar = 1;
+    data.Translate = false;
+    data.StatusBar = true;
     data.BarColor = barColor;
     data.Vertices[0].X = static_cast<int32_t>(barX - 1.0f);
     data.Vertices[0].Y = static_cast<int32_t>(barY - 1.0f);

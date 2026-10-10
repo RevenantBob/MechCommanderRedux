@@ -80,7 +80,7 @@ auto MCPurchaseDlg::HandleEvent(MCGuiEvent* event) -> void
         DrawBackground();
         Pressed = arrow;
         _SpinUp = up;
-        GuiSystem()->AddTimer(this, RepeatTimer, 200, 0, 0, 0);
+        GuiSystem()->AddTimer(this, RepeatTimer, 200, 0, 0, false);
         GuiSystem()->Grab(this);
     };
 
@@ -227,7 +227,7 @@ auto MCPurchaseDlg::Activate() -> void
 {
     NeedBackground = true;
     GuiSystem()->Grab(this);
-    BringToFront(0);
+    BringToFront(false);
     DrawBackground();
     ShowGuiWindow(true);
 }

@@ -101,9 +101,9 @@ namespace
     void SetPageRects(MCTacticalMap& map, int32_t upTop, int32_t upBottom, int32_t downTop, int32_t downBottom)
     {
         map.PageRects[0] = {0x7d, upTop, 0x88, upBottom};
-        map.ScrollUpMarker->MoveTo(0x7d, upTop, 0);
+        map.ScrollUpMarker->MoveTo(0x7d, upTop, false);
         map.PageRects[1] = {0x7d, downTop, 0x88, downBottom};
-        map.ScrollDownMarker->MoveTo(0x7d, downTop, 0);
+        map.ScrollDownMarker->MoveTo(0x7d, downTop, false);
         map.PageRects[2] = {0x7d, upBottom, 0x88, downTop};
     }
 
@@ -217,7 +217,7 @@ namespace
 
         if (map.Zoom < 9)
         {
-            SoundSystem()->PlayDigitalSample(0x44, 1, nullptr, 0, 0);
+            SoundSystem()->PlayDigitalSample(0x44, 1, nullptr, false, false);
             map.ZoomOffset += (map.MapVertexSide >> 1) / map.Zoom;
         }
         else
@@ -232,12 +232,12 @@ namespace
             map.ScrollButtons[4]->Disabled = true;
         }
 
-        map.ScrollButtons[5]->Disabled = 0;
+        map.ScrollButtons[5]->Disabled = false;
 
         // Zoomed in, the map can scroll.
         for (size_t i = 0; i < 4; i++)
         {
-            map.ScrollButtons[i]->Disabled = 0;
+            map.ScrollButtons[i]->Disabled = false;
         }
 
         map.RefreshPage();
@@ -256,7 +256,7 @@ namespace
         }
         else
         {
-            SoundSystem()->PlayDigitalSample(0x45, 1, nullptr, 0, 0);
+            SoundSystem()->PlayDigitalSample(0x45, 1, nullptr, false, false);
         }
 
         if (map.Zoom == 1)
@@ -270,7 +270,7 @@ namespace
             }
         }
 
-        map.ScrollButtons[4]->Disabled = 0;
+        map.ScrollButtons[4]->Disabled = false;
         RecentreAfterZoom(map);
         map.RefreshPage();
     }
@@ -283,7 +283,7 @@ namespace
     {
         if (event->Type == EventLeftDown)
         {
-            GuiSystem()->AddTimer(obj, ScrollStartTimer, TacticalInterface()->ScrollStart, 0, 0, 0);
+            GuiSystem()->AddTimer(obj, ScrollStartTimer, TacticalInterface()->ScrollStart, 0, 0, false);
             TacticalMap()->ScrollMap(dx, dy);
         }
         else if (event->Type == EventLeftUp)
@@ -298,7 +298,7 @@ namespace
             if (event->Data == ScrollStartTimer)
             {
                 GuiSystem()->RemoveTimer(obj, ScrollStartTimer);
-                GuiSystem()->AddTimer(obj, ScrollRepeatTimer, TacticalInterface()->ScrollStart / 5, 0, 0, 0);
+                GuiSystem()->AddTimer(obj, ScrollRepeatTimer, TacticalInterface()->ScrollStart / 5, 0, 0, false);
             }
         }
     }
@@ -344,7 +344,7 @@ namespace
     void SwitchPage(MCTacmapPage page)
     {
         MCTacticalMap* map = TacticalMap();
-        map->HideMe(0);
+        map->HideMe(false);
 
         if (map->DisplayType != page)
         {
@@ -368,7 +368,7 @@ namespace
         }
 
         // Hides itself to find what lies under it, and passes the event there.
-        obj->ShowGuiWindow(0);
+        obj->ShowGuiWindow(false);
         MCGuiObject* under = ScreenWindow()->FindObject(event->X, event->Y);
         obj->ShowGuiWindow(true);
         under->HandleEvent(event);
@@ -387,7 +387,7 @@ namespace
 
         if (action == ActionToggleZoom)
         {
-            SoundSystem()->PlayDigitalSample(0x2f, 1, nullptr, 0, 0);
+            SoundSystem()->PlayDigitalSample(0x2f, 1, nullptr, false, false);
             ToggleZoom();
             return;
         }
@@ -395,7 +395,7 @@ namespace
         if (button->Pushed != 0)
         {
             // One mode at a time.
-            SoundSystem()->PlayDigitalSample(0x35, 1, nullptr, 0, 0);
+            SoundSystem()->PlayDigitalSample(0x35, 1, nullptr, false, false);
 
             for (size_t i = 0; i < NumModeButtons; i++)
             {
@@ -403,7 +403,7 @@ namespace
 
                 if (other != button && other->Pushed != 0)
                 {
-                    other->Pushed = 0;
+                    other->Pushed = false;
                 }
             }
 
@@ -412,7 +412,7 @@ namespace
             return;
         }
 
-        SoundSystem()->PlayDigitalSample(0x34, 1, nullptr, 0, 0);
+        SoundSystem()->PlayDigitalSample(0x34, 1, nullptr, false, false);
         TacticalInterface()->SetMode(MCInterfaceMode::None);
     }
 
@@ -453,7 +453,7 @@ namespace
                 }
 
                 SwitchPage(page);
-                SoundSystem()->PlayDigitalSample(0x36, 1, nullptr, 0, 0);
+                SoundSystem()->PlayDigitalSample(0x36, 1, nullptr, false, false);
                 return;
             }
 
@@ -490,7 +490,7 @@ namespace
         {
             if (TacticalMap()->DisplayType != MCTacmapPage::Salvage)
             {
-                SoundSystem()->PlayDigitalSample(0x36, 1, nullptr, 0, 0);
+                SoundSystem()->PlayDigitalSample(0x36, 1, nullptr, false, false);
                 SwitchPage(MCTacmapPage::Salvage);
             }
         }
@@ -553,7 +553,7 @@ auto MCTacticalMap::TogglePalette() -> void
 
     if (PaletteFrame->IsShowing() == 0)
     {
-        SoundSystem()->PlayDigitalSample(0x41, 1, nullptr, 0, 0);
+        SoundSystem()->PlayDigitalSample(0x41, 1, nullptr, false, false);
     }
     else
     {
@@ -562,12 +562,12 @@ auto MCTacticalMap::TogglePalette() -> void
         {
             if (ToolButtons[i]->Pushed != 0)
             {
-                ToolButtons[i]->Pushed = 0;
+                ToolButtons[i]->Pushed = false;
                 TacticalInterface()->SetMode(MCInterfaceMode::None);
             }
         }
 
-        SoundSystem()->PlayDigitalSample(0x40, 1, nullptr, 0, 0);
+        SoundSystem()->PlayDigitalSample(0x40, 1, nullptr, false, false);
     }
 
     PaletteButton->Pushed = PaletteFrame->IsShowing();
@@ -585,11 +585,11 @@ auto MCTacticalMap::ReleaseStatusLine() -> void
 {
     StatusLocked = false;
     StatusText = nullptr;
-    GuiSystem()->CursorHidden = 0;
+    GuiSystem()->CursorHidden = false;
     GuiSystem()->SetCurrentCursor(static_cast<MCCursorType>(0));
 }
 
-auto MCTacticalMap::SetRevealedBitmap(std::string_view fileName) -> void
+auto MCTacticalMap::SetRevealedBitmap(std::string_view fileName) const -> void
 {
     const std::string gifName = GamePath(TerrainPath, fileName, ".gif");
 
@@ -714,7 +714,7 @@ auto MCTacticalMap::Init(int32_t xPos, int32_t yPos) -> int32_t
         ChatBlinkerOff->SetBackground(const_cast<char*>("mfdsts05.tga"));
         ChatBlinkerOff->SetDepth(10);
         AddChild(ChatBlinkerOff.get());
-        ChatBlinkerOff->ShowGuiWindow(0);
+        ChatBlinkerOff->ShowGuiWindow(false);
         ChatBlinkerOff->SetEventRoutine(BlinkerHandleEvent);
 
         ChatBlinkerOn = MCMakeGui<MCGuiObject>();
@@ -724,7 +724,7 @@ auto MCTacticalMap::Init(int32_t xPos, int32_t yPos) -> int32_t
         ChatBlinkerOn->SetBackground(const_cast<char*>("mfdsts04.tga"));
         ChatBlinkerOn->SetDepth(10);
         AddChild(ChatBlinkerOn.get());
-        ChatBlinkerOn->ShowGuiWindow(0);
+        ChatBlinkerOn->ShowGuiWindow(false);
         ChatBlinkerOn->SetEventRoutine(BlinkerHandleEvent);
     }
 
@@ -737,7 +737,7 @@ auto MCTacticalMap::Init(int32_t xPos, int32_t yPos) -> int32_t
     AddChild(TabBottom.get());
 
     ObjectType = 6;
-    ShowGuiWindow(0);
+    ShowGuiWindow(false);
     SetBackColor(0x10);
     SetHideDirection(static_cast<MCDirection>(0));
 
@@ -787,7 +787,7 @@ auto MCTacticalMap::Init(int32_t xPos, int32_t yPos) -> int32_t
         MCGuiOwned<MCGuiToolButton>& button = DataButtons[spec.Index];
         button =
             MakeButton<MCGuiToolButton>(spec.X, 0xcc, 0x20, 0xc, spec.Pictures[0], spec.Pictures[1], spec.Pictures[2]);
-        button->Framed = 0;
+        button->Framed = false;
         button->Callback()->SetExec(spec.Callback);
         AddChild(button.get());
     }
@@ -837,7 +837,7 @@ auto MCTacticalMap::Init(int32_t xPos, int32_t yPos) -> int32_t
     PaletteFrame->SetDepth(10);
     PaletteFrame->SetBackground(const_cast<char*>("mfdcwn00.tga"));
     AddChild(PaletteFrame.get());
-    PaletteFrame->ShowGuiWindow(0);
+    PaletteFrame->ShowGuiWindow(false);
     PaletteBottom = MCMakeGui<MCGuiObject>();
     PaletteBottom->SetDrawsLive();
     PaletteBottom->Init(PaletteFrame->Width(), 0, 2, 0x35, nullptr);
@@ -846,15 +846,15 @@ auto MCTacticalMap::Init(int32_t xPos, int32_t yPos) -> int32_t
     PaletteFrame->AddChild(PaletteBottom.get());
 
     PaletteButton = MakeButton<MCGuiToolButton>(6, 0xe0, 9, 9, "mfdcwn02.tga", "mfdcwn03.tga", nullptr);
-    PaletteButton->Framed = 0;
+    PaletteButton->Framed = false;
     PaletteButton->Callback()->SetExec(::TogglePalette);
     AddChild(PaletteButton.get());
 
     ScrollUpMarker = MakePicture(0, 0, 0xb, 0xb, "mfddbg04.tga");
-    ScrollUpMarker->ShowGuiWindow(0);
+    ScrollUpMarker->ShowGuiWindow(false);
     AddChild(ScrollUpMarker.get());
     ScrollDownMarker = MakePicture(0, 0, 0xb, 0xb, "mfddbg05.tga");
-    ScrollDownMarker->ShowGuiWindow(0);
+    ScrollDownMarker->ShowGuiWindow(false);
     AddChild(ScrollDownMarker.get());
 
     LastMapTime = -999.0f;
@@ -877,7 +877,7 @@ auto MCTacticalMap::Init(int32_t xPos, int32_t yPos) -> int32_t
         button.SetDownPicture(pictureName.data());
         pictureName = std::format("mfdcbn{:02}.tga", i);
         button.SetGrayPicture(pictureName.data());
-        button.Framed = 0;
+        button.Framed = false;
 
         if (zoomButton)
         {
@@ -919,11 +919,11 @@ auto MCTacticalMap::Init(int32_t xPos, int32_t yPos) -> int32_t
     InfoText = MCMakeGui<MCGuiScrollTextObject>();
     InfoText->Init(5, 0x22, 0x76, 0xb8, nullptr);
     AddChild(InfoText.get());
-    InfoText->ShowGuiWindow(0);
+    InfoText->ShowGuiWindow(false);
     SalvageText = MCMakeGui<MCGuiScrollTextObject>();
     SalvageText->Init(5, 0x22, 0x76, 0xb8, nullptr);
     AddChild(SalvageText.get());
-    SalvageText->ShowGuiWindow(0);
+    SalvageText->ShowGuiWindow(false);
 
     Salvage = {};
     ScrollX = 0;
@@ -1065,7 +1065,7 @@ auto MCTacticalMap::RefreshPage() -> void
 
         if (obj == nullptr || !IsMoverClass(obj))
         {
-            InfoText->ShowGuiWindow(0);
+            InfoText->ShowGuiWindow(false);
             return;
         }
 
@@ -1079,7 +1079,7 @@ auto MCTacticalMap::RefreshPage() -> void
         {
             // Armor: the part diagram's colours.
             GetColors();
-            InfoText->ShowGuiWindow(0);
+            InfoText->ShowGuiWindow(false);
         }
 
         if (obj->ObjectClass == MCObjectClass::BattleMech)
@@ -1207,18 +1207,18 @@ auto MCTacticalMap::HandleEvent(MCGuiEvent* event) -> void
             if (textPage)
             {
                 // Press and hold repeats.
-                if (PtInRect(&PageRects[0], local) != 0)
+                if (PtInRect(PageRects.data(), local) != 0)
                 {
                     GuiSystem()->Grab(this);
                     ScrollUpMarker->ShowGuiWindow(true);
-                    GuiSystem()->AddTimer(this, ScrollStartTimer, TacticalInterface()->ScrollStart, 0, 0, 0);
+                    GuiSystem()->AddTimer(this, ScrollStartTimer, TacticalInterface()->ScrollStart, 0, 0, false);
                     text->ReceiveClick(-1, 0);
                 }
                 else if (PtInRect(&PageRects[1], local) != 0)
                 {
                     GuiSystem()->Grab(this);
                     ScrollDownMarker->ShowGuiWindow(true);
-                    GuiSystem()->AddTimer(this, ScrollStartTimer, TacticalInterface()->ScrollStart, 0, 0, 0);
+                    GuiSystem()->AddTimer(this, ScrollStartTimer, TacticalInterface()->ScrollStart, 0, 0, false);
                     text->ReceiveClick(1, 0);
                 }
                 else if (PtInRect(&PageRects[2], local) != 0)
@@ -1262,8 +1262,8 @@ auto MCTacticalMap::HandleEvent(MCGuiEvent* event) -> void
             }
 
             GuiSystem()->Release();
-            ScrollUpMarker->ShowGuiWindow(0);
-            ScrollDownMarker->ShowGuiWindow(0);
+            ScrollUpMarker->ShowGuiWindow(false);
+            ScrollDownMarker->ShowGuiWindow(false);
             break;
         }
 
@@ -1290,7 +1290,7 @@ auto MCTacticalMap::HandleEvent(MCGuiEvent* event) -> void
                     {
                         if (blinker != nullptr)
                         {
-                            blinker->ShowGuiWindow(0);
+                            blinker->ShowGuiWindow(false);
                         }
                     }
 
@@ -1302,7 +1302,7 @@ auto MCTacticalMap::HandleEvent(MCGuiEvent* event) -> void
             if (event->Data == ScrollStartTimer)
             {
                 GuiSystem()->RemoveTimer(this, ScrollStartTimer);
-                GuiSystem()->AddTimer(this, ScrollRepeatTimer, TacticalInterface()->ScrollStart / 5, 0, 0, 0);
+                GuiSystem()->AddTimer(this, ScrollRepeatTimer, TacticalInterface()->ScrollStart / 5, 0, 0, false);
             }
             else if (event->Data != ScrollRepeatTimer)
             {
@@ -1311,7 +1311,7 @@ auto MCTacticalMap::HandleEvent(MCGuiEvent* event) -> void
 
             if (textPage)
             {
-                if (PtInRect(&PageRects[0], local) != 0)
+                if (PtInRect(PageRects.data(), local) != 0)
                 {
                     text->ReceiveClick(-1, 0);
                 }
@@ -1548,7 +1548,7 @@ auto MCTacticalMap::HideMe(bool hide) -> void
         {
             if (blinker != nullptr)
             {
-                blinker->ShowGuiWindow(0);
+                blinker->ShowGuiWindow(false);
             }
         }
     }
@@ -1565,7 +1565,7 @@ auto MCTacticalMap::HideMe(bool hide) -> void
 
     if (Turn > 1)
     {
-        SoundSystem()->PlayDigitalSample(0x3b, 1, nullptr, 0, 0);
+        SoundSystem()->PlayDigitalSample(0x3b, 1, nullptr, false, false);
     }
 
     if (hide != 0)
@@ -1579,7 +1579,7 @@ auto MCTacticalMap::HideMe(bool hide) -> void
     }
 
     // Slide back home.
-    Hidden = 0;
+    Hidden = false;
     HideOffset = HomeX != GlobalX() ? HomeX - GlobalX() : HomeY - GlobalY();
 }
 
@@ -1648,12 +1648,12 @@ auto MCTacmapProjection::MapToWorld(MCVector3D& pos, bool scrolled) const -> voi
     pos.Y = rotatedY * MapRotation - rotatedX * -MapRotation;
 }
 
-auto MCTacticalMap::WorldToTacMap(MCVector3D& pos, bool scrolled) -> void
+auto MCTacticalMap::WorldToTacMap(MCVector3D& pos, bool scrolled) const -> void
 {
     Projection().WorldToMap(pos, scrolled);
 }
 
-auto MCTacticalMap::TacMapToWorld(MCVector3D& pos, bool scrolled) -> void
+auto MCTacticalMap::TacMapToWorld(MCVector3D& pos, bool scrolled) const -> void
 {
     // Back to the world, and stand the point on the ground.
     Projection().MapToWorld(pos, scrolled);
@@ -1665,11 +1665,11 @@ auto MCTacticalMap::SetDisplayType(MCTacmapPage type) -> void
     DisplayType = type;
 
     // Hide every page's parts, then show the new page's.
-    SalvageText->ShowGuiWindow(0);
+    SalvageText->ShowGuiWindow(false);
 
     if (MultiPlayer() != nullptr)
     {
-        ChatWindow->ShowGuiWindow(0);
+        ChatWindow->ShowGuiWindow(false);
 
         if (GuiSystem()->TextObject() == ChatWindow->ChatInput.get())
         {
@@ -1677,20 +1677,20 @@ auto MCTacticalMap::SetDisplayType(MCTacmapPage type) -> void
         }
     }
 
-    InfoText->ShowGuiWindow(0);
+    InfoText->ShowGuiWindow(false);
     InfoText->Clear();
 
     for (const MCGuiOwned<MCGuiButton>& button : ScrollButtons)
     {
-        button->ShowGuiWindow(0);
+        button->ShowGuiWindow(false);
     }
 
-    VideoWindow->ShowGuiWindow(0);
+    VideoWindow->ShowGuiWindow(false);
     StopVideo();
 
     for (const MCGuiOwned<MCGuiToolButton>& button : DataButtons)
     {
-        button->ShowGuiWindow(0);
+        button->ShowGuiWindow(false);
     }
 
     switch (type)
@@ -1736,7 +1736,7 @@ auto MCTacticalMap::SetDisplayType(MCTacmapPage type) -> void
                 SetID(InfoObject->PartId);
             }
 
-            InfoText->MoveTo(7, 0x5e, 0);
+            InfoText->MoveTo(7, 0x5e, false);
             InfoText->Resize(0x74, 0x69);
             InfoText->ShowGuiWindow(true);
             SetPageRects(*this, 0x5d, 0x68, 0xbe, 0xc9);
@@ -1754,7 +1754,7 @@ auto MCTacticalMap::SetDisplayType(MCTacmapPage type) -> void
 
             TabStrip->SetBackground(const_cast<char*>(MultiPlayer() == nullptr ? "mfdbts01.tga" : "mfdbts03.tga"));
             TabHighlighted = false;
-            InfoText->MoveTo(5, 0x22, 0);
+            InfoText->MoveTo(5, 0x22, false);
             InfoText->Resize(0x76, 0xb8);
             InfoText->ShowGuiWindow(true);
             SetPageRects(*this, 0x22, 0x2d, 0xcf, 0xda);
@@ -1786,7 +1786,7 @@ auto MCTacticalMap::SetDisplayType(MCTacmapPage type) -> void
             {
                 if (blinker != nullptr)
                 {
-                    blinker->ShowGuiWindow(0);
+                    blinker->ShowGuiWindow(false);
                 }
             }
 
@@ -1796,13 +1796,6 @@ auto MCTacticalMap::SetDisplayType(MCTacmapPage type) -> void
     }
 
     RefreshPage();
-}
-
-auto MCTacticalMap::CenterOnObject(MCGameObject* obj) -> void
-{
-    MCObjectPosition* position = obj->GetObjPosition();
-    ScrollX = position->TileC - MapVertexSide;
-    ScrollY = position->TileR - MapVertexSide;
 }
 
 auto MCTacticalMap::ScrollMap(int32_t dx, int32_t dy) -> void
@@ -1852,14 +1845,14 @@ auto MCTacticalMap::SetScrollMapPosition(int32_t x, int32_t y) -> void
     }
 }
 
-auto MCTacticalMap::GetVideoRect() -> tagRECT
+auto MCTacticalMap::GetVideoRect() const -> tagRECT
 {
     // The name line's height (unscaled), then lineFont back to its double scale.
-    LineFont()->Scaled = 0;
+    LineFont()->Scaled = false;
     LineFont()->Scale = 1.0f;
     const uint8_t lineHeight = LineFont()->FontHeight;
     LineFont()->Scale = 2.0f;
-    LineFont()->Scaled = 1;
+    LineFont()->Scaled = true;
     tagRECT rect;
     rect.left = VideoWindow->GlobalX();
     rect.top = VideoWindow->GlobalY() + lineHeight + 4;
@@ -1968,10 +1961,10 @@ auto MCTacticalMap::SetID(int32_t partId) -> void
         front.SetUpPicture(const_cast<char*>("mfddbh01.tga"));
         front.SetDownPicture(const_cast<char*>("mfddbg01.tga"));
         front.SetGrayPicture(const_cast<char*>("mfddbn01.tga"));
-        front.MoveTo(0xf, 0xcc, 0);
-        DataButtons[2]->MoveTo(0x56, 0xcc, 0);
+        front.MoveTo(0xf, 0xcc, false);
+        DataButtons[2]->MoveTo(0x56, 0xcc, false);
         DataButtons[1]->ShowGuiWindow(true);
-        shapeName = std::format("mechrep{:02}", static_cast<int32_t>(obj->GetObjectType()->IconNumber));
+        shapeName = std::format("mechrep{:02}", obj->GetObjectType()->IconNumber);
         InfoPorts[0]->Init(obj->GetPilot()->Picture.data());
     }
     else if (obj->ObjectClass == MCObjectClass::GroundVehicle)
@@ -1981,9 +1974,9 @@ auto MCTacticalMap::SetID(int32_t partId) -> void
         front.SetUpPicture(const_cast<char*>("mfddbh00.tga"));
         front.SetDownPicture(const_cast<char*>("mfddbg00.tga"));
         front.SetGrayPicture(const_cast<char*>("mfddbn00.tga"));
-        front.MoveTo(0x21, 0xcc, 0);
-        DataButtons[2]->MoveTo(0x4b, 0xcc, 0);
-        DataButtons[1]->ShowGuiWindow(0);
+        front.MoveTo(0x21, 0xcc, false);
+        DataButtons[2]->MoveTo(0x4b, 0xcc, false);
+        DataButtons[1]->ShowGuiWindow(false);
 
         if (DataDisplayMode == 1)
         {
@@ -2001,7 +1994,7 @@ auto MCTacticalMap::SetID(int32_t partId) -> void
             }
         }
 
-        const auto icon = static_cast<int32_t>(obj->GetObjectType()->IconNumber);
+        const auto icon = obj->GetObjectType()->IconNumber;
         shapeName = icon == 0 ? std::string("vr106") : std::format("vr{}", icon);
     }
 
@@ -2038,7 +2031,7 @@ auto MCTacticalMap::UpdateOrderPalette() -> void
             }
             else if (button->Pushed != 0)
             {
-                button->Pushed = 0;
+                button->Pushed = false;
             }
         }
 
@@ -2054,7 +2047,7 @@ auto MCTacticalMap::UpdateOrderPalette() -> void
 
             if (button.Pushed != 0)
             {
-                button.Pushed = 0;
+                button.Pushed = false;
                 TacticalInterface()->SetMode(MCInterfaceMode::None);
             }
 
@@ -2071,15 +2064,15 @@ auto MCTacticalMap::UpdateOrderPalette() -> void
     for (size_t i = 0; i < NumModeButtons; i++)
     {
         MCToolPalButton& button = *ToolButtons[i];
-        button.Pushed = 0;
+        button.Pushed = false;
 
         if (button.Action == ActionJump)
         {
-            button.Disabled = TacticalInterface()->CanSelectionJump() ? 0 : 1;
+            button.Disabled = !TacticalInterface()->CanSelectionJump();
         }
         else
         {
-            button.Disabled = 0;
+            button.Disabled = false;
         }
     }
 }
@@ -2095,54 +2088,19 @@ auto MCTacticalMap::SetDataDisplayMode(char mode, int silent) -> void
 
     for (size_t i = 0; i < DataButtons.size(); i++)
     {
-        DataButtons[i]->Pushed = static_cast<size_t>(mode) == i ? 1 : 0;
+        DataButtons[i]->Pushed = static_cast<size_t>(mode) == i;
     }
 
     if (silent == 0)
     {
-        SoundSystem()->PlayDigitalSample(0x47, 1, nullptr, 0, 0);
+        SoundSystem()->PlayDigitalSample(0x47, 1, nullptr, false, false);
     }
 }
 
 auto MCTacticalMap::ToggleZoom() -> void
 {
     MCToolPalButton& button = *ToolButtons[7];
-    button.Pushed = button.Pushed == 0 ? 1 : 0;
-}
-
-auto MCTacticalMap::PositionOnMap(MCVector3D pos) -> MCVector3D
-{
-    // Clamp the unscrolled map position to the 130-pixel map; unclamped, the point is on it.
-    MCVector3D onMap = pos;
-    WorldToTacMap(onMap, false);
-    bool clamped = false;
-
-    if (onMap.X < 0.0)
-    {
-        onMap.X = 0.0f;
-        clamped = true;
-    }
-    else if (onMap.X > MapPictureSide)
-    {
-        onMap.X = MapPictureSide;
-        clamped = true;
-    }
-
-    if (onMap.Y < 0.0)
-    {
-        onMap.Y = 0.0f;
-    }
-    else if (onMap.Y > MapPictureSide)
-    {
-        onMap.Y = MapPictureSide;
-    }
-    else if (!clamped)
-    {
-        return MCVector3D(0.0f, 0.0f, 0.0f);
-    }
-
-    TacMapToWorld(onMap, false);
-    return MCVector3D(pos.X - onMap.X, pos.Y - onMap.Y, 0.0f);
+    button.Pushed = button.Pushed == 0;
 }
 
 auto MCTacticalMap::HandleChatMessage(uint32_t fromID, const void* message) -> void
@@ -2153,7 +2111,7 @@ auto MCTacticalMap::HandleChatMessage(uint32_t fromID, const void* message) -> v
     {
         // Not on show: blink the chat tab.
         ChatPending = true;
-        GuiSystem()->AddTimer(this, ChatBlinkTimer, 500, 0, 0, 0);
+        GuiSystem()->AddTimer(this, ChatBlinkTimer, 500, 0, 0, false);
         MCGuiObject* blinker = DisplayType == MCTacmapPage::Salvage ? ChatBlinkerOn.get() : ChatBlinkerOff.get();
 
         if (blinker != nullptr)
@@ -2164,7 +2122,7 @@ auto MCTacticalMap::HandleChatMessage(uint32_t fromID, const void* message) -> v
 
     if (SoundSystem() != nullptr)
     {
-        SoundSystem()->PlayDigitalSample(0x11, 1, nullptr, 0, 0);
+        SoundSystem()->PlayDigitalSample(0x11, 1, nullptr, false, false);
     }
 }
 

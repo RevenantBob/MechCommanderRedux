@@ -66,7 +66,7 @@ auto MCTrainCarType::HandleCollision(MCGameObject* collidee, MCGameObject* colli
     // The car takes (collider tonnage + 1) / 2, from the collider's side.
     const auto hitCar = [&](int32_t hitLocation)
     {
-        const auto angle = static_cast<float>(car->RelFacingTo(collider->GetPosition(), -1));
+        const auto angle = car->RelFacingTo(collider->GetPosition(), -1);
         MCWeaponShotInfo shot;
         shot.Init(collider, -1, static_cast<float>((collider->GetTonnage() + 1.0) * 0.5), hitLocation, angle);
         car->HandleWeaponHit(&shot, multiplayer);
@@ -97,7 +97,7 @@ auto MCTrainCarType::HandleCollision(MCGameObject* collidee, MCGameObject* colli
         case MCObjectClass::Elemental:
         {
             const int32_t hitLocation = collider->CalcHitLocation(car, -1, 1, 0);
-            const auto angle = static_cast<float>(collider->RelFacingTo(car->GetPosition(), -1));
+            const auto angle = collider->RelFacingTo(car->GetPosition(), -1);
             MCWeaponShotInfo shot;
             shot.Init(car, -1, train->GetTotalTonnage() * 0.2f + 0.5f, hitLocation, angle);
             collider->HandleWeaponHit(&shot, multiplayer);

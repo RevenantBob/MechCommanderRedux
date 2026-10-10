@@ -90,7 +90,7 @@ auto MCTreeBuilding::IsVisible(MCCamera* cam) -> bool
         return false;
     }
 
-    int visible = cam->VertexProject(BlockNumber, VertexNumber, ScreenPos);
+    int visible = MCCamera::VertexProject(BlockNumber, VertexNumber, ScreenPos);
 
     if (Appearance != nullptr)
     {
@@ -102,7 +102,7 @@ auto MCTreeBuilding::IsVisible(MCCamera* cam) -> bool
 
     if (uint8_t* shadow = static_cast<MCTreeBuildingType*>(ObjType)->NormalShadow.Data(); shadow != nullptr)
     {
-        const float scale = cam->CameraScale != 1 ? 1.0f : 0.5f;
+        const float scale = MCCamera::CameraScale != 1 ? 1.0f : 0.5f;
         const int32_t minXY = VfxShapeMinxy(shadow, 0);
         const float left = static_cast<float>(minXY >> 16) * scale + ScreenPos.X;
         const float top = static_cast<float>(static_cast<int16_t>(minXY)) * scale + ScreenPos.Y;
@@ -158,7 +158,7 @@ auto MCTreeBuilding::Update() -> int32_t
     CellRow = cell.Row;
     VertexWorldY = cell.WorldY();
     CellElevation = cell.Elevation(" tbldg MapTile Out of Bounds ");
-    Appearance->Visible = 1;
+    Appearance->Visible = true;
     Appearance->Update();
     Appearance->RecalcBounds(Eye);
 
@@ -305,7 +305,7 @@ auto MCTreeBuilding::Render() -> void
 
     if (Appearance != nullptr)
     {
-        Appearance->Visible = IsVisible(Eye) ? 1 : 0;
+        Appearance->Visible = IsVisible(Eye);
 
         // When the collapse animation ends, settle on the matching rubble state.
         if (Appearance->Update() == 0 && Collapsing)
@@ -336,13 +336,13 @@ auto MCTreeBuilding::Render() -> void
             {
                 if (SoundSystem() != nullptr && UseSound != 0)
                 {
-                    SoundSystem()->PlayDigitalSample(0x14, 1, this, 0, 1);
+                    SoundSystem()->PlayDigitalSample(0x14, 1, this, false, true);
                 }
 
                 BlipFrame = 0;
             }
 
-            ElementList()->OpenGroup(-100000, 1);
+            ElementList()->OpenGroup(-100000, true);
             ElementList()->Add(
                 ElementList()->Make<MCVfxElement>(shape, ScreenPos.X, ScreenPos.Y, BlipFrame, 0, nullptr, 0));
             BlipTime = FrameLength + BlipTime;
@@ -395,14 +395,15 @@ auto MCTreeBuilding::Render() -> void
 
         if (shadow != nullptr)
         {
-            ElementList()->OpenGroup(static_cast<int32_t>(ScreenPos.Y), 1);
+            ElementList()->OpenGroup(static_cast<int32_t>(ScreenPos.Y), true);
             ElementList()->Add(
                 ElementList()->Make<MCVfxElement>(shadow, ScreenPos.X, ScreenPos.Y, 0, 0, hazePalette, 0));
         }
 
         if (SoundHandle == 0xffffffff && type->NormalEffectId != 0xffffffff)
         {
-            SoundHandle = static_cast<uint32_t>(SoundSystem()->PlayDigitalSample(type->NormalEffectId, 0, this, 1, 0));
+            SoundHandle =
+                static_cast<uint32_t>(SoundSystem()->PlayDigitalSample(type->NormalEffectId, 0, this, true, false));
         }
     }
 
@@ -620,7 +621,7 @@ auto MCTreeBuilding::HandleWeaponHit(MCWeaponShotInfo* shotInfo, int addMultipla
 
     if (type->DamageEffectId != 0xffffffff && 5 < Turn)
     {
-        SoundSystem()->PlayDigitalSample(type->DamageEffectId, 1, this, 1, 0);
+        SoundSystem()->PlayDigitalSample(type->DamageEffectId, 1, this, true, false);
     }
 
     if (SensorSystem != nullptr)

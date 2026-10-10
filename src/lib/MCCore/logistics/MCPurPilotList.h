@@ -65,10 +65,6 @@ public:
     /// <summary>Inserts <paramref name="pilot"/>: after the pilots of a lower rank, then after those with a smaller callsign.</summary>
     void Insert(std::unique_ptr<MCPurPilotData> pilot);
 
-    /// <summary>Takes the <paramref name="index"/>th pilot off the list.</summary>
-    /// <returns>0, or -1 past the end.</returns>
-    int32_t RemovePilot(int32_t index);
-
     /// <summary>Sets the <see cref="MCPurPilotData::Status"/> of the pilot whose ID is <paramref name="pilotId"/>.</summary>
     void SetPilotStatus(int32_t pilotId, int32_t status);
 

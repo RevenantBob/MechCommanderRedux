@@ -56,11 +56,11 @@ auto MCVehiclePurchaseBlock::OnBuyConfirmed(int32_t result, int32_t quantity) ->
 
     for (int32_t count = quantity; count > 0; --count)
     {
-        GlobalLogPtr->VehicleList->AddVehicle(data->FileName.data(), 0, 1, 1);
+        GlobalLogPtr->VehicleList->AddVehicle(data->FileName.data(), false, true, true);
     }
 
     GlobalLogPtr->ReorderVehicles();
-    GlobalLogPtr->PurchaseScreen->CreateVhclInvBlock();
+    MCPurchaseScreen::CreateVhclInvBlock();
     GlobalLogPtr->PurchaseScreen->SetUpVhclInv(true, true);
     data->NumAvailable -= quantity;
     DrawBackground(Row);
@@ -213,7 +213,7 @@ auto MCVehiclePurchaseBlock::DrawBackground(int32_t) -> void
     PrepareInfoDescription(data->Description);
 }
 
-auto MCVehiclePurchaseBlock::DrawRow(MCLogPort* port, int32_t top) -> void
+auto MCVehiclePurchaseBlock::DrawRow(MCLogPort* port, int32_t top) const -> void
 {
     MCPurchaseScreen* screen = GlobalLogPtr->PurchaseScreen.get();
     std::unique_ptr<MCLogBlockPort> work = RowPicture(screen->VehicleTabPort.get(), port, top, false);
@@ -267,8 +267,4 @@ auto MCVehiclePurchaseBlock::OnBeginDrag(MCLogPort* surface) -> void
     // The square at (6, 0x21) of the row, over the store's colour 0x10.
     VfxPaneWipe(surface->Frame(), 0x10);
     MCDragIcon::DrawFrom(surface, 6, 0x21, [this](MCLogPort* port) { DrawRow(port, 0); });
-}
-
-auto MCVehiclePurchaseBlock::SetBar() -> void
-{
 }

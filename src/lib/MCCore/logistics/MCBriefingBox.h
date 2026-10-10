@@ -27,10 +27,7 @@ public:
     /// (<paramref name="xPos"/>, <paramref name="yPos"/>) in <paramref name="target"/>: what
     /// <see cref="DrawBackground"/> painted into the briefing screen's picture.
     /// </summary>
-    void PaintBox(MCPane* target, int32_t xPos, int32_t yPos);
-
-    /// <summary>Empty.</summary>
-    void DrawVehicleBackground();
+    void PaintBox(MCPane* target, int32_t xPos, int32_t yPos) const;
 
     void HandleEvent(MCGuiEvent* event) override;
 

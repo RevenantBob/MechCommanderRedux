@@ -64,7 +64,7 @@ public:
     /// Port: draws the line from its state into <paramref name="target"/>: the back pane, then the text (a wide one
     /// scrolled, and only while it scrolls).
     /// </summary>
-    void DrawLine(MCPane* target);
+    void DrawLine(MCPane* target) const;
 
     /// <summary>The text shown.</summary>
     std::string Text;

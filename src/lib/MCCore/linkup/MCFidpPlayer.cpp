@@ -11,7 +11,7 @@ MCFidpPlayer::MCFidpPlayer(uint32_t id, const DPNAME& name, uint32_t flags)
 
 void MCFidpPlayer::AddToVerifyList(MCFidpMessage* msg)
 {
-    std::lock_guard lock(CriticalSection);
+    std::scoped_lock lock(CriticalSection);
     msg->SendTime = static_cast<uint32_t>(MCPort::PerformanceCounter());
 
     if (!msg->WasResent)
@@ -25,7 +25,7 @@ void MCFidpPlayer::AddToVerifyList(MCFidpMessage* msg)
 
 int32_t MCFidpPlayer::AverageLatency()
 {
-    std::lock_guard lock(CriticalSection);
+    std::scoped_lock lock(CriticalSection);
     int32_t total = 0;
     int measured = 0;
 
@@ -50,7 +50,7 @@ uint8_t MCFidpPlayer::SendCountOf(const MCFidpMessage& msg) const
 
 MCFidpMessage* MCFidpPlayer::RemoveFromVerifyList(uint8_t sendCount)
 {
-    std::lock_guard lock(CriticalSection);
+    std::scoped_lock lock(CriticalSection);
     const auto found =
         std::ranges::find_if(VerifyList, [&](const MCFidpMessage* msg) { return SendCountOf(*msg) == sendCount; });
 
@@ -85,7 +85,7 @@ bool MCFidpPlayer::IsVerifyListFull()
 
 int MCFidpPlayer::VerifyCountDifference()
 {
-    std::lock_guard lock(CriticalSection);
+    std::scoped_lock lock(CriticalSection);
 
     if (VerifyList.empty())
     {

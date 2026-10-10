@@ -57,7 +57,7 @@ auto MCMainWindow::Init(int32_t xPos, int32_t yPos, int32_t width, int32_t heigh
 
     ClockPane = MCMakeGui<MCGuiObject>();
     LineFont()->Scale = 1.5f;
-    LineFont()->Scaled = 1;
+    LineFont()->Scaled = true;
     const int32_t clockHeight = WhiteFont == nullptr ? 24 : LineHeight(*LineFont()) + 4;
     ClockPane->Init(0, 0, 40, clockHeight, nullptr);
     ClockPane->SetBackColor(0x10);
@@ -101,7 +101,7 @@ auto MCMainWindow::Display() -> void
     MCGuiObject* pane = ClockPane.get();
     VfxPaneWipe(pane->Port()->Frame(), pane->BackColor());
     pane->DrawBox(0x1f, -1, -1, -1, -1);
-    LineFont()->Scaled = 1;
+    LineFont()->Scaled = true;
     LineFont()->Scale = 1.5f;
     const uint8_t fontHeight = LineHeight(*LineFont());
     const int32_t paneHeight = pane->Height();
@@ -122,7 +122,7 @@ auto MCMainWindow::Display() -> void
         clock = std::format("{:02}:{:02}", minutes, seconds);
     }
 
-    const int32_t textWidth = LineFont()->PrintWidth(clock, 0);
+    const int32_t textWidth = LineFont()->PrintWidth(clock, false);
     const int32_t x = (pane->Width() - textWidth) / 2 + 1;
     LineFont()->Print(x, (paneHeight - fontHeight) / 2 + 2, clock, textColor, pane->Port()->Frame());
 }
@@ -137,7 +137,7 @@ auto MCMainWindow::Retile() -> void
         return;
     }
 
-    ClockPane->MoveTo(-2 - ClockPane->Width() + pane->Right(), 2, 0);
+    ClockPane->MoveTo(-2 - ClockPane->Width() + pane->Right(), 2, false);
 }
 
 auto MCMainWindow::SetVertical(bool on) -> void

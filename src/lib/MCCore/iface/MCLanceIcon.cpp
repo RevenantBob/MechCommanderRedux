@@ -61,22 +61,22 @@ auto MCLanceIcon::Display() -> void
     }
 
     MCPane* pane = FramePane.get();
-    NumberImage->CopyTo(pane, 0, 0, 1);
+    NumberImage->CopyTo(pane, 0, 0, true);
     const int32_t numberWidth = NumberImage->Width();
-    FirstLinkImage->CopyTo(pane, numberWidth, 0, 1);
+    FirstLinkImage->CopyTo(pane, numberWidth, 0, true);
     const int32_t linkStart = numberWidth + FirstLinkImage->Width();
-    ShortLinkImage->CopyTo(pane, linkStart, 4, 1);
+    ShortLinkImage->CopyTo(pane, linkStart, 4, true);
     int32_t xPos = linkStart + ShortLinkImage->Width();
     int32_t linkEnd = xPos;
 
     for (int32_t i = 1; i < GetNumActiveMovers(); i++)
     {
-        LongLinkImage->CopyTo(FramePane.get(), xPos, 4, 1);
+        LongLinkImage->CopyTo(FramePane.get(), xPos, 4, true);
         xPos += LongLinkImage->Width();
         linkEnd += LongLinkImage->Width();
     }
 
-    LastLinkImage->CopyTo(pane, xPos, 4, 1);
+    LastLinkImage->CopyTo(pane, xPos, 4, true);
 
     // The lance colour under the links.
     MCPane bar = *pane;
@@ -133,7 +133,7 @@ auto MCLanceIcon::HandleEvent(MCGuiEvent* event) -> void
         iface->DeselectEnemy();
         iface->ClearMechSelection();
         iface->CommandParser->ClearSubjects();
-        SoundSystem()->PlayDigitalSample(0x30, 1, nullptr, 0, 0);
+        SoundSystem()->PlayDigitalSample(0x30, 1, nullptr, false, false);
         iface->SelectLance(Group);
         iface->CommandParser->AddSubject(Group);
         iface->UpdateInterface();
@@ -149,7 +149,7 @@ auto MCLanceIcon::HandleEvent(MCGuiEvent* event) -> void
     }
 
     iface->DeselectEnemy();
-    SoundSystem()->PlayDigitalSample(0x30, 1, nullptr, 0, 0);
+    SoundSystem()->PlayDigitalSample(0x30, 1, nullptr, false, false);
     iface->SelectLance(Group);
     iface->CommandParser->AddSubject(Group);
     iface->UpdateInterface();
@@ -180,7 +180,7 @@ auto MCLanceIcon::Enter() -> void
         }
 
         MCTacticalInterface::TagMover(*tag, *member);
-        tag->ShowGuiWindow(1);
+        tag->ShowGuiWindow(true);
     }
 
     MCGuiObject::Enter();
@@ -194,7 +194,7 @@ auto MCLanceIcon::Leave() -> void
 
 auto MCLanceIcon::ShowTest() -> void
 {
-    ShowGuiWindow(Group != nullptr && GetNumActiveMovers() > 0 ? 1 : 0);
+    ShowGuiWindow(Group != nullptr && GetNumActiveMovers() > 0);
 }
 
 auto MCLanceIcon::GetNumActiveMovers() const -> int32_t

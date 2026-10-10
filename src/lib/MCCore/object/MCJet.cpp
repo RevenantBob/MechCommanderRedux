@@ -62,7 +62,7 @@ auto MCJet::Update() -> int32_t
 
         if (soundId != 0xffffffff)
         {
-            SoundSystem()->PlayDigitalSample(soundId, 1, this, 0, 0);
+            SoundSystem()->PlayDigitalSample(soundId, 1, this, false, false);
         }
     }
 
@@ -85,7 +85,7 @@ auto MCJet::Update() -> int32_t
     LastAltitude = Position.Z;
     const MCVector3D velocity = mech->GetVelocity();
     const bool visibleNow = IsVisible();
-    Appearance->Visible = visibleNow ? 1 : 0;
+    Appearance->Visible = visibleNow;
     Appearance->Update();
 
     // The flame points away from the mech's facing.
@@ -127,7 +127,7 @@ auto MCJet::Update() -> int32_t
     if (GroundObject != nullptr)
     {
         MCVector3D groundPos = Position;
-        groundPos.Z = Terrain()->GetTerrainElevation(Position);
+        groundPos.Z = MCTerrain::GetTerrainElevation(Position);
         GroundObject->SetPosition(groundPos);
         GroundObject->Update();
     }

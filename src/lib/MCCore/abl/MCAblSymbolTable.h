@@ -46,9 +46,6 @@ public:
     /// <summary>How many symbols the table owns.</summary>
     size_t SymbolCount() const { return _Symbols.size(); }
 
-    /// <summary>How many types the table owns.</summary>
-    size_t TypeCount() const { return _Types.size(); }
-
 private:
     /// <summary>Every symbol made (a deque: the symbols never move).</summary>
     std::deque<MCAblSymbol> _Symbols;

@@ -6,7 +6,7 @@
 auto ScaleDraw(uint8_t* shape, uint32_t frameNum, int32_t x, int32_t y, int32_t reverse, uint8_t* fadeTable) -> int32_t
 {
     // Zoomed out (camera scale 1) draws at half size; anything else at full size.
-    const bool fullSize = Eye->CameraScale != 1;
+    const bool fullSize = MCCamera::CameraScale != 1;
 
     if (!VfxIsShapeTable(shape))
     {

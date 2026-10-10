@@ -114,7 +114,7 @@ public:
     void BlankBox();
 
     /// <summary>Lance <paramref name="lance"/>'s tonnage as its label shows it (what <see cref="CalcTonnages"/> counts).</summary>
-    int32_t LanceTons(int32_t lance) const;
+    static int32_t LanceTons(int32_t lance);
 
     /// <summary>Whether <paramref name="part"/> fits under the drop tonnage limit.</summary>
     static bool FitsTonnage(const MCLogPart* part);

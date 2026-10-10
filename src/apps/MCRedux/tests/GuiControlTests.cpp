@@ -23,8 +23,7 @@
 
 // The GUI's controls: text fields, list and combo boxes, menus, button bars, scroll bars, scrolling text, the chat
 // line, scroll panes and help tags. Most run on a GUI system with a 640x480 screen window and letterless fonts (they
-// measure 0 and draw nothing); the ones that need art or real letters read them from the retail install, and the scroll
-// pane and help tag tests boot the game.
+// measure 0 and draw nothing); the ones that need art or real letters read them from the retail install.
 
 namespace
 {
@@ -801,16 +800,14 @@ TEST_CASE("game: the chat line takes chat characters up to three lines, and back
     CHECK_EQ(input->CursorX, 0x14);
 }
 
-// Booted
-
-TEST_CASE_ISOLATED("game: a scroll pane's position is a percentage of its content, and the slider follows it")
+TEST_CASE("game: a scroll pane's position is a percentage of its content, and the slider follows it")
 {
-    if (!MCTestGame::Available())
+    ControlScreen screen;
+
+    if (!screen.LoadRetail())
     {
         return;
     }
-
-    REQUIRE(MCTestGame::StartLogistics());
 
     // A pane 0x80 x 0x60 showing content four times its height.
     auto pane = std::make_unique<MCScrollPane>();
@@ -855,15 +852,14 @@ TEST_CASE_ISOLATED("game: a scroll pane's position is a percentage of its conten
     CHECK(!pane->MouseWheel(1, 0, 0));
 }
 
-TEST_CASE_ISOLATED(
-    "game: a scroll pane frees the content it owns when it shows other content, and not the content it borrows")
+TEST_CASE("game: a scroll pane frees the content it owns when it shows other content, and not the content it borrows")
 {
-    if (!MCTestGame::Available())
+    ControlScreen screen;
+
+    if (!screen.LoadRetail())
     {
         return;
     }
-
-    REQUIRE(MCTestGame::StartLogistics());
 
     // A port that notes its own destruction.
     struct WatchedPort : MCLogPort
@@ -902,14 +898,18 @@ TEST_CASE_ISOLATED(
     CHECK(!borrowedGone);
 }
 
-TEST_CASE_ISOLATED("game: a help tag sizes itself to its widest line and its line count")
+TEST_CASE("game: a help tag sizes itself to its widest line and its line count")
 {
-    if (!MCTestGame::Available())
+    ControlScreen screen;
+
+    if (!screen.LoadRetail())
     {
         return;
     }
 
-    REQUIRE(MCTestGame::StartLogistics());
+    std::expected<std::unique_ptr<MCFont>, std::string> lineFont = MCFont::Create("font");
+    REQUIRE(lineFont.has_value());
+    screen.Gui->EngineFont = std::move(*lineFont);
     MCFont* font = LineFont();
     REQUIRE(font != nullptr);
 

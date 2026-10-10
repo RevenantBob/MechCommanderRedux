@@ -42,13 +42,13 @@ public:
     /// <summary>Shows or hides the close button; showing points its callback at the window (<see cref="MCGuiEventType::Close"/>).</summary>
     void ShowCloseButton(bool show);
     /// <summary>Shows or hides the zoom button.</summary>
-    void ShowZoomButton(bool show);
+    void ShowZoomButton(bool show) const;
     /// <summary>Shows or hides both zoom buttons.</summary>
-    void ShowZoomButtons(bool show);
+    void ShowZoomButtons(bool show) const;
     /// <summary>Shows or hides the swoopy button.</summary>
-    void ShowSwoopyButton(bool show);
+    void ShowSwoopyButton(bool show) const;
     /// <summary>Whether <paramref name="newWidth"/> leaves room for the shown buttons (4 pixels, plus each button).</summary>
-    bool ResizeOK(int32_t newWidth);
+    bool ResizeOK(int32_t newWidth) const;
 
     /// <summary>The title's font (the black one).</summary>
     MCGuiFont* Font = nullptr;

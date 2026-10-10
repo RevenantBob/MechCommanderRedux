@@ -426,15 +426,15 @@ auto MCGuiEmptyTitleWindow::HandleEvent(MCGuiEvent* event) -> void
                     camera->View()->ToggleZoom();
                 }
 
-                camera->ForceUpdate = 1;
-                MCTerrain::ForceRedraw = 1;
+                camera->ForceUpdate = true;
+                MCTerrain::ForceRedraw = true;
             }
         }
         else if (event->Type == MCGuiEventType::ClearTarget)
         {
             if (pane->GetCamera() != nullptr)
             {
-                pane->GetCamera()->ChangeTarget(nullptr, 0);
+                pane->GetCamera()->ChangeTarget(nullptr, false);
             }
         }
     }

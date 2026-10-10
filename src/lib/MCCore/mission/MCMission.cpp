@@ -267,7 +267,7 @@ auto MCMission::Load(std::string_view missionName) -> int32_t
     if (GlobalGameSegment != 0)
     {
         // A game segment build: the mission FIT is the segment file itself.
-        CheatsOn = 1;
+        CheatsOn = true;
         _MissionFile = std::make_unique<MCFitIniFile>();
         int32_t result = _MissionFile->Open(GamePath(MissionPath, missionName, ".fit"));
 
@@ -326,7 +326,7 @@ auto MCMission::Load(std::string_view missionName) -> int32_t
 
     if (FileExists("ixtlriimceourl"))
     {
-        CheatsOn = 1;
+        CheatsOn = true;
     }
 
     if (const int32_t result = ReadLists(*_MissionFile, true, true); result != 0)
@@ -379,11 +379,11 @@ auto MCMission::Load(std::string_view missionName) -> int32_t
             std::string text = LoadGameString(0x370, 0xfe);
             MCReusableDialog* dialog = GlobalLogPtr->MessageDialog.get();
             dialog->SetText(text.data());
-            dialog->SetTwoButton(0);
+            dialog->SetTwoButton(false);
             dialog->OkButton->Callback()->SetExec(CancelToMPlayer);
             dialog->OkButton->SetUpPicture(const_cast<char*>("bh_okay.tga"));
             dialog->OkButton->SetDownPicture(const_cast<char*>("bg_okay.tga"));
-            dialog->OkButton->Disabled = 0;
+            dialog->OkButton->Disabled = false;
             dialog->OkButton->Draw();
             dialog->Activate();
             GlobalLogPtr->CurrentScreen = GlobalLogPtr->MainScreen.get();
@@ -473,7 +473,7 @@ auto MCMission::Shutdown() -> void
 
 auto MCMission::Run() -> int32_t
 {
-    KeepScreenBlack = 0;
+    KeepScreenBlack = false;
     // The states that end up back in logistics share the tails of the binary's switch; these flags stand in for its
     // two jump targets (reset the display first, or not).
     bool resetDisplay = false;
@@ -513,7 +513,7 @@ auto MCMission::Run() -> int32_t
 
             EscapedSmackerMovie = 0;
             MovieOver = 0;
-            GuiSystem()->SetCursorVisible(1);
+            GuiSystem()->SetCursorVisible(true);
 
             if (SoundSystem() != nullptr)
             {
@@ -650,7 +650,7 @@ auto MCMission::Run() -> int32_t
                                                      ? Scenarios[static_cast<size_t>(CurrentScenario)]
                                                      : std::string(GlobalLogPtr->MpMissionName);
                 StartScenario(scenarioName);
-                GuiSystem()->SetCursorVisible(1);
+                GuiSystem()->SetCursorVisible(true);
             }
             break;
         }
@@ -772,15 +772,15 @@ auto MCMission::RunFeatureScreen() -> bool
             palette[i * 3 + 2] = picture[0x12 + i * 3 + 0] >> 2;
         }
 
-        GuiSystem()->SetCursorVisible(0);
+        GuiSystem()->SetCursorVisible(false);
         FeatureScreen = MCMakeGui<MCGuiObject>();
         FeatureScreen->Init(0, 0, 640, 480, nullptr);
         // The picture is copied onto the screen's own (MCX.EXE never freed it).
         MCGuiOwned<MCGuiPort> picturePort = MCMakeGui<MCGuiPort>();
         picturePort->Init(const_cast<char*>("features.tga"));
-        picturePort->CopyTo(FeatureScreen->Port()->Frame(), 0, 0, 0);
+        picturePort->CopyTo(FeatureScreen->Port()->Frame(), 0, 0, false);
         ScreenWindow()->AddChild(FeatureScreen.get());
-        FeatureScreen->ShowGuiWindow(1);
+        FeatureScreen->ShowGuiWindow(true);
         GuiSystem()->ActivatePalette(palette.data(), 0, 0x100);
     }
 
@@ -828,7 +828,7 @@ auto MCMission::StartScenario(std::string_view name) -> void
     GamePalette()->Activate();
     InitAlphaLookup(GamePalette()->Colors());
     GuiSystem()->PaletteCycle = 1;
-    GuiSystem()->SetCursorVisible(0);
+    GuiSystem()->SetCursorVisible(false);
 
     MCGameContext::Current().SetScenario(std::make_unique<MCScenario>());
 
@@ -927,11 +927,11 @@ auto MCMission::EndScenario() -> void
             MCLogistics& logistics = StartLogistics();
             LastLogisticsMissionState = 0;
             State = MCMissionState::Logistics;
-            logistics.CurrentScreen->ShowGuiWindow(0);
+            logistics.CurrentScreen->ShowGuiWindow(false);
             logistics.CurrentScreen = logistics.MainScreen.get();
             logistics.LogisticsState = 1;
             logistics.ShowLogScreen(true, true);
-            Solo = 0;
+            Solo = false;
             return;
         }
 
@@ -947,7 +947,7 @@ auto MCMission::EndScenario() -> void
         MCLogistics& logistics = StartLogistics();
         LastLogisticsMissionState = 0;
         State = MCMissionState::Logistics;
-        Solo = 1;
+        Solo = true;
         logistics.CurrentMission = 0;
         CurrentScenario = 0;
         CurrentMovie = 1;
@@ -994,7 +994,7 @@ auto MCMission::EndScenario() -> void
         LastLogisticsMissionState = 0;
         MultiPlayer()->ChatCallback = LogisticsChatCallback;
         State = MCMissionState::Logistics;
-        logistics.CurrentScreen->ShowGuiWindow(0);
+        logistics.CurrentScreen->ShowGuiWindow(false);
         logistics.CurrentScreen = logistics.MainScreen.get();
         logistics.LogisticsState = 1;
         logistics.ShowLogScreen(true, true);
@@ -1033,7 +1033,7 @@ auto MCMission::SaveWindowStatus() -> void
 
     if (MainHolder()->GetPane(0) != nullptr && MainHolder()->GetPane(0)->GetCamera() != nullptr)
     {
-        windowFile.WriteIdBoolean("MainZoomed", MainHolder()->GetPane(0)->GetCamera()->CameraScale != 100);
+        windowFile.WriteIdBoolean("MainZoomed", MCCamera::CameraScale != 100);
     }
 
     windowFile.WriteIdBoolean("TacHidden", TacticalInterface()->TacticalMap->IsHidden());
@@ -1046,10 +1046,10 @@ auto MCMission::SaveWindowStatus() -> void
 auto MCMission::LoadWindowStatus() -> void
 {
     MCFitIniFile windowFile;
-    MainHolder()->SetTiled(0);
-    TacticalInterface()->TacticalMap->ShowGuiWindow(1);
+    MainHolder()->SetTiled(false);
+    TacticalInterface()->TacticalMap->ShowGuiWindow(true);
     MainHolder()->ZoomActivePane();
-    TacticalInterface()->TacticalMap->HideMe(0);
+    TacticalInterface()->TacticalMap->HideMe(false);
 
     if (windowFile.Open("windows.fit") != 0)
     {

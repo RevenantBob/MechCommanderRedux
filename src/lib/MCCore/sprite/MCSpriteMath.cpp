@@ -31,7 +31,7 @@ auto MCActorFacing(MCGameObject* obj) -> double
 
 auto MCZoomScale(const MCCamera* cam) -> float
 {
-    return cam->CameraScale == 1 ? 0.5f : 1.0f;
+    return MCCamera::CameraScale == 1 ? 0.5f : 1.0f;
 }
 
 auto MCShapeFrameBounds(uint8_t* shapeTable, int32_t frame) -> MCFrameBounds

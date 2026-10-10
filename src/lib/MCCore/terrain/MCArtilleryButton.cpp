@@ -55,7 +55,7 @@ auto MCArtilleryButton::Init(int32_t xPos, int32_t yPos, int32_t w, int32_t h, c
     const int32_t result = MCGuiButton::Init(xPos, yPos, w, h, fileName);
     Armed = false;
     KeyArmed = false;
-    Disabled = 0;
+    Disabled = false;
     return result;
 }
 
@@ -63,7 +63,7 @@ auto MCArtilleryButton::Draw() -> void
 {
     if (const std::optional<int32_t> before = MCStrikesLeft(CommandId); before.has_value())
     {
-        Disabled = *before < 1 ? -1 : 0;
+        Disabled = *before < 1 ? -1 : false;
     }
 
     MCGuiButton::Draw();
@@ -103,7 +103,7 @@ auto MCArtilleryButton::HandleEvent(MCGuiEvent* event) -> void
 
         if (event->Type == EventLeftDown)
         {
-            SoundSystem()->PlayDigitalSample(0x46, 1, nullptr, 0, 0);
+            SoundSystem()->PlayDigitalSample(0x46, 1, nullptr, false, false);
         }
 
         return;
@@ -177,13 +177,13 @@ auto MCArtilleryButton::HandleEvent(MCGuiEvent* event) -> void
             const MCVector2D screenPos = MCWindowPoint(pane, screenX, screenY);
             MCVector3D target3d;
             camera->InverseProject(screenPos, target3d);
-            TacticalInterface()->CallStrike(CommandId, &target3d, nullptr, true, false, -1.0f);
+            MCTacticalInterface::CallStrike(CommandId, &target3d, nullptr, true, false, -1.0f);
         }
         else
         {
             MCVector3D target3d(static_cast<float>(inMap.x), static_cast<float>(inMap.y), 0.0f);
             map->TacMapToWorld(target3d, true);
-            TacticalInterface()->CallStrike(CommandId, &target3d, nullptr, true, false, -1.0f);
+            MCTacticalInterface::CallStrike(CommandId, &target3d, nullptr, true, false, -1.0f);
         }
 
         map->ReleaseStatusLine();

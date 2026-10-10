@@ -85,7 +85,7 @@ auto MCObjectType::Init(MCFitIniFile* typeFile) -> int32_t
     return 0;
 }
 
-auto MCObjectType::CreateExplosion(MCVector3D& position, float damage, float radius) -> void
+auto MCObjectType::CreateExplosion(MCVector3D& position, float damage, float radius) const -> void
 {
     if (ExplosionObject == -1)
     {

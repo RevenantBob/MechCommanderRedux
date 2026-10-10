@@ -206,17 +206,6 @@ int32_t VfxIlbmDraw(MCPane* pane, uint8_t* ilbm)
     return transparent;
 }
 
-void VfxIlbmPalette(uint8_t* ilbm, MCVfxRgb* palette)
-{
-    const uint8_t* colors = FindIffChunk("CMAP", ilbm);
-    uint8_t* out = &palette[0].R;
-
-    for (int32_t i = 0; i < 0x300; ++i)
-    {
-        out[i] = static_cast<uint8_t>(colors[i] >> 2);
-    }
-}
-
 int32_t VfxIlbmResolution(uint8_t* ilbm)
 {
     const uint8_t* header = FindIffChunk("BMHD", ilbm);
@@ -260,7 +249,7 @@ int32_t VfxPcxDraw(MCPane* pane, uint8_t* pcx)
     return 0;
 }
 
-void VfxPcxPalette(uint8_t* pcx, int32_t fileSize, MCVfxRgb* palette)
+void VfxPcxPalette(const uint8_t* pcx, int32_t fileSize, MCVfxRgb* palette)
 {
     const uint8_t* colors = pcx + fileSize - 0x300;
     uint8_t* out = &palette[0].R;
@@ -320,7 +309,7 @@ namespace
         std::vector<uint8_t> Line;
 
         /// <summary>GIF_init_codetable.</summary>
-        void InitCodeTable(int32_t clearCode)
+        void InitCodeTable(int32_t clearCode) const
         {
             State->NextCode = clearCode + 2;
             State->CodeLimit = clearCode * 2;
@@ -374,7 +363,7 @@ namespace
         }
 
         /// <summary>GIF_insertcode: adds prefix + first pixel of <paramref name="code"/>.</summary>
-        void InsertCode(int32_t code, int32_t prefix)
+        void InsertCode(int32_t code, int32_t prefix) const
         {
             const int32_t next = State->NextCode;
 
@@ -556,7 +545,7 @@ int32_t VfxGifDraw(MCPane* pane, uint8_t* gif, void* buffer)
     return background;
 }
 
-void VfxGifPalette(uint8_t* gif, MCVfxRgb* palette)
+void VfxGifPalette(const uint8_t* gif, MCVfxRgb* palette)
 {
     const uint8_t* p = gif + 0xd;
     uint8_t* out = &palette[0].R;

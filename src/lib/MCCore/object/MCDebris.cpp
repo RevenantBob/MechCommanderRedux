@@ -178,7 +178,7 @@ auto MCDebris::Init(MCObjectType* objType) -> int32_t
     return 0;
 }
 
-auto MCDebris::SetPaintScheme(int32_t paintScheme) -> void
+auto MCDebris::SetPaintScheme(int32_t paintScheme) const -> void
 {
     Appearance->FadeTableIndex = paintScheme;
 }

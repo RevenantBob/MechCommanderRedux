@@ -191,7 +191,7 @@ auto MCVfxAppearance::Render(int32_t depthFixup) -> int32_t
         // Delta-compressed animations draw unscaled (only when the type is scaled).
         if (shape != nullptr && shape->FrameList != nullptr && type->Scaled)
         {
-            ElementList()->OpenGroup(depth, 1);
+            ElementList()->OpenGroup(depth, true);
             ElementList()->Add(ElementList()->Make<MCDeltaElement>(shape->FrameList, static_cast<int32_t>(ScreenPos.X),
                                                                    static_cast<int32_t>(ScreenPos.Y), CurrentFrame,
                                                                    FadeTable));
@@ -199,7 +199,7 @@ auto MCVfxAppearance::Render(int32_t depthFixup) -> int32_t
     }
     else if (shape != nullptr && shape->FrameList != nullptr)
     {
-        ElementList()->OpenGroup(depth, 1);
+        ElementList()->OpenGroup(depth, true);
         // Scaled types have their own zoomed out shapes, so they draw unscaled.
         ElementList()->Add(ElementList()->Make<MCVfxElement>(shape->FrameList, ScreenPos.X, ScreenPos.Y, CurrentFrame,
                                                              0, FadeTable, type->Scaled ? 1 : 0));
@@ -367,7 +367,7 @@ auto MCVfxAppearance::Update() -> int32_t
     return 1;
 }
 
-auto MCVfxAppearance::StateExists(MCActorState state) -> int32_t
+auto MCVfxAppearance::StateExists(MCActorState state) const -> int32_t
 {
     if (static_cast<int32_t>(state) < static_cast<int32_t>(AppearType->NumStates) && static_cast<int32_t>(state) >= 0)
     {
@@ -406,7 +406,7 @@ auto MCDrawDamageBar(MCAppearance* appearance, MCAppearanceType* type, MCGameObj
     }
     else
     {
-        const int shift = Eye->CameraScale == 1 ? 1 : 0;
+        const int shift = MCCamera::CameraScale == 1 ? 1 : 0;
         left = static_cast<float>(type->BoundsUpperLeftX >> shift) + screenPos.X;
         top = static_cast<float>(type->BoundsUpperLeftY >> shift) + screenPos.Y;
         right = static_cast<float>(type->BoundsLowerRightX >> shift) + screenPos.X;
@@ -424,16 +424,16 @@ auto MCDrawDamageBar(MCAppearance* appearance, MCAppearanceType* type, MCGameObj
     const float barY = top - gap - barHeight - gap - barHeight;
     const float barX = (left + (right - left) * 0.5f) - barWidth * 0.5f;
 
-    ElementList()->OpenGroup(-50000, 1);
+    ElementList()->OpenGroup(-50000, true);
     MCPolyElementData data;
     data.NumVertices = 0;
-    data.TextureMapOff = 0;
+    data.TextureMapOff = false;
     data.Texture = nullptr;
     data.TextureWidth = 0;
     data.TextureHeight = 0;
     data.FadeTable = nullptr;
-    data.Translate = 0;
-    data.StatusBar = 1;
+    data.Translate = false;
+    data.StatusBar = true;
     data.BarColor = 0x101;
     data.Vertices[0].X = static_cast<int32_t>(barX - 1.0f);
     data.Vertices[0].Y = static_cast<int32_t>(barY - 1.0f);

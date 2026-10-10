@@ -322,7 +322,7 @@ auto MCSplashScreen::ShowGuiWindow(bool show) -> void
     {
         if (show)
         {
-            GuiSystem()->AddTimer(Elements[3], PollTimer, PollInterval, 0, 0, 0);
+            GuiSystem()->AddTimer(Elements[3], PollTimer, PollInterval, 0, 0, false);
             MCGenericScreen::ShowGuiWindow(show);
             return;
         }
@@ -333,7 +333,7 @@ auto MCSplashScreen::ShowGuiWindow(bool show) -> void
     {
         if (show)
         {
-            GuiSystem()->AddTimer(this, PollTimer, PollInterval, 0, 0, 0);
+            GuiSystem()->AddTimer(this, PollTimer, PollInterval, 0, 0, false);
             MCGenericScreen::ShowGuiWindow(show);
             return;
         }

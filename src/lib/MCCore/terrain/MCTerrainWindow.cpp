@@ -205,12 +205,12 @@ auto MCTerrainWindow::Update() -> void
 
     if (Scenario()->AlwaysRevealed == 0)
     {
-        terrain->ISVisibleBits->ResetAll(0);
+        terrain->ISVisibleBits->ResetAll(false);
     }
 
     if (Scenario()->GodMode != 0)
     {
-        terrain->ISVisibleBits->ResetAll(1);
+        terrain->ISVisibleBits->ResetAll(true);
     }
 
     terrain->MapBlocks->Update(Camera->Position, *this);
@@ -238,10 +238,8 @@ auto MCTerrainWindow::Render(int32_t hazeFactor) -> void
 
     if (DrawTerrainGrid != 0)
     {
-        const float gridX =
-            static_cast<float>(std::floor(MCTerrain::OneOvermetersPerVertex * point.X)) * MCTerrain::MetersPerVertex;
-        const float gridY =
-            static_cast<float>(std::floor(MCTerrain::OneOvermetersPerVertex * point.Y)) * MCTerrain::MetersPerVertex;
+        const float gridX = std::floor(MCTerrain::OneOvermetersPerVertex * point.X) * MCTerrain::MetersPerVertex;
+        const float gridY = std::floor(MCTerrain::OneOvermetersPerVertex * point.Y) * MCTerrain::MetersPerVertex;
         const int32_t vertexX = static_cast<int32_t>(std::floor(gridX * MCTerrain::OneOvermetersPerVertex));
         const int32_t vertexY = static_cast<int32_t>(std::floor(gridY * MCTerrain::OneOvermetersPerVertex));
         tileCol = std::clamp(vertexX + (mapSide >> 1), 0, mapSide - 1);

@@ -262,7 +262,7 @@ int32_t UpdateDisplay(bool screenShot, bool staticNoise, int32_t noiseChance, bo
         gui->FadeDownCurrentPalette();
     }
 
-    std::lock_guard<std::recursive_mutex> lock(MouseCritSec);
+    std::scoped_lock lock(MouseCritSec);
     InMouseCritSec = 1;
     // Port: dragged objects draw into the cursor while the frame is drawn (MCHardwareCursorCarry).
     MCHardwareCursorNewFrame();
@@ -441,7 +441,7 @@ void MouseTimerTick()
     InTimerThread = true;
 
     {
-        std::lock_guard<std::recursive_mutex> lock(MouseCritSec);
+        std::scoped_lock lock(MouseCritSec);
         MouseTicks++;
     }
 

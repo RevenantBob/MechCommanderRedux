@@ -179,9 +179,6 @@ public:
     /// </summary>
     void DebugMode();
 
-    /// <summary>Nonzero while <see cref="DebugMode"/> waits for a command.</summary>
-    bool WaitingForCommand() const { return _DebugCommand; }
-
 private:
     /// <summary>Prints the module instances, two per line.</summary>
     void DisplayModuleInstanceRegistry() const;

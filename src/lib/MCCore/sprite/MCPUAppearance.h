@@ -45,7 +45,7 @@ public:
     int32_t SetCombatMode(bool combatMode);
 
     /// <summary>The number of frames of <paramref name="state"/> (0 when absent).</summary>
-    int32_t StateExists(MCPUActorState state);
+    int32_t StateExists(MCPUActorState state) const;
 
     /// <summary>The type.</summary>
     MCPUAppearanceType* AppearType = nullptr;

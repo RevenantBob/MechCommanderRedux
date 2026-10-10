@@ -66,7 +66,7 @@ auto MCInventoryBlock::PreHandleEvent(const MCDragState& drag, MCGuiEvent* event
 
         if (event->Y < pane->GlobalY() || pane->GlobalY() + pane->Height() < event->Y)
         {
-            screen->DrawBlankInvInfoBlock(-1);
+            MCLogInvScreen::DrawBlankInvInfoBlock(-1);
             screen->HandleEvent(event);
             return false;
         }

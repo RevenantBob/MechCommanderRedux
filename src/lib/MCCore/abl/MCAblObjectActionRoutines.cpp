@@ -649,12 +649,12 @@ namespace
 
         if (!target)
         {
-            position.Z = Terrain()->GetTerrainElevation(position);
-            TacticalInterface()->CallStrike(strikeType, &position, nullptr, false, forClansOnPoint != 0, delay);
+            position.Z = MCTerrain::GetTerrainElevation(position);
+            MCTacticalInterface::CallStrike(strikeType, &position, nullptr, false, forClansOnPoint != 0, delay);
         }
         else
         {
-            TacticalInterface()->CallStrike(strikeType, nullptr, target, false, forClansOnTarget != 0, delay);
+            MCTacticalInterface::CallStrike(strikeType, nullptr, target, false, forClansOnTarget != 0, delay);
         }
     }
 }

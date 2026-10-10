@@ -56,7 +56,7 @@ public:
     int32_t GetVehicleCount() const { return static_cast<int32_t>(Vehicles.size()); }
 
     /// <summary>Writes the vehicle at <paramref name="index"/> as a profile text file.</summary>
-    int32_t SaveVehicleText(std::string_view fileName, int32_t index);
+    int32_t SaveVehicleText(std::string_view fileName, int32_t index) const;
 
     /// <summary>The vehicles in list order.</summary>
     std::vector<std::unique_ptr<MCLogVehicle>> Vehicles;

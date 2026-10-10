@@ -73,18 +73,6 @@ auto MCPurPilotList::Insert(std::unique_ptr<MCPurPilotData> pilot) -> void
     Pilots.insert(place, std::move(pilot));
 }
 
-auto MCPurPilotList::RemovePilot(int32_t index) -> int32_t
-{
-    if (index >= GetPilotCount() || Pilots.empty())
-    {
-        return -1;
-    }
-
-    // A negative index is the first pilot, as the original's walk gave.
-    Pilots.erase(Pilots.begin() + std::max(index, 0));
-    return 0;
-}
-
 auto MCPurPilotList::SetPilotStatus(int32_t pilotId, int32_t status) -> void
 {
     for (const std::unique_ptr<MCPurPilotData>& pilot : Pilots)
