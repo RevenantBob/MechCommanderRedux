@@ -172,6 +172,9 @@ public:
     /// <summary>The binding of <paramref name="command"/>.</summary>
     uint32_t Key(MCKeyCommand command) const { return Keys[static_cast<size_t>(command)]; }
 
+    /// <summary>Lets go of every scroll key (their key-ups never come once the window loses focus).</summary>
+    void ReleaseScrollKeys();
+
     /// <summary>Restores every live mech bar mover's armour, internal structure, weapons and ammunition (a cheat).</summary>
     void CheatHealAll() const;
     /// <summary>Sets every live mech bar mover's pilot gunnery skill to 120 (a cheat).</summary>
@@ -184,10 +187,14 @@ public:
     MCVector3D MouseWorldPos;
     /// <summary>The key that rotates the camera while held (0x38, alt).</summary>
     int16_t RotateKey = 0;
-    /// <summary>The direction the arrow keys scroll the map (0, 2, 4, 6; -1 = none).</summary>
+    /// <summary>The direction the arrow keys scroll the map (0-7 clockwise from up; -1 = none).</summary>
     int32_t ScrollDirection = -1;
     /// <summary>The direction the ctrl+arrow keys scroll the tactical map (-1 = none).</summary>
     int32_t TacScrollDirection = -1;
+    /// <summary>Which map scroll keys are held: up, down, left, right (the order of their bindings).</summary>
+    std::array<bool, 4> ScrollKeysHeld{};
+    /// <summary>Which tactical map scroll keys are held, as <see cref="ScrollKeysHeld"/>.</summary>
+    std::array<bool, 4> TacScrollKeysHeld{};
     /// <summary>The mode the next click's order is given in.</summary>
     MCInterfaceMode CurrentMode = MCInterfaceMode::Unset;
     /// <summary>

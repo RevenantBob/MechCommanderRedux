@@ -212,8 +212,7 @@ MCTacticalInterface::~MCTacticalInterface()
 
 auto MCTacticalInterface::Init() -> int32_t
 {
-    ScrollDirection = -1;
-    TacScrollDirection = -1;
+    ReleaseScrollKeys();
 
     // The mech bar, along the bottom of the screen.
     MechBar = MCMakeGui<MCMechBar>();

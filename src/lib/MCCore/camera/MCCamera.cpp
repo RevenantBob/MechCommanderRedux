@@ -869,7 +869,7 @@ auto MCCamera::VertexProject(int32_t blockNum, int32_t vertexNum, MCVector2D& sc
     return 1;
 }
 
-auto MCCamera::ScrollCamera(int32_t dx, int32_t dy) -> void
+auto MCCamera::ScrollCamera(float dx, float dy) -> void
 {
     const MCVector3D oldPosition = Position;
 
@@ -879,8 +879,8 @@ auto MCCamera::ScrollCamera(int32_t dx, int32_t dy) -> void
     }
 
     MCVector3D newPosition;
-    newPosition.X = static_cast<float>(dy) + static_cast<float>(dx) + oldPosition.X;
-    newPosition.Y = (static_cast<float>(dx) + oldPosition.Y) - static_cast<float>(dy);
+    newPosition.X = dy + dx + oldPosition.X;
+    newPosition.Y = (dx + oldPosition.Y) - dy;
     newPosition.Z = oldPosition.Z;
     SetPosition(newPosition);
 }

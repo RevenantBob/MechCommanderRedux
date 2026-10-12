@@ -124,6 +124,49 @@ namespace
         return -1;
     }
 
+    /// <summary>
+    /// The scroll key (0-3: up, down, left, right) <paramref name="key"/> names among the four bindings from
+    /// <paramref name="first"/>, or -1.
+    /// </summary>
+    int32_t ScrollKey(const MCTacticalInterface& iface, uint32_t key, MCKeyCommand first)
+    {
+        for (int32_t direction = 0; direction < 4; direction++)
+        {
+            if (key == iface.Key(static_cast<MCKeyCommand>(static_cast<int32_t>(first) + direction)))
+            {
+                return direction;
+            }
+        }
+
+        return -1;
+    }
+
+    /// <summary>The direction (0-7 clockwise from up; -1 = none) the held scroll keys give together.</summary>
+    int32_t HeldScrollDirection(const std::array<bool, 4>& held)
+    {
+        static constexpr std::array<std::array<int32_t, 3>, 3> directions = {{{7, 0, 1}, {6, -1, 2}, {5, 4, 3}}};
+        const int32_t y = (held[1] ? 1 : 0) - (held[0] ? 1 : 0);
+        const int32_t x = (held[3] ? 1 : 0) - (held[2] ? 1 : 0);
+        return directions[static_cast<size_t>(y + 1)][static_cast<size_t>(x + 1)];
+    }
+
+    /// <summary>Lets go of the scroll keys among the four bindings from <paramref name="first"/> on <paramref name="key"/>'s key.</summary>
+    void ReleaseScrollKey(const MCTacticalInterface& iface, uint32_t key, MCKeyCommand first, std::array<bool, 4>& held)
+    {
+        constexpr uint32_t modifiers = KeyShift | KeyCtrl | KeyAlt;
+
+        for (size_t direction = 0; direction < held.size(); direction++)
+        {
+            const auto command =
+                static_cast<MCKeyCommand>(static_cast<int32_t>(first) + static_cast<int32_t>(direction));
+
+            if ((iface.Key(command) & ~modifiers) == (key & ~modifiers))
+            {
+                held[direction] = false;
+            }
+        }
+    }
+
     /// <summary>A key that picks a mode, with the mode; <c>Armed</c> modes need an armed mover selected.</summary>
     struct MCModeKey
     {
@@ -177,33 +220,23 @@ auto MCTacticalInterface::HandleKeyDown(MCGuiEvent& event) -> void
         const int32_t lanceToSelect = LanceKey(*this, key, MCKeyCommand::SelectLance1);
         const int32_t lanceToAdd = LanceKey(*this, key, MCKeyCommand::AddLance1);
         const int32_t artillery = ArtilleryKey(*this, key);
+        const int32_t scrollKey = ScrollKey(*this, key, MCKeyCommand::ScrollUp);
+        const int32_t tacScrollKey = ScrollKey(*this, key, MCKeyCommand::TacticalMapScrollUp);
 
-        if (is(MCKeyCommand::ScrollUp))
+        // Port fix (OB-174): a scroll key set the one direction, so two held keys scrolled only the
+        // last one's way; the held keys now scroll together, diagonals included.
+        if (scrollKey >= 0)
         {
-            ScrollDirection = 0;
+            ScrollKeysHeld[static_cast<size_t>(scrollKey)] = true;
+            ScrollDirection = HeldScrollDirection(ScrollKeysHeld);
         }
-        else if (is(MCKeyCommand::ScrollDown))
-        {
-            ScrollDirection = 4;
-        }
-        else if (is(MCKeyCommand::ScrollLeft))
-        {
-            ScrollDirection = 6;
-        }
-        else if (is(MCKeyCommand::ScrollRight))
-        {
-            ScrollDirection = 2;
-        }
-        else if (is(MCKeyCommand::TacticalMapScrollUp) || is(MCKeyCommand::TacticalMapScrollDown) ||
-                 is(MCKeyCommand::TacticalMapScrollLeft) || is(MCKeyCommand::TacticalMapScrollRight))
+        else if (tacScrollKey >= 0)
         {
             if (tacMap != nullptr)
             {
                 ShowTacticalMapPage(MCTacmapPage::Map);
-                TacScrollDirection = is(MCKeyCommand::TacticalMapScrollUp)     ? 0
-                                     : is(MCKeyCommand::TacticalMapScrollDown) ? 4
-                                     : is(MCKeyCommand::TacticalMapScrollLeft) ? 6
-                                                                               : 2;
+                TacScrollKeysHeld[static_cast<size_t>(tacScrollKey)] = true;
+                TacScrollDirection = HeldScrollDirection(TacScrollKeysHeld);
             }
         }
         else if (is(MCKeyCommand::HoldTacticalMap))
@@ -473,6 +506,13 @@ auto MCTacticalInterface::HandleKeyUp(MCGuiEvent& event) -> void
         DrawOrderLines(*this, false, 0);
     }
 
+    // Port fix (OB-174): any key-up stopped the arrow scrolling (unless it went to a main window
+    // pane); now a released scroll key drops out and the ones still held go on.
+    ReleaseScrollKey(*this, key, MCKeyCommand::ScrollUp, ScrollKeysHeld);
+    ReleaseScrollKey(*this, key, MCKeyCommand::TacticalMapScrollUp, TacScrollKeysHeld);
+    ScrollDirection = HeldScrollDirection(ScrollKeysHeld);
+    TacScrollDirection = HeldScrollDirection(TacScrollKeysHeld);
+
     if (const std::shared_ptr<MCGuiObject> target = event.TargetObject();
         target != nullptr && target->ParentObject().get() == MainHolder().get())
     {
@@ -483,9 +523,6 @@ auto MCTacticalInterface::HandleKeyUp(MCGuiEvent& event) -> void
     {
         SetMode(MCInterfaceMode::None);
     }
-
-    ScrollDirection = -1;
-    TacScrollDirection = -1;
 
     if (scanCode == RotateKey && Eye() != nullptr)
     {
@@ -517,4 +554,12 @@ auto MCTacticalInterface::HandleKeyUp(MCGuiEvent& event) -> void
     {
         SelectVisibleMechs();
     }
+}
+
+auto MCTacticalInterface::ReleaseScrollKeys() -> void
+{
+    ScrollKeysHeld = {};
+    TacScrollKeysHeld = {};
+    ScrollDirection = -1;
+    TacScrollDirection = -1;
 }

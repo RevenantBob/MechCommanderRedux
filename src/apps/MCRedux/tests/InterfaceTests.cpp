@@ -588,3 +588,69 @@ TEST_CASE_ISOLATED("game: the mouse state picks the cursor for what is under the
 
     iface->ClearMechSelection();
 }
+
+/// <summary>
+/// The arrows scroll the map while held, two of them diagonally; letting go of one leaves the other scrolling, and
+/// another key's key-up doesn't stop them (OB-174). Ctrl+arrows do the same for the tactical map.
+/// </summary>
+TEST_CASE_ISOLATED("game: held arrow keys scroll together, diagonally, until each is let go (OB-174)")
+{
+    if (!MCTestGame::Available())
+    {
+        return;
+    }
+
+    REQUIRE(MCTestGame::StartMission(1));
+    std::shared_ptr<MCTacticalInterface> iface = TacticalInterface();
+    REQUIRE(iface != nullptr);
+
+    // The directions run clockwise from up: 0 up, 2 right, 4 down, 6 left, the odd ones between.
+    constexpr int16_t up = 0x148;
+    constexpr int16_t down = 0x150;
+    constexpr int16_t left = 0x14b;
+    constexpr int16_t right = 0x14d;
+    CHECK_EQ(iface->ScrollDirection, -1);
+
+    SendKey(up);
+    CHECK_EQ(iface->ScrollDirection, 0);
+    SendKey(left);
+    CHECK_EQ(iface->ScrollDirection, 7);
+
+    // Another key's key-up leaves the arrows held.
+    SendKey(0x17, 0, false);
+    CHECK_EQ(iface->ScrollDirection, 7);
+
+    SendKey(up, 0, false);
+    CHECK_EQ(iface->ScrollDirection, 6);
+    SendKey(down);
+    CHECK_EQ(iface->ScrollDirection, 5);
+    SendKey(right);
+    CHECK_EQ(iface->ScrollDirection, 4);
+    SendKey(left, 0, false);
+    CHECK_EQ(iface->ScrollDirection, 3);
+    SendKey(down, 0, false);
+    CHECK_EQ(iface->ScrollDirection, 2);
+    SendKey(up);
+    CHECK_EQ(iface->ScrollDirection, 1);
+
+    // A key let go with ctrl down is still that arrow.
+    SendKey(up, KeyCtrl, false);
+    SendKey(right, 0, false);
+    CHECK_EQ(iface->ScrollDirection, -1);
+
+    // Ctrl+arrows: the tactical map, the same way.
+    SendKey(down, KeyCtrl);
+    SendKey(right, KeyCtrl);
+    CHECK_EQ(iface->TacScrollDirection, 3);
+    CHECK_EQ(iface->ScrollDirection, -1);
+    SendKey(down, KeyCtrl, false);
+    CHECK_EQ(iface->TacScrollDirection, 2);
+
+    // Losing focus lets go of every scroll key.
+    SendKey(up);
+    iface->ReleaseScrollKeys();
+    CHECK_EQ(iface->ScrollDirection, -1);
+    CHECK_EQ(iface->TacScrollDirection, -1);
+    SendKey(left);
+    CHECK_EQ(iface->ScrollDirection, 6);
+}

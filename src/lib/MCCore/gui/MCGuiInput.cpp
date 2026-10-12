@@ -646,18 +646,19 @@ auto ScrollScreen() -> void
         camera = MainHolder()->GetActivePane()->GetCamera();
     }
 
-    int32_t dx = 0;
-    int32_t dy = 0;
+    float dx = 0.0f;
+    float dy = 0.0f;
 
     if (camera != nullptr)
     {
         // At full size the original scrolls at half the speed (zoomed out, at the whole speed).
         speed = static_cast<int16_t>(speed / 2);
 
-        // MCX.EXE's constant is a hair under 15 (14.999999).
-        float step = FrameLength * 0x1.dffffep+3f * static_cast<float>(speed);
+        // MCX.EXE's constant is a hair under 15 (14.999999); it scrolled whole steps.
+        float step = std::trunc(FrameLength * 0x1.dffffep+3f * static_cast<float>(speed));
 
-        // Port: the same speed on the screen at any zoom (the world surface's pixels per screen pixel).
+        // Port: the same speed on the screen at any zoom (the world surface's pixels per screen pixel). The step
+        // stays fractional: zoomed in, a whole step would round to nothing.
         if (camera->View() != nullptr && camera->View()->WorldScaleY() > 0.0f)
         {
             step /= camera->View()->WorldScaleY();
@@ -690,20 +691,20 @@ auto ScrollScreen() -> void
                 {
                     if (cursor.x < scrollArea.left)
                     {
-                        dx = static_cast<int32_t>(-step);
+                        dx = -step;
                     }
                     else if (cursor.x > scrollArea.right)
                     {
-                        dx = static_cast<int32_t>(step);
+                        dx = step;
                     }
 
                     if (cursor.y < scrollArea.top)
                     {
-                        dy = static_cast<int32_t>(-step);
+                        dy = -step;
                     }
                     else if (cursor.y > scrollArea.bottom)
                     {
-                        dy = static_cast<int32_t>(step);
+                        dy = step;
                     }
                 }
             }
@@ -719,38 +720,38 @@ auto ScrollScreen() -> void
             switch (TacticalInterface()->ScrollDirection)
             {
                 case 0:
-                    dy = static_cast<int32_t>(-step);
+                    dy = -step;
                     break;
                 case 1:
                 {
-                    dx = static_cast<int32_t>(step);
-                    dy = static_cast<int32_t>(-step);
+                    dx = step;
+                    dy = -step;
                     break;
                 }
                 case 2:
-                    dx = static_cast<int32_t>(step);
+                    dx = step;
                     break;
                 case 3:
                 {
-                    dx = static_cast<int32_t>(step);
+                    dx = step;
                     dy = dx;
                     break;
                 }
                 case 4:
-                    dy = static_cast<int32_t>(step);
+                    dy = step;
                     break;
                 case 5:
                 {
-                    dx = static_cast<int32_t>(-step);
-                    dy = static_cast<int32_t>(step);
+                    dx = -step;
+                    dy = step;
                     break;
                 }
                 case 6:
-                    dx = static_cast<int32_t>(-step);
+                    dx = -step;
                     break;
                 case 7:
                 {
-                    dx = static_cast<int32_t>(-step);
+                    dx = -step;
                     dy = dx;
                     break;
                 }
@@ -760,7 +761,7 @@ auto ScrollScreen() -> void
             }
         }
 
-        if (scroll && (dx != 0 || dy != 0))
+        if (scroll && (dx != 0.0f || dy != 0.0f))
         {
             // Keep the window's anchor point (selectionBox's first corner) on the same spot of the world.
             // Port: the box is in the view's own coordinates, the projection on its world surface (through the zoom).
@@ -883,6 +884,11 @@ auto WindowProc(uint32_t message, uint32_t wParam, int32_t lParam) -> int32_t
         case WM_ACTIVATEAPP:
         {
             gui.CloseMovie();
+
+            if (wParam == 0 && TacticalInterface() != nullptr)
+            {
+                TacticalInterface()->ReleaseScrollKeys();
+            }
 
             if (MultiPlayer() == nullptr)
             {

@@ -93,7 +93,8 @@ public:
     static int VertexProject(int32_t blockNum, int32_t vertexNum, MCVector2D& screenPos);
 
     /// <summary>Drops the target and moves the camera by a screen-aligned offset.</summary>
-    void ScrollCamera(int32_t dx, int32_t dy);
+    /// <remarks>Port: fractional, so a zoomed-in view scrolls by less than a whole world pixel a frame.</remarks>
+    void ScrollCamera(float dx, float dy);
 
     /// <summary>Moves the camera to <paramref name="newPosition"/>, kept inside the map's diamond.</summary>
     void SetPosition(MCVector3D newPosition);
