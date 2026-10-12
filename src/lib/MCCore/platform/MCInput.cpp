@@ -68,6 +68,19 @@ namespace
         return 0;
     }
 
+    /// <summary>
+    /// WM_CLOSE as DefWindowProc handled it: unless the window procedure cancels it, the window is destroyed and the
+    /// loop told to end.
+    /// </summary>
+    void close()
+    {
+        if (send(WM_CLOSE, 0, 0) == 0)
+        {
+            send(WM_DESTROY, 0, 0);
+            MCInput::PostQuitMessage(0);
+        }
+    }
+
     void setKey(int vk, bool down)
     {
         if (vk <= 0 || vk > 255)
@@ -480,7 +493,14 @@ namespace MCInput
 
         for (const MCPostedMessage& message : posted)
         {
-            send(message.Message, message.WParam, message.LParam);
+            if (message.Message == WM_CLOSE)
+            {
+                close();
+            }
+            else
+            {
+                send(message.Message, message.WParam, message.LParam);
+            }
         }
 
         SDL_Event event;
@@ -679,14 +699,8 @@ namespace MCInput
         {
             case SDL_EVENT_QUIT:
             case SDL_EVENT_WINDOW_CLOSE_REQUESTED:
-            {
-                if (send(WM_CLOSE, 0, 0) == 0)
-                {
-                    send(WM_DESTROY, 0, 0);
-                    PostQuitMessage(0);
-                }
+                close();
                 break;
-            }
             case SDL_EVENT_WINDOW_FOCUS_GAINED:
                 activate(true);
                 break;

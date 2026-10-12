@@ -56,7 +56,7 @@ bool AssertTest(int32_t errorCode, std::string_view text)
 
     if (choice == 2)
     {
-        KillTheGame();
+        KillTheGame(1);
     }
 
     return choice == 1;

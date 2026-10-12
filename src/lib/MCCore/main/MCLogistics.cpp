@@ -514,7 +514,7 @@ auto MCLogistics::Start() -> void
         // Started from a lobby: straight to the ready room, whose cancel button quits the game.
         SetCurrentScreen(ConnectScreen);
         LogisticsState = 0xe;
-        ScreenElement<MCLogButton>(*ConnectScreen, 1)->Callback().SetExec(KillTheGame);
+        ScreenElement<MCLogButton>(*ConnectScreen, 1)->Callback().SetExec([] { KillTheGame(); });
     }
 
     ShowLogScreen(false, false);

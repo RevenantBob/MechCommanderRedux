@@ -71,7 +71,7 @@ namespace
                                      "MechCommander Expansion or Editor already running.", nullptr);
         }
 
-        KillTheGame();
+        KillTheGame(1);
     }
 }
 

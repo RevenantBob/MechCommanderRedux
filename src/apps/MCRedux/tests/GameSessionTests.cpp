@@ -307,6 +307,30 @@ TEST_CASE_ISOLATED("game: the game session holds the game's systems and the stop
     CHECK(!MCIsRegistered(cursor));
 }
 
+/// <summary>
+/// KillTheGame unwinds to RunGame (which stops the GUI system and returns the code) instead of ending the process:
+/// 0 for a quit the player asked for, the code given for an error.
+/// </summary>
+TEST_CASE("game session: KillTheGame unwinds with its exit code")
+{
+    const auto quitCode = [](auto kill) -> std::optional<int32_t>
+    {
+        try
+        {
+            kill();
+        }
+        catch (const MCGameQuit& quit)
+        {
+            return quit.ExitCode;
+        }
+
+        return std::nullopt;
+    };
+
+    CHECK(quitCode([] { KillTheGame(); }) == std::optional<int32_t>(0));
+    CHECK(quitCode([] { KillTheGame(1); }) == std::optional<int32_t>(1));
+}
+
 namespace
 {
     /// <summary>

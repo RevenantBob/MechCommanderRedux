@@ -995,7 +995,7 @@ void LostConnectionDialogExit()
     }
     else
     {
-        KillTheGame();
+        KillTheGame(1);
     }
 }
 
@@ -1078,7 +1078,7 @@ void MultiPlayerSystemCallback(MCFidpMessage& msg)
 
                 if (BadSessionCounter > 10)
                 {
-                    KillTheGame();
+                    KillTheGame(1);
                 }
             }
 

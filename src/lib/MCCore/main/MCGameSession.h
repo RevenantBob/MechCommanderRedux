@@ -42,8 +42,19 @@ private:
     std::shared_ptr<MCGuiCallback> _ColorCallback = std::make_shared<MCGuiCallback>();
 };
 
-/// <summary>Shuts down multiplayer, the mouse timer, sound and the display, then exits with 1.</summary>
-[[noreturn]] void KillTheGame();
+/// <summary>Thrown by <see cref="KillTheGame"/>: unwinds to <c>RunGame</c>, which stops the game and returns the code.</summary>
+struct MCGameQuit
+{
+    /// <summary>The process's exit code: 0 for a quit the player asked for, else an error.</summary>
+    int32_t ExitCode = 0;
+};
+
+/// <summary>Ends the game at once: <c>RunGame</c> stops it and returns <paramref name="exitCode"/>.</summary>
+/// <remarks>
+/// The original shut down multiplayer, the mouse timer, sound and the display and called <c>_exit(1)</c>. The port
+/// throws <see cref="MCGameQuit"/> instead, so the GUI system's stop and SDL's own cleanup still run.
+/// </remarks>
+[[noreturn]] void KillTheGame(int32_t exitCode = 0);
 /// <summary>Whether the game system text window is up (SYSTEM.CFG's game system debug option).</summary>
 bool HasGameSystemWindow();
 /// <summary>Prints <paramref name="line"/> in the game system text window, when it is up.</summary>

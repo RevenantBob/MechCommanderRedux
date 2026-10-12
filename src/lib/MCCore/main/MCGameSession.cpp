@@ -4,8 +4,6 @@
 #include "abl/MCScrollingTextWindow.h"
 #include "camera/MCCamera.h"
 #include "color/MCWaterCycle.h"
-#include "gameos/MCSoundRenderer.h"
-#include "gui/MCUpdateDisplay.h"
 #include "gui/MCGuiPort.h"
 #include "gui/MCGuiSystem.h"
 #include "gui/MCGuiTextObject.h"
@@ -148,13 +146,9 @@ MCGameSession::~MCGameSession()
     }
 }
 
-void KillTheGame()
+void KillTheGame(int32_t exitCode)
 {
-    MCGameContext::Current().SetMultiPlayer(nullptr);
-    MouseTimerKill();
-    MCSoundRenderer::Uninstall();
-    GuiSystem().CloseDisplay();
-    std::exit(1);
+    throw MCGameQuit{exitCode};
 }
 
 auto HasGameSystemWindow() -> bool

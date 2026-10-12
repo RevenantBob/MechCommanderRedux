@@ -12,6 +12,7 @@
 #include "main/MCGamePaths.h"
 #include "logistics/MCConnectMenu.h"
 #include "main/MCGameContext.h"
+#include "main/MCGameSession.h"
 #include "mission/MCMission.h"
 #include "network/MCMultiPlayer.h"
 #include "platform/MCFrameLog.h"
@@ -300,13 +301,33 @@ auto RunGame(std::string_view commandLine) -> int
     MCGameContext& context = MCGameContext::Current();
     context.SetGuiSystem(std::make_unique<MCGuiSystem>());
 
-    if (GuiSystem().Start(commandLine, 640, 480) != 0)
+    // KillTheGame ends the game from wherever it is (MCGameQuit). During the start that is only before the display is
+    // up (no system.cfg), so there is nothing to stop yet.
+    try
     {
-        return -4;
+        if (GuiSystem().Start(commandLine, 640, 480) != 0)
+        {
+            return -4;
+        }
+    }
+    catch (const MCGameQuit& quit)
+    {
+        context.SetGuiSystem(nullptr);
+        return quit.ExitCode;
     }
 
-    GuiSystem().Run();
+    int exitCode = 0;
+
+    try
+    {
+        GuiSystem().Run();
+    }
+    catch (const MCGameQuit& quit)
+    {
+        exitCode = quit.ExitCode;
+    }
+
     GuiSystem().Stop();
     context.SetGuiSystem(nullptr);
-    return 0;
+    return exitCode;
 }
