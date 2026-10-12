@@ -1,5 +1,6 @@
 #include "stdafx.h"
 #include "platform/MCDisplay.h"
+#include "main/MCGameContext.h"
 #include "platform/MCRenderer.h"
 #include "platform/MCSdlPresenter.h"
 #include "platform/MCVulkanPresenter.h"
@@ -12,7 +13,8 @@ namespace
     }
 
     /// <summary>The palette through a gamma and brightness, as the GPU gets it.</summary>
-    void ApplyGamma(const std::array<VFX_RGB, 256>& palette, float gamma, float brightness, SDL_Color* out)
+    void ApplyGamma(const std::array<MCVfxRgb, 256>& palette, float gamma, float brightness,
+                    std::span<SDL_Color, 256> out)
     {
         std::array<uint8_t, 256> curve{};
 
@@ -31,12 +33,12 @@ namespace
 
         for (size_t i = 0; i < 256; ++i)
         {
-            out[i] = {curve[palette[i].r], curve[palette[i].g], curve[palette[i].b], 255};
+            out[i] = {curve[palette[i].R], curve[palette[i].G], curve[palette[i].B], 255};
         }
     }
 
     /// <summary>The colours shown: <paramref name="colors"/> with <paramref name="cycle"/> applied.</summary>
-    void ApplyCycle(const SDL_Color* colors, const MCColorCycle& cycle, SDL_Color* out)
+    void ApplyCycle(std::span<const SDL_Color, 256> colors, const MCColorCycle& cycle, std::span<SDL_Color, 256> out)
     {
         for (size_t i = 0; i < 256; ++i)
         {
@@ -45,8 +47,8 @@ namespace
     }
 
     /// <summary>The presenter for <paramref name="kind"/>; Vulkan falls back to software when it can't start.</summary>
-    std::expected<std::unique_ptr<MCPresenter>, std::string> CreatePresenter(SDL_Window* window, MCRendererKind kind,
-                                                                             bool vsync,
+    std::expected<std::unique_ptr<MCPresenter>, std::string> CreatePresenter(std::shared_ptr<SDL_Window> window,
+                                                                             MCRendererKind kind, bool vsync,
                                                                              const MCPresentation& presentation)
     {
         if (kind == MCRendererKind::Vulkan)
@@ -84,7 +86,7 @@ std::expected<std::unique_ptr<MCDisplay>, std::string> MCDisplay::Create(const M
         return std::unexpected(SdlError("SDL_InitSubSystem(video)"));
     }
 
-    std::unique_ptr<MCDisplay> display(new MCDisplay());
+    auto display = std::make_unique<MCDisplay>(Key{});
     display->_Width = options.Width;
     display->_Height = options.Height;
     display->_View = SDL_Rect{0, 0, options.Width, options.Height};
@@ -126,12 +128,14 @@ std::expected<std::unique_ptr<MCDisplay>, std::string> MCDisplay::Create(const M
         flags |= SDL_WINDOW_HIDDEN;
     }
 
-    display->_Window = SDL_CreateWindow(options.Title.c_str(), options.Width * scale, options.Height * scale, flags);
+    SDL_Window* window = SDL_CreateWindow(options.Title.c_str(), options.Width * scale, options.Height * scale, flags);
 
-    if (display->_Window == nullptr)
+    if (window == nullptr)
     {
         return std::unexpected(SdlError("SDL_CreateWindow"));
     }
+
+    display->_Window = std::shared_ptr<SDL_Window>(window, &SDL_DestroyWindow);
 
     MCPresentation presentation;
     presentation.IntegerScale = options.IntegerScale;
@@ -146,15 +150,15 @@ std::expected<std::unique_ptr<MCDisplay>, std::string> MCDisplay::Create(const M
 
     display->_Presenter = std::move(*presenter);
     SDL_Log("MCDisplay: renderer %s", display->_Presenter->Name().c_str());
-    display->SetTitle(options.Title.c_str());
+    display->SetTitle(options.Title);
 
     if (options.FollowWindow)
     {
         display->_FollowWindow = true;
         display->_MinWidth = options.Width;
         display->_MinHeight = options.Height;
-        SDL_SetWindowMinimumSize(display->_Window, options.Width, options.Height);
-        SDL_SyncWindow(display->_Window);
+        SDL_SetWindowMinimumSize(window, options.Width, options.Height);
+        SDL_SyncWindow(window);
         display->WindowScreenSize(display->_Width, display->_Height);
         display->_View = SDL_Rect{0, 0, display->_Width, display->_Height};
     }
@@ -165,32 +169,34 @@ std::expected<std::unique_ptr<MCDisplay>, std::string> MCDisplay::Create(const M
 
 MCDisplay::~MCDisplay()
 {
-    MCRenderer::SetOpPlane(&_Screen, nullptr);
-    MCRenderer::RemoveFrameSurface(&_Screen);
+    MCRenderer::SetOpPlane(*_Screen, nullptr);
+    MCRenderer::RemoveFrameSurface(*_Screen);
     _Presenter.reset();
-
-    if (_Window != nullptr)
-    {
-        SDL_DestroyWindow(_Window);
-    }
 }
 
-void MCDisplay::SetTitle(const char* title)
+void MCDisplay::SetTitle(std::string_view title)
 {
-    const char* renderer = _Presenter->Kind() == MCRendererKind::Vulkan ? "Vulkan" : "Software";
-    SDL_SetWindowTitle(_Window, std::format("{} [{}]", title != nullptr ? title : "", renderer).c_str());
+    const std::string_view renderer = _Presenter->Kind() == MCRendererKind::Vulkan ? "Vulkan" : "Software";
+    SDL_SetWindowTitle(_Window.get(), std::format("{} [{}]", title, renderer).c_str());
 }
 
 void MCDisplay::MakeScreen()
 {
-    _Pixels.assign(static_cast<size_t>(_Width) * _Height, 0);
-    _Screen.buffer = _Pixels.data();
-    _Screen.x_max = _Width - 1;
-    _Screen.y_max = _Height - 1;
-    _Ops.assign(_Pixels.size(), 0);
-    MCRenderer::SetOpPlane(&_Screen, _Ops.data());
-    MCRenderer::AddFrameSurface(&_Screen);
-    std::lock_guard lock(_PaletteLock);
+    const size_t size = static_cast<size_t>(_Width) * static_cast<size_t>(_Height);
+
+    if (size > _PixelCapacity)
+    {
+        _Screen->Pixels = std::make_shared<uint8_t[]>(size);
+        _PixelCapacity = size;
+    }
+
+    _Screen->XMax = _Width - 1;
+    _Screen->YMax = _Height - 1;
+    std::ranges::fill(Pixels(), uint8_t{0});
+    _Ops->assign(size, 0);
+    MCRenderer::SetOpPlane(*_Screen, _Ops);
+    MCRenderer::AddFrameSurface(_Screen);
+    std::scoped_lock lock(_PaletteLock);
     _PaletteDirty = true;
 }
 
@@ -199,7 +205,7 @@ void MCDisplay::WindowScreenSize(int& width, int& height) const
     width = _Width;
     height = _Height;
 
-    if ((SDL_GetWindowFlags(_Window) & SDL_WINDOW_MINIMIZED) != 0)
+    if ((SDL_GetWindowFlags(_Window.get()) & SDL_WINDOW_MINIMIZED) != 0)
     {
         return;
     }
@@ -207,7 +213,7 @@ void MCDisplay::WindowScreenSize(int& width, int& height) const
     int pixelWidth = 0;
     int pixelHeight = 0;
 
-    if (!SDL_GetWindowSizeInPixels(_Window, &pixelWidth, &pixelHeight) || pixelWidth <= 0 || pixelHeight <= 0)
+    if (!SDL_GetWindowSizeInPixels(_Window.get(), &pixelWidth, &pixelHeight) || pixelWidth <= 0 || pixelHeight <= 0)
     {
         return;
     }
@@ -221,16 +227,16 @@ void MCDisplay::LargestScreenSize(int& width, int& height) const
     width = _Width;
     height = _Height;
     int count = 0;
-    SDL_DisplayID* displays = SDL_GetDisplays(&count);
+    const std::unique_ptr<SDL_DisplayID, decltype(&SDL_free)> displays(SDL_GetDisplays(&count), &SDL_free);
 
     if (displays == nullptr)
     {
         return;
     }
 
-    for (int i = 0; i < count; ++i)
+    for (const SDL_DisplayID display : std::span(displays.get(), static_cast<size_t>(count)))
     {
-        const SDL_DisplayMode* mode = SDL_GetDesktopDisplayMode(displays[i]);
+        const SDL_DisplayMode* mode = SDL_GetDesktopDisplayMode(display);
 
         if (mode == nullptr)
         {
@@ -241,8 +247,6 @@ void MCDisplay::LargestScreenSize(int& width, int& height) const
         width = std::max(width, static_cast<int>(std::ceil(static_cast<float>(mode->w) * density)));
         height = std::max(height, static_cast<int>(std::ceil(static_cast<float>(mode->h) * density)));
     }
-
-    SDL_free(displays);
 }
 
 void MCDisplay::ResizeWindowToScale()
@@ -252,8 +256,8 @@ void MCDisplay::ResizeWindowToScale()
         return;
     }
 
-    SDL_SetWindowSize(_Window, _Width * _WindowScale, _Height * _WindowScale);
-    SDL_SetWindowPosition(_Window, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED);
+    SDL_SetWindowSize(_Window.get(), _Width * _WindowScale, _Height * _WindowScale);
+    SDL_SetWindowPosition(_Window.get(), SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED);
 }
 
 std::expected<void, std::string> MCDisplay::SetLogicalSize(int width, int height)
@@ -293,38 +297,39 @@ bool MCDisplay::SetView(int x, int y, int width, int height)
     return true;
 }
 
-void MCDisplay::SetPalette(int first, int count, const VFX_RGB* entries)
+void MCDisplay::SetPalette(int first, std::span<const MCVfxRgb> entries)
 {
-    if (entries == nullptr || first < 0 || first >= 256)
+    if (entries.empty() || first < 0 || first >= 256)
     {
         return;
     }
 
-    count = std::min(count, 256 - first);
-    std::lock_guard lock(_PaletteLock);
+    const int count = static_cast<int>(std::min<size_t>(entries.size(), static_cast<size_t>(256 - first)));
+    std::scoped_lock lock(_PaletteLock);
 
     for (int i = 0; i < count; ++i)
     {
-        _Palette[static_cast<size_t>(first + i)] = entries[i];
+        _Palette[static_cast<size_t>(first + i)] = entries[static_cast<size_t>(i)];
     }
 
     _PaletteDirty = true;
     EndCycleOver(first, count);
 }
 
-void MCDisplay::SetPalette(int first, int count, const uint8_t* rgb)
+void MCDisplay::SetPalette(int first, std::span<const uint8_t> rgb)
 {
-    if (rgb == nullptr || first < 0 || first >= 256)
+    if (rgb.size() < 3 || first < 0 || first >= 256)
     {
         return;
     }
 
-    count = std::min(count, 256 - first);
-    std::lock_guard lock(_PaletteLock);
+    const int count = static_cast<int>(std::min<size_t>(rgb.size() / 3, static_cast<size_t>(256 - first)));
+    std::scoped_lock lock(_PaletteLock);
 
     for (int i = 0; i < count; ++i)
     {
-        _Palette[static_cast<size_t>(first + i)] = {rgb[i * 3], rgb[i * 3 + 1], rgb[i * 3 + 2]};
+        const size_t at = static_cast<size_t>(i) * 3;
+        _Palette[static_cast<size_t>(first + i)] = {rgb[at], rgb[at + 1], rgb[at + 2]};
     }
 
     _PaletteDirty = true;
@@ -340,25 +345,25 @@ void MCDisplay::EndCycleOver(int first, int count)
     }
 }
 
-void MCDisplay::GetPalette(int first, int count, VFX_RGB* out) const
+void MCDisplay::GetPalette(int first, std::span<MCVfxRgb> out) const
 {
-    if (out == nullptr || first < 0 || first >= 256)
+    if (out.empty() || first < 0 || first >= 256)
     {
         return;
     }
 
-    count = std::min(count, 256 - first);
-    std::lock_guard lock(_PaletteLock);
+    const int count = static_cast<int>(std::min<size_t>(out.size(), static_cast<size_t>(256 - first)));
+    std::scoped_lock lock(_PaletteLock);
 
     for (int i = 0; i < count; ++i)
     {
-        out[i] = _Palette[static_cast<size_t>(first + i)];
+        out[static_cast<size_t>(i)] = _Palette[static_cast<size_t>(first + i)];
     }
 }
 
 void MCDisplay::SetGamma(float gamma, float brightness)
 {
-    std::lock_guard lock(_PaletteLock);
+    std::scoped_lock lock(_PaletteLock);
     _Gamma = std::clamp(gamma, 0.1f, 10.0f);
     _Brightness = std::clamp(brightness, 0.0f, 4.0f);
     _PaletteDirty = true;
@@ -369,22 +374,17 @@ void MCDisplay::SetFade(int levels)
     _Fade = std::clamp(levels, 0, 255);
 }
 
-void MCDisplay::GetShownColors(SDL_Color* out) const
+void MCDisplay::GetShownColors(std::span<SDL_Color, 256> out) const
 {
-    if (out == nullptr)
-    {
-        return;
-    }
-
-    std::lock_guard lock(_PaletteLock);
+    std::scoped_lock lock(_PaletteLock);
     std::array<SDL_Color, 256> colors{};
-    ApplyGamma(_Palette, _Gamma, _Brightness, colors.data());
-    ApplyCycle(colors.data(), _Cycle, out);
+    ApplyGamma(_Palette, _Gamma, _Brightness, colors);
+    ApplyCycle(colors, _Cycle, out);
 }
 
 void MCDisplay::SetColorCycle(const MCColorCycle& cycle)
 {
-    std::lock_guard lock(_PaletteLock);
+    std::scoped_lock lock(_PaletteLock);
 
     if (cycle != _Cycle)
     {
@@ -415,29 +415,28 @@ void MCDisplay::PixelScale(float& scaleX, float& scaleY) const
 
 MCFrame MCDisplay::BuildFrame(bool allColors)
 {
-    MCFrame frame;
-    frame.Screen = &_Screen;
-    frame.Pixels = _Pixels.data();
+    MCFrame frame{.Screen = *_Screen};
+    frame.Pixels = Pixels();
     frame.Width = _Width;
     frame.Height = _Height;
     frame.View = _View;
-    frame.Ops = _Ops.data();
+    frame.Ops = *_Ops;
     _FrameUnderlays = ScreenUnderlays();
     frame.Underlays = _FrameUnderlays;
 
     {
-        std::lock_guard lock(_PaletteLock);
+        std::scoped_lock lock(_PaletteLock);
 
         if (_PaletteDirty || allColors)
         {
-            ApplyGamma(_Palette, _Gamma, _Brightness, _PaletteColors.data());
+            ApplyGamma(_Palette, _Gamma, _Brightness, _PaletteColors);
             frame.PaletteChanged = true;
             _PaletteDirty = false;
         }
 
         if (frame.PaletteChanged || _CycleDirty)
         {
-            ApplyCycle(_PaletteColors.data(), _Cycle, _ShownColors.data());
+            ApplyCycle(_PaletteColors, _Cycle, _ShownColors);
             frame.ColorsChanged = true;
             _CycleDirty = false;
         }
@@ -445,22 +444,22 @@ MCFrame MCDisplay::BuildFrame(bool allColors)
         frame.Cycle = _Cycle;
     }
 
-    frame.Colors = _ShownColors.data();
-    frame.PaletteColors = _PaletteColors.data();
+    frame.Colors = _ShownColors;
+    frame.PaletteColors = _PaletteColors;
     frame.Fade = _Fade;
     return frame;
 }
 
 std::expected<void, std::string> MCDisplay::Present()
 {
-    MCPort::ManualClockPresented();
+    MCGameContext::Current().Clock().Presented();
 
     if (OnPresent)
     {
         OnPresent();
     }
 
-    if ((SDL_GetWindowFlags(_Window) & SDL_WINDOW_MINIMIZED) != 0)
+    if ((SDL_GetWindowFlags(_Window.get()) & SDL_WINDOW_MINIMIZED) != 0)
     {
         return _Presenter->Discard(BuildFrame(false));
     }
@@ -476,13 +475,12 @@ std::expected<std::vector<SDL_Color>, std::string> MCDisplay::ReadFrame()
 std::vector<uint8_t> MCDisplay::ComposeScreen() const
 {
     const std::vector<MCUnderlay> underlays = ScreenUnderlays();
-    MCFrame frame;
-    frame.Screen = &_Screen;
-    frame.Pixels = _Pixels.data();
+    MCFrame frame{.Screen = *_Screen};
+    frame.Pixels = Pixels();
     frame.Width = _Width;
     frame.Height = _Height;
     frame.View = _View;
-    frame.Ops = _Ops.data();
+    frame.Ops = *_Ops;
     frame.Underlays = underlays;
     auto shown = _Presenter->ReadScreen(frame);
 
@@ -493,8 +491,8 @@ std::vector<uint8_t> MCDisplay::ComposeScreen() const
 
     SDL_Log("MCDisplay: the screen can't be read (%s); composing the software renderer's pixels",
             shown.error().c_str());
-    std::vector<uint8_t> pixels = _Pixels;
-    MCRenderer::ComposeUnderlays(&_Screen, pixels.data(), MCRect{0, 0, _Width - 1, _Height - 1});
+    std::vector<uint8_t> pixels(Pixels().begin(), Pixels().end());
+    MCRenderer::ComposeUnderlays(*_Screen, pixels, MCRect{0, 0, _Width - 1, _Height - 1});
     return pixels;
 }
 
@@ -502,10 +500,13 @@ std::vector<MCUnderlay> MCDisplay::ScreenUnderlays() const
 {
     std::vector<MCUnderlay> underlays;
 
+    const MCAddressKey screen = _Screen->Pixels != nullptr ? MCAddressKey::Of(_Screen->Pixels[0]) : MCAddressKey();
+
     for (const MCUnderlay& underlay : MCRenderer::Underlays())
     {
-        if (underlay.Target != nullptr && underlay.Target->buffer == _Screen.buffer && underlay.Source != nullptr &&
-            underlay.Source->buffer != nullptr)
+        const std::shared_ptr<const MCWindow> source = underlay.Source.lock();
+
+        if (underlay.TargetPixels && underlay.TargetPixels == screen && source != nullptr && source->Pixels != nullptr)
         {
             underlays.push_back(underlay);
         }
@@ -516,12 +517,12 @@ std::vector<MCUnderlay> MCDisplay::ScreenUnderlays() const
 
 bool MCDisplay::SetFullscreen(bool fullscreen)
 {
-    if (!SDL_SetWindowFullscreen(_Window, fullscreen))
+    if (!SDL_SetWindowFullscreen(_Window.get(), fullscreen))
     {
         return false;
     }
 
-    SDL_SyncWindow(_Window);
+    SDL_SyncWindow(_Window.get());
 
     if (!fullscreen)
     {
@@ -533,7 +534,7 @@ bool MCDisplay::SetFullscreen(bool fullscreen)
 
 bool MCDisplay::IsFullscreen() const
 {
-    return (SDL_GetWindowFlags(_Window) & SDL_WINDOW_FULLSCREEN) != 0;
+    return (SDL_GetWindowFlags(_Window.get()) & SDL_WINDOW_FULLSCREEN) != 0;
 }
 
 void MCDisplay::SetVSync(bool on)
@@ -556,11 +557,11 @@ std::expected<void, std::string> MCDisplay::SaveScreenshot(const std::filesystem
     {
         SDL_Color colors[256];
         {
-            std::lock_guard lock(_PaletteLock);
+            std::scoped_lock lock(_PaletteLock);
 
             for (size_t i = 0; i < 256; ++i)
             {
-                colors[i] = {_Palette[i].r, _Palette[i].g, _Palette[i].b, 255};
+                colors[i] = {_Palette[i].R, _Palette[i].G, _Palette[i].B, 255};
             }
         }
 
@@ -590,16 +591,16 @@ std::expected<void, std::string> MCDisplay::SaveScreenshot(const std::filesystem
 namespace
 {
     /// <summary>Window pixels per window point (high-density displays have more than one).</summary>
-    float PixelDensity(SDL_Window* window)
+    float PixelDensity(SDL_Window& window)
     {
-        const float density = SDL_GetWindowPixelDensity(window);
+        const float density = SDL_GetWindowPixelDensity(&window);
         return density > 0.0f ? density : 1.0f;
     }
 }
 
 bool MCDisplay::WindowToLogical(float windowX, float windowY, float& logicalX, float& logicalY) const
 {
-    const float density = PixelDensity(_Window);
+    const float density = PixelDensity(*_Window);
     const bool inside =
         MapToLogical(ShownViewport(), _View.w, _View.h, windowX * density, windowY * density, logicalX, logicalY);
     logicalX += static_cast<float>(_View.x);
@@ -620,7 +621,7 @@ void MCDisplay::LogicalToWindow(float logicalX, float logicalY, float& windowX, 
         return;
     }
 
-    const float density = PixelDensity(_Window);
+    const float density = PixelDensity(*_Window);
     windowX = (viewport.X + logicalX * viewport.W / static_cast<float>(_View.w)) / density;
     windowY = (viewport.Y + logicalY * viewport.H / static_cast<float>(_View.h)) / density;
 }

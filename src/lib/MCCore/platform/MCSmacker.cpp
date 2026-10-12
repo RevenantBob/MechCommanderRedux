@@ -2,6 +2,7 @@
 #include "platform/MCSmacker.h"
 #include "platform/MCAudio.h"
 #include "platform/MCFileSystem.h"
+#include "platform/MCNeverDestroyed.h"
 
 // Everything here is written from the public description of the format.
 
@@ -9,10 +10,11 @@ namespace
 {
     constexpr size_t HeaderSize = 0x68;
 
-    uint32_t ReadU32(const uint8_t* p)
+    /// <summary>The little-endian 32-bit value at <paramref name="at"/>.</summary>
+    uint32_t ReadU32(std::span<const uint8_t> bytes, size_t at)
     {
-        return static_cast<uint32_t>(p[0]) | (static_cast<uint32_t>(p[1]) << 8) | (static_cast<uint32_t>(p[2]) << 16) |
-               (static_cast<uint32_t>(p[3]) << 24);
+        return static_cast<uint32_t>(bytes[at]) | (static_cast<uint32_t>(bytes[at + 1]) << 8) |
+               (static_cast<uint32_t>(bytes[at + 2]) << 16) | (static_cast<uint32_t>(bytes[at + 3]) << 24);
     }
 
     /// <summary>The deepest an 8-bit tree may go (its codes are at most this long).</summary>
@@ -386,12 +388,15 @@ private:
 // ---------------------------------------------------------------------------------------------------------------
 // MCSmacker
 
-MCSmacker::MCSmacker() = default;
+MCSmacker::MCSmacker(Key)
+{
+}
+
 MCSmacker::~MCSmacker() = default;
 
 std::expected<std::unique_ptr<MCSmacker>, std::string> MCSmacker::Open(const std::filesystem::path& path)
 {
-    std::unique_ptr<MCSmacker> smacker(new MCSmacker());
+    auto smacker = std::make_unique<MCSmacker>(Key{});
     smacker->_File.open(path, std::ios::binary);
 
     if (!smacker->_File)
@@ -413,7 +418,7 @@ std::expected<std::unique_ptr<MCSmacker>, std::string> MCSmacker::Open(const std
 
 std::expected<std::unique_ptr<MCSmacker>, std::string> MCSmacker::OpenMemory(std::vector<uint8_t> data)
 {
-    std::unique_ptr<MCSmacker> smacker(new MCSmacker());
+    auto smacker = std::make_unique<MCSmacker>(Key{});
     smacker->_Memory = std::move(data);
     smacker->_InMemory = true;
     smacker->_FileSize = smacker->_Memory.size();
@@ -426,8 +431,10 @@ std::expected<std::unique_ptr<MCSmacker>, std::string> MCSmacker::OpenMemory(std
     return smacker;
 }
 
-bool MCSmacker::ReadAt(uint64_t offset, void* dest, size_t count)
+bool MCSmacker::ReadAt(uint64_t offset, std::span<uint8_t> dest)
 {
+    const size_t count = dest.size();
+
     if (offset > _FileSize || count > _FileSize - offset)
     {
         return false;
@@ -435,30 +442,30 @@ bool MCSmacker::ReadAt(uint64_t offset, void* dest, size_t count)
 
     if (_InMemory)
     {
-        std::memcpy(dest, _Memory.data() + offset, count);
+        std::ranges::copy(std::span(_Memory).subspan(static_cast<size_t>(offset), count), dest.begin());
         return true;
     }
 
     _File.clear();
     _File.seekg(static_cast<std::streamoff>(offset));
-    _File.read(static_cast<char*>(dest), static_cast<std::streamsize>(count));
+    _File.read(reinterpret_cast<char*>(dest.data()), static_cast<std::streamsize>(count));
     return static_cast<size_t>(_File.gcount()) == count;
 }
 
 std::expected<void, std::string> MCSmacker::ReadHeader()
 {
-    uint8_t header[HeaderSize];
+    std::array<uint8_t, HeaderSize> header{};
 
-    if (!ReadAt(0, header, HeaderSize))
+    if (!ReadAt(0, header))
     {
         return std::unexpected(std::string("too short for a Smacker header"));
     }
 
-    if (std::memcmp(header, "SMK2", 4) == 0)
+    if (std::memcmp(header.data(), "SMK2", 4) == 0)
     {
         _Version = 2;
     }
-    else if (std::memcmp(header, "SMK4", 4) == 0)
+    else if (std::memcmp(header.data(), "SMK4", 4) == 0)
     {
         _Version = 4;
     }
@@ -467,11 +474,11 @@ std::expected<void, std::string> MCSmacker::ReadHeader()
         return std::unexpected(std::string("not a Smacker file (no SMK2/SMK4 signature)"));
     }
 
-    _Width = ReadU32(header + 0x04);
-    _Height = ReadU32(header + 0x08);
-    _Frames = ReadU32(header + 0x0c);
-    const int32_t rate = static_cast<int32_t>(ReadU32(header + 0x10));
-    _Flags = ReadU32(header + 0x14);
+    _Width = ReadU32(header, 0x04);
+    _Height = ReadU32(header, 0x08);
+    _Frames = ReadU32(header, 0x0c);
+    const int32_t rate = static_cast<int32_t>(ReadU32(header, 0x10));
+    _Flags = ReadU32(header, 0x14);
 
     if (_Width == 0 || _Height == 0 || _Width > 4096 || _Height > 4096)
     {
@@ -503,7 +510,7 @@ std::expected<void, std::string> MCSmacker::ReadHeader()
 
     for (int t = 0; t < MaxTracks; ++t)
     {
-        const uint32_t word = ReadU32(header + 0x48 + t * 4);
+        const uint32_t word = ReadU32(header, 0x48 + static_cast<size_t>(t) * 4);
         MCTrackInfo& track = _Tracks[static_cast<size_t>(t)];
         track.Compressed = (word & 0x80000000u) != 0;
         track.Present = (word & 0x40000000u) != 0;
@@ -511,15 +518,15 @@ std::expected<void, std::string> MCSmacker::ReadHeader()
         track.Stereo = (word & 0x10000000u) != 0;
         track.Codec = (word >> 26) & 3u;
         track.Rate = word & 0x00ffffffu;
-        track.LargestChunk = ReadU32(header + 0x18 + t * 4);
+        track.LargestChunk = ReadU32(header, 0x18 + static_cast<size_t>(t) * 4);
     }
 
-    const uint32_t treesSize = ReadU32(header + 0x34);
+    const uint32_t treesSize = ReadU32(header, 0x34);
 
     _StoredFrames = _Frames + ((_Flags & FlagRingFrame) ? 1u : 0u);
     std::vector<uint8_t> tables(static_cast<size_t>(_StoredFrames) * 5);
 
-    if (!ReadAt(HeaderSize, tables.data(), tables.size()))
+    if (!ReadAt(HeaderSize, tables))
     {
         return std::unexpected(std::string("the frame tables are cut short"));
     }
@@ -530,27 +537,28 @@ std::expected<void, std::string> MCSmacker::ReadHeader()
 
     for (uint32_t i = 0; i < _StoredFrames; ++i)
     {
-        _FrameSizes[i] = ReadU32(tables.data() + i * 4);
+        _FrameSizes[i] = ReadU32(tables, static_cast<size_t>(i) * 4);
         _FrameTypes[i] = tables[static_cast<size_t>(_StoredFrames) * 4 + i];
     }
 
     std::vector<uint8_t> trees(treesSize);
     const uint64_t treesOffset = HeaderSize + tables.size();
 
-    if (!ReadAt(treesOffset, trees.data(), trees.size()))
+    if (!ReadAt(treesOffset, trees))
     {
         return std::unexpected(std::string("the Huffman trees are cut short"));
     }
 
     MCBitReader reader(trees);
-    const char* names[] = {"MMap", "MClr", "Full", "Type"};
-    std::unique_ptr<MCHuffman>* slots[] = {&_MMap, &_MClr, &_Full, &_Type};
+    constexpr std::array<std::string_view, 4> names = {"MMap", "MClr", "Full", "Type"};
+    const std::array<std::reference_wrapper<std::unique_ptr<MCHuffman>>, 4> slots = {std::ref(_MMap), std::ref(_MClr),
+                                                                                     std::ref(_Full), std::ref(_Type)};
 
     for (int i = 0; i < 4; ++i)
     {
         if (reader.ReadBit() == 0)
         {
-            *slots[i] = std::make_unique<MCHuffman>(MCHuffman::Empty());
+            slots[i].get() = std::make_unique<MCHuffman>(MCHuffman::Empty());
             continue;
         }
 
@@ -561,7 +569,7 @@ std::expected<void, std::string> MCSmacker::ReadHeader()
             return std::unexpected(std::format("{} tree: {}", names[i], tree.error()));
         }
 
-        *slots[i] = std::make_unique<MCHuffman>(std::move(*tree));
+        slots[i].get() = std::make_unique<MCHuffman>(std::move(*tree));
     }
 
     uint64_t offset = treesOffset + treesSize;
@@ -647,7 +655,7 @@ std::expected<void, std::string> MCSmacker::DecodeNextFrame()
     const uint32_t size = _FrameSizes[index] & ~3u;
     _FrameData.resize(size);
 
-    if (!ReadAt(_FrameOffsets[index], _FrameData.data(), size))
+    if (!ReadAt(_FrameOffsets[index], _FrameData))
     {
         return std::unexpected(std::format("frame {}: can't read {} bytes", index, size));
     }
@@ -689,7 +697,7 @@ std::expected<void, std::string> MCSmacker::DecodeNextFrame()
             return std::unexpected(std::format("frame {}: audio track {} runs past the frame", index, t));
         }
 
-        const uint32_t length = ReadU32(_FrameData.data() + position);
+        const uint32_t length = ReadU32(_FrameData, position);
 
         if (length < 4 || length > size - position)
         {
@@ -795,7 +803,7 @@ std::expected<void, std::string> MCSmacker::DecodeAudio(int track, std::span<con
         return std::unexpected(std::string("compressed chunk has no size"));
     }
 
-    const uint32_t unpacked = ReadU32(chunk.data());
+    const uint32_t unpacked = ReadU32(chunk, 0);
 
     if (unpacked > (16u << 20))
     {
@@ -929,9 +937,7 @@ std::expected<void, std::string> MCSmacker::DecodeVideo(std::span<const uint8_t>
     const uint32_t blocksWide = _Width / 4;
     const uint32_t blocks = blocksWide * (_Height / 4);
     const size_t stride = _Width;
-    uint8_t* pixels = _Pixels.data();
-    auto blockAt = [&](uint32_t block)
-    { return pixels + (block / blocksWide) * stride * 4 + (block % blocksWide) * 4; };
+    auto blockAt = [&](uint32_t block) { return (block / blocksWide) * stride * 4 + (block % blocksWide) * 4; };
 
     uint32_t block = 0;
 
@@ -950,13 +956,13 @@ std::expected<void, std::string> MCSmacker::DecodeVideo(std::span<const uint8_t>
                     uint32_t map = _MMap->Decode(reader);
                     const uint8_t high = static_cast<uint8_t>(colours >> 8);
                     const uint8_t low = static_cast<uint8_t>(colours & 0xff);
-                    uint8_t* out = blockAt(block);
+                    size_t out = blockAt(block);
 
                     for (int row = 0; row < 4; ++row)
                     {
                         for (int column = 0; column < 4; ++column)
                         {
-                            out[column] = (map & (1u << column)) ? high : low;
+                            _Pixels[out + column] = (map & (1u << column)) ? high : low;
                         }
 
                         map >>= 4;
@@ -984,7 +990,7 @@ std::expected<void, std::string> MCSmacker::DecodeVideo(std::span<const uint8_t>
                 }
                 while (run-- > 0 && block < blocks)
                 {
-                    uint8_t* out = blockAt(block);
+                    size_t out = blockAt(block);
 
                     if (mode == 0)
                     {
@@ -992,10 +998,10 @@ std::expected<void, std::string> MCSmacker::DecodeVideo(std::span<const uint8_t>
                         {
                             const uint32_t right = _Full->Decode(reader);
                             const uint32_t left = _Full->Decode(reader);
-                            out[2] = static_cast<uint8_t>(right & 0xff);
-                            out[3] = static_cast<uint8_t>(right >> 8);
-                            out[0] = static_cast<uint8_t>(left & 0xff);
-                            out[1] = static_cast<uint8_t>(left >> 8);
+                            _Pixels[out + 2] = static_cast<uint8_t>(right & 0xff);
+                            _Pixels[out + 3] = static_cast<uint8_t>(right >> 8);
+                            _Pixels[out + 0] = static_cast<uint8_t>(left & 0xff);
+                            _Pixels[out + 1] = static_cast<uint8_t>(left >> 8);
                             out += stride;
                         }
                     }
@@ -1010,10 +1016,10 @@ std::expected<void, std::string> MCSmacker::DecodeVideo(std::span<const uint8_t>
 
                             for (int row = 0; row < 2; ++row)
                             {
-                                out[0] = a;
-                                out[1] = a;
-                                out[2] = b;
-                                out[3] = b;
+                                _Pixels[out + 0] = a;
+                                _Pixels[out + 1] = a;
+                                _Pixels[out + 2] = b;
+                                _Pixels[out + 3] = b;
                                 out += stride;
                             }
                         }
@@ -1028,10 +1034,10 @@ std::expected<void, std::string> MCSmacker::DecodeVideo(std::span<const uint8_t>
 
                             for (int row = 0; row < 2; ++row)
                             {
-                                out[0] = static_cast<uint8_t>(left & 0xff);
-                                out[1] = static_cast<uint8_t>(left >> 8);
-                                out[2] = static_cast<uint8_t>(right & 0xff);
-                                out[3] = static_cast<uint8_t>(right >> 8);
+                                _Pixels[out + 0] = static_cast<uint8_t>(left & 0xff);
+                                _Pixels[out + 1] = static_cast<uint8_t>(left >> 8);
+                                _Pixels[out + 2] = static_cast<uint8_t>(right & 0xff);
+                                _Pixels[out + 3] = static_cast<uint8_t>(right >> 8);
                                 out += stride;
                             }
                         }
@@ -1051,11 +1057,11 @@ std::expected<void, std::string> MCSmacker::DecodeVideo(std::span<const uint8_t>
 
                 while (run-- > 0 && block < blocks)
                 {
-                    uint8_t* out = blockAt(block);
+                    size_t out = blockAt(block);
 
                     for (int row = 0; row < 4; ++row)
                     {
-                        std::memset(out, colour, 4);
+                        std::fill_n(_Pixels.begin() + static_cast<ptrdiff_t>(out), 4, colour);
                         out += stride;
                     }
 
@@ -1074,9 +1080,10 @@ std::expected<void, std::string> MCSmacker::DecodeVideo(std::span<const uint8_t>
     return {};
 }
 
-void MCSmacker::CopyTo(uint8_t* dest, int pitch, int maxWidth, int maxHeight, const uint8_t* remap, int gapColor) const
+void MCSmacker::CopyTo(std::span<uint8_t> dest, int pitch, int maxWidth, int maxHeight, std::span<const uint8_t> remap,
+                       int gapColor) const
 {
-    if (dest == nullptr)
+    if (dest.empty())
     {
         return;
     }
@@ -1093,7 +1100,8 @@ void MCSmacker::CopyTo(uint8_t* dest, int pitch, int maxWidth, int maxHeight, co
 
     for (int y = 0; y < StoredHeight(); ++y)
     {
-        const uint8_t* source = _Pixels.data() + static_cast<size_t>(y) * _Width;
+        const std::span<const uint8_t> source =
+            std::span<const uint8_t>(_Pixels).subspan(static_cast<size_t>(y) * _Width, _Width);
         const int firstRow = (doubled || interlaced) ? y * 2 : y;
         const int rows = doubled ? 2 : 1;
 
@@ -1106,9 +1114,10 @@ void MCSmacker::CopyTo(uint8_t* dest, int pitch, int maxWidth, int maxHeight, co
                 return;
             }
 
-            uint8_t* target = dest + static_cast<ptrdiff_t>(row) * pitch;
+            const std::span<uint8_t> target =
+                dest.subspan(static_cast<size_t>(row) * pitch, static_cast<size_t>(width));
 
-            if (remap != nullptr)
+            if (!remap.empty())
             {
                 for (int x = 0; x < width; ++x)
                 {
@@ -1117,20 +1126,22 @@ void MCSmacker::CopyTo(uint8_t* dest, int pitch, int maxWidth, int maxHeight, co
             }
             else
             {
-                std::memcpy(target, source, static_cast<size_t>(width));
+                std::ranges::copy(source.first(static_cast<size_t>(width)), target.begin());
             }
         }
 
         if (interlaced && gapColor >= 0 && firstRow + 1 < maxHeight)
         {
-            std::memset(dest + static_cast<ptrdiff_t>(firstRow + 1) * pitch, gapColor, static_cast<size_t>(width));
+            std::ranges::fill(dest.subspan(static_cast<size_t>(firstRow + 1) * pitch, static_cast<size_t>(width)),
+                              static_cast<uint8_t>(gapColor));
         }
     }
 }
 
-void MCSmacker::BuildRemap(const uint8_t* source, const uint8_t* target, int targetCount, uint8_t* remap)
+void MCSmacker::BuildRemap(std::span<const uint8_t, 768> source, std::span<const uint8_t> target,
+                           std::span<uint8_t, 256> remap)
 {
-    targetCount = std::clamp(targetCount, 1, 256);
+    const int targetCount = static_cast<int>(std::clamp<size_t>(target.size() / 3, 1, 256));
 
     for (int i = 0; i < 256; ++i)
     {
@@ -1167,7 +1178,7 @@ void MCSmacker::BuildRemap(const uint8_t* source, const uint8_t* target, int tar
 // MCSmackerPlayer
 
 std::expected<std::unique_ptr<MCSmackerPlayer>, std::string> MCSmackerPlayer::Open(const std::filesystem::path& path,
-                                                                                   MCAudio* audio)
+                                                                                   std::shared_ptr<MCAudio> audio)
 {
     auto smacker = MCSmacker::Open(path);
 
@@ -1176,7 +1187,7 @@ std::expected<std::unique_ptr<MCSmackerPlayer>, std::string> MCSmackerPlayer::Op
         return std::unexpected(smacker.error());
     }
 
-    std::unique_ptr<MCSmackerPlayer> player(new MCSmackerPlayer());
+    auto player = std::make_unique<MCSmackerPlayer>(Key{});
     player->_Smacker = std::move(*smacker);
 
     if (audio != nullptr)
@@ -1209,27 +1220,31 @@ std::expected<std::unique_ptr<MCSmackerPlayer>, std::string> MCSmackerPlayer::Op
 
 MCSmackerPlayer::~MCSmackerPlayer() = default;
 
-void MCSmackerPlayer::ToBuffer(int left, int top, int pitch, int height, uint8_t* buffer)
+void MCSmackerPlayer::CopyFrame(std::span<uint8_t> buffer, int left, int top, int pitch, int height) const
 {
-    _BufferLeft = left;
-    _BufferTop = top;
-    _BufferPitch = pitch;
-    _BufferHeight = height;
-    _Buffer = buffer;
+    const size_t first = static_cast<size_t>(top) * pitch + static_cast<size_t>(left);
+
+    if (first >= buffer.size())
+    {
+        return;
+    }
+
+    _Smacker->CopyTo(buffer.subspan(first), pitch, pitch - left, height,
+                     _RemapValid ? std::span<const uint8_t>(_Remap) : std::span<const uint8_t>(), 0);
 }
 
-void MCSmackerPlayer::ColorRemap(const uint8_t* palette, int count)
+void MCSmackerPlayer::ColorRemap(std::span<const uint8_t> palette)
 {
-    if (palette == nullptr)
+    if (palette.size() < 3)
     {
         _RemapPalette.clear();
         _RemapValid = false;
         return;
     }
 
-    count = std::clamp(count, 1, 256);
-    _RemapPalette.assign(palette, palette + static_cast<size_t>(count) * 3);
-    MCSmacker::BuildRemap(_Smacker->Palette().data(), _RemapPalette.data(), count, _Remap.data());
+    _RemapPalette.assign(palette.begin(),
+                         palette.begin() + static_cast<ptrdiff_t>(std::min<size_t>(palette.size() / 3, 256) * 3));
+    MCSmacker::BuildRemap(_Smacker->Palette(), _RemapPalette, _Remap);
     _RemapValid = true;
 }
 
@@ -1237,7 +1252,7 @@ namespace
 {
     /// <summary>
     /// The movie clock, in microseconds: the game's performance counter, so that movies follow the tests' manual clock
-    /// (MCPort::UseManualClock) as the game does.
+    /// (MCManualClock) as the game does.
     /// </summary>
     uint64_t NowMicroseconds()
     {
@@ -1271,15 +1286,7 @@ std::expected<void, std::string> MCSmackerPlayer::DoFrame()
 
     if (_Smacker->PaletteChanged() && _RemapValid)
     {
-        MCSmacker::BuildRemap(_Smacker->Palette().data(), _RemapPalette.data(),
-                              static_cast<int>(_RemapPalette.size() / 3), _Remap.data());
-    }
-
-    if (_Buffer != nullptr)
-    {
-        const int available = _BufferPitch - _BufferLeft;
-        _Smacker->CopyTo(_Buffer + static_cast<ptrdiff_t>(_BufferTop) * _BufferPitch + _BufferLeft, _BufferPitch,
-                         available, _BufferHeight, _RemapValid ? _Remap.data() : nullptr, 0);
+        MCSmacker::BuildRemap(_Smacker->Palette(), _RemapPalette, _Remap);
     }
 
     if (_Stream && _AudioTrack >= 0)
@@ -1321,32 +1328,31 @@ bool MCSmackerPlayer::Wait()
     return ElapsedMicroseconds() < NextFrameTime();
 }
 
-void SmackClose(SmackTag* movie)
-{
-    delete movie;
-}
-
 namespace
 {
-    /// <summary>The device movie sound goes to (SmackSoundUseDirectSound).</summary>
-    MCAudio* smackerAudio = nullptr;
+    /// <summary>The mixer movie sound goes to (SmackSoundUseDirectSound).</summary>
+    std::weak_ptr<MCAudio>& SmackerAudio()
+    {
+        static MCNeverDestroyed<std::weak_ptr<MCAudio>> audio;
+        return *audio;
+    }
 }
 
-void SmackSoundUseDirectSound(MCAudio* audio)
+void SmackSoundUseDirectSound(std::weak_ptr<MCAudio> audio)
 {
-    smackerAudio = audio;
+    SmackerAudio() = std::move(audio);
 }
 
-SmackTag* SmackOpen(const char* fileName, uint32_t flags, int32_t extraBuffers)
+std::unique_ptr<MCSmackTag> SmackOpen(std::string_view fileName, uint32_t flags, int32_t extraBuffers)
 {
-    auto player = MCSmackerPlayer::Open(MCFileSystem::Resolve(fileName), smackerAudio);
+    auto player = MCSmackerPlayer::Open(MCFileSystem::Resolve(fileName), SmackerAudio().lock());
 
     if (!player)
     {
         return nullptr;
     }
 
-    SmackTag* movie = new SmackTag();
+    auto movie = std::make_unique<MCSmackTag>();
     movie->Player = std::move(*player);
     return movie;
 }

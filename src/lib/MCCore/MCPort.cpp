@@ -1,5 +1,6 @@
 #include "stdafx.h"
 #include "MCPort.h"
+#include "main/MCGameContext.h"
 
 #ifdef _WIN32
 #include <process.h>
@@ -7,28 +8,23 @@
 #include <unistd.h>
 #endif
 
+namespace
+{
+    /// <summary>Character <paramref name="index"/> of <paramref name="text"/> lower-cased, or 0 past its end.</summary>
+    int LowerAt(std::string_view text, size_t index)
+    {
+        return index < text.size() ? std::tolower(static_cast<unsigned char>(text[index])) : 0;
+    }
+}
+
 namespace MCPort
 {
-    void ReportUnimplemented(const char* file, int line, const char* what)
+    int StrICmp(std::string_view a, std::string_view b)
     {
-        static std::mutex lock;
-        static std::set<std::pair<std::string, int>> reported;
-        std::scoped_lock guard(lock);
-
-        if (!reported.emplace(file, line).second)
+        for (size_t index = 0;; ++index)
         {
-            return;
-        }
-
-        SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "Not reconstructed yet: %s (%s:%d)", what, file, line);
-    }
-
-    int StrICmp(const char* a, const char* b)
-    {
-        for (;; ++a, ++b)
-        {
-            const int ca = std::tolower(static_cast<unsigned char>(*a));
-            const int cb = std::tolower(static_cast<unsigned char>(*b));
+            const int ca = LowerAt(a, index);
+            const int cb = LowerAt(b, index);
 
             if (ca != cb || ca == 0)
             {
@@ -37,12 +33,12 @@ namespace MCPort
         }
     }
 
-    int StrNICmp(const char* a, const char* b, size_t count)
+    int StrNICmp(std::string_view a, std::string_view b, size_t count)
     {
-        for (; count > 0; --count, ++a, ++b)
+        for (size_t index = 0; index < count; ++index)
         {
-            const int ca = std::tolower(static_cast<unsigned char>(*a));
-            const int cb = std::tolower(static_cast<unsigned char>(*b));
+            const int ca = LowerAt(a, index);
+            const int cb = LowerAt(b, index);
 
             if (ca != cb || ca == 0)
             {
@@ -53,122 +49,43 @@ namespace MCPort
         return 0;
     }
 
-    char* StrUpr(char* text)
+    void StrLwr(std::string& text)
     {
-        for (char* c = text; *c; ++c)
+        for (char& c : text)
         {
-            *c = static_cast<char>(std::toupper(static_cast<unsigned char>(*c)));
-        }
-
-        return text;
-    }
-
-    char* StrLwr(char* text)
-    {
-        for (char* c = text; *c; ++c)
-        {
-            *c = static_cast<char>(std::tolower(static_cast<unsigned char>(*c)));
-        }
-
-        return text;
-    }
-
-    char* IToA(int32_t value, char* buffer, int radix)
-    {
-        if (radix == 10)
-        {
-            std::snprintf(buffer, 12, "%d", value);
-            return buffer;
-        }
-
-        uint32_t v = static_cast<uint32_t>(value);
-        char digits[33];
-        int n = 0;
-
-        do
-        {
-            const uint32_t d = v % static_cast<uint32_t>(radix);
-            digits[n++] = static_cast<char>(d < 10 ? '0' + d : 'a' + d - 10);
-            v /= static_cast<uint32_t>(radix);
-        } while (v != 0);
-
-        for (int i = 0; i < n; ++i)
-        {
-            buffer[i] = digits[n - 1 - i];
-        }
-
-        buffer[n] = 0;
-        return buffer;
-    }
-
-    void StrCopy(char* destination, size_t size, const char* source)
-    {
-        if (size == 0)
-        {
-            return;
-        }
-
-        const size_t length = std::min(std::strlen(source), size - 1);
-        std::memmove(destination, source, length);
-        destination[length] = 0;
-    }
-
-    namespace
-    {
-        /// <summary>Set by <see cref="UseManualClock"/>: the clocks read <see cref="ManualClockNs"/>.</summary>
-        std::atomic<bool> ManualClock = false;
-        /// <summary>The manual clock, in nanoseconds.</summary>
-        std::atomic<uint64_t> ManualClockNs = 0;
-        /// <summary>The thread that called <see cref="UseManualClock"/> (the game's).</summary>
-        std::thread::id ManualClockThread;
-        /// <summary>The game thread's reads since the clock last advanced.</summary>
-        uint32_t ManualClockReads = 0;
-        /// <summary>Set by <see cref="AdvanceManualClockOnPresent"/>.</summary>
-        bool ManualClockOnPresent = false;
-        /// <summary>The presents since the clock last advanced.</summary>
-        uint32_t ManualClockPresents = 0;
-
-        /// <summary>
-        /// The manual clock, read. Reads don't move it, so it is the same however often the game looks; but a busy
-        /// wait (the palette fade, the 50 ms waits) would never end, so past 100,000 reads on the game's thread
-        /// without an advance, each read moves it on a microsecond.
-        /// </summary>
-        uint64_t ReadManualClock()
-        {
-            if (std::this_thread::get_id() == ManualClockThread && ++ManualClockReads > 100000)
+            if (c == 0)
             {
-                return ManualClockNs += 1000;
+                break;
             }
 
-            return ManualClockNs.load();
+            c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
         }
     }
 
-    void UseManualClock()
+    std::string IToA(int32_t value, int radix)
     {
-        ManualClockThread = std::this_thread::get_id();
-        ManualClock = true;
+        // As _itoa: signed in base 10, the 32 bits unsigned in any other base (lower-case digits).
+        std::array<char, 33> buffer{};
+        const std::to_chars_result written =
+            radix == 10
+                ? std::to_chars(buffer.data(), buffer.data() + buffer.size(), value)
+                : std::to_chars(buffer.data(), buffer.data() + buffer.size(), static_cast<uint32_t>(value), radix);
+        return {buffer.data(), written.ptr};
     }
 
-    void AdvanceManualClock(uint64_t nanoseconds)
+    int32_t Rand()
     {
-        ManualClockNs += nanoseconds;
-        ManualClockReads = 0;
-        ManualClockPresents = 0;
+        return MCGameContext::Current().Random().Next();
     }
 
-    void AdvanceManualClockOnPresent()
+    void SeedRand(uint32_t seed)
     {
-        ManualClockOnPresent = true;
+        MCGameContext::Current().Random().Seed(seed);
     }
 
-    void ManualClockPresented()
+    uint32_t RandState()
     {
-        if (ManualClock && ManualClockOnPresent && std::this_thread::get_id() == ManualClockThread &&
-            ++ManualClockPresents > 1)
-        {
-            ManualClockNs += 1000000000 / 60;
-        }
+        return MCGameContext::Current().Random().State();
     }
 
     uint32_t ProcessId()
@@ -182,12 +99,7 @@ namespace MCPort
 
     uint32_t Milliseconds()
     {
-        if (ManualClock)
-        {
-            return static_cast<uint32_t>(ReadManualClock() / 1000000);
-        }
-
-        return static_cast<uint32_t>(SDL_GetTicks());
+        return MCGameContext::Current().Clock().Milliseconds();
     }
 
     uint32_t TotalPhysicalMemory()
@@ -198,22 +110,12 @@ namespace MCPort
 
     int64_t PerformanceCounter()
     {
-        if (ManualClock)
-        {
-            return static_cast<int64_t>(ReadManualClock());
-        }
-
-        return static_cast<int64_t>(SDL_GetPerformanceCounter());
+        return MCGameContext::Current().Clock().PerformanceCounter();
     }
 
     int64_t PerformanceFrequency()
     {
-        if (ManualClock)
-        {
-            return 1000000000;
-        }
-
-        return static_cast<int64_t>(SDL_GetPerformanceFrequency());
+        return MCGameContext::Current().Clock().PerformanceFrequency();
     }
 
     namespace
@@ -224,35 +126,9 @@ namespace MCPort
         constexpr uint64_t TicksPerDay = 864000000000ull;
     }
 
-    namespace
-    {
-        /// <summary>
-        /// Under the manual clock, the date and time it stands for (as FILETIME ticks): 2000-01-01 12:00:00 plus the
-        /// clock, in UTC and local time alike, so a run doesn't depend on when it runs.
-        /// </summary>
-        uint64_t ManualFileTime()
-        {
-            using namespace std::chrono;
-            constexpr sys_days Start = year{2000} / January / 1;
-            const auto startDays = static_cast<uint64_t>(Start.time_since_epoch().count() + FileTimeEpochDays);
-            return startDays * TicksPerDay + 12 * 36000000000ull + ManualClockNs.load() / 100;
-        }
-    }
-
     void GetSystemTime(_SYSTEMTIME& time)
     {
-        using namespace std::chrono;
-
-        if (ManualClock)
-        {
-            FileTimeToSystemTime(ManualFileTime(), time);
-            return;
-        }
-
-        const auto sinceUnix =
-            duration_cast<duration<int64_t, std::ratio<1, 10000000>>>(system_clock::now().time_since_epoch());
-        FileTimeToSystemTime(
-            static_cast<uint64_t>(sinceUnix.count() + FileTimeEpochDays * static_cast<int64_t>(TicksPerDay)), time);
+        FileTimeToSystemTime(MCGameContext::Current().Clock().UtcFileTime(), time);
     }
 
     uint64_t SystemTimeToFileTime(const _SYSTEMTIME& time)
@@ -284,60 +160,28 @@ namespace MCPort
 
     void GetLocalTime(_SYSTEMTIME& time)
     {
-        using namespace std::chrono;
-
-        if (ManualClock)
-        {
-            FileTimeToSystemTime(ManualFileTime(), time);
-            return;
-        }
-
-        const auto local = current_zone()->to_local(system_clock::now());
-        const auto sinceUnix = duration_cast<duration<int64_t, std::ratio<1, 10000000>>>(local.time_since_epoch());
-        FileTimeToSystemTime(
-            static_cast<uint64_t>(sinceUnix.count() + FileTimeEpochDays * static_cast<int64_t>(TicksPerDay)), time);
+        FileTimeToSystemTime(MCGameContext::Current().Clock().LocalFileTime(), time);
     }
 
-    char* StrTime(char* buffer)
+    std::string StrTime()
     {
         _SYSTEMTIME time{};
         GetLocalTime(time);
-        buffer[0] = static_cast<char>('0' + time.wHour / 10);
-        buffer[1] = static_cast<char>('0' + time.wHour % 10);
-        buffer[2] = ':';
-        buffer[3] = static_cast<char>('0' + time.wMinute / 10);
-        buffer[4] = static_cast<char>('0' + time.wMinute % 10);
-        buffer[5] = ':';
-        buffer[6] = static_cast<char>('0' + time.wSecond / 10);
-        buffer[7] = static_cast<char>('0' + time.wSecond % 10);
-        buffer[8] = 0;
-        return buffer;
+        return std::format("{:02}:{:02}:{:02}", time.wHour % 100, time.wMinute % 100, time.wSecond % 100);
     }
 
-    bool GetUserName(char* buffer, uint32_t* size)
+    std::optional<std::string> GetUserName()
     {
-        const char* name = SDL_getenv("USERNAME");
-
-        if (name == nullptr || *name == 0)
+        for (const std::string variable : {"USERNAME", "USER"})
         {
-            name = SDL_getenv("USER");
+            const std::string name = SDL_getenv(variable.c_str()) != nullptr ? SDL_getenv(variable.c_str()) : "";
+
+            if (!name.empty())
+            {
+                return name;
+            }
         }
 
-        if (name == nullptr || *name == 0)
-        {
-            return false;
-        }
-
-        const auto needed = static_cast<uint32_t>(std::strlen(name) + 1);
-        const uint32_t available = *size;
-
-        *size = needed;
-        if (needed > available)
-        {
-            return false;
-        }
-
-        std::memcpy(buffer, name, needed);
-        return true;
+        return std::nullopt;
     }
 }

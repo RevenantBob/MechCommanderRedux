@@ -20,10 +20,11 @@ namespace
         std::array<uint32_t, MCSmacker::MaxTracks> AudioRates{};
     };
 
-    uint32_t ReadU32(const uint8_t* bytes)
+    /// <summary>The little-endian 32-bit value at <paramref name="at"/> in <paramref name="bytes"/>.</summary>
+    uint32_t ReadU32(std::span<const uint8_t> bytes, size_t at)
     {
-        return static_cast<uint32_t>(bytes[0]) | (static_cast<uint32_t>(bytes[1]) << 8) |
-               (static_cast<uint32_t>(bytes[2]) << 16) | (static_cast<uint32_t>(bytes[3]) << 24);
+        return static_cast<uint32_t>(bytes[at]) | (static_cast<uint32_t>(bytes[at + 1]) << 8) |
+               (static_cast<uint32_t>(bytes[at + 2]) << 16) | (static_cast<uint32_t>(bytes[at + 3]) << 24);
     }
 
     /// <summary>
@@ -43,17 +44,17 @@ namespace
 
         MCSmkHeader header;
         header.Signature.assign(reinterpret_cast<const char*>(bytes.data()), 4);
-        header.Width = ReadU32(&bytes[0x04]);
-        header.Height = ReadU32(&bytes[0x08]);
-        header.Frames = ReadU32(&bytes[0x0c]);
-        const int32_t rate = static_cast<int32_t>(ReadU32(&bytes[0x10]));
+        header.Width = ReadU32(bytes, 0x04);
+        header.Height = ReadU32(bytes, 0x08);
+        header.Frames = ReadU32(bytes, 0x0c);
+        const int32_t rate = static_cast<int32_t>(ReadU32(bytes, 0x10));
         const double microseconds = rate > 0 ? rate * 1000.0 : (rate < 0 ? -rate * 10.0 : 100000.0);
         header.FramesPerSecond = 1000000.0 / microseconds;
-        header.Flags = ReadU32(&bytes[0x14]);
+        header.Flags = ReadU32(bytes, 0x14);
 
         for (size_t t = 0; t < header.AudioRates.size(); ++t)
         {
-            header.AudioRates[t] = ReadU32(&bytes[0x48 + t * 4]);
+            header.AudioRates[t] = ReadU32(bytes, 0x48 + t * 4);
         }
 
         return header;

@@ -63,7 +63,7 @@ namespace MCCursor
     /// Makes <paramref name="image"/>, not a preloaded shape (a dragged item over the cursor), the cursor over the
     /// attached display's window. Its SDL cursor is remade whenever the picture changes; cheap while it doesn't.
     /// </summary>
-    void Show(const MCCursorImage& image);
+    void Show(const MCCursorImage& picture);
 
     /// <summary>How many SDL cursors have been made (tests).</summary>
     uint64_t CursorsMade();
@@ -82,5 +82,6 @@ namespace MCCursor
     /// <paramref name="scaleY"/> (nearest pixel), transparent pixels alpha 0. The hot spot lands on the top-left of
     /// its scaled pixel.
     /// </summary>
-    MCCursorBitmap Rasterize(const MCCursorImage& image, const SDL_Color* colors, float scaleX, float scaleY);
+    MCCursorBitmap Rasterize(const MCCursorImage& image, const std::array<SDL_Color, 256>& colors, float scaleX,
+                             float scaleY);
 }

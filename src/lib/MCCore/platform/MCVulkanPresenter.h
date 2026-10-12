@@ -18,9 +18,19 @@
 /// </remarks>
 class MCVulkanPresenter final : public MCPresenter
 {
+    /// <summary>Only <see cref="Create"/> makes one.</summary>
+    struct Key
+    {
+        explicit Key() = default;
+    };
+
 public:
+    /// <summary>A presenter with no device yet.</summary>
+    explicit MCVulkanPresenter(Key) {}
+
     /// <summary>Makes the device, claims <paramref name="window"/> and loads the shaders.</summary>
-    static std::expected<std::unique_ptr<MCVulkanPresenter>, std::string> Create(SDL_Window* window, bool vsync,
+    static std::expected<std::unique_ptr<MCVulkanPresenter>, std::string> Create(std::shared_ptr<SDL_Window> window,
+                                                                                 bool vsync,
                                                                                  const MCPresentation& presentation);
 
     ~MCVulkanPresenter() override;
@@ -36,19 +46,11 @@ public:
     std::expected<void, std::string> Discard(const MCFrame& frame) override;
     MCViewport Viewport(int viewWidth, int viewHeight) const override;
 
-    /// <summary>The device.</summary>
-    SDL_GPUDevice* Device() const { return _Device; }
-
-    /// <summary>The renderer that draws the frame surfaces on this device (null when it couldn't start).</summary>
-    MCVulkanRenderer* Renderer() const { return _Renderer.get(); }
-
 private:
-    MCVulkanPresenter() = default;
-
     /// <summary>An R8 or RGBA texture, grown as needed (only its top-left Width x Height is in use).</summary>
     struct Texture
     {
-        SDL_GPUTexture* Handle = nullptr;
+        MCGpuHandle<SDL_GPUTexture> Handle;
         /// <summary>The allocated size.</summary>
         uint32_t Width = 0;
         uint32_t Height = 0;
@@ -67,22 +69,24 @@ private:
     /// textures in a copy pass (with <paramref name="gpuSurfaces"/>, the palette only); sets
     /// <paramref name="gpuSurfaces"/> to what the composite should read.
     /// </summary>
-    std::expected<void, std::string> Prepare(SDL_GPUCommandBuffer* commands, const MCFrame& frame, bool& gpuSurfaces);
+    std::expected<void, std::string> Prepare(SDL_GPUCommandBuffer& commands, const MCFrame& frame, bool& gpuSurfaces);
     /// <summary>Uploads the frame's textures in a copy pass on <paramref name="commands"/>.</summary>
-    std::expected<void, std::string> Upload(SDL_GPUCommandBuffer* commands, const MCFrame& frame, bool gpuSurfaces);
+    std::expected<void, std::string> Upload(SDL_GPUCommandBuffer& commands, const MCFrame& frame, bool gpuSurfaces);
     /// <summary>Composites the frame into the frame texture, from the uploaded textures or the GPU's surfaces.</summary>
-    void Composite(SDL_GPUCommandBuffer* commands, const MCFrame& frame, bool gpuSurfaces);
-    void Release(Texture& texture);
+    void Composite(SDL_GPUCommandBuffer& commands, const MCFrame& frame, bool gpuSurfaces);
+    static void Release(Texture& texture);
 
-    SDL_Window* _Window = nullptr;
-    SDL_GPUDevice* _Device = nullptr;
+    /// <summary>The window shown in (the display's).</summary>
+    std::shared_ptr<SDL_Window> _Window;
+    /// <summary>The device; every GPU object holds it, so it goes last.</summary>
+    std::shared_ptr<SDL_GPUDevice> _Device;
     bool _Claimed = false;
     bool _VSync = true;
     MCPresentation _Presentation;
-    SDL_GPUShader* _QuadShader = nullptr;
-    SDL_GPUShader* _CompositeShader = nullptr;
-    SDL_GPUGraphicsPipeline* _CompositePipeline = nullptr;
-    SDL_GPUSampler* _Nearest = nullptr;
+    MCGpuHandle<SDL_GPUShader> _QuadShader;
+    MCGpuHandle<SDL_GPUShader> _CompositeShader;
+    MCGpuHandle<SDL_GPUGraphicsPipeline> _CompositePipeline;
+    MCGpuHandle<SDL_GPUSampler> _Nearest;
     Texture _Screen;
     Texture _Ops;
     Texture _Tables;
@@ -92,7 +96,8 @@ private:
     /// <summary>The underlays' surfaces, in the order of the frame's underlays.</summary>
     std::vector<Texture> _Underlays;
     /// <summary>The upload buffer, and its size.</summary>
-    SDL_GPUTransferBuffer* _Upload = nullptr;
+    MCGpuHandle<SDL_GPUTransferBuffer> _Upload;
     uint32_t _UploadSize = 0;
-    std::unique_ptr<MCVulkanRenderer> _Renderer;
+    /// <summary>The renderer of the frame surfaces (the renderers refer to it while it is set as the hardware one).</summary>
+    std::shared_ptr<MCVulkanRenderer> _Renderer;
 };

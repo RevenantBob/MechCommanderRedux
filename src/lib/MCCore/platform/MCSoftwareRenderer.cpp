@@ -1,22 +1,28 @@
 #include "stdafx.h"
 #include "platform/MCSoftwareRenderer.h"
-#include "vfx/vfxint.h"
+#include "vfx/MCVfxClip.h"
 
 // The software renderer's fills, copies, pixels, lines, ellipses, status bars, glyphs and sprites: the pixel loops of
 // vfxa.asm, vfx_transform.cpp, vfx_ellipse.cpp, vfx_map_polygon.cpp and the font and image routines.
 
 namespace
 {
-    /// <summary>The address of window pixel (x, y).</summary>
-    uint8_t* At(_window* window, int32_t x, int32_t y)
+    /// <summary>Where window pixel (x, y) lies in the window's bytes.</summary>
+    size_t IndexOf(const MCWindow& window, int32_t x, int32_t y)
     {
-        return window->buffer + static_cast<intptr_t>(y) * (window->x_max + 1) + x;
+        return static_cast<size_t>(y) * static_cast<size_t>(window.XMax + 1) + static_cast<size_t>(x);
+    }
+
+    /// <summary>Window pixel (x, y).</summary>
+    uint8_t& At(MCWindow& window, int32_t x, int32_t y)
+    {
+        return window.Pixels[IndexOf(window, x, y)];
     }
 
     /// <summary>A blend through the game's alpha table: <paramref name="color"/> over <paramref name="screen"/>.</summary>
     uint8_t Blend(uint8_t color, uint8_t screen)
     {
-        return static_cast<uint8_t>(AlphaTable[(static_cast<uint32_t>(color) << 8) | screen]);
+        return AlphaTable[(static_cast<uint32_t>(color) << 8) | screen];
     }
 
     /// <summary>
@@ -82,31 +88,31 @@ namespace
     }
 }
 
-void MCSeeThrough::Map(uint8_t* p, const uint8_t* table)
+void MCSeeThrough::Map(uint8_t& p, MCColorTable table)
 {
-    if (table != _LastTable)
+    if (const MCAddressKey key = MCAddressKey::OfData(table); key != _LastTable)
     {
-        _LastTable = table;
+        _LastTable = key;
         _LastOp = MCRenderer::OpFor(table);
     }
 
-    uint8_t& op = _Ops[p - _Base];
+    uint8_t& op = _Ops[static_cast<size_t>(MCAddressKey::Of(p) - _Base)];
     const uint8_t composed = _LastOp != 0 ? MCRenderer::ComposeOps(op, _LastOp) : 0;
 
     // A table always has an op row of its own, unless every row is taken.
     if (composed == 0)
     {
         // Every op table is taken: map the key itself, as an opaque pixel.
-        *p = table[*p];
+        p = table[p];
         return;
     }
 
     op = composed;
 }
 
-void MCSeeThrough::Blend(uint8_t* p, uint8_t color)
+void MCSeeThrough::Blend(uint8_t& p, uint8_t color)
 {
-    Map(p, reinterpret_cast<const uint8_t*>(AlphaTable) + static_cast<intptr_t>(color) * 256);
+    Map(p, MCAlphaRow(color));
 }
 
 MCSoftwareRenderer& MCSoftwareRenderer::Instance()
@@ -115,29 +121,31 @@ MCSoftwareRenderer& MCSoftwareRenderer::Instance()
     return renderer;
 }
 
-void MCSoftwareRenderer::Clear(_window* target, const MCRect& rect, uint8_t color)
+void MCSoftwareRenderer::Clear(MCWindow& target, const MCRect& rect, uint8_t color)
 {
     const size_t width = static_cast<size_t>(rect.X1 + 1 - rect.X0);
-    uint8_t* ops = OpPlane(target);
+    const std::span<uint8_t> ops = OpPlane(target);
 
     for (int32_t y = rect.Y0; y <= rect.Y1; ++y)
     {
-        std::memset(At(target, rect.X0, y), color, width);
+        std::memset(&At(target, rect.X0, y), color, width);
 
-        if (ops != nullptr)
+        if (!ops.empty())
         {
-            std::memset(ops + (At(target, rect.X0, y) - target->buffer), 0, width);
+            std::memset(ops.data() + (&At(target, rect.X0, y) - target.Pixels.get()), 0, width);
         }
     }
 }
 
-void MCSoftwareRenderer::Hash(_window* target, const MCRect& rect, uint8_t color)
+void MCSoftwareRenderer::Hash(MCWindow& target, const MCRect& rect, uint8_t color)
 {
     const int32_t width = rect.X1 - rect.X0 + 1;
 
+    const std::span<uint8_t> pixels = target.Bytes();
+
     for (int32_t y = rect.Y0; y <= rect.Y1; ++y)
     {
-        uint8_t* pixel = At(target, rect.X0, y);
+        size_t pixel = IndexOf(target, rect.X0, y);
         int32_t left = width;
 
         if ((rect.Y1 - y) & 1)
@@ -149,22 +157,25 @@ void MCSoftwareRenderer::Hash(_window* target, const MCRect& rect, uint8_t color
         // OB-121: the asm wrote at least one pixel per row, one past x1 when an odd row was one pixel wide.
         for (; left > 0; pixel += 2, left -= 2)
         {
-            *pixel = color;
+            pixels[pixel] = color;
         }
     }
 }
 
-void MCSoftwareRenderer::Copy(_window* target, const MCCopyCommand& command)
+void MCSoftwareRenderer::Copy(MCWindow& target, const MCCopyCommand& command)
 {
-    const _window* source = command.Source;
+    const MCWindow& source = command.Source.get();
     NoteCpuRead(source, "Copy");
     const MCRect& rect = command.SourceRect;
     const int32_t width = rect.X1 + 1 - rect.X0;
     const int32_t height = rect.Y1 + 1 - rect.Y0;
-    const int32_t sourceStride = source->x_max + 1;
-    const int32_t targetStride = target->x_max + 1;
-    const uint8_t* src = source->buffer;
-    uint8_t* dst = target->buffer;
+    const int32_t sourceStride = source.XMax + 1;
+    const int32_t targetStride = target.XMax + 1;
+    const std::span<const uint8_t> sourcePixels = source.Bytes();
+    const std::span<uint8_t> targetPixels = target.Bytes();
+    // Where the row being copied starts (its first pixel in the copy's direction) in each window.
+    ptrdiff_t src = 0;
+    ptrdiff_t dst = 0;
     intptr_t srcRowStep;
     intptr_t dstRowStep;
 
@@ -202,14 +213,10 @@ void MCSoftwareRenderer::Copy(_window* target, const MCCopyCommand& command)
     {
         for (int32_t row = 0; row < height; ++row, src += srcRowStep, dst += dstRowStep)
         {
-            if (pixelStep > 0)
-            {
-                std::memmove(dst, src, static_cast<size_t>(width));
-            }
-            else
-            {
-                std::memmove(dst - (width - 1), src - (width - 1), static_cast<size_t>(width));
-            }
+            const ptrdiff_t first = pixelStep > 0 ? 0 : width - 1;
+            std::memmove(targetPixels.subspan(static_cast<size_t>(dst - first), static_cast<size_t>(width)).data(),
+                         sourcePixels.subspan(static_cast<size_t>(src - first), static_cast<size_t>(width)).data(),
+                         static_cast<size_t>(width));
         }
 
         return;
@@ -217,27 +224,30 @@ void MCSoftwareRenderer::Copy(_window* target, const MCCopyCommand& command)
 
     for (int32_t row = 0; row < height; ++row, src += srcRowStep, dst += dstRowStep)
     {
-        const uint8_t* s = src;
-        uint8_t* d = dst;
+        ptrdiff_t s = src;
+        ptrdiff_t d = dst;
 
         for (int32_t i = 0; i < width; ++i, s += pixelStep, d += pixelStep)
         {
-            if (*s != command.Key)
+            if (sourcePixels[static_cast<size_t>(s)] != command.Key)
             {
-                *d = *s;
+                targetPixels[static_cast<size_t>(d)] = sourcePixels[static_cast<size_t>(s)];
             }
         }
     }
 }
 
-void MCSoftwareRenderer::AlphaBlit(_window* target, const MCAlphaBlitCommand& command)
+void MCSoftwareRenderer::AlphaBlit(MCWindow& target, const MCAlphaBlitCommand& command)
 {
-    const int32_t stride = target->x_max + 1;
+    const int32_t stride = target.XMax + 1;
     const int32_t pitch = command.Pitch;
-    const uint8_t* source = command.Sprite + command.Offset;
-    uint8_t* destination = At(target, command.Left, command.Top);
+    // The sprite's first pixel read is Offset on (negative for a mirrored sprite clipped on the left, whose reads start
+    // at the mirrored row end).
+    const std::span<const uint8_t> source = command.Sprite;
+    const std::span<uint8_t> pixels = target.Bytes();
+    size_t destination = IndexOf(target, command.Left, command.Top);
     MCSeeThrough seeThrough(target);
-    const auto blend = [&](uint8_t* p, uint8_t color)
+    const auto blend = [&](uint8_t& p, uint8_t color)
     {
         if (seeThrough.At(p))
         {
@@ -245,20 +255,20 @@ void MCSoftwareRenderer::AlphaBlit(_window* target, const MCAlphaBlitCommand& co
         }
         else
         {
-            *p = Blend(color, *p);
+            p = Blend(color, p);
         }
     };
 
     if (command.FullSize)
     {
-        const uint8_t* s = command.Mirror ? source + pitch - 1 : source;
+        ptrdiff_t s = command.Offset + (command.Mirror ? pitch - 1 : 0);
         const int32_t step = command.Mirror ? -1 : 1;
 
         for (int32_t row = 0; row < command.Rows; ++row)
         {
             for (int32_t column = 0; column < command.Columns; ++column)
             {
-                blend(destination + column, *s);
+                blend(pixels[destination + static_cast<size_t>(column)], source[static_cast<size_t>(s)]);
                 s += step;
             }
 
@@ -272,14 +282,14 @@ void MCSoftwareRenderer::AlphaBlit(_window* target, const MCAlphaBlitCommand& co
     // Half size: every other pixel of every other row.
     const int32_t halfRows = static_cast<int32_t>(static_cast<uint32_t>(command.Rows) >> 1);
     const int32_t halfColumns = static_cast<int32_t>(static_cast<uint32_t>(command.Columns) >> 1);
-    const uint8_t* s = command.Mirror ? source + pitch * 2 - 1 : source;
+    ptrdiff_t s = command.Offset + (command.Mirror ? pitch * 2 - 1 : 0);
     const int32_t step = command.Mirror ? -2 : 2;
 
     for (int32_t row = 0; row < halfRows; ++row)
     {
         for (int32_t column = 0; column < halfColumns; ++column)
         {
-            blend(destination + column, *s);
+            blend(pixels[destination + static_cast<size_t>(column)], source[static_cast<size_t>(s)]);
             s += step;
         }
 
@@ -288,12 +298,21 @@ void MCSoftwareRenderer::AlphaBlit(_window* target, const MCAlphaBlitCommand& co
     }
 }
 
-void MCSoftwareRenderer::ShapeBlit(_window* target, const MCShapeBlitCommand& command)
+void MCSoftwareRenderer::ShapeBlit(MCWindow& target, const MCShapeBlitCommand& command)
 {
     // The shape filled into the buffer (as AG_shape_fill draws it at its bounds' corner into a pane of the bounds),
     // then blended.
-    std::memset(command.Buffer, 0, static_cast<size_t>(command.Width) * command.Height);
-    _window scratch{command.Buffer, command.Width - 1, command.Height - 1};
+    const size_t size = static_cast<size_t>(command.Width) * static_cast<size_t>(command.Height);
+
+    if (size > _ShapeScratchCapacity)
+    {
+        _ShapeScratch.Pixels = std::make_shared<uint8_t[]>(size);
+        _ShapeScratchCapacity = size;
+    }
+
+    _ShapeScratch.XMax = command.Width - 1;
+    _ShapeScratch.YMax = command.Height - 1;
+    std::ranges::fill(_ShapeScratch.Bytes(), uint8_t{0});
     MCShapeCommand fill;
     fill.ShapeTable = command.ShapeTable;
     fill.ShapeNum = command.ShapeNum;
@@ -303,37 +322,39 @@ void MCSoftwareRenderer::ShapeBlit(_window* target, const MCShapeBlitCommand& co
     fill.Left = 0;
     fill.Lo = 0;
     fill.Hi = command.Width - 1;
-    fill.Op = command.Table != nullptr ? MCShapeOp::XlatFill : MCShapeOp::Fill;
+    fill.Op = command.Table.has_value() ? MCShapeOp::XlatFill : MCShapeOp::Fill;
     fill.Table = command.Table;
-    Shape(&scratch, fill);
-    AlphaBlit(target, command.Blit);
+    Shape(_ShapeScratch, fill);
+    MCAlphaBlitCommand blit = command.Blit;
+    blit.Sprite = _ShapeScratch.Bytes();
+    AlphaBlit(target, blit);
 }
 
-void MCSoftwareRenderer::Write(_window* target, int32_t x, int32_t y, const uint8_t* pixels, int32_t count)
+void MCSoftwareRenderer::Write(MCWindow& target, int32_t x, int32_t y, std::span<const uint8_t> pixels)
 {
-    std::memcpy(At(target, x, y), pixels, static_cast<size_t>(count));
+    std::ranges::copy(pixels, &At(target, x, y));
 }
 
-void MCSoftwareRenderer::Pixel(_window* target, int32_t x, int32_t y, uint8_t color)
+void MCSoftwareRenderer::Pixel(MCWindow& target, int32_t x, int32_t y, uint8_t color)
 {
-    *At(target, x, y) = color;
+    At(target, x, y) = color;
 }
 
-void MCSoftwareRenderer::Line(_window* target, const MCLineCommand& command)
+void MCSoftwareRenderer::Line(MCWindow& target, const MCLineCommand& command)
 {
     MCSeeThrough seeThrough(target);
     MCLinePixels(command,
                  [&](int32_t x, int32_t y)
                  {
-                     uint8_t* pixel = At(target, x, y);
+                     uint8_t& pixel = At(target, x, y);
 
-                     if (command.Table != nullptr && seeThrough.At(pixel))
+                     if (command.Table.has_value() && seeThrough.At(pixel))
                      {
-                         seeThrough.Map(pixel, command.Table);
+                         seeThrough.Map(pixel, *command.Table);
                      }
                      else
                      {
-                         *pixel = command.Table != nullptr ? command.Table[*pixel] : command.Color;
+                         pixel = command.Table.has_value() ? (*command.Table)[pixel] : command.Color;
                      }
                  });
 }
@@ -430,45 +451,48 @@ void MCEllipseRuns(const MCEllipseCommand& command, const std::function<void(int
     }
 }
 
-void MCSoftwareRenderer::Ellipse(_window* target, const MCEllipseCommand& command)
+void MCSoftwareRenderer::Ellipse(MCWindow& target, const MCEllipseCommand& command)
 {
     MCSeeThrough seeThrough(target);
+    const std::span<uint8_t> pixels = target.Bytes();
     MCEllipseRuns(command,
                   [&](int32_t y, int32_t x0, int32_t x1)
                   {
-                      uint8_t* p = At(target, x0, y);
+                      size_t p = IndexOf(target, x0, y);
 
                       for (int32_t count = x1 - x0 + 1; count != 0; --count, ++p)
                       {
+                          uint8_t& pixel = pixels[p];
+
                           if (!command.Alpha)
                           {
-                              *p = command.Color;
+                              pixel = command.Color;
                           }
-                          else if (seeThrough.At(p))
+                          else if (seeThrough.At(pixel))
                           {
-                              seeThrough.Blend(p, command.Color);
+                              seeThrough.Blend(pixel, command.Color);
                           }
                           else
                           {
-                              *p = Blend(command.Color, *p);
+                              pixel = Blend(command.Color, pixel);
                           }
                       }
                   });
 }
 
-void MCSoftwareRenderer::StatusBar(_window* target, const MCStatusBarCommand& command)
+void MCSoftwareRenderer::StatusBar(MCWindow& target, const MCStatusBarCommand& command)
 {
     // The AlphaTable row status-bar frames are darkened through (0x008011d0 in MCX.EXE).
     constexpr int32_t StatusFrameAlpha = 0x108;
-    const uint8_t* frame = reinterpret_cast<const uint8_t*>(AlphaTable) + StatusFrameAlpha * 256;
-    const uint8_t* fill =
-        reinterpret_cast<const uint8_t*>(AlphaTable) + static_cast<intptr_t>(command.AlphaColor) * 256;
+    const MCColorTable frame = MCAlphaRow(StatusFrameAlpha);
+    const MCColorTable fill = MCAlphaRow(static_cast<uint32_t>(command.AlphaColor));
     const MCRect& box = command.Box;
     const int32_t width = box.X1 - box.X0;
-    const int32_t stride = target->x_max + 1;
-    uint8_t* p = At(target, box.X0, box.Y0);
+    const int32_t stride = target.XMax + 1;
+    const std::span<uint8_t> pixels = target.Bytes();
+    size_t p = IndexOf(target, box.X0, box.Y0);
     MCSeeThrough seeThrough(target);
-    const auto map = [&](uint8_t* pixel, const uint8_t* table)
+    const auto map = [&](uint8_t& pixel, MCColorTable table)
     {
         if (seeThrough.At(pixel))
         {
@@ -476,7 +500,7 @@ void MCSoftwareRenderer::StatusBar(_window* target, const MCStatusBarCommand& co
         }
         else
         {
-            *pixel = table[*pixel];
+            pixel = table[pixel];
         }
     };
 
@@ -487,50 +511,53 @@ void MCSoftwareRenderer::StatusBar(_window* target, const MCStatusBarCommand& co
             // The frame's top or bottom: the pixels between the corners.
             for (int32_t i = 1; i < width; ++i)
             {
-                map(p + i, frame);
+                map(pixels[p + static_cast<size_t>(i)], frame);
             }
 
             continue;
         }
 
-        map(p, frame);
-        map(p + width, frame);
+        map(pixels[p], frame);
+        map(pixels[p + static_cast<size_t>(width)], frame);
 
         if (command.BarLength != 0)
         {
             for (int32_t i = 1; i <= command.BarLength + 1; ++i)
             {
-                map(p + i, fill);
+                map(pixels[p + static_cast<size_t>(i)], fill);
             }
         }
     }
 }
 
-void MCSoftwareRenderer::Glyph(_window* target, const MCGlyphCommand& command)
+void MCSoftwareRenderer::Glyph(MCWindow& target, const MCGlyphCommand& command)
 {
-    // The glyph: its width dword, then its rows (layout in vfx/vfxfuncs.h).
-    const uint8_t* font = static_cast<const uint8_t*>(command.Font);
-    const uint8_t* glyph = font + MCVfxRead32(font + 0x10 + static_cast<intptr_t>(command.Character) * 4);
-    const int32_t width = MCVfxRead32(glyph);
-    const uint8_t* source = glyph + 4 + static_cast<intptr_t>(command.SourceY) * width + command.SourceX;
-    const int32_t stride = target->x_max + 1;
-    uint8_t* dest = At(target, command.X, command.Y);
+    // The glyph: its width dword, then its rows (layout in vfx/MCVfxFunctions.h).
+    const std::span<const uint8_t> font = command.Font;
+    const auto glyphAt = static_cast<uint32_t>(MCRead32(font, 0x10 + static_cast<size_t>(command.Character) * 4));
+    const int32_t width = MCRead32(font, glyphAt);
+    size_t source = glyphAt + 4 + static_cast<size_t>(command.SourceY) * static_cast<size_t>(width) +
+                    static_cast<size_t>(command.SourceX);
+    const int32_t stride = target.XMax + 1;
+    const std::span<uint8_t> pixels = target.Bytes();
+    size_t dest = IndexOf(target, command.X, command.Y);
+    const auto columns = static_cast<size_t>(command.Columns);
 
     for (int32_t rows = command.Rows; rows > 0; --rows)
     {
-        if (command.Table == nullptr)
+        if (!command.Table.has_value())
         {
-            std::memcpy(dest, source, static_cast<size_t>(command.Columns));
+            std::ranges::copy(font.subspan(source, columns), pixels.begin() + static_cast<ptrdiff_t>(dest));
         }
         else
         {
-            for (int32_t i = 0; i < command.Columns; ++i)
+            for (size_t i = 0; i < columns; ++i)
             {
-                const uint8_t pixel = command.Table[source[i]];
+                const uint8_t pixel = (*command.Table)[font[source + i]];
 
                 if (pixel != 0xff)
                 {
-                    dest[i] = pixel;
+                    pixels[dest + i] = pixel;
                 }
             }
         }

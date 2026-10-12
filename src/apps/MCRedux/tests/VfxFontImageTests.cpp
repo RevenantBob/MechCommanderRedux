@@ -1,25 +1,26 @@
 #include "stdafx.h"
 #include "MCTest.h"
 #include "TestGame.h"
-#include "lib/file.h"
-#include "vfx/vfxfuncs.h"
+#include "lib/MCFile.h"
+#include "vfx/MCVfxFunctions.h"
 
 namespace
 {
     /// <summary>An 8-bit window with a pane over all of it.</summary>
     struct TestSurface
     {
-        std::vector<uint8_t> Pixels;
-        WINDOW Window{};
-        PANE Pane{};
+        std::shared_ptr<MCWindow> Window;
+        MCPane Pane{};
 
-        TestSurface(int32_t width, int32_t height, uint8_t fill = 0) : Pixels(static_cast<size_t>(width) * height, fill)
+        TestSurface(int32_t width, int32_t height, uint8_t fill = 0) : Window(MCWindow::Make(width, height))
         {
-            Window = WINDOW{Pixels.data(), width - 1, height - 1};
-            Pane = PANE{&Window, 0, 0, width - 1, height - 1};
+            std::ranges::fill(Pixels(), fill);
+            Pane = MCPane::Over(Window);
         }
 
-        uint8_t At(int32_t x, int32_t y) const { return Pixels[static_cast<size_t>(y) * (Window.x_max + 1) + x]; }
+        std::span<uint8_t> Pixels() const { return Window->Bytes(); }
+
+        uint8_t At(int32_t x, int32_t y) const { return Pixels()[static_cast<size_t>(y) * (Window->XMax + 1) + x]; }
     };
 
     void Put32(std::vector<uint8_t>& data, uint32_t value)
@@ -161,17 +162,17 @@ namespace
         return gif;
     }
 
-    std::vector<uint8_t> ReadGameFile(const char* name)
+    std::vector<uint8_t> ReadGameFile(std::string_view name)
     {
-        File file;
+        MCFile file;
 
-        if (file.open(name) != 0)
+        if (file.Open(name) != 0)
         {
             return {};
         }
 
-        std::vector<uint8_t> data(file.fileSize());
-        file.read(data.data(), static_cast<int32_t>(data.size()));
+        std::vector<uint8_t> data(file.FileSize());
+        file.Read(data);
         return data;
     }
 }
@@ -179,12 +180,12 @@ namespace
 TEST_CASE("vfx font: glyphs copy whole without a table, and clip to the pane")
 {
     std::vector<uint8_t> font = MakeFont();
-    CHECK_EQ(VFX_font_height(font.data()), 3);
-    CHECK_EQ(VFX_character_width(font.data(), 'A'), 2);
-    CHECK_EQ(VFX_character_width(font.data(), 'B'), 3);
+    CHECK_EQ(VfxFontHeight(font), 3);
+    CHECK_EQ(VfxCharacterWidth(font, 'A'), 2);
+    CHECK_EQ(VfxCharacterWidth(font, 'B'), 3);
 
     TestSurface surface(8, 6, 99);
-    CHECK_EQ(VFX_character_draw(&surface.Pane, 1, 2, font.data(), 'B', nullptr), 3);
+    CHECK_EQ(VfxCharacterDraw(surface.Pane, 1, 2, font, 'B', std::nullopt), 3);
 
     for (int y = 0; y < 3; ++y)
     {
@@ -200,15 +201,15 @@ TEST_CASE("vfx font: glyphs copy whole without a table, and clip to the pane")
 
     // Clipped at the top-left corner of a pane that starts at (2, 1): only the glyph's bottom-right pixel lands.
     TestSurface clipped(8, 6, 99);
-    clipped.Pane = PANE{&clipped.Window, 2, 1, 5, 4};
-    CHECK_EQ(VFX_character_draw(&clipped.Pane, -2, -2, font.data(), 'B', nullptr), 3);
+    clipped.Pane = MCPane{clipped.Window, 2, 1, 5, 4};
+    CHECK_EQ(VfxCharacterDraw(clipped.Pane, -2, -2, font, 'B', std::nullopt), 3);
     CHECK_EQ(clipped.At(2, 1), 15);
     CHECK_EQ(clipped.At(1, 1), 99);
     CHECK_EQ(clipped.At(2, 0), 99);
     // Wholly outside: nothing drawn, the width still returned.
-    CHECK_EQ(VFX_character_draw(&clipped.Pane, 10, 0, font.data(), 'A', nullptr), 2);
+    CHECK_EQ(VfxCharacterDraw(clipped.Pane, 10, 0, font, 'A', std::nullopt), 2);
     // Clipped at the right and bottom.
-    CHECK_EQ(VFX_character_draw(&clipped.Pane, 2, 2, font.data(), 'B', nullptr), 3);
+    CHECK_EQ(VfxCharacterDraw(clipped.Pane, 2, 2, font, 'B', std::nullopt), 3);
     CHECK_EQ(clipped.At(4, 3), 7);
     CHECK_EQ(clipped.At(5, 3), 8);
     CHECK_EQ(clipped.At(5, 4), 11);
@@ -230,7 +231,7 @@ TEST_CASE("vfx font: a colour table maps pixels, 255 is transparent, strings adv
     table[4] = 255;
 
     TestSurface surface(8, 4, 50);
-    VFX_string_draw(&surface.Pane, 0, 0, font.data(), "AB", table);
+    VfxStringDraw(surface.Pane, 0, 0, font, "AB", table);
     CHECK_EQ(surface.At(0, 0), 50); // pixel 1 transparent
     CHECK_EQ(surface.At(1, 0), 102);
     CHECK_EQ(surface.At(0, 1), 103);
@@ -263,9 +264,9 @@ TEST_CASE("vfx pcx: an 8-bit RLE picture decodes row by row")
     pcx.push_back(12);
     pcx.insert(pcx.end(), palette.begin(), palette.end());
 
-    CHECK_EQ(VFX_PCX_resolution(pcx.data()), (4 << 16) | 2);
+    CHECK_EQ(VfxPcxResolution(pcx), (4 << 16) | 2);
     TestSurface surface(6, 3, 0xee);
-    CHECK_EQ(VFX_PCX_draw(&surface.Pane, pcx.data()), 0);
+    CHECK_EQ(VfxPcxDraw(surface.Pane, pcx), 0);
     const uint8_t expected[2][4] = {{7, 7, 7, 9}, {0xc5, 1, 2, 3}};
 
     for (int y = 0; y < 2; ++y)
@@ -279,10 +280,10 @@ TEST_CASE("vfx pcx: an 8-bit RLE picture decodes row by row")
     CHECK_EQ(surface.At(4, 0), 0xee);
     CHECK_EQ(surface.At(0, 2), 0xee);
 
-    VFX_RGB out[256];
-    VFX_PCX_palette(pcx.data(), static_cast<int32_t>(pcx.size()), out);
-    CHECK_EQ(out[1].r, 3 >> 2);
-    CHECK_EQ(out[255].b, 0x2ff % 256 >> 2);
+    MCVfxRgb out[256];
+    VfxPcxPalette(pcx, out);
+    CHECK_EQ(out[1].R, 3 >> 2);
+    CHECK_EQ(out[255].B, 0x2ff % 256 >> 2);
 }
 
 TEST_CASE("vfx gif: plain and interlaced pictures decode to their pixels")
@@ -297,10 +298,9 @@ TEST_CASE("vfx gif: plain and interlaced pictures decode to their pixels")
     }
 
     std::vector<uint8_t> gif = MakeGif(width, height, pixels, false);
-    CHECK_EQ(VFX_GIF_resolution(gif.data()), (width << 16) | height);
-    std::vector<uint8_t> work(VFX_GIF_BUFFER_SIZE);
+    CHECK_EQ(VfxGifResolution(gif), (width << 16) | height);
     TestSurface surface(5, 10, 0xee);
-    CHECK_EQ(VFX_GIF_draw(&surface.Pane, gif.data(), work.data()), 3);
+    CHECK_EQ(VfxGifDraw(surface.Pane, gif), 3);
 
     for (int y = 0; y < height; ++y)
     {
@@ -324,7 +324,7 @@ TEST_CASE("vfx gif: plain and interlaced pictures decode to their pixels")
 
     gif = MakeGif(width, height, stored, true);
     TestSurface interlaced(5, 10, 0xee);
-    VFX_GIF_draw(&interlaced.Pane, gif.data(), work.data());
+    VfxGifDraw(interlaced.Pane, gif);
 
     for (int y = 0; y < height; ++y)
     {
@@ -334,33 +334,33 @@ TEST_CASE("vfx gif: plain and interlaced pictures decode to their pixels")
         }
     }
 
-    VFX_RGB palette[256] = {};
-    VFX_GIF_palette(gif.data(), palette);
-    CHECK_EQ(palette[1].r, 63);
-    CHECK_EQ(palette[2].g, 32);
-    CHECK_EQ(palette[3].b, 63);
-    CHECK_EQ(palette[4].r, 0);
+    MCVfxRgb palette[256] = {};
+    VfxGifPalette(gif, palette);
+    CHECK_EQ(palette[1].R, 63);
+    CHECK_EQ(palette[2].G, 32);
+    CHECK_EQ(palette[3].B, 63);
+    CHECK_EQ(palette[4].R, 0);
 }
 
 TEST_CASE("vfx ilbm: PBM pictures decode, raw and ByteRun1")
 {
-    const auto makeIff = [](const char* type, uint8_t compression, const std::vector<uint8_t>& body)
+    const auto makeIff = [](std::string_view type, uint8_t compression, const std::vector<uint8_t>& body)
     {
         std::vector<uint8_t> iff = {'F', 'O', 'R', 'M', 0, 0, 0, 0};
-        iff.insert(iff.end(), type, type + 4);
-        const uint8_t bmhd[] = {'B', 'M', 'H', 'D', 0,           0, 0, 20, 0, 4, 0, 2, 0, 0,
-                                0,   0,   8,   0,   compression, 0, 0, 9,  1, 1, 0, 4, 0, 2};
-        iff.insert(iff.end(), bmhd, bmhd + sizeof(bmhd));
-        const uint8_t header[] = {'B', 'O', 'D', 'Y', 0, 0, 0, static_cast<uint8_t>(body.size())};
-        iff.insert(iff.end(), header, header + sizeof(header));
+        iff.insert(iff.end(), type.begin(), type.end());
+        const std::array<uint8_t, 28> bmhd = {'B', 'M', 'H', 'D', 0,           0, 0, 20, 0, 4, 0, 2, 0, 0,
+                                              0,   0,   8,   0,   compression, 0, 0, 9,  1, 1, 0, 4, 0, 2};
+        iff.insert(iff.end(), bmhd.begin(), bmhd.end());
+        const std::array<uint8_t, 8> header = {'B', 'O', 'D', 'Y', 0, 0, 0, static_cast<uint8_t>(body.size())};
+        iff.insert(iff.end(), header.begin(), header.end());
         iff.insert(iff.end(), body.begin(), body.end());
         return iff;
     };
 
     std::vector<uint8_t> raw = makeIff("PBM ", 0, {1, 2, 3, 4, 5, 6, 7, 8});
-    CHECK_EQ(VFX_ILBM_resolution(raw.data()), (4 << 16) | 2);
+    CHECK_EQ(VfxIlbmResolution(raw), (4 << 16) | 2);
     TestSurface surface(5, 3, 0xee);
-    CHECK_EQ(VFX_ILBM_draw(&surface.Pane, raw.data()), 9);
+    CHECK_EQ(VfxIlbmDraw(surface.Pane, raw), 9);
 
     for (int i = 0; i < 8; ++i)
     {
@@ -371,7 +371,7 @@ TEST_CASE("vfx ilbm: PBM pictures decode, raw and ByteRun1")
 
     std::vector<uint8_t> packed = makeIff("PBM ", 1, {0xfd, 5, /* row 1 */ 1, 6, 7, 0xff, 8});
     TestSurface unpacked(5, 3, 0xee);
-    VFX_ILBM_draw(&unpacked.Pane, packed.data());
+    VfxIlbmDraw(unpacked.Pane, packed);
     const uint8_t expected[8] = {5, 5, 5, 5, 6, 7, 8, 8};
 
     for (int i = 0; i < 8; ++i)
@@ -383,44 +383,44 @@ TEST_CASE("vfx ilbm: PBM pictures decode, raw and ByteRun1")
 TEST_CASE("vfx color_scan: distinct colours in scan order")
 {
     TestSurface surface(4, 3, 0);
-    surface.Pixels = {1, 2, 3, 4, /**/ 5, 6, 7, 8, /**/ 9, 9, 9, 9};
-    PANE pane{&surface.Window, 1, 0, 2, 1};
+    std::ranges::copy(std::to_array<uint8_t>({1, 2, 3, 4, /**/ 5, 6, 7, 8, /**/ 9, 9, 9, 9}), surface.Pixels().begin());
+    MCPane pane{surface.Window, 1, 0, 2, 1};
     uint32_t colors[256] = {};
-    CHECK_EQ(VFX_color_scan(&pane, colors), 4);
+    CHECK_EQ(VfxColorScan(pane, colors), 4);
     // Rows top to bottom, each right to left.
     CHECK_EQ(colors[0], 3u);
     CHECK_EQ(colors[1], 2u);
     CHECK_EQ(colors[2], 7u);
     CHECK_EQ(colors[3], 6u);
-    CHECK_EQ(VFX_color_scan(&surface.Pane, nullptr), 9);
+    CHECK_EQ(VfxColorScan(surface.Pane, {}), 9);
 }
 
 TEST_CASE("vfx window_fade: the used colours reach the target palette")
 {
     TestSurface surface(4, 2, 1);
-    surface.Pixels[3] = 2;
-    VFX_RGB target[256] = {};
+    surface.Pixels()[3] = 2;
+    MCVfxRgb target[256] = {};
 
     for (int i = 0; i < 256; ++i)
     {
-        VFXDacPalette[i] = VFX_RGB{10, 20, 30};
-        target[i] = VFX_RGB{0, 0, 0};
+        VfxDacPalette[i] = MCVfxRgb{10, 20, 30};
+        target[i] = MCVfxRgb{0, 0, 0};
     }
 
-    target[1] = VFX_RGB{63, 0, 30};
-    target[2] = VFX_RGB{0, 40, 5};
+    target[1] = MCVfxRgb{63, 0, 30};
+    target[2] = MCVfxRgb{0, 40, 5};
     static int waits;
     waits = 0;
-    VFXWaitRetraceHook = [] { ++waits; };
-    VFX_window_fade(&surface.Window, target, 20);
-    VFXWaitRetraceHook = nullptr;
-    CHECK_EQ(VFXDacPalette[1].r, 63);
-    CHECK_EQ(VFXDacPalette[1].g, 0);
-    CHECK_EQ(VFXDacPalette[1].b, 30);
-    CHECK_EQ(VFXDacPalette[2].r, 0);
-    CHECK_EQ(VFXDacPalette[2].g, 40);
-    CHECK_EQ(VFXDacPalette[2].b, 5);
-    CHECK_EQ(VFXDacPalette[3].r, 10); // not in the window: untouched
+    VfxWaitRetraceHook = [] { ++waits; };
+    VfxWindowFade(*surface.Window, target, 20);
+    VfxWaitRetraceHook = {};
+    CHECK_EQ(VfxDacPalette[1].R, 63);
+    CHECK_EQ(VfxDacPalette[1].G, 0);
+    CHECK_EQ(VfxDacPalette[1].B, 30);
+    CHECK_EQ(VfxDacPalette[2].R, 0);
+    CHECK_EQ(VfxDacPalette[2].G, 40);
+    CHECK_EQ(VfxDacPalette[2].B, 5);
+    CHECK_EQ(VfxDacPalette[3].R, 10); // not in the window: untouched
     CHECK(waits >= 19 && waits <= 21);
 }
 
@@ -434,27 +434,26 @@ TEST_CASE("game: palettex.gif decodes to the reference pixels")
     MCTestGame::OpenFastFiles();
     std::vector<uint8_t> gif = ReadGameFile("data\\palette\\palettex.gif");
     REQUIRE(!gif.empty());
-    CHECK_EQ(VFX_GIF_resolution(gif.data()), (640 << 16) | 400);
+    CHECK_EQ(VfxGifResolution(gif), (640 << 16) | 400);
 
     TestSurface surface(640, 400, 0);
-    std::vector<uint8_t> work(VFX_GIF_BUFFER_SIZE);
-    CHECK_EQ(VFX_GIF_draw(&surface.Pane, gif.data(), work.data()), 16);
+    CHECK_EQ(VfxGifDraw(surface.Pane, gif), 16);
     // FNV-1a of the pixels as an independent decoder (PIL) gives them.
     uint32_t hash = 0x811c9dc5;
 
-    for (uint8_t p : surface.Pixels)
+    for (uint8_t p : surface.Pixels())
     {
         hash = (hash ^ p) * 0x01000193;
     }
 
     CHECK_EQ(hash, 0xa27515bfu);
-    CHECK_EQ(VFX_color_scan(&surface.Pane, nullptr), 155);
+    CHECK_EQ(VfxColorScan(surface.Pane, {}), 155);
 
-    VFX_RGB palette[256];
-    VFX_GIF_palette(gif.data(), palette);
-    CHECK_EQ(palette[0].r, 63);
-    CHECK_EQ(palette[0].g, 0);
-    CHECK_EQ(palette[0].b, 56);
+    MCVfxRgb palette[256];
+    VfxGifPalette(gif, palette);
+    CHECK_EQ(palette[0].R, 63);
+    CHECK_EQ(palette[0].G, 0);
+    CHECK_EQ(palette[0].B, 56);
 }
 
 TEST_CASE("game: the fonts decode and draw")
@@ -466,14 +465,15 @@ TEST_CASE("game: the fonts decode and draw")
 
     MCTestGame::OpenFastFiles();
 
-    for (const char* name : {"data\\fonts\\WHITE12.FNT", "data\\fonts\\DIM10.FNT", "data\\fonts\\LBLACK.FNT"})
+    for (const std::string_view name :
+         {"data\\fonts\\WHITE12.FNT", "data\\fonts\\DIM10.FNT", "data\\fonts\\LBLACK.FNT"})
     {
         MCTest::Scope scope(name);
         std::vector<uint8_t> font = ReadGameFile(name);
         REQUIRE(font.size() > 0x10 + 4);
         int32_t count;
         std::memcpy(&count, font.data() + 4, 4);
-        const int32_t height = VFX_font_height(font.data());
+        const int32_t height = VfxFontHeight(font);
         CHECK(height > 4 && height < 32);
         // char_count can exceed 256 (WHITE12.FNT has 280 entries, LBLACK.FNT 770); strings index only the first 256.
         REQUIRE(count > 0 && 0x10 + static_cast<size_t>(count) * 4 <= font.size());
@@ -484,12 +484,12 @@ TEST_CASE("game: the fonts decode and draw")
             int32_t offset;
             std::memcpy(&offset, font.data() + 0x10 + c * 4, 4);
             REQUIRE(offset >= 0x10 + count * 4 && static_cast<size_t>(offset) + 4 <= font.size());
-            const int32_t width = VFX_character_width(font.data(), c);
+            const int32_t width = VfxCharacterWidth(font, c);
             CHECK(width >= 0 && width < 64);
             CHECK(static_cast<size_t>(offset) + 4 + static_cast<size_t>(width) * height <= font.size());
         }
 
-        CHECK(VFX_character_width(font.data(), 'M') > 0);
+        CHECK(VfxCharacterWidth(font, 'M') > 0);
 
         // Drawn through an identity table with the background made transparent, the text stays in its box.
         int32_t background;
@@ -503,7 +503,7 @@ TEST_CASE("game: the fonts decode and draw")
 
         table[static_cast<uint8_t>(background)] = 255;
         TestSurface surface(200, 40, 0xfe);
-        VFX_string_draw(&surface.Pane, 5, 5, font.data(), "MechCommander", table);
+        VfxStringDraw(surface.Pane, 5, 5, font, "MechCommander", table);
         int32_t drawn = 0;
 
         for (int y = 0; y < 40; ++y)

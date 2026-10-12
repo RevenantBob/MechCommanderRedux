@@ -3,6 +3,7 @@
 #include "platform/MCDisplay.h"
 #include "platform/MCFrameLog.h"
 #include "platform/MCInput.h"
+#include "platform/MCSdlHandle.h"
 
 MCCursorImage MCCursorImage::Blank(int width, int height, int hotX, int hotY)
 {
@@ -25,24 +26,24 @@ MCCursorImage MCCursorImage::Overlay(const MCCursorImage& under, const MCCursorI
     const int bottom = std::max(under.Height - under.HotY, over.Height - over.HotY);
     MCCursorImage result = Blank(right - left, bottom - top, -left, -top);
 
-    for (const MCCursorImage* layer : {&under, &over})
+    for (const MCCursorImage& layer : {std::cref(under), std::cref(over)})
     {
-        const int originX = result.HotX - layer->HotX;
-        const int originY = result.HotY - layer->HotY;
+        const int originX = result.HotX - layer.HotX;
+        const int originY = result.HotY - layer.HotY;
 
-        for (int y = 0; y < layer->Height; ++y)
+        for (int y = 0; y < layer.Height; ++y)
         {
-            for (int x = 0; x < layer->Width; ++x)
+            for (int x = 0; x < layer.Width; ++x)
             {
-                const size_t from = static_cast<size_t>(y) * layer->Width + x;
+                const size_t from = static_cast<size_t>(y) * layer.Width + x;
 
-                if (layer->Opaque[from] == 0)
+                if (layer.Opaque[from] == 0)
                 {
                     continue;
                 }
 
                 const size_t to = static_cast<size_t>(originY + y) * result.Width + originX + x;
-                result.Pixels[to] = layer->Pixels[from];
+                result.Pixels[to] = layer.Pixels[from];
                 result.Opaque[to] = 1;
             }
         }
@@ -66,7 +67,8 @@ namespace
     /// <summary>An SDL cursor made for a picture, in the colours it uses.</summary>
     struct MCMadeCursor
     {
-        SDL_Cursor* Cursor = nullptr;
+        /// <summary>The cursor; shared with the input layer while it is the game's cursor.</summary>
+        std::shared_ptr<SDL_Cursor> Cursor;
         /// <summary>The colours of the indices the picture shows; the others are zero.</summary>
         std::array<SDL_Color, 256> Colors{};
     };
@@ -80,14 +82,14 @@ namespace
         /// <summary>The last other picture shown (a dragged item), remade when it changes.</summary>
         MCCursorImage OtherImage;
         MCMadeCursor Other;
-        SDL_Cursor* Shown = nullptr;
+        std::shared_ptr<SDL_Cursor> Shown;
         /// <summary>Cursors no longer wanted, freed once another is shown (SDL would show its arrow in between).</summary>
-        std::vector<SDL_Cursor*> Retired;
+        std::vector<std::shared_ptr<SDL_Cursor>> Retired;
         /// <summary>
         /// Made but not yet shown over the window, where Windows builds the cursor (see warm). Recoloured cursors of
         /// shapes already shown aren't added (see ensure).
         /// </summary>
-        std::vector<SDL_Cursor*> Cold;
+        std::vector<std::shared_ptr<SDL_Cursor>> Cold;
         float ScaleX = 0.0f;
         float ScaleY = 0.0f;
         float Density = 0.0f;
@@ -105,10 +107,10 @@ namespace
         return instance;
     }
 
-    /// <summary>A bitmap as an RGBA surface, or null.</summary>
-    SDL_Surface* toSurface(const MCCursorBitmap& bitmap)
+    /// <summary>A bitmap as an RGBA surface, or none.</summary>
+    MCSdlHandle<SDL_Surface> toSurface(const MCCursorBitmap& bitmap)
     {
-        SDL_Surface* surface = SDL_CreateSurface(bitmap.Width, bitmap.Height, SDL_PIXELFORMAT_RGBA32);
+        MCSdlHandle<SDL_Surface> surface(SDL_CreateSurface(bitmap.Width, bitmap.Height, SDL_PIXELFORMAT_RGBA32));
 
         if (surface == nullptr)
         {
@@ -149,15 +151,15 @@ namespace
         return used;
     }
 
-    /// <summary>A new SDL cursor of <paramref name="picture"/>, or null.</summary>
-    SDL_Cursor* makeCursor(const MCCursorImage& picture, const SDL_Color* colors, float scaleX, float scaleY,
-                           float density)
+    /// <summary>A new SDL cursor of <paramref name="picture"/>, or none.</summary>
+    std::shared_ptr<SDL_Cursor> makeCursor(const MCCursorImage& picture, const std::array<SDL_Color, 256>& colors,
+                                           float scaleX, float scaleY, float density)
     {
         // The surface is the picture at 100% display scale (window points); on a high-density display the pixel
         // sized one goes with it as an alternate image, which SDL picks there.
         const MCCursorImage image = MCCursorImage::WithHotSpotInside(picture);
         const MCCursorBitmap base = MCCursor::Rasterize(image, colors, scaleX / density, scaleY / density);
-        SDL_Surface* surface = toSurface(base);
+        const MCSdlHandle<SDL_Surface> surface = toSurface(base);
 
         if (surface == nullptr)
         {
@@ -166,24 +168,22 @@ namespace
 
         if (density != 1.0f)
         {
-            SDL_Surface* dense = toSurface(MCCursor::Rasterize(image, colors, scaleX, scaleY));
-
-            if (dense != nullptr)
+            // The surface takes its own reference to the alternate image.
+            if (const MCSdlHandle<SDL_Surface> dense = toSurface(MCCursor::Rasterize(image, colors, scaleX, scaleY)))
             {
-                SDL_AddSurfaceAlternateImage(surface, dense);
-                SDL_DestroySurface(dense);
+                SDL_AddSurfaceAlternateImage(surface.get(), dense.get());
             }
         }
 
-        SDL_Cursor* made = SDL_CreateColorCursor(surface, base.HotX, base.HotY);
-        SDL_DestroySurface(surface);
+        SDL_Cursor* made = SDL_CreateColorCursor(surface.get(), base.HotX, base.HotY);
 
         if (made == nullptr)
         {
             SDL_Log("MCCursor: SDL_CreateColorCursor failed: %s", SDL_GetError());
+            return nullptr;
         }
 
-        return made;
+        return std::shared_ptr<SDL_Cursor>(made, MCSdlDeleter{});
     }
 
     /// <summary>Retires <paramref name="made"/>'s cursor, if any, and empties it.</summary>
@@ -213,7 +213,7 @@ namespace
         }
 
         MCFrameLog::Scope part("cursor.make");
-        SDL_Cursor* fresh = makeCursor(image, colors.data(), cursor.ScaleX, cursor.ScaleY, cursor.Density);
+        std::shared_ptr<SDL_Cursor> fresh = makeCursor(image, colors, cursor.ScaleX, cursor.ScaleY, cursor.Density);
 
         if (MCFrameLog::Enabled())
         {
@@ -236,7 +236,7 @@ namespace
 
         if (wasCold)
         {
-            cursor.Cold.push_back(fresh);
+            cursor.Cold.push_back(std::move(fresh));
         }
 
         ++cursor.MadeCount;
@@ -251,11 +251,11 @@ namespace
     void prepare(MCCursorState& cursor, MCDisplay& display)
     {
         std::array<SDL_Color, 256> colors{};
-        display.GetShownColors(colors.data());
+        display.GetShownColors(colors);
         float scaleX = 1.0f;
         float scaleY = 1.0f;
         display.PixelScale(scaleX, scaleY);
-        float density = SDL_GetWindowPixelDensity(display.Window());
+        float density = SDL_GetWindowPixelDensity(&display.Window());
 
         if (density <= 0.0f)
         {
@@ -309,10 +309,10 @@ namespace
     /// resource, slow) the first time it is shown over the window, so this moves that work off the switch. Only
     /// while the game's cursor is up over the window: elsewhere SDL shows its arrow and builds nothing.
     /// </summary>
-    void warm(MCCursorState& cursor, SDL_Window* window)
+    void warm(MCCursorState& cursor, SDL_Window& window)
     {
-        if (cursor.Cold.empty() || SDL_GetMouseFocus() != window || !SDL_CursorVisible() ||
-            SDL_GetCursor() != cursor.Shown)
+        if (cursor.Cold.empty() || SDL_GetMouseFocus() != &window || !SDL_CursorVisible() ||
+            SDL_GetCursor() != cursor.Shown.get())
         {
             return;
         }
@@ -324,62 +324,55 @@ namespace
             MCFrameLog::Note(std::format("cursor: warmed {}", cursor.Cold.size()));
         }
 
-        for (SDL_Cursor* cold : cursor.Cold)
+        for (const std::shared_ptr<SDL_Cursor>& cold : cursor.Cold)
         {
-            SDL_SetCursor(cold);
+            SDL_SetCursor(cold.get());
         }
 
         cursor.Cold.clear();
-        SDL_SetCursor(cursor.Shown);
+        SDL_SetCursor(cursor.Shown.get());
     }
 
     /// <summary>Puts <paramref name="shown"/> on screen, then frees the retired cursors and warms the cold ones.</summary>
-    void showCursor(MCCursorState& cursor, SDL_Cursor* shown, SDL_Window* window)
+    void showCursor(MCCursorState& cursor, std::shared_ptr<SDL_Cursor> shown, SDL_Window& window)
     {
         if (MCFrameLog::Enabled() && cursor.Shown != shown)
         {
             const bool cold = std::ranges::find(cursor.Cold, shown) != cursor.Cold.end();
             MCFrameLog::Note(std::format("cursor switched{} (mouse focus {}, visible {})", cold ? " to a cold one" : "",
-                                         SDL_GetMouseFocus() == window, SDL_CursorVisible()));
+                                         SDL_GetMouseFocus() == &window, SDL_CursorVisible()));
         }
 
-        cursor.Shown = shown;
+        // The cursor shown before stays held until the new one is up, so SDL never shows its arrow in between.
+        const std::shared_ptr<SDL_Cursor> before = std::exchange(cursor.Shown, shown);
 
         if (MCFrameLog::Scope part("cursor.set"); true)
         {
-            MCInput::SetGameCursor(shown);
+            MCInput::SetGameCursor(std::move(shown));
         }
 
+        // The retired cursors go now, but the one on screen.
         std::erase_if(cursor.Retired,
-                      [&](SDL_Cursor* retired)
-                      {
-                          if (retired == cursor.Shown)
-                          {
-                              return false;
-                          }
-
-                          SDL_DestroyCursor(retired);
-                          return true;
-                      });
+                      [&](const std::shared_ptr<SDL_Cursor>& retired) { return retired != cursor.Shown; });
 
         warm(cursor, window);
     }
 
-    /// <summary>The attached display, or null if there is no window to show a cursor over.</summary>
-    MCDisplay* shownDisplay()
+    /// <summary>The attached display (its window shows the cursor), or null.</summary>
+    std::shared_ptr<MCDisplay> shownDisplay()
     {
-        MCDisplay* display = MCInput::Display();
-        return display != nullptr && display->Window() != nullptr ? display : nullptr;
+        return MCInput::Display();
     }
 }
 
 namespace MCCursor
 {
-    MCCursorBitmap Rasterize(const MCCursorImage& image, const SDL_Color* colors, float scaleX, float scaleY)
+    MCCursorBitmap Rasterize(const MCCursorImage& image, const std::array<SDL_Color, 256>& colors, float scaleX,
+                             float scaleY)
     {
         MCCursorBitmap bitmap;
 
-        if (image.Width <= 0 || image.Height <= 0 || colors == nullptr)
+        if (image.Width <= 0 || image.Height <= 0)
         {
             return bitmap;
         }
@@ -407,11 +400,11 @@ namespace MCCursor
                 }
 
                 const SDL_Color color = colors[image.Pixels[from]];
-                uint8_t* to = bitmap.Rgba.data() + (static_cast<size_t>(y) * bitmap.Width + x) * 4;
-                to[0] = color.r;
-                to[1] = color.g;
-                to[2] = color.b;
-                to[3] = 255;
+                const size_t to = (static_cast<size_t>(y) * bitmap.Width + x) * 4;
+                bitmap.Rgba[to] = color.r;
+                bitmap.Rgba[to + 1] = color.g;
+                bitmap.Rgba[to + 2] = color.b;
+                bitmap.Rgba[to + 3] = 255;
             }
         }
 
@@ -433,9 +426,9 @@ namespace MCCursor
         // Made now in the colours shown now, not waiting for a settled palette: the game may show one at once.
         cursor.LastColors = {};
 
-        if (MCDisplay* display = shownDisplay())
+        if (const std::shared_ptr<MCDisplay> display = shownDisplay())
         {
-            display->GetShownColors(cursor.LastColors.data());
+            display->GetShownColors(cursor.LastColors);
             prepare(cursor, *display);
         }
     }
@@ -443,7 +436,7 @@ namespace MCCursor
     void ShowShape(size_t shape)
     {
         MCCursorState& cursor = state();
-        MCDisplay* display = shownDisplay();
+        const std::shared_ptr<MCDisplay> display = shownDisplay();
 
         if (display == nullptr || shape >= cursor.Shapes.size() || cursor.Shapes[shape].Width <= 0)
         {
@@ -468,7 +461,7 @@ namespace MCCursor
     void Show(const MCCursorImage& picture)
     {
         MCCursorState& cursor = state();
-        MCDisplay* display = shownDisplay();
+        const std::shared_ptr<MCDisplay> display = shownDisplay();
 
         if (display == nullptr || picture.Width <= 0 || picture.Height <= 0)
         {
@@ -508,12 +501,6 @@ namespace MCCursor
         }
 
         retire(cursor, cursor.Other);
-
-        for (SDL_Cursor* retired : cursor.Retired)
-        {
-            SDL_DestroyCursor(retired);
-        }
-
         const uint64_t madeCount = cursor.MadeCount;
         cursor = MCCursorState{};
         cursor.MadeCount = madeCount;

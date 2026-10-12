@@ -1,6 +1,7 @@
 #pragma once
 
 struct MCAudioCore;
+class MCAudioDevice;
 
 /// <summary>The PCM format of a sound buffer or stream, as a WAVEFORMATEX with wFormatTag 1 (PCM) describes it.</summary>
 struct MCSoundFormat
@@ -48,6 +49,12 @@ struct MCWaveData
 /// </remarks>
 class MCSoundBuffer
 {
+    /// <summary>Only <see cref="MCAudio::CreateBuffer"/> makes one.</summary>
+    struct Key
+    {
+        explicit Key() = default;
+    };
+
 public:
     /// <summary>GetStatus bit: the buffer is playing (DSBSTATUS_PLAYING).</summary>
     static constexpr uint32_t StatusPlaying = 0x1;
@@ -63,14 +70,19 @@ public:
     /// <summary>Only the right speaker (DSBPAN_RIGHT).</summary>
     static constexpr int32_t PanRight = 10000;
 
-    /// <summary>A locked region: up to two pieces, the second one when the region wraps round the end.</summary>
+    /// <summary>
+    /// A locked region: up to two pieces, the second one (empty otherwise) when the region wraps round the end. The
+    /// pieces are the buffer's own bytes, valid until <see cref="Unlock"/>.
+    /// </summary>
     struct MCLockedRegion
     {
-        uint8_t* Data1 = nullptr;
-        uint32_t Size1 = 0;
-        uint8_t* Data2 = nullptr;
-        uint32_t Size2 = 0;
+        std::span<uint8_t> First;
+        std::span<uint8_t> Second;
     };
+
+    /// <summary>A silent buffer of <paramref name="bytes"/> bytes in <paramref name="format"/>, mixed by
+    /// <paramref name="core"/>.</summary>
+    MCSoundBuffer(Key, std::shared_ptr<MCAudioCore> core, const MCSoundFormat& format, uint32_t bytes);
 
     ~MCSoundBuffer();
     MCSoundBuffer(const MCSoundBuffer&) = delete;
@@ -116,7 +128,7 @@ public:
     /// The play cursor and the write cursor, byte offsets in the buffer (<c>GetCurrentPosition</c>). The write cursor
     /// is where it is safe to write from: a little ahead of the play cursor, as the mixer has already read up to it.
     /// </summary>
-    void GetCurrentPosition(uint32_t* play, uint32_t* write) const;
+    void GetCurrentPosition(uint32_t& play, uint32_t& write) const;
 
     /// <summary>Moves the play cursor (<c>SetCurrentPosition</c>), rounded down to a whole sample frame.</summary>
     void SetCurrentPosition(uint32_t offset);
@@ -149,8 +161,6 @@ private:
     friend class MCAudio;
     friend struct MCAudioCore;
 
-    MCSoundBuffer(std::shared_ptr<MCAudioCore> core, const MCSoundFormat& format, uint32_t bytes);
-
     std::shared_ptr<MCAudioCore> _Core;
     MCSoundFormat _Format;
     std::vector<uint8_t> _Data;
@@ -173,7 +183,16 @@ private:
 /// <remarks>Thread-safe. Created by <see cref="MCAudio::CreateStream"/>; plays until the last reference is dropped.</remarks>
 class MCAudioStream
 {
+    /// <summary>Only <see cref="MCAudio::CreateStream"/> makes one.</summary>
+    struct Key
+    {
+        explicit Key() = default;
+    };
+
 public:
+    /// <summary>An empty stream in <paramref name="format"/>, mixed by <paramref name="core"/>.</summary>
+    MCAudioStream(Key, std::shared_ptr<MCAudioCore> core, const MCSoundFormat& format);
+
     ~MCAudioStream();
     MCAudioStream(const MCAudioStream&) = delete;
     MCAudioStream& operator=(const MCAudioStream&) = delete;
@@ -206,8 +225,6 @@ private:
     friend class MCAudio;
     friend struct MCAudioCore;
 
-    MCAudioStream(std::shared_ptr<MCAudioCore> core, const MCSoundFormat& format);
-
     std::shared_ptr<MCAudioCore> _Core;
     MCSoundFormat _Format;
 
@@ -238,6 +255,12 @@ private:
 /// </remarks>
 class MCAudio
 {
+    /// <summary>Only <see cref="Open"/> and <see cref="CreateSilent"/> make one.</summary>
+    struct Key
+    {
+        explicit Key() = default;
+    };
+
 public:
     /// <summary>The device's sample rate.</summary>
     static constexpr uint32_t OutputRate = 48000;
@@ -249,12 +272,18 @@ public:
     /// <summary>A mixer without a device: the same API, with <see cref="Render"/> as the only way out.</summary>
     static std::unique_ptr<MCAudio> CreateSilent();
 
+    /// <summary>A mixer with no device yet.</summary>
+    explicit MCAudio(Key);
+
     ~MCAudio();
     MCAudio(const MCAudio&) = delete;
     MCAudio& operator=(const MCAudio&) = delete;
 
     /// <summary>Whether a device is open.</summary>
     bool HasDevice() const { return _Device != nullptr; }
+
+    /// <summary>Destroys the device stream (which stops its callback before it returns).</summary>
+    using MCDeviceStream = std::unique_ptr<SDL_AudioStream, decltype(&SDL_DestroyAudioStream)>;
 
     /// <summary>
     /// Creates a silent buffer of <paramref name="bytes"/> bytes (<c>CreateSoundBuffer</c>), rounded down to whole
@@ -280,10 +309,17 @@ public:
     void PauseDevice(bool paused);
 
     /// <summary>
-    /// Mixes <paramref name="frames"/> stereo frames into <paramref name="out"/> (2 x frames floats, overwritten) and
-    /// advances every buffer and stream by that much. The device callback calls this; so can a test.
+    /// Tells <paramref name="listener"/> (the <see cref="MCAudioDevice"/> that opened this mixer) of every buffer's
+    /// <see cref="MCSoundBuffer::Play"/> and <see cref="MCSoundBuffer::Stop"/> from now on, while it lives; an empty
+    /// one tells nobody.
     /// </summary>
-    void Render(float* out, int frames);
+    void SetListener(std::weak_ptr<MCAudioDevice> listener);
+
+    /// <summary>
+    /// Mixes <c>out.size() / 2</c> stereo frames into <paramref name="out"/> (overwritten) and advances every buffer
+    /// and stream by that much. The device callback calls this; so can a test.
+    /// </summary>
+    void Render(std::span<float> out);
 
     /// <summary>
     /// Takes a RIFF WAVE apart as <c>SoundResource::GetWaveInfo</c> @ 0x00758790 does: the <c>fmt </c> chunk (PCM
@@ -295,11 +331,8 @@ public:
     static float GainFromHundredthsDb(int32_t hundredthsDb);
 
 private:
-    MCAudio();
-
     static void SDLCALL Feed(void* user, SDL_AudioStream* stream, int additional, int total);
 
     std::shared_ptr<MCAudioCore> _Core;
-    SDL_AudioStream* _Device = nullptr;
-    std::vector<float> _Block;
+    MCDeviceStream _Device{nullptr, &SDL_DestroyAudioStream};
 };

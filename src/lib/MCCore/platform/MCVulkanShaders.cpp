@@ -9,22 +9,58 @@
 
 namespace MCVulkanShaders
 {
-    const MCShaderInfo Quad{"quad", SDL_GPU_SHADERSTAGE_VERTEX, 0, 1, MC_quad_spirv, sizeof(MC_quad_spirv)};
-    const MCShaderInfo Composite{"composite", SDL_GPU_SHADERSTAGE_FRAGMENT, 5,
-                                 1,           MC_composite_spirv,           sizeof(MC_composite_spirv)};
-    const MCShaderInfo DrawVertex{"instance",        SDL_GPU_SHADERSTAGE_VERTEX, 0, 1,
-                                  MC_instance_spirv, sizeof(MC_instance_spirv),  1};
-    const MCShaderInfo DrawFragment{"draw", SDL_GPU_SHADERSTAGE_FRAGMENT, 5, 1, MC_draw_spirv, sizeof(MC_draw_spirv)};
-    const MCShaderInfo TerrainVertex{"terrain",        SDL_GPU_SHADERSTAGE_VERTEX, 1, 1,
-                                     MC_terrain_spirv, sizeof(MC_terrain_spirv),   2};
+    const MCShaderInfo Quad{MCShader::Quad, SDL_GPU_SHADERSTAGE_VERTEX, 0, 1};
+    const MCShaderInfo Composite{MCShader::Composite, SDL_GPU_SHADERSTAGE_FRAGMENT, 5, 1};
+    const MCShaderInfo DrawVertex{MCShader::Instance, SDL_GPU_SHADERSTAGE_VERTEX, 0, 1, 1};
+    const MCShaderInfo DrawFragment{MCShader::Draw, SDL_GPU_SHADERSTAGE_FRAGMENT, 5, 1};
+    const MCShaderInfo TerrainVertex{MCShader::Terrain, SDL_GPU_SHADERSTAGE_VERTEX, 1, 1, 2};
+
+    std::string_view Name(MCShader shader)
+    {
+        switch (shader)
+        {
+            case MCShader::Quad:
+                return "quad";
+            case MCShader::Composite:
+                return "composite";
+            case MCShader::Instance:
+                return "instance";
+            case MCShader::Draw:
+                return "draw";
+            case MCShader::Terrain:
+                return "terrain";
+        }
+
+        return {};
+    }
+
+    std::span<const unsigned char> BuiltInCode(MCShader shader)
+    {
+        switch (shader)
+        {
+            case MCShader::Quad:
+                return MC_quad_spirv;
+            case MCShader::Composite:
+                return MC_composite_spirv;
+            case MCShader::Instance:
+                return MC_instance_spirv;
+            case MCShader::Draw:
+                return MC_draw_spirv;
+            case MCShader::Terrain:
+                return MC_terrain_spirv;
+        }
+
+        return {};
+    }
 
     std::vector<std::filesystem::path> SearchFolders()
     {
         std::vector<std::filesystem::path> folders;
 
-        if (const char* base = SDL_GetBasePath(); base != nullptr)
+        // SDL keeps the base path (null when it can't tell).
+        if (SDL_GetBasePath() != nullptr)
         {
-            folders.push_back(std::filesystem::path(base) / "shaders");
+            folders.push_back(std::filesystem::path(SDL_GetBasePath()) / "shaders");
         }
 
         if (const std::filesystem::path& data = MCFileSystem::GameRoot(); !data.empty())
@@ -38,7 +74,7 @@ namespace MCVulkanShaders
     namespace
     {
         /// <summary>The first replacement for <paramref name="name"/>, or empty.</summary>
-        std::filesystem::path FindReplacement(const char* name)
+        std::filesystem::path FindReplacement(std::string_view name)
         {
             const std::string file = std::format("{}.spv", name);
 
@@ -63,11 +99,14 @@ namespace MCVulkanShaders
         }
     }
 
-    std::expected<SDL_GPUShader*, std::string> Load(SDL_GPUDevice* device, const MCShaderInfo& info)
+    std::expected<MCGpuHandle<SDL_GPUShader>, std::string> Load(std::shared_ptr<SDL_GPUDevice> device,
+                                                                const MCShaderInfo& info)
     {
+        const std::string name(Name(info.Shader));
+        const std::span<const unsigned char> builtIn = BuiltInCode(info.Shader);
         SDL_GPUShaderCreateInfo create{};
-        create.code = info.Code;
-        create.code_size = info.CodeSize;
+        create.code = builtIn.data();
+        create.code_size = builtIn.size();
         create.entrypoint = "main";
         create.format = SDL_GPU_SHADERFORMAT_SPIRV;
         create.stage = info.Stage;
@@ -76,36 +115,36 @@ namespace MCVulkanShaders
         create.num_storage_buffers = info.StorageBuffers;
         std::vector<unsigned char> replacement;
 
-        if (const std::filesystem::path path = FindReplacement(info.Name); !path.empty())
+        if (const std::filesystem::path path = FindReplacement(name); !path.empty())
         {
             replacement = ReadFile(path);
 
             if (replacement.empty() || replacement.size() % 4 != 0)
             {
-                SDL_Log("MCVulkanShaders: %s isn't SPIR-V; using the built-in %s", path.string().c_str(), info.Name);
+                SDL_Log("MCVulkanShaders: %s isn't SPIR-V; using the built-in %s", path.string().c_str(), name.c_str());
             }
             else
             {
                 create.code = replacement.data();
                 create.code_size = replacement.size();
-                SDL_Log("MCVulkanShaders: %s replaced by %s", info.Name, path.string().c_str());
+                SDL_Log("MCVulkanShaders: %s replaced by %s", name.c_str(), path.string().c_str());
             }
         }
 
-        SDL_GPUShader* shader = SDL_CreateGPUShader(device, &create);
+        MCGpuHandle<SDL_GPUShader> shader(SDL_CreateGPUShader(device.get(), &create), MCGpuRelease{device});
 
-        if (shader == nullptr && create.code != info.Code)
+        if (shader == nullptr && create.code != builtIn.data())
         {
-            SDL_Log("MCVulkanShaders: the replacement for %s failed (%s); using the built-in", info.Name,
+            SDL_Log("MCVulkanShaders: the replacement for %s failed (%s); using the built-in", name.c_str(),
                     SDL_GetError());
-            create.code = info.Code;
-            create.code_size = info.CodeSize;
-            shader = SDL_CreateGPUShader(device, &create);
+            create.code = builtIn.data();
+            create.code_size = builtIn.size();
+            shader.reset(SDL_CreateGPUShader(device.get(), &create));
         }
 
         if (shader == nullptr)
         {
-            return std::unexpected(std::format("SDL_CreateGPUShader({}): {}", info.Name, SDL_GetError()));
+            return std::unexpected(std::format("SDL_CreateGPUShader({}): {}", name, SDL_GetError()));
         }
 
         return shader;

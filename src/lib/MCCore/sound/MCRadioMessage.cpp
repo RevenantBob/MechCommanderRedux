@@ -1,0 +1,95 @@
+#include "stdafx.h"
+#include "gui/MCGuiSmackerWindow.h"
+#include "sound/MCRadioMessage.h"
+
+MCRadioMessage::MCRadioMessage() = default;
+
+MCRadioMessage::~MCRadioMessage()
+{
+    CloseMovie();
+}
+
+std::span<const uint8_t> MCRadioMessage::FragmentAt(uint32_t index) const
+{
+    return index < Fragments.size() ? std::span<const uint8_t>(Fragments[index]) : std::span<const uint8_t>();
+}
+
+std::span<const uint8_t> MCRadioMessage::NoiseAt(uint32_t index) const
+{
+    return index == 0 ? std::span<const uint8_t>(Noise) : std::span<const uint8_t>();
+}
+
+void MCRadioMessage::CloseMovie()
+{
+    if (MovieWindow == nullptr)
+    {
+        return;
+    }
+
+    MovieWindow->EndSmackerMovie();
+    MovieWindow.reset();
+    Movie.reset();
+}
+
+bool MCRadioQueue::MayQueue(const MCMechWarrior& pilot, uint8_t priority, MCRadioMessageType type) const
+{
+    // Refused while the pilot has a waiting message of lower priority, or an urgent one (2+) of this type waits.
+    return std::ranges::none_of(_Waiting,
+                                [&](const std::unique_ptr<MCRadioMessage>& message)
+                                {
+                                    return (message->Pilot.lock().get() == &pilot && priority > message->Priority) ||
+                                           (message->Priority >= 2 && message->MsgType == type);
+                                });
+}
+
+void MCRadioQueue::RemoveDuplicates(const MCRadioMessage& message)
+{
+    std::erase_if(_Waiting, [&message](const std::unique_ptr<MCRadioMessage>& waiting)
+                  { return waiting->TurnQueued == message.TurnQueued && waiting->MsgId == message.MsgId; });
+}
+
+void MCRadioQueue::RemovePilot(const MCMechWarrior& pilot)
+{
+    std::erase_if(_Waiting, [&pilot](const std::unique_ptr<MCRadioMessage>& waiting)
+                  { return waiting->Pilot.lock().get() == &pilot; });
+}
+
+std::unique_ptr<MCRadioMessage> MCRadioQueue::Push(std::unique_ptr<MCRadioMessage> message)
+{
+    auto later = std::ranges::find_if(_Waiting, [&message](const std::unique_ptr<MCRadioMessage>& waiting)
+                                      { return message->Priority < waiting->Priority; });
+
+    if (later == _Waiting.end())
+    {
+        if (_Waiting.size() >= MaxWaiting)
+        {
+            return message;
+        }
+
+        _Waiting.push_back(std::move(message));
+        return nullptr;
+    }
+
+    _Waiting.insert(later, std::move(message));
+
+    // Original behaviour (OB-061): the last slot was checked after the shift, so 7 waiting plus this one lose the
+    // lowest; with 8 waiting, the one shifted out was lost too (and leaked).
+    if (_Waiting.size() >= MaxWaiting)
+    {
+        _Waiting.resize(MaxWaiting - 1);
+    }
+
+    return nullptr;
+}
+
+std::unique_ptr<MCRadioMessage> MCRadioQueue::PopFront()
+{
+    if (_Waiting.empty())
+    {
+        return nullptr;
+    }
+
+    std::unique_ptr<MCRadioMessage> first = std::move(_Waiting.front());
+    _Waiting.erase(_Waiting.begin());
+    return first;
+}

@@ -1,11 +1,9 @@
 #include "stdafx.h"
 #include "platform/MCFileSystem.h"
+#include "main/MCGameContext.h"
 
 namespace
 {
-    std::filesystem::path g_Root = std::filesystem::current_path();
-    std::filesystem::path g_UserRoot;
-
     std::vector<std::string> SplitGamePath(std::string_view path)
     {
         std::vector<std::string> parts;
@@ -103,7 +101,7 @@ namespace
                 {
                     const std::string name = entry.path().filename().string();
 
-                    if (MCPort::StrICmp(name.c_str(), part.c_str()) == 0)
+                    if (MCPort::StrICmp(name, part) == 0)
                     {
                         result = entry.path();
                         found = true;
@@ -119,49 +117,6 @@ namespace
         }
 
         return result;
-    }
-
-    bool HasOverlay(std::string_view gamePath)
-    {
-        return !g_UserRoot.empty() && !IsAbsoluteGamePath(gamePath);
-    }
-
-    /// <summary>Case-insensitive DOS wildcard match (<c>*</c> and <c>?</c>).</summary>
-    bool WildcardMatch(const char* pattern, const char* name)
-    {
-        if (*pattern == '\0')
-        {
-            return *name == '\0';
-        }
-
-        if (*pattern == '*')
-        {
-            for (const char* rest = name;; ++rest)
-            {
-                if (WildcardMatch(pattern + 1, rest))
-                {
-                    return true;
-                }
-
-                if (*rest == '\0')
-                {
-                    return false;
-                }
-            }
-        }
-
-        if (*name == '\0')
-        {
-            return false;
-        }
-
-        if (*pattern != '?' &&
-            std::tolower(static_cast<unsigned char>(*pattern)) != std::tolower(static_cast<unsigned char>(*name)))
-        {
-            return false;
-        }
-
-        return WildcardMatch(pattern + 1, name + 1);
     }
 
     void AddMatches(const std::filesystem::path& folder, const std::string& pattern, std::vector<std::string>& names)
@@ -182,13 +137,13 @@ namespace
 
             const std::string name = entry.path().filename().string();
 
-            if (!WildcardMatch(pattern.c_str(), name.c_str()))
+            if (!MCFileSystem::WildcardMatch(pattern, name))
             {
                 continue;
             }
 
-            const bool listed = std::ranges::any_of(names, [&](const std::string& other)
-                                                    { return MCPort::StrICmp(other.c_str(), name.c_str()) == 0; });
+            const bool listed =
+                std::ranges::any_of(names, [&](const std::string& other) { return MCPort::StrICmp(other, name) == 0; });
 
             if (!listed)
             {
@@ -198,145 +153,270 @@ namespace
     }
 }
 
+MCDiskFileSource::MCDiskFileSource() : _Root(std::filesystem::current_path())
+{
+}
+
+bool MCDiskFileSource::HasOverlay(std::string_view gamePath) const
+{
+    return !_UserRoot.empty() && !IsAbsoluteGamePath(gamePath);
+}
+
+void MCDiskFileSource::SetGameRoot(const std::filesystem::path& root)
+{
+    _Root = root;
+}
+
+const std::filesystem::path& MCDiskFileSource::GameRoot() const
+{
+    return _Root;
+}
+
+void MCDiskFileSource::SetUserRoot(const std::filesystem::path& root)
+{
+    _UserRoot = root;
+
+    if (!root.empty())
+    {
+        std::error_code error;
+        std::filesystem::create_directories(root, error);
+    }
+}
+
+const std::filesystem::path& MCDiskFileSource::UserRoot() const
+{
+    return _UserRoot.empty() ? _Root : _UserRoot;
+}
+
+std::filesystem::path MCDiskFileSource::Resolve(std::string_view gamePath)
+{
+    if (HasOverlay(gamePath))
+    {
+        std::filesystem::path user = ResolveFrom(_UserRoot, gamePath);
+        std::error_code error;
+
+        if (std::filesystem::exists(user, error))
+        {
+            return user;
+        }
+    }
+
+    return ResolveFrom(_Root, gamePath);
+}
+
+std::filesystem::path MCDiskFileSource::ResolveWrite(std::string_view gamePath, bool copyExisting)
+{
+    if (!HasOverlay(gamePath))
+    {
+        return ResolveFrom(_Root, gamePath);
+    }
+
+    std::filesystem::path user = ResolveFrom(_UserRoot, gamePath);
+    std::error_code error;
+    std::filesystem::create_directories(user.parent_path(), error);
+
+    if (copyExisting && !std::filesystem::exists(user, error))
+    {
+        const std::filesystem::path installed = ResolveFrom(_Root, gamePath);
+
+        if (std::filesystem::is_regular_file(installed, error))
+        {
+            std::filesystem::copy_file(installed, user, error);
+        }
+    }
+
+    return user;
+}
+
+bool MCDiskFileSource::MakeDirectory(std::string_view gamePath)
+{
+    const std::filesystem::path folder = ResolveWrite(gamePath, false);
+    std::error_code error;
+    std::filesystem::create_directories(folder, error);
+    return std::filesystem::is_directory(folder, error);
+}
+
+bool MCDiskFileSource::RemoveDirectory(std::string_view gamePath)
+{
+    const std::filesystem::path folder = ResolveWrite(gamePath, false);
+    std::error_code error;
+
+    if (!std::filesystem::is_directory(folder, error) || !std::filesystem::is_empty(folder, error))
+    {
+        return false;
+    }
+
+    return std::filesystem::remove(folder, error);
+}
+
+std::vector<std::string> MCDiskFileSource::FindFiles(std::string_view gamePattern)
+{
+    std::string folder(gamePattern);
+    std::string pattern = folder;
+    const size_t slash = folder.find_last_of("\\/");
+
+    if (slash == std::string::npos)
+    {
+        folder.clear();
+    }
+    else
+    {
+        pattern = folder.substr(slash + 1);
+        folder.resize(slash);
+    }
+
+    std::vector<std::string> names;
+
+    if (HasOverlay(gamePattern))
+    {
+        AddMatches(ResolveFrom(_UserRoot, folder), pattern, names);
+    }
+
+    AddMatches(ResolveFrom(_Root, folder), pattern, names);
+    return names;
+}
+
+bool MCDiskFileSource::Exists(std::string_view gamePath)
+{
+    std::error_code error;
+    return std::filesystem::is_regular_file(Resolve(gamePath), error);
+}
+
+bool MCDiskFileSource::RemoveFile(std::string_view gamePath)
+{
+    std::error_code error;
+    return std::filesystem::remove(ResolveWrite(gamePath, false), error);
+}
+
+bool MCDiskFileSource::RenameFile(std::string_view fromGamePath, std::string_view toGamePath)
+{
+    std::error_code error;
+    std::filesystem::rename(ResolveWrite(fromGamePath, true), ResolveWrite(toGamePath, false), error);
+    return !error;
+}
+
+bool MCDiskFileSource::CopyFile(std::string_view fromGamePath, std::string_view toGamePath)
+{
+    std::error_code error;
+    return std::filesystem::copy_file(Resolve(fromGamePath), ResolveWrite(toGamePath, false),
+                                      std::filesystem::copy_options::overwrite_existing, error);
+}
+
 namespace MCFileSystem
 {
-    void SetGameRoot(const std::filesystem::path& root)
+    namespace
     {
-        g_Root = root;
-    }
-
-    const std::filesystem::path& GameRoot()
-    {
-        return g_Root;
-    }
-
-    void SetUserRoot(const std::filesystem::path& root)
-    {
-        g_UserRoot = root;
-
-        if (!root.empty())
+        MCFileSource& Files()
         {
-            std::error_code error;
-            std::filesystem::create_directories(root, error);
+            return MCGameContext::Current().Files();
         }
     }
 
-    const std::filesystem::path& UserRoot()
+    /// <summary>Case-insensitive DOS wildcard match (<c>*</c> and <c>?</c>).</summary>
+    bool WildcardMatch(std::string_view pattern, std::string_view name)
     {
-        return g_UserRoot.empty() ? g_Root : g_UserRoot;
-    }
-
-    std::filesystem::path Resolve(std::string_view gamePath)
-    {
-        if (HasOverlay(gamePath))
+        if (pattern.empty())
         {
-            std::filesystem::path user = ResolveFrom(g_UserRoot, gamePath);
-            std::error_code error;
+            return name.empty();
+        }
 
-            if (std::filesystem::exists(user, error))
+        if (pattern.front() == '*')
+        {
+            for (size_t skipped = 0;; ++skipped)
             {
-                return user;
+                if (WildcardMatch(pattern.substr(1), name.substr(skipped)))
+                {
+                    return true;
+                }
+
+                if (skipped == name.size())
+                {
+                    return false;
+                }
             }
         }
 
-        return ResolveFrom(g_Root, gamePath);
-    }
-
-    std::filesystem::path ResolveWrite(std::string_view gamePath, bool copyExisting)
-    {
-        if (!HasOverlay(gamePath))
-        {
-            return ResolveFrom(g_Root, gamePath);
-        }
-
-        std::filesystem::path user = ResolveFrom(g_UserRoot, gamePath);
-        std::error_code error;
-        std::filesystem::create_directories(user.parent_path(), error);
-
-        if (copyExisting && !std::filesystem::exists(user, error))
-        {
-            const std::filesystem::path installed = ResolveFrom(g_Root, gamePath);
-
-            if (std::filesystem::is_regular_file(installed, error))
-            {
-                std::filesystem::copy_file(installed, user, error);
-            }
-        }
-
-        return user;
-    }
-
-    bool MakeDirectory(std::string_view gamePath)
-    {
-        const std::filesystem::path folder = ResolveWrite(gamePath);
-        std::error_code error;
-        std::filesystem::create_directories(folder, error);
-        return std::filesystem::is_directory(folder, error);
-    }
-
-    bool RemoveDirectory(std::string_view gamePath)
-    {
-        const std::filesystem::path folder = ResolveWrite(gamePath);
-        std::error_code error;
-
-        if (!std::filesystem::is_directory(folder, error) || !std::filesystem::is_empty(folder, error))
+        if (name.empty())
         {
             return false;
         }
 
-        return std::filesystem::remove(folder, error);
+        if (pattern.front() != '?' && std::tolower(static_cast<unsigned char>(pattern.front())) !=
+                                          std::tolower(static_cast<unsigned char>(name.front())))
+        {
+            return false;
+        }
+
+        return WildcardMatch(pattern.substr(1), name.substr(1));
+    }
+
+    void SetGameRoot(const std::filesystem::path& root)
+    {
+        Files().SetGameRoot(root);
+    }
+
+    const std::filesystem::path& GameRoot()
+    {
+        return Files().GameRoot();
+    }
+
+    void SetUserRoot(const std::filesystem::path& root)
+    {
+        Files().SetUserRoot(root);
+    }
+
+    const std::filesystem::path& UserRoot()
+    {
+        return Files().UserRoot();
+    }
+
+    std::filesystem::path Resolve(std::string_view gamePath)
+    {
+        return Files().Resolve(gamePath);
+    }
+
+    std::filesystem::path ResolveWrite(std::string_view gamePath, bool copyExisting)
+    {
+        return Files().ResolveWrite(gamePath, copyExisting);
+    }
+
+    bool MakeDirectory(std::string_view gamePath)
+    {
+        return Files().MakeDirectory(gamePath);
+    }
+
+    bool RemoveDirectory(std::string_view gamePath)
+    {
+        return Files().RemoveDirectory(gamePath);
     }
 
     std::vector<std::string> FindFiles(std::string_view gamePattern)
     {
-        std::string folder(gamePattern);
-        std::string pattern = folder;
-        const size_t slash = folder.find_last_of("\\/");
+        return Files().FindFiles(gamePattern);
+    }
 
-        if (slash == std::string::npos)
-        {
-            folder.clear();
-        }
-        else
-        {
-            pattern = folder.substr(slash + 1);
-            folder.resize(slash);
-        }
-
-        std::vector<std::string> names;
-
-        if (HasOverlay(gamePattern))
-        {
-            AddMatches(ResolveFrom(g_UserRoot, folder), pattern, names);
-        }
-
-        AddMatches(ResolveFrom(g_Root, folder), pattern, names);
-        return names;
+    std::optional<std::span<const uint8_t>> FindImage(std::string_view gamePath)
+    {
+        return Files().FindImage(gamePath);
     }
 
     bool Exists(std::string_view gamePath)
     {
-        std::error_code error;
-        return std::filesystem::is_regular_file(Resolve(gamePath), error);
+        return Files().Exists(gamePath);
     }
 
     bool RemoveFile(std::string_view gamePath)
     {
-        std::error_code error;
-        return std::filesystem::remove(ResolveWrite(gamePath), error);
+        return Files().RemoveFile(gamePath);
     }
 
     bool RenameFile(std::string_view fromGamePath, std::string_view toGamePath)
     {
-        std::error_code error;
-        std::filesystem::rename(ResolveWrite(fromGamePath, true), ResolveWrite(toGamePath), error);
-        return !error;
+        return Files().RenameFile(fromGamePath, toGamePath);
     }
 
     bool CopyFile(std::string_view fromGamePath, std::string_view toGamePath)
     {
-        std::error_code error;
-        return std::filesystem::copy_file(Resolve(fromGamePath), ResolveWrite(toGamePath),
-                                          std::filesystem::copy_options::overwrite_existing, error);
+        return Files().CopyFile(fromGamePath, toGamePath);
     }
 }

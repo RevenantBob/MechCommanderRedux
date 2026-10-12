@@ -1,7 +1,7 @@
 #include "stdafx.h"
 #include "MCTest.h"
 #include "TestGame.h"
-#include "gui/asystem.h"
+#include "gui/MCGuiSystem.h"
 #include "platform/MCDisplay.h"
 #include "platform/MCInput.h"
 
@@ -155,9 +155,9 @@ TEST_CASE_ISOLATED("game: the software renderer shows the CPU's composite")
         return;
     }
 
-    gRenderer = static_cast<int>(MCRendererKind::Software);
+    GRenderer = static_cast<int>(MCRendererKind::Software);
     REQUIRE(MCTestGame::StartMission(1));
-    MCDisplay* display = MCInput::Display();
+    const std::shared_ptr<MCDisplay> display = MCInput::Display();
     REQUIRE(display != nullptr);
     CHECK(display->RendererKind() == MCRendererKind::Software);
     CHECK(!display->CompositesOnGpu());
@@ -179,7 +179,7 @@ TEST_CASE_ISOLATED("game: the Vulkan renderer presents and maps the mouse")
     }
 
     REQUIRE(MCTestGame::StartMission(1));
-    MCDisplay* display = MCInput::Display();
+    const std::shared_ptr<MCDisplay> display = MCInput::Display();
     REQUIRE(display != nullptr);
 
     if (display->RendererKind() != MCRendererKind::Vulkan)

@@ -1,6 +1,6 @@
 #include "stdafx.h"
 #include "platform/MCSoftwareRenderer.h"
-#include "vfx/vfxint.h"
+#include "vfx/MCVfxClip.h"
 
 // The software renderer's polygons (vfx3d.asm) and VFX_shape_transform's mapped quadrilateral (vfxa.asm).
 //
@@ -20,8 +20,8 @@ namespace
     /// <summary>The clipped pane a polygon is drawn into.</summary>
     struct PolyTarget
     {
-        /// <summary>The window pixel at the clipped pane's top-left corner.</summary>
-        uint8_t* Base;
+        /// <summary>The window pixel at the clipped pane's top-left corner (none when only spans are walked).</summary>
+        MCOptionalRef<uint8_t> Base;
         /// <summary>The window's row length.</summary>
         int32_t Stride;
         /// <summary>The clipped pane's last column and row, relative to its corner.</summary>
@@ -64,10 +64,10 @@ namespace
     /// <summary>One side's edge while a polygon is walked.</summary>
     template <int N> struct Edge
     {
-        /// <summary>The vertex the edge starts at (0x007a9aec / 0x007a9af0).</summary>
-        const SCRNVERTEX* Start;
+        /// <summary>The vertex the edge starts at (0x007a9aec / 0x007a9af0), its index in the list.</summary>
+        size_t Start;
         /// <summary>The vertex it runs to (0x007a9af4 / 0x007a9af8).</summary>
-        const SCRNVERTEX* Next;
+        size_t Next;
         /// <summary>Rows left on the edge.</summary>
         int32_t Count;
         int32_t X;
@@ -77,18 +77,18 @@ namespace
     };
 
     /// <summary>The value at byte offset <paramref name="offset"/> of a vertex (8 colour, 12 u, 16 v).</summary>
-    int32_t VertexValue(const SCRNVERTEX* v, int offset)
+    int32_t VertexValue(const MCScreenVertex& v, int offset)
     {
         switch (offset)
         {
             case 8:
-                return v->c;
+                return v.C;
             case 12:
-                return v->u;
+                return v.U;
             case 16:
-                return v->v;
+                return v.V;
             default:
-                return v->w;
+                return v.W;
         }
     }
 
@@ -98,40 +98,40 @@ namespace
     /// </summary>
     /// <typeparam name="N">The number of interpolated values (0 to 2).</typeparam>
     template <int N, typename Span>
-    void WalkPolygon(const PolyTarget& target, int32_t vcnt, const SCRNVERTEX* vlist,
+    void WalkPolygon(const PolyTarget& target, std::span<const MCScreenVertex> vertices,
                      const int (&offsets)[N > 0 ? N : 1], Span&& span)
     {
+        const auto vcnt = static_cast<int32_t>(vertices.size());
+
         // Port fix: the asm loops forever on an empty vertex list.
         if (vcnt <= 0)
         {
             return;
         }
 
-        const SCRNVERTEX* first = vlist;
-        const SCRNVERTEX* end = vlist + vcnt;
-
         uint32_t allOut = 0xf;
         int32_t minY = 0x7fff;
         int32_t maxY = -0x8000;
-        const SCRNVERTEX* top = nullptr;
+        std::optional<size_t> top;
 
-        for (const SCRNVERTEX* v = first; v != end; ++v)
+        for (size_t index = 0; index < vertices.size(); ++index)
         {
+            const MCScreenVertex& v = vertices[index];
             uint32_t code = 0;
-            code = code << 1 | static_cast<uint32_t>(v->x) >> 31;
-            code = code << 1 | static_cast<uint32_t>(target.XMax - v->x) >> 31;
-            code = code << 1 | static_cast<uint32_t>(v->y) >> 31;
-            code = code << 1 | static_cast<uint32_t>(target.YMax - v->y) >> 31;
+            code = code << 1 | static_cast<uint32_t>(v.X) >> 31;
+            code = code << 1 | static_cast<uint32_t>(target.XMax - v.X) >> 31;
+            code = code << 1 | static_cast<uint32_t>(v.Y) >> 31;
+            code = code << 1 | static_cast<uint32_t>(target.YMax - v.Y) >> 31;
 
-            if (v->y <= minY)
+            if (v.Y <= minY)
             {
-                minY = v->y;
-                top = v;
+                minY = v.Y;
+                top = index;
             }
 
-            if (v->y >= maxY)
+            if (v.Y >= maxY)
             {
-                maxY = v->y;
+                maxY = v.Y;
             }
 
             allOut &= code;
@@ -143,7 +143,7 @@ namespace
         }
 
         // Port fix: every vertex above 0x7fff leaves no top vertex (the asm would read through a null pointer).
-        if (top == nullptr)
+        if (!top)
         {
             return;
         }
@@ -153,17 +153,19 @@ namespace
             return;
         }
 
-        auto setupEdge = [&](Edge<N>& edge, const SCRNVERTEX* start, const SCRNVERTEX* next, int32_t dy)
+        auto setupEdge = [&](Edge<N>& edge, int32_t dy)
         {
+            const MCScreenVertex& start = vertices[edge.Start];
+            const MCScreenVertex& next = vertices[edge.Next];
             edge.Count = dy;
-            edge.DX = EdgeXSlope(next->x - start->x, dy);
+            edge.DX = EdgeXSlope(next.X - start.X, dy);
 
             for (int i = 0; i < N; ++i)
             {
                 edge.DA[i] = ValueSlope(VertexValue(next, offsets[i]) - VertexValue(start, offsets[i]), dy);
             }
 
-            edge.X = Shl16(start->x) + 0x8000;
+            edge.X = Shl16(start.X) + 0x8000;
 
             for (int i = 0; i < N; ++i)
             {
@@ -171,15 +173,16 @@ namespace
             }
         };
 
-        auto stepBack = [&](const SCRNVERTEX* v) { return v - 1 < first ? end - 1 : v - 1; };
-        auto stepForward = [&](const SCRNVERTEX* v) { return v + 1 >= end ? first : v + 1; };
+        const auto last = static_cast<size_t>(vcnt - 1);
+        auto stepBack = [&](size_t v) { return v == 0 ? last : v - 1; };
+        auto stepForward = [&](size_t v) { return v + 1 > last ? 0 : v + 1; };
 
         // The first edges: skip those wholly above the pane and the horizontal ones. The guard is the port's: the asm
         // relies on the polygon reaching y >= 0, which the outcodes guarantee, to end these loops.
         Edge<N> left{};
         Edge<N> right{};
-        left.Next = top;
-        right.Next = top;
+        left.Next = *top;
+        right.Next = left.Next;
         int guard = 0;
 
         for (;;)
@@ -191,8 +194,8 @@ namespace
 
             left.Start = left.Next;
             left.Next = stepBack(left.Start);
-            const int32_t y0 = left.Start->y;
-            const int32_t y1 = left.Next->y;
+            const int32_t y0 = vertices[left.Start].Y;
+            const int32_t y1 = vertices[left.Next].Y;
 
             if (y0 < 0 && y1 <= 0)
             {
@@ -213,7 +216,7 @@ namespace
                 return;
             }
 
-            setupEdge(left, left.Start, left.Next, dy);
+            setupEdge(left, dy);
             break;
         }
 
@@ -228,8 +231,8 @@ namespace
 
             right.Start = right.Next;
             right.Next = stepForward(right.Start);
-            const int32_t y0 = right.Start->y;
-            const int32_t y1 = right.Next->y;
+            const int32_t y0 = vertices[right.Start].Y;
+            const int32_t y1 = vertices[right.Next].Y;
 
             if (y0 < 0 && y1 <= 0)
             {
@@ -248,7 +251,7 @@ namespace
                 return;
             }
 
-            setupEdge(right, right.Start, right.Next, dy);
+            setupEdge(right, dy);
             break;
         }
 
@@ -267,15 +270,15 @@ namespace
             rows -= clippedTop;
             minY = 0;
 
-            for (Edge<N>* edge : {&left, &right})
+            for (Edge<N>& edge : {std::ref(left), std::ref(right)})
             {
-                const int32_t n = 0 - edge->Start->y;
-                edge->Count -= n;
-                edge->X += MulShift16(Shl16(n), edge->DX);
+                const int32_t n = 0 - vertices[edge.Start].Y;
+                edge.Count -= n;
+                edge.X += MulShift16(Shl16(n), edge.DX);
 
                 for (int i = 0; i < N; ++i)
                 {
-                    edge->A[i] += MulShift16(Shl16(n), edge->DA[i]);
+                    edge.A[i] += MulShift16(Shl16(n), edge.DA[i]);
                 }
             }
         }
@@ -285,7 +288,7 @@ namespace
         {
             edge.Start = edge.Next;
             edge.Next = backwards ? stepBack(edge.Start) : stepForward(edge.Start);
-            int32_t dy = edge.Next->y - edge.Start->y;
+            int32_t dy = vertices[edge.Next].Y - vertices[edge.Start].Y;
 
             if (dy < 0)
             {
@@ -297,7 +300,7 @@ namespace
                 dy = 1;
             }
 
-            setupEdge(edge, edge.Start, edge.Next, dy);
+            setupEdge(edge, dy);
             return true;
         };
 
@@ -415,8 +418,8 @@ namespace
     /// over half the span per pixel pair.
     /// </summary>
     template <bool Add>
-    void DitheredSpan(uint8_t* row, int32_t xa, int32_t xb, int32_t ca, int32_t cb, int32_t xmax, int32_t ditherA,
-                      int32_t ditherB, int32_t& spanSlope)
+    void DitheredSpan(std::span<uint8_t> row, int32_t xa, int32_t xb, int32_t ca, int32_t cb, int32_t xmax,
+                      int32_t ditherA, int32_t ditherB, int32_t& spanSlope)
     {
         if (!(xb > xa))
         {
@@ -456,7 +459,8 @@ namespace
         const int32_t slope = spanSlope;
         int32_t cut = 0;
         int32_t c = ca;
-        uint8_t* p = row + l;
+        // Where the span's first drawn pixel lies in the row.
+        ptrdiff_t p = l;
 
         if (l < 0)
         {
@@ -498,7 +502,7 @@ namespace
         {
             for (int32_t j = 0; j < count; ++j)
             {
-                p[j] = pixel(j);
+                row[static_cast<size_t>(p + j)] = pixel(j);
                 advance(j);
             }
         }
@@ -509,9 +513,11 @@ namespace
             // number was cut off the left.
             int32_t j = 0;
 
-            if ((cut & 1) == 0 && (reinterpret_cast<uintptr_t>(p) & 1) != 0)
+            const auto at = [&](int32_t k) -> uint8_t& { return row[static_cast<size_t>(p + k)]; };
+
+            if ((cut & 1) == 0 && (reinterpret_cast<uintptr_t>(&at(0)) & 1) != 0)
             {
-                p[0] = static_cast<uint8_t>(p[0] + pixel(0));
+                at(0) = static_cast<uint8_t>(at(0) + pixel(0));
                 advance(0);
                 j = 1;
             }
@@ -522,15 +528,15 @@ namespace
                 advance(j);
                 const uint8_t hi = pixel(j + 1);
                 advance(j + 1);
-                const uint16_t word = static_cast<uint16_t>(p[j] | p[j + 1] << 8);
+                const uint16_t word = static_cast<uint16_t>(at(j) | at(j + 1) << 8);
                 const uint16_t sum = static_cast<uint16_t>(word + (lo | hi << 8));
-                p[j] = static_cast<uint8_t>(sum);
-                p[j + 1] = static_cast<uint8_t>(sum >> 8);
+                at(j) = static_cast<uint8_t>(sum);
+                at(j + 1) = static_cast<uint8_t>(sum >> 8);
             }
 
             if (j < count)
             {
-                p[j] = static_cast<uint8_t>(p[j] + pixel(j));
+                at(j) = static_cast<uint8_t>(at(j) + pixel(j));
             }
         }
     }
@@ -541,10 +547,12 @@ namespace
     {
         static const int offsets[1] = {8};
         const int32_t ditherAmount = command.DitherAmount;
-        WalkPolygon<1>(target, command.VertexCount, command.Vertices, offsets,
+        WalkPolygon<1>(target, command.Vertices, offsets,
                        [&](int32_t y, const Edge<1>& left, const Edge<1>& right, int32_t clippedTop, int32_t rowIndex)
                        {
-                           uint8_t* row = target.Base + static_cast<intptr_t>(y) * target.Stride;
+                           const std::span<uint8_t> row(
+                               &(&target.Base->get())[static_cast<intptr_t>(y) * target.Stride],
+                               static_cast<size_t>(target.XMax + 1));
                            // The dither goes on A for the rows at an even distance from the top vertex.
                            const bool swapped = ((clippedTop + rowIndex) & 1) != 0;
                            const int32_t ditherA = swapped ? 0 : ditherAmount;
@@ -561,14 +569,19 @@ namespace
     void MapSpans(const PolyTarget& target, const MCPolygonCommand& command, MCSpanState& state,
                   const std::function<void(const MCSpan&)>& emit)
     {
-        const int32_t texStride = command.Texture->x_max + 1;
+        if (!command.Texture.has_value())
+        {
+            return;
+        }
+
+        const int32_t texStride = command.Texture->get().XMax + 1;
         int32_t (&stepTable)[4] = state.MapSteps;
         int32_t& duSpan = state.MapDu;
         int32_t& dvSpan = state.MapDv;
 
         static const int offsets[2] = {12, 16};
         WalkPolygon<2>(
-            target, command.VertexCount, command.Vertices, offsets,
+            target, command.Vertices, offsets,
             [&](int32_t y, const Edge<2>& left, const Edge<2>& right, int32_t, int32_t)
             {
                 int32_t xa = left.X;
@@ -679,16 +692,15 @@ namespace
 
 void MCPolygonSpans(const MCPolygonCommand& command, MCSpanState& state, const std::function<void(const MCSpan&)>& emit)
 {
-    PolyTarget poly{nullptr, 0, command.XMax, command.YMax};
-    const int32_t vcnt = command.VertexCount;
-    const SCRNVERTEX* vlist = command.Vertices;
+    PolyTarget poly{std::nullopt, 0, command.XMax, command.YMax};
+    const std::span<const MCScreenVertex> vertices = command.Vertices;
 
     switch (command.Kind)
     {
         case MCPolygonKind::Flat:
         {
             static const int offsets[1] = {0};
-            WalkPolygon<0>(poly, vcnt, vlist, offsets,
+            WalkPolygon<0>(poly, vertices, offsets,
                            [&](int32_t y, const Edge<0>& left, const Edge<0>& right, int32_t, int32_t)
                            {
                                int32_t xa = left.X;
@@ -699,7 +711,10 @@ void MCPolygonSpans(const MCPolygonCommand& command, MCSpanState& state, const s
                                    std::swap(xa, xb);
                                }
 
-                               int32_t l, r, count, cut;
+                               int32_t l;
+                               int32_t r;
+                               int32_t count;
+                               int32_t cut;
 
                                if (!ClipSpan(xa, xb, poly.XMax, l, r, count, cut))
                                {
@@ -718,7 +733,7 @@ void MCPolygonSpans(const MCPolygonCommand& command, MCSpanState& state, const s
         case MCPolygonKind::Gouraud:
         {
             static const int offsets[1] = {8};
-            WalkPolygon<1>(poly, vcnt, vlist, offsets,
+            WalkPolygon<1>(poly, vertices, offsets,
                            [&](int32_t y, const Edge<1>& left, const Edge<1>& right, int32_t, int32_t)
                            {
                                int32_t xa = left.X;
@@ -785,7 +800,7 @@ void MCPolygonSpans(const MCPolygonCommand& command, MCSpanState& state, const s
         case MCPolygonKind::Translate:
         {
             static const int offsets[1] = {0};
-            WalkPolygon<0>(poly, vcnt, vlist, offsets,
+            WalkPolygon<0>(poly, vertices, offsets,
                            [&](int32_t y, const Edge<0>& left, const Edge<0>& right, int32_t, int32_t)
                            {
                                int32_t xa = left.X;
@@ -841,16 +856,17 @@ void MCPolygonSpans(const MCPolygonCommand& command, MCSpanState& state, const s
     }
 }
 
-void MCSoftwareRenderer::Polygon(_window* target, const MCPolygonCommand& command)
+void MCSoftwareRenderer::Polygon(MCWindow& target, const MCPolygonCommand& command)
 {
-    const int32_t stride = target->x_max + 1;
-    const auto at = [&](int32_t x, int32_t y) { return target->buffer + static_cast<intptr_t>(y) * stride + x; };
+    const int32_t stride = target.XMax + 1;
+    const std::span<uint8_t> pixels = target.Bytes();
+    const auto at = [&](int32_t x, int32_t y) { return static_cast<size_t>(static_cast<intptr_t>(y) * stride + x); };
 
     switch (command.Kind)
     {
         case MCPolygonKind::Flat:
         {
-            if (command.VertexCount <= 0)
+            if (command.Vertices.empty())
             {
                 return;
             }
@@ -858,9 +874,13 @@ void MCSoftwareRenderer::Polygon(_window* target, const MCPolygonCommand& comman
             // Original behaviour: the asm builds a dword of the colour from (c + 0x8000) >> 16 and fills with it, so
             // colours above 255 leak their high bits into some pixels of the dword stores; the port fills with the
             // low byte.
-            const uint8_t color = static_cast<uint8_t>((static_cast<uint32_t>(command.Vertices[0].c) + 0x8000) >> 16);
-            MCPolygonSpans(command, _Spans, [&](const MCSpan& span)
-                           { std::memset(at(span.X0, span.Y), color, static_cast<size_t>(span.X1 - span.X0 + 1)); });
+            const uint8_t color = static_cast<uint8_t>((static_cast<uint32_t>(command.Vertices[0].C) + 0x8000) >> 16);
+            MCPolygonSpans(command, _Spans,
+                           [&](const MCSpan& span)
+                           {
+                               std::fill_n(pixels.begin() + static_cast<ptrdiff_t>(at(span.X0, span.Y)),
+                                           span.X1 - span.X0 + 1, color);
+                           });
             break;
         }
 
@@ -869,12 +889,12 @@ void MCSoftwareRenderer::Polygon(_window* target, const MCPolygonCommand& comman
             MCPolygonSpans(command, _Spans,
                            [&](const MCSpan& span)
                            {
-                               uint8_t* p = at(span.X0, span.Y);
+                               size_t p = at(span.X0, span.Y);
                                uint32_t c = span.Value;
 
                                for (int32_t x = span.X0; x <= span.X1; ++x)
                                {
-                                   *p++ = static_cast<uint8_t>(c >> 16);
+                                   pixels[p++] = static_cast<uint8_t>(c >> 16);
                                    c += static_cast<uint32_t>(span.Slope);
                                }
                            });
@@ -888,7 +908,7 @@ void MCSoftwareRenderer::Polygon(_window* target, const MCPolygonCommand& comman
             poly.Stride = stride;
             poly.XMax = command.XMax;
             poly.YMax = command.YMax;
-            poly.Base = at(command.OriginX, command.OriginY);
+            poly.Base = pixels[at(command.OriginX, command.OriginY)];
 
             if (command.Kind == MCPolygonKind::DitheredGouraud)
             {
@@ -903,20 +923,22 @@ void MCSoftwareRenderer::Polygon(_window* target, const MCPolygonCommand& comman
 
         case MCPolygonKind::Translate:
         {
-            const uint8_t* table = command.Table;
+            const MCColorTable table = *command.Table;
             MCSeeThrough seeThrough(target);
             MCPolygonSpans(command, _Spans,
                            [&](const MCSpan& span)
                            {
-                               for (uint8_t* p = at(span.X0, span.Y); p <= at(span.X1, span.Y); ++p)
+                               for (size_t p = at(span.X0, span.Y); p <= at(span.X1, span.Y); ++p)
                                {
-                                   if (seeThrough.At(p))
+                                   uint8_t& pixel = pixels[p];
+
+                                   if (seeThrough.At(pixel))
                                    {
-                                       seeThrough.Map(p, table);
+                                       seeThrough.Map(pixel, table);
                                    }
                                    else
                                    {
-                                       *p = table[*p];
+                                       pixel = table[pixel];
                                    }
                                }
                            });
@@ -925,17 +947,21 @@ void MCSoftwareRenderer::Polygon(_window* target, const MCPolygonCommand& comman
 
         case MCPolygonKind::Map:
         {
-            const _window* texture = command.Texture;
+            if (!command.Texture.has_value())
+            {
+                break;
+            }
+
+            const MCWindow& texture = command.Texture->get();
             NoteCpuRead(texture, "Polygon (map)");
-            const uint8_t* texels = texture->buffer;
-            const int64_t texSize = static_cast<int64_t>(texture->x_max + 1) * (texture->y_max + 1);
-            const bool xlat = (command.MapFlags & MP_XLAT) != 0;
-            const bool transparent = (command.MapFlags & MP_XP) != 0;
-            const uint8_t* lookaside = command.Table;
+            const std::span<const uint8_t> texels = texture.Bytes();
+            const int64_t texSize = static_cast<int64_t>(texture.XMax + 1) * (texture.YMax + 1);
+            const bool xlat = (command.MapFlags & VfxMapXlat) != 0;
+            const bool transparent = (command.MapFlags & VfxMapTransparent) != 0;
             MCPolygonSpans(command, _Spans,
                            [&](const MCSpan& span)
                            {
-                               uint8_t* p = at(span.X0, span.Y);
+                               size_t p = at(span.X0, span.Y);
 
                                for (int32_t j = 0; j <= span.X1 - span.X0; ++j, ++p)
                                {
@@ -945,16 +971,16 @@ void MCSoftwareRenderer::Polygon(_window* target, const MCPolygonCommand& comman
 
                                    if (offset >= 0 && offset < texSize)
                                    {
-                                       uint8_t texel = texels[offset];
+                                       uint8_t texel = texels[static_cast<size_t>(offset)];
 
                                        if (xlat)
                                        {
-                                           texel = lookaside[texel];
+                                           texel = (*command.Table)[texel];
                                        }
 
                                        if (!transparent || texel != 0xff)
                                        {
-                                           *p = texel;
+                                           pixels[p] = texel;
                                        }
                                    }
                                }
@@ -1060,7 +1086,7 @@ void MCMapQuadSpans(const MCMapQuadCommand& command, MCSpanState& state, const s
 {
     const MCMapQuadVertex(&corners)[4] = command.Corners;
     const MCRect& clip = command.Clip;
-    const int32_t textureStride = command.Texture->x_max + 1;
+    const int32_t textureStride = command.Texture.get().XMax + 1;
 
     // Outcodes, and the top (the last corner with the smallest y) and bottom.
     int32_t yTop = 0x7fff;
@@ -1334,20 +1360,21 @@ void MCMapQuadSpans(const MCMapQuadCommand& command, MCSpanState& state, const s
     }
 }
 
-void MCSoftwareRenderer::MapQuad(_window* target, const MCMapQuadCommand& command)
+void MCSoftwareRenderer::MapQuad(MCWindow& target, const MCMapQuadCommand& command)
 {
-    NoteCpuRead(command.Texture, "MapQuad");
-    const int32_t stride = target->x_max + 1;
-    const uint8_t* texture = command.Texture->buffer;
-    const int32_t textureStride = command.Texture->x_max + 1;
+    const MCWindow& source = command.Texture.get();
+    NoteCpuRead(source, "MapQuad");
+    const int32_t stride = target.XMax + 1;
+    const std::span<const uint8_t> texture = source.Bytes();
+    const std::span<uint8_t> pixels = target.Bytes();
+    const int32_t textureStride = source.XMax + 1;
     // Port fix: texel reads outside the work buffer (the original read whatever lay there) count as transparent.
-    const int64_t textureSize =
-        static_cast<int64_t>(std::max(textureStride, 0)) * std::max(command.Texture->y_max + 1, 0);
+    const int64_t textureSize = static_cast<int64_t>(std::max(textureStride, 0)) * std::max(source.YMax + 1, 0);
 
     MCMapQuadSpans(command, _Spans,
                    [&](const MCSpan& span)
                    {
-                       uint8_t* out = target->buffer + static_cast<intptr_t>(span.Y) * stride + span.X0;
+                       auto out = static_cast<size_t>(static_cast<intptr_t>(span.Y) * stride + span.X0);
 
                        for (int32_t j = 0; j <= span.X1 - span.X0; ++j, ++out)
                        {
@@ -1355,11 +1382,11 @@ void MCSoftwareRenderer::MapQuad(_window* target, const MCMapQuadCommand& comman
 
                            if (texel >= 0 && texel < textureSize)
                            {
-                               const uint8_t color = texture[texel];
+                               const uint8_t color = texture[static_cast<size_t>(texel)];
 
                                if (color != 0xff)
                                {
-                                   *out = color;
+                                   pixels[out] = color;
                                }
                            }
                        }

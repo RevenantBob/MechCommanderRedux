@@ -169,29 +169,28 @@ static_assert(sizeof(tagPOINT) == 8);
 using POINT = tagPOINT;
 
 /// <summary>Win32 <c>PtInRect</c>: whether the point lies in the rectangle (right and bottom edges excluded).</summary>
-inline int PtInRect(const RECT* rect, POINT point)
+inline int PtInRect(const RECT& rect, POINT point)
 {
-    return (point.x >= rect->left && point.x < rect->right && point.y >= rect->top && point.y < rect->bottom) ? 1 : 0;
+    return (point.x >= rect.left && point.x < rect.right && point.y >= rect.top && point.y < rect.bottom) ? 1 : 0;
 }
 
 /// <summary>
 /// Win32 <c>IntersectRect</c>: the overlap of two rectangles into <paramref name="dest"/>; 0 (and an empty
 /// <paramref name="dest"/>) when they don't overlap.
 /// </summary>
-inline int IntersectRect(RECT* dest, const RECT* first, const RECT* second)
+inline int IntersectRect(RECT& dest, const RECT& first, const RECT& second)
 {
-    RECT overlap{first->left > second->left ? first->left : second->left,
-                 first->top > second->top ? first->top : second->top,
-                 first->right < second->right ? first->right : second->right,
-                 first->bottom < second->bottom ? first->bottom : second->bottom};
+    RECT overlap{first.left > second.left ? first.left : second.left, first.top > second.top ? first.top : second.top,
+                 first.right < second.right ? first.right : second.right,
+                 first.bottom < second.bottom ? first.bottom : second.bottom};
 
     if (overlap.left >= overlap.right || overlap.top >= overlap.bottom)
     {
-        *dest = RECT{};
+        dest = RECT{};
         return 0;
     }
 
-    *dest = overlap;
+    dest = overlap;
     return 1;
 }
 

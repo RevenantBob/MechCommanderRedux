@@ -19,7 +19,16 @@ class MCAudioStream;
 /// </remarks>
 class MCSmacker
 {
+    /// <summary>Only <see cref="Open"/> and <see cref="OpenMemory"/> make one.</summary>
+    struct Key
+    {
+        explicit Key() = default;
+    };
+
 public:
+    /// <summary>A movie with nothing read yet.</summary>
+    explicit MCSmacker(Key);
+
     /// <summary>Smacker files carry up to seven audio tracks.</summary>
     static constexpr int MaxTracks = 7;
 
@@ -136,13 +145,13 @@ public:
     /// row for a Y-interlaced one (the rows in between are left as they are, or filled with
     /// <paramref name="gapColor"/>), and each pixel through <paramref name="remap"/> when one is given.
     /// </summary>
-    /// <param name="dest">The top-left pixel the frame goes to.</param>
+    /// <param name="dest">The destination from the top-left pixel the frame goes to.</param>
     /// <param name="pitch">Bytes from one destination row to the next.</param>
     /// <param name="maxWidth">Columns available at <paramref name="dest"/>; the frame is clipped to them.</param>
     /// <param name="maxHeight">Rows available at <paramref name="dest"/>; the frame is clipped to them.</param>
-    /// <param name="remap">256 indices, or null.</param>
+    /// <param name="remap">256 indices, or empty.</param>
     /// <param name="gapColor">The colour of an interlaced movie's rows in between, or -1 to leave them.</param>
-    void CopyTo(uint8_t* dest, int pitch, int maxWidth, int maxHeight, const uint8_t* remap = nullptr,
+    void CopyTo(std::span<uint8_t> dest, int pitch, int maxWidth, int maxHeight, std::span<const uint8_t> remap = {},
                 int gapColor = -1) const;
 
     /// <summary>The 6-bit to 8-bit palette scale Smacker uses: <c>(v &lt;&lt; 2) | (v &gt;&gt; 4)</c>.</summary>
@@ -158,22 +167,20 @@ public:
     /// Builds the table SmackColorRemap uses: for each movie colour the nearest colour of <paramref name="target"/>.
     /// </summary>
     /// <param name="source">256 x (r, g, b), the movie's palette.</param>
-    /// <param name="target">The palette to map onto, (r, g, b) per entry, 8 bits per channel.</param>
-    /// <param name="targetCount">Entries of <paramref name="target"/> to consider (1-256).</param>
+    /// <param name="target">The palette to map onto, (r, g, b) per entry, 8 bits per channel: 1-256 entries.</param>
     /// <param name="remap">256 entries written.</param>
-    static void BuildRemap(const uint8_t* source, const uint8_t* target, int targetCount, uint8_t* remap);
+    static void BuildRemap(std::span<const uint8_t, 768> source, std::span<const uint8_t> target,
+                           std::span<uint8_t, 256> remap);
 
     class MCBitReader;
     class MCHuffman;
 
 private:
-    MCSmacker();
-
     /// <summary>Reads and checks the header, the frame tables and the trees.</summary>
     std::expected<void, std::string> ReadHeader();
 
-    /// <summary>Reads <paramref name="count"/> bytes at <paramref name="offset"/> of the file.</summary>
-    bool ReadAt(uint64_t offset, void* dest, size_t count);
+    /// <summary>Fills <paramref name="dest"/> from <paramref name="offset"/> of the file.</summary>
+    bool ReadAt(uint64_t offset, std::span<uint8_t> dest);
 
     std::expected<void, std::string> DecodePalette(std::span<const uint8_t> chunk);
     std::expected<void, std::string> DecodeAudio(int track, std::span<const uint8_t> chunk);
@@ -220,8 +227,10 @@ private:
 /// </summary>
 /// <remarks>
 /// <para>The game's loop was: <c>SmackDoFrame</c> (decode the current frame into the buffer and queue its sound),
-/// then <c>SmackNextFrame</c> (advance), and <c>SmackWait</c> each tick to know whether the next frame is due
-/// (see <c>aSmackerWindow::display</c> @ 0x0061b690 and <c>FUN_0061b8d0</c>). The fields the game read from the
+/// then <c>SmackNextFrame</c> (advance), and <c>SmackWait</c> each tick to know whether the next frame is due. The
+/// buffer is a parameter here: <see cref="DoFrame"/> decodes, and <see cref="CopyFrame"/> copies the frame into memory
+/// the caller holds for the call
+/// (see <c>aSmackerWindow::display</c> @ 0x0061b690 and <c>0x0061b8d0</c>). The fields the game read from the
 /// <c>SmackTag</c> are methods here: <c>+0x4 Width</c>, <c>+0x8 Height</c> (shown height), <c>+0xc Frames</c>,
 /// <c>+0x68 NewPalette</c>, <c>+0x6c Palette</c>, <c>+0x374 FrameNum</c>.</para>
 /// <para>Sound: with an <see cref="MCAudio"/>, the first present track (RAD played track 0) is queued on an
@@ -229,12 +238,21 @@ private:
 /// </remarks>
 class MCSmackerPlayer
 {
+    /// <summary>Only <see cref="Open"/> makes one.</summary>
+    struct Key
+    {
+        explicit Key() = default;
+    };
+
 public:
+    /// <summary>A player with no movie yet.</summary>
+    explicit MCSmackerPlayer(Key) {}
+
     /// <summary>Opens a movie (<c>SmackOpen</c>).</summary>
     /// <param name="path">The file on disk.</param>
     /// <param name="audio">Where the sound goes; null plays the movie silent.</param>
     static std::expected<std::unique_ptr<MCSmackerPlayer>, std::string> Open(const std::filesystem::path& path,
-                                                                             MCAudio* audio);
+                                                                             std::shared_ptr<MCAudio> audio);
 
     /// <summary>Stops the sound (<c>SmackClose</c>).</summary>
     ~MCSmackerPlayer();
@@ -256,28 +274,28 @@ public:
     const std::array<uint8_t, 768>& Palette() const { return _Smacker->Palette(); }
 
     /// <summary>
-    /// Sets where <see cref="DoFrame"/> puts the frame (<c>SmackToBuffer</c>): <paramref name="left"/>,
-    /// <paramref name="top"/> inside a buffer of <paramref name="pitch"/> bytes per row, writing at most
-    /// <paramref name="height"/> rows from <paramref name="top"/> down. Null disables the copy.
+    /// Copies the frame <see cref="DoFrame"/> decoded last into <paramref name="buffer"/> (what <c>SmackToBuffer</c>
+    /// set up and <c>SmackDoFrame</c> did): at <paramref name="left"/>, <paramref name="top"/> of a buffer of
+    /// <paramref name="pitch"/> bytes per row, writing at most <paramref name="height"/> rows from
+    /// <paramref name="top"/> down, through the colour remap.
     /// </summary>
     /// <remarks>MCX.EXE passed the movie's own height as RAD's <c>destheight</c> (aSmackerWindow::display
     /// @ 0x0061b690), so it counts rows from <paramref name="top"/>, not rows of the whole buffer. Every pixel of the
     /// frame's rectangle is written: an interlaced movie's rows in between get 0, which RAD left as they were (the
     /// game wiped them to 0 first), because the buffer may be fresh upload memory
     /// (<see cref="MCRenderer::LockTexture"/>).</remarks>
-    void ToBuffer(int left, int top, int pitch, int height, uint8_t* buffer);
+    void CopyFrame(std::span<uint8_t> buffer, int left, int top, int pitch, int height) const;
 
     /// <summary>
     /// Remaps the movie onto a fixed palette (<c>SmackColorRemap</c>): from now on every pixel written is the index
     /// of the nearest colour in <paramref name="palette"/>, recomputed when the movie's palette changes.
     /// </summary>
-    /// <param name="palette">(r, g, b) per entry, 8 bits per channel; null turns remapping off.</param>
-    /// <param name="count">Entries (1-256).</param>
-    void ColorRemap(const uint8_t* palette, int count);
+    /// <param name="palette">(r, g, b) per entry, 8 bits per channel, 1-256 entries; empty turns remapping off.</param>
+    void ColorRemap(std::span<const uint8_t> palette);
 
     /// <summary>
-    /// Decodes the frame <see cref="FrameNum"/> names (<c>SmackDoFrame</c>), copies it into the buffer given to
-    /// <see cref="ToBuffer"/> and queues its sound. The first call starts the clock.
+    /// Decodes the frame <see cref="FrameNum"/> names (<c>SmackDoFrame</c>) and queues its sound; copy it with
+    /// <see cref="CopyFrame"/>. The first call starts the clock.
     /// </summary>
     std::expected<void, std::string> DoFrame();
 
@@ -294,8 +312,6 @@ public:
     uint64_t NextFrameTime() const;
 
 private:
-    MCSmackerPlayer() = default;
-
     uint64_t ElapsedMicroseconds() const;
 
     std::unique_ptr<MCSmacker> _Smacker;
@@ -307,12 +323,6 @@ private:
     uint64_t _StartTicks = 0;
     bool _Started = false;
 
-    uint8_t* _Buffer = nullptr;
-    int _BufferLeft = 0;
-    int _BufferTop = 0;
-    int _BufferPitch = 0;
-    int _BufferHeight = 0;
-
     std::vector<uint8_t> _RemapPalette;
     std::array<uint8_t, 256> _Remap{};
     bool _RemapValid = false;
@@ -320,16 +330,13 @@ private:
 
 /// <summary>
 /// The original's Smacker handle (<c>Smack*</c>, which the game's headers name <c>SmackTag</c>). The port's is a box
-/// around the player; the game only passes it around and closes it.
+/// around the player; the game only passes it around, and closing it (<c>SmackClose</c>) is destroying it.
 /// </summary>
-struct SmackTag
+struct MCSmackTag
 {
     /// <summary>The open movie.</summary>
     std::unique_ptr<MCSmackerPlayer> Player;
 };
-
-/// <summary>Closes a movie opened for the game and frees its handle (<c>SmackClose</c>). Null is ignored.</summary>
-void SmackClose(SmackTag* movie);
 
 /// <summary>Opens a movie of the game's data (<c>SmackOpen</c>); its sound goes where
 /// <see cref="SmackSoundUseDirectSound"/> said.</summary>
@@ -337,8 +344,10 @@ void SmackClose(SmackTag* movie);
 /// <param name="flags">SMACK* flags; the port's player needs none.</param>
 /// <param name="extraBuffers">Not used.</param>
 /// <returns>The movie, or null when it can't be opened.</returns>
-SmackTag* SmackOpen(const char* fileName, uint32_t flags, int32_t extraBuffers);
+std::unique_ptr<MCSmackTag> SmackOpen(std::string_view fileName, uint32_t flags, int32_t extraBuffers);
 
-/// <summary>Sends movie sound to <paramref name="audio"/> (<c>SmackSoundUseDirectSound</c>); null plays movies silent.
+/// <summary>
+/// Sends movie sound to <paramref name="audio"/> (<c>SmackSoundUseDirectSound</c>) while it lives; empty plays movies
+/// silent.
 /// </summary>
-void SmackSoundUseDirectSound(MCAudio* audio);
+void SmackSoundUseDirectSound(std::weak_ptr<MCAudio> audio);

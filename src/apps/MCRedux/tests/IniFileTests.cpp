@@ -1,33 +1,15 @@
 #include "stdafx.h"
 #include "MCTest.h"
 #include "TestGame.h"
-#include "lib/cident.h"
-#include "lib/cvmath.h"
-#include "lib/fastfile.h"
-#include "lib/ffile.h"
-#include "lib/hbtime.h"
-#include "lib/heap.h"
-#include "lib/inifile.h"
-#include "lib/llist.h"
-#include "lib/pqueue.h"
-#include "lib/routines.h"
+#include "fakes/MCMemoryFileSource.h"
+#include "lib/MCFastFileSet.h"
+#include "lib/MCFitIniFile.h"
+#include "main/MCGameContext.h"
 
 namespace
 {
-    /// <summary>Makes systemHeap exist, as the game does at startup (SYSTEM.CFG's size).</summary>
-    void EnsureSystemHeap()
-    {
-        if (systemHeap != nullptr)
-        {
-            return;
-        }
-
-        systemHeap = new UserHeap;
-        systemHeap->init(16383999, "SystemHeap");
-    }
-
     /// <summary>A scratch path outside the game install.</summary>
-    std::string ScratchPath(const char* name)
+    std::string ScratchPath(std::string_view name)
     {
         return (std::filesystem::temp_directory_path() / name).string();
     }
@@ -35,334 +17,115 @@ namespace
     /// <summary>Opens a FIT file and requires success.</summary>
     struct OpenFit
     {
-        explicit OpenFit(const char* name) { Result = File.open(name); }
+        explicit OpenFit(std::string_view name) { Result = File.Open(name); }
 
-        FitIniFile File;
+        MCFitIniFile File;
         int32_t Result = 0;
     };
 }
 
-TEST_CASE("heap: a UserHeap hands out memory and keeps its bookkeeping")
-{
-    UserHeap heap;
-    REQUIRE_EQ(heap.init(65536, "Test"), 0);
-    CHECK_EQ(heap.heapSize, 65536u);
-    CHECK_EQ(heap.heapType(), USER_HEAP);
-    const uint32_t emptyLeft = heap.totalCoreLeft();
-    CHECK_EQ(emptyLeft, 65536u - 16 - 8);
-    CHECK_EQ(heap.coreLeft(), emptyLeft);
-
-    CHECK(heap.malloc(0) == nullptr);
-    CHECK(heap.calloc(100) == nullptr);
-
-    void* a = heap.malloc(100);
-    REQUIRE(a != nullptr);
-    std::memset(a, 0x5a, 100);
-    CHECK_EQ(heap.totalCoreLeft(), emptyLeft - 108);
-    void* b = heap.malloc(1);
-    CHECK_EQ(heap.totalCoreLeft(), emptyLeft - 108 - 16);
-    CHECK(heap.owns(a));
-
-    int outside = 0;
-    CHECK_EQ(heap.free(&outside), 0);
-    CHECK_EQ(heap.free(a), 108);
-    CHECK_EQ(heap.free(b), 16);
-    CHECK_EQ(heap.totalCoreLeft(), emptyLeft);
-    CHECK_EQ(heap.getLastError(), 0);
-
-    heap.destroy();
-    CHECK_EQ(heap.heapSize, 0u);
-}
-
-TEST_CASE("heap: a HeapManager block is zeroed and committed in pages")
-{
-    HeapManager block;
-    CHECK(block.getHeapPtr() == nullptr);
-    REQUIRE_EQ(block.createHeap(10000), 0);
-    CHECK(block.getHeapPtr() == nullptr);
-    REQUIRE_EQ(block.commitHeap(0), 0);
-    CHECK_EQ(block.tSize(), 12288u);
-    uint8_t* memory = block.getHeapPtr();
-    REQUIRE(memory != nullptr);
-    CHECK_EQ(memory[0], 0);
-    CHECK_EQ(memory[9999], 0);
-    // Original behaviour: the page rounding commits past the size, so "all committed" is only seen for page-multiple
-    // sizes; a second commit of an odd size goes on committing.
-    CHECK_EQ(block.commitHeap(20000), COMMIT_TOO_LARGE);
-
-    HeapList list;
-    list.addHeap(&block);
-    CHECK(list.heapRecords[0] == &block);
-    list.removeHeap(&block);
-    CHECK(list.heapRecords[0] == nullptr);
-}
-
-TEST_CASE("pqueue: items come out smallest key first")
-{
-    EnsureSystemHeap();
-    PriorityQueue queue;
-    REQUIRE_EQ(queue.init(16, -1000000), 0);
-    const int32_t keys[] = {50, 10, 70, 30, 20, 60, 40};
-
-    for (int32_t i = 0; i < 7; ++i)
-    {
-        PQNode node{keys[i], 100 + i, i, i};
-        CHECK_EQ(queue.insert(node), 0);
-    }
-
-    CHECK(queue.find(102) > 0);
-    CHECK_EQ(queue.find(999), 0);
-
-    // Lower 70 to 5: it comes out first.
-    queue.change(queue.find(102), 5);
-    int32_t previous = INT32_MIN;
-    std::vector<int32_t> ids;
-
-    while (!queue.isEmpty())
-    {
-        PQNode node{};
-        queue.remove(node);
-        CHECK(node.key >= previous);
-        previous = node.key;
-        ids.push_back(node.id);
-    }
-
-    REQUIRE_EQ(ids.size(), 7u);
-    CHECK_EQ(ids[0], 102);
-    CHECK_EQ(ids[1], 101);
-    queue.destroy();
-}
-
-TEST_CASE("llist: links are added, removed and counted")
-{
-    struct Counted : Link
-    {
-        explicit Counted(int* deaths) : Deaths(deaths) {}
-        ~Counted() override { ++*Deaths; }
-        int* Deaths;
-    };
-
-    int deaths = 0;
-    {
-        LinkedList list;
-        Link* a = new Counted(&deaths);
-        Link* b = new Counted(&deaths);
-        Link* c = new Counted(&deaths);
-        list.AddToTail(a);
-        list.AddToTail(c);
-        list.InsertAfter(a, b);
-        list.AddToHead(new Counted(&deaths));
-        CHECK_EQ(list.Count(), 4u);
-
-        Link* walk = nullptr;
-        int steps = 0;
-
-        while (list.Traverse(walk))
-        {
-            ++steps;
-        }
-
-        CHECK_EQ(steps, 4);
-
-        list.Destroy(b);
-        CHECK_EQ(deaths, 1);
-        CHECK_EQ(list.Count(), 3u);
-        list.Remove(c);
-        CHECK_EQ(list.Count(), 2u);
-        delete c;
-        CHECK_EQ(deaths, 2);
-    }
-
-    CHECK_EQ(deaths, 4);
-}
-
-TEST_CASE("hbtime: minutes convert to dates")
-{
-    HBDate date;
-    CHECK_EQ(date.year, 3000);
-    const HBDate start = date.LongToHBDate(0);
-    CHECK_EQ(start.year, 3000);
-    CHECK_EQ(start.month, 0);
-    CHECK_EQ(start.day, 0);
-
-    // 1 Feb + 2 days, 3:04.
-    const int32_t minutes = 31 * 1440 + 2 * 1440 + 3 * 60 + 4;
-    const HBDate feb = date.LongToHBDate(minutes);
-    CHECK_EQ(feb.month, 1);
-    CHECK_EQ(feb.day, 2);
-    CHECK_EQ(feb.hour, 3);
-    CHECK_EQ(feb.minute, 4);
-
-    // Year 3000 is a leap year (divisible by 1000); 3100 isn't.
-    CHECK(date.IsLeapYear(3000));
-    CHECK(!date.IsLeapYear(3100));
-    CHECK(date.IsLeapYear(3004));
-    const HBDate nextYear = date.LongToHBDate(527040 + 60);
-    CHECK_EQ(nextYear.year, 3001);
-    CHECK_EQ(nextYear.hour, 1);
-    CHECK(std::strncmp(date.GetShortMonth(2), "Mar", 3) == 0);
-    CHECK(std::strncmp(date.GetLongMonth(8), "September", 9) == 0);
-}
-
-TEST_CASE("cvmath: vector products and random ranges")
-{
-    const vector_3d x(1.0f, 0.0f, 0.0f);
-    const vector_3d y(0.0f, 1.0f, 0.0f);
-    const vector_3d z = x & y;
-    CHECK_EQ(z.x, 0.0f);
-    CHECK_EQ(z.y, 0.0f);
-    CHECK_EQ(z.z, 1.0f);
-    CHECK_EQ(x | y, 0.0f);
-    vector_3d v(3.0f, 4.0f, 0.0f);
-    CHECK_EQ(v.magnitude(), 5.0f);
-    v.normalize();
-    CHECK_EQ(v.x, 0.6f);
-    frame_of_ref frame;
-    frame.reset_to_world_frame();
-    CHECK_EQ(frame.k.z, 1.0f);
-    CHECK_EQ(NULL_frame_of_ref.j.y, 1.0f);
-    CHECK_EQ(frame.my_acos(2.0f), 0.0f);
-
-    for (int i = 0; i < 1000; ++i)
-    {
-        const int32_t r = RandomNumber(10);
-        CHECK(r >= 0 && r < 10);
-        const int32_t s = SignedRandomNumber(5);
-        CHECK(s >= -5 && s < 5);
-    }
-
-    CHECK_EQ(RollDice(0), 0);
-    CHECK_EQ(RollDice(101), 1);
-}
-
-TEST_CASE("cident: ids and full paths")
-{
-    IDString id;
-    id.init("ABCDEFGHIJ");
-    CHECK(std::strcmp(id.id, "ABCDEFG") == 0);
-    CHECK(id == "ABCDEFG");
-    CHECK(!(id == "ABCDEFX"));
-    CHECK(!(id == "ABC"));
-
-    FullPathFileName path;
-    path.init("data\\missions\\", "mcx0101", ".fit");
-    CHECK(std::strcmp(path, "data\\missions\\mcx0101.fit") == 0);
-    EnsureSystemHeap();
-    path.init("data\\", "x", nullptr);
-    CHECK(std::strcmp(path, "data\\x") == 0);
-
-    uint8_t bytes[13];
-    memfill(bytes, 13);
-    CHECK_EQ(bytes[12], 0xff);
-    memclear(bytes + 1, 11);
-    CHECK_EQ(bytes[0], 0xff);
-    CHECK_EQ(bytes[5], 0);
-    CHECK_EQ(bytes[12], 0xff);
-}
-
 TEST_CASE("inifile: a written FIT file reads back")
 {
-    EnsureSystemHeap();
     const std::string path = ScratchPath("mc_inifile_test.fit");
     {
-        FitIniFile out;
-        REQUIRE_EQ(out.create(path.c_str()), 0);
-        out.writeBlock("First");
-        out.writeIdLong("Count", -42);
-        out.writeIdULong("Big", 4000000000u);
-        out.writeIdFloat("Scale", 2.5f);
-        out.writeIdBoolean("On", 1);
-        out.writeIdBoolean("Off", 0);
-        out.writeIdString("Name", "Jade Falcon");
-        out.writeIdShort("Short", -7);
-        out.writeIdUShort("UShort", 65000);
-        out.writeIdChar("Char", -3);
-        out.writeIdUChar("UChar", 200);
-        out.writeBlock("Arrays");
+        MCFitIniFile out;
+        REQUIRE_EQ(out.Create(path.c_str()), 0);
+        out.WriteBlock("First");
+        out.WriteIdLong("Count", -42);
+        out.WriteIdULong("Big", 4000000000u);
+        out.WriteIdFloat("Scale", 2.5f);
+        out.WriteIdBoolean("On", true);
+        out.WriteIdBoolean("Off", false);
+        out.WriteIdString("Name", "Jade Falcon");
+        out.WriteIdShort("Short", -7);
+        out.WriteIdUShort("UShort", 65000);
+        out.WriteIdChar("Char", -3);
+        out.WriteIdUChar("UChar", 200);
+        out.WriteBlock("Arrays");
         const int32_t longs[] = {1, -2, 3, 40000};
-        out.writeIdLongArray("Longs", longs, 4);
+        out.WriteIdLongArray("Longs", longs);
         const float floats[] = {0.25f, -1.5f, 100.0f};
-        out.writeIdFloatArray("Floats", floats, 3);
+        out.WriteIdFloatArray("Floats", floats);
         const uint8_t bytes[] = {0, 7, 255};
-        out.writeIdUCharArray("Bytes", bytes, 3);
+        out.WriteIdUCharArray("Bytes", bytes);
         const uint16_t shorts[] = {9, 65535};
-        out.writeIdUShortArray("Shorts", shorts, 2);
-        out.close();
+        out.WriteIdUShortArray("Shorts", shorts);
+        out.Close();
     }
 
-    FitIniFile in;
-    REQUIRE_EQ(in.open(path.c_str()), 0);
-    CHECK_EQ(in.getNumBlocks(), 2);
-    CHECK_EQ(in.seekBlock("Missing"), BLOCK_NOT_FOUND);
-    CHECK_EQ(in.seekBlock("first"), BLOCK_NOT_FOUND);
-    REQUIRE_EQ(in.seekBlock("First"), 0);
+    MCFitIniFile in;
+    REQUIRE_EQ(in.Open(path.c_str()), 0);
+    CHECK_EQ(in.GetNumBlocks(), 2);
+    CHECK_EQ(in.SeekBlock("Missing"), BLOCK_NOT_FOUND);
+    CHECK_EQ(in.SeekBlock("first"), BLOCK_NOT_FOUND);
+    REQUIRE_EQ(in.SeekBlock("First"), 0);
 
     int32_t count = 0;
-    CHECK_EQ(in.readIdLong("Count", count), 0);
+    CHECK_EQ(in.ReadIdLong("Count", count), 0);
     CHECK_EQ(count, -42);
-    CHECK_EQ(in.readIdLong("count", count), 0); // names ignore case
+    CHECK_EQ(in.ReadIdLong("count", count), 0); // names ignore case
     uint32_t big = 0;
-    CHECK_EQ(in.readIdULong("Big", big), 0);
+    CHECK_EQ(in.ReadIdULong("Big", big), 0);
     CHECK_EQ(big, 4000000000u);
     float scale = 0.0f;
-    CHECK_EQ(in.readIdFloat("Scale", scale), 0);
+    CHECK_EQ(in.ReadIdFloat("Scale", scale), 0);
     CHECK_EQ(scale, 2.5f);
     int on = 0;
     int off = 1;
-    CHECK_EQ(in.readIdBoolean("On", on), 0);
-    CHECK_EQ(in.readIdBoolean("Off", off), 0);
+    CHECK_EQ(in.ReadIdBoolean("On", on), 0);
+    CHECK_EQ(in.ReadIdBoolean("Off", off), 0);
     CHECK_EQ(on, 1);
     CHECK_EQ(off, 0);
     char name[32] = {};
-    CHECK_EQ(in.readIdString("Name", name, sizeof(name)), 0);
+    CHECK_EQ(in.ReadIdString("Name", name), 0);
     CHECK(std::strcmp(name, "Jade Falcon") == 0);
-    CHECK_EQ(in.getIdStringLength("Name"), 12);
+    CHECK_EQ(in.GetIdStringLength("Name"), 12);
     char tiny[4];
-    CHECK_EQ(in.readIdString("Name", tiny, sizeof(tiny)), BUFFER_TOO_SMALL);
+    CHECK_EQ(in.ReadIdString("Name", tiny), BUFFER_TOO_SMALL);
     int16_t s = 0;
-    CHECK_EQ(in.readIdShort("Short", s), 0);
+    CHECK_EQ(in.ReadIdShort("Short", s), 0);
     CHECK_EQ(s, -7);
     uint16_t us = 0;
-    CHECK_EQ(in.readIdUShort("UShort", us), 0);
+    CHECK_EQ(in.ReadIdUShort("UShort", us), 0);
     CHECK_EQ(us, 65000);
     char c = 0;
-    CHECK_EQ(in.readIdChar("Char", c), 0);
+    CHECK_EQ(in.ReadIdChar("Char", c), 0);
     CHECK_EQ(c, -3);
     uint8_t uc = 0;
-    CHECK_EQ(in.readIdUChar("UChar", uc), 0);
+    CHECK_EQ(in.ReadIdUChar("UChar", uc), 0);
     CHECK_EQ(uc, 200);
     count = 5;
-    CHECK_EQ(in.readIdLong("Scale", count), VARIABLE_NOT_FOUND); // "f Scale" isn't an "l" entry
+    CHECK_EQ(in.ReadIdLong("Scale", count), VARIABLE_NOT_FOUND); // "f Scale" isn't an "l" entry
     CHECK_EQ(count, 0);
 
-    REQUIRE_EQ(in.seekBlock("Arrays"), 0);
-    CHECK_EQ(in.getIdLongArrayElements("Longs"), 4u);
+    REQUIRE_EQ(in.SeekBlock("Arrays"), 0);
+    CHECK_EQ(in.GetIdLongArrayElements("Longs"), 4u);
     int32_t readLongs[4] = {};
-    CHECK_EQ(in.readIdLongArray("Longs", readLongs, 4), 0);
+    CHECK_EQ(in.ReadIdLongArray("Longs", readLongs), 0);
     CHECK_EQ(readLongs[1], -2);
     CHECK_EQ(readLongs[3], 40000);
     int32_t small[2];
-    CHECK_EQ(in.readIdLongArray("Longs", small, 2), USER_ARRAY_TOO_SMALL);
+    CHECK_EQ(in.ReadIdLongArray("Longs", small), USER_ARRAY_TOO_SMALL);
     float readFloats[3] = {};
-    CHECK_EQ(in.readIdFloatArray("Floats", readFloats, 3), 0);
+    CHECK_EQ(in.ReadIdFloatArray("Floats", readFloats), 0);
     CHECK_EQ(readFloats[0], 0.25f);
     CHECK_EQ(readFloats[1], -1.5f);
     CHECK_EQ(readFloats[2], 100.0f);
     uint8_t readBytes[3] = {};
-    CHECK_EQ(in.readIdUCharArray("Bytes", readBytes, 3), 0);
+    CHECK_EQ(in.ReadIdUCharArray("Bytes", readBytes), 0);
     CHECK_EQ(readBytes[2], 255);
     uint16_t readShorts[2] = {};
-    CHECK_EQ(in.readIdUShortArray("Shorts", readShorts, 2), 0);
+    CHECK_EQ(in.ReadIdUShortArray("Shorts", readShorts), 0);
     CHECK_EQ(readShorts[1], 65535);
-    CHECK_EQ(in.getIdFloatArrayElements("Nothing"), static_cast<uint32_t>(VARIABLE_NOT_FOUND));
-    in.close();
+    CHECK_EQ(in.GetIdFloatArrayElements("Nothing"), static_cast<uint32_t>(VARIABLE_NOT_FOUND));
+    in.Close();
 
     // The file is laid out as the game writes it.
-    File raw;
-    REQUIRE_EQ(raw.open(path.c_str()), 0);
-    std::string text(raw.getLength(), '\0');
-    raw.read(reinterpret_cast<uint8_t*>(text.data()), static_cast<int32_t>(text.size()));
-    raw.close();
+    MCFile raw;
+    REQUIRE_EQ(raw.Open(path.c_str()), 0);
+    std::string text(raw.GetLength(), '\0');
+    raw.Read(std::span(reinterpret_cast<uint8_t*>(text.data()), text.size()));
+    raw.Close();
     CHECK(text.starts_with("FITini \r\n\r\n[First]\r\nl Count=-42\r\n"));
     CHECK(text.find("ul Big=-294967296\r\n") != std::string::npos);
     CHECK(text.find("l[4] Longs=1,-2,3,40000,\r\n") != std::string::npos);
@@ -374,7 +137,6 @@ TEST_CASE("inifile: a written FIT file reads back")
 
 TEST_CASE("inifile: hex values and malformed files")
 {
-    EnsureSystemHeap();
     const std::string path = ScratchPath("mc_inifile_hex.fit");
     {
         std::ofstream out(path, std::ios::binary);
@@ -382,34 +144,198 @@ TEST_CASE("inifile: hex values and malformed files")
                "l[3] Split = 1, 2\r\n  3\r\nl NoEquals 5\r\n\r\n[Next]\r\nFITend\r\n";
     }
 
-    FitIniFile in;
-    REQUIRE_EQ(in.open(path.c_str()), 0);
-    REQUIRE_EQ(in.seekBlock("Hex"), 0);
+    MCFitIniFile in;
+    REQUIRE_EQ(in.Open(path.c_str()), 0);
+    REQUIRE_EQ(in.SeekBlock("Hex"), 0);
     int32_t mask = 0;
-    CHECK_EQ(in.readIdLong("Mask", mask), 0);
+    CHECK_EQ(in.ReadIdLong("Mask", mask), 0);
     CHECK_EQ(mask, 0x1f);
     uint32_t color = 0;
-    CHECK_EQ(in.readIdULong("Color", color), 0);
+    CHECK_EQ(in.ReadIdULong("Color", color), 0);
     CHECK_EQ(color, 0xffaa00u);
     int32_t word = 7;
-    CHECK_EQ(in.readIdLong("Word", word), 0);
+    CHECK_EQ(in.ReadIdLong("Word", word), 0);
     CHECK_EQ(word, 0);
     int32_t split[3] = {};
-    CHECK_EQ(in.readIdLongArray("Split", split, 3), 0);
+    CHECK_EQ(in.ReadIdLongArray("Split", split), 0);
     CHECK_EQ(split[2], 3);
     int32_t noEquals = 0;
-    CHECK_EQ(in.readIdLong("NoEquals", noEquals), VARIABLE_NOT_FOUND);
-    in.close();
+    CHECK_EQ(in.ReadIdLong("NoEquals", noEquals), VARIABLE_NOT_FOUND);
+    in.Close();
 
     {
         std::ofstream out(path, std::ios::binary);
         out << "Not a fit file\r\n[Block]\r\n";
     }
 
-    FitIniFile bad;
-    CHECK_EQ(bad.open(path.c_str()), NOT_A_FITINIFILE);
-    bad.close();
+    MCFitIniFile bad;
+    CHECK_EQ(bad.Open(path.c_str()), NOT_A_FITINIFILE);
+    bad.Close();
     std::filesystem::remove(path);
+}
+
+namespace
+{
+    /// <summary>A FIT file held by a test's memory source, opened.</summary>
+    struct MemoryFit
+    {
+        explicit MemoryFit(std::string_view text)
+        {
+            MCMemoryFileSource& files = Scope.Context().SetFiles(std::make_unique<MCMemoryFileSource>());
+            files.AddFile("data\\test.fit", text);
+            Result = File.Open("data\\test.fit");
+        }
+
+        MCTestContextScope Scope;
+        MCFitIniFile File;
+        int32_t Result = 0;
+    };
+
+    /// <summary>Whether <paramref name="result"/> failed with <paramref name="error"/>.</summary>
+    template <typename T> bool FailedWith(const MCFitResult<T>& result, MCFitError error)
+    {
+        return !result.has_value() && result.error() == error;
+    }
+}
+
+/// <summary>
+/// Read and ReadArray give each entry as its type tag says (f l ul s us c uc b st), numbers as atol/atof read them
+/// (hex after "0x", 32-bit wrap), and say why an entry is missing.
+/// </summary>
+TEST_CASE("inifile: Read gives every entry type, or why it is missing")
+{
+    MemoryFit fit("FITini\r\n[All]\r\nf Float = -2.5\r\nl Long = -123456\r\nul ULong = 0xFFFFFFFF\r\n"
+                  "s Short = -300\r\nus UShort = 65535\r\nc Char = -5\r\nuc UChar = 0x80\r\nb True = TRUE\r\n"
+                  "b Number = 2\r\nb False = 0\r\nst Text = \"Hello, world\" // comment\r\n"
+                  "st Open = \"no closing quote\r\nst NoQuote = plain\r\nf NegZero = -0.0\r\nl Wrap = 4294967297\r\n"
+                  "f[3] Floats = 1.5, -2, 3e2\r\nl[4] Longs = 1, 0x10,\r\n  -3\t4\r\nuc[2] Bytes = 255, 256\r\n"
+                  "ul[2] ULongs = 7, 8\r\n\r\n[Second]\r\nl Long = 99\r\nFITend\r\n");
+    REQUIRE_EQ(fit.Result, 0);
+    MCFitIniFile& file = fit.File;
+    CHECK_EQ(file.GetNumBlocks(), 2);
+    CHECK_EQ(file.GetBlockName(1), std::string_view("Second"));
+    CHECK(file.GetBlockName(2).empty());
+    CHECK_EQ(file.SeekBlock("second"), BLOCK_NOT_FOUND);
+    REQUIRE_EQ(file.SeekBlock("All"), 0);
+
+    CHECK(file.Read<float>("Float") == MCFitResult<float>(-2.5f));
+    CHECK(file.Read<int32_t>("Long") == MCFitResult<int32_t>(-123456));
+    CHECK(file.Read<int32_t>("LONG") == MCFitResult<int32_t>(-123456));
+    CHECK(file.Read<uint32_t>("ULong") == MCFitResult<uint32_t>(0xffffffffu));
+    CHECK(file.Read<int16_t>("Short") == MCFitResult<int16_t>(-300));
+    CHECK(file.Read<uint16_t>("UShort") == MCFitResult<uint16_t>(65535));
+    CHECK(file.Read<char>("Char") == MCFitResult<char>(-5));
+    CHECK(file.Read<uint8_t>("UChar") == MCFitResult<uint8_t>(0x80));
+    CHECK(file.Read<bool>("True") == MCFitResult<bool>(true));
+    CHECK(file.Read<bool>("Number") == MCFitResult<bool>(true));
+    CHECK(file.Read<bool>("False") == MCFitResult<bool>(false));
+    int number = 0;
+    CHECK_EQ(file.ReadIdBoolean("Number", number), 0);
+    CHECK_EQ(number, 2);
+    CHECK(file.Read<std::string>("Text") == MCFitResult<std::string>("Hello, world"));
+    CHECK(file.Read<std::string>("Open") == MCFitResult<std::string>("no closing quote"));
+    CHECK(FailedWith(file.Read<std::string>("NoQuote"), MCFitError::SyntaxError));
+    CHECK_EQ(file.GetIdStringLength("Text"), 13);
+    CHECK_EQ(file.GetIdStringLength("Open"), SYNTAX_ERROR);
+
+    // -0 reads as 0 (the original's never-written expression reader gave 0 for any zero).
+    const MCFitResult<float> negZero = file.Read<float>("NegZero");
+    REQUIRE(negZero.has_value());
+    CHECK(!std::signbit(*negZero));
+    CHECK(file.Read<int32_t>("Wrap") == MCFitResult<int32_t>(1));
+
+    CHECK(FailedWith(file.Read<int32_t>("Nothing"), MCFitError::VariableNotFound));
+    CHECK(FailedWith(file.Read<int32_t>("Float"), MCFitError::VariableNotFound));
+    int32_t legacy = 5;
+    CHECK_EQ(file.ReadIdLong("Nothing", legacy), VARIABLE_NOT_FOUND);
+    CHECK_EQ(legacy, 0);
+
+    CHECK(file.ReadArray<float>("Floats") == MCFitResult<std::vector<float>>(std::vector<float>{1.5f, -2.0f, 300.0f}));
+    CHECK(file.ArraySize<int32_t>("Longs") == MCFitResult<uint32_t>(4u));
+    CHECK(file.ReadArray<int32_t>("Longs") == MCFitResult<std::vector<int32_t>>(std::vector<int32_t>{1, 16, -3, 4}));
+    CHECK(file.ReadArray<uint8_t>("Bytes") == MCFitResult<std::vector<uint8_t>>(std::vector<uint8_t>{255, 0}));
+    std::array<int32_t, 3> three{};
+    CHECK(FailedWith(file.ReadArray<int32_t>("Longs", std::span(three)), MCFitError::UserArrayTooSmall));
+    CHECK(FailedWith(file.ReadArray<int32_t>("Nothing"), MCFitError::VariableNotFound));
+    CHECK(FailedWith(file.ArraySize<float>("Longs"), MCFitError::VariableNotFound));
+    // The type is matched anywhere in the line, so "l[" also finds a "ul[" array.
+    CHECK(file.ReadArray<int32_t>("ULongs") == MCFitResult<std::vector<int32_t>>(std::vector<int32_t>{7, 8}));
+
+    REQUIRE_EQ(file.SeekBlock("Second"), 0);
+    CHECK(file.Read<int32_t>("Long") == MCFitResult<int32_t>(99));
+    CHECK(FailedWith(file.Read<float>("Float"), MCFitError::VariableNotFound));
+}
+
+/// <summary>
+/// Block names sit between brackets at the start of a line; comments start with "/" after a value; a text entry is
+/// cut to the caller's buffer as the original's readIdString cut it.
+/// </summary>
+TEST_CASE("inifile: blocks, comments and string buffers")
+{
+    MemoryFit fit("FITini\r\n// [Commented]\r\n [Indented]\r\n[Name] // a comment\r\nl A = 5 // five\r\n"
+                  "// l B = 6\r\nl[3] C = 1, 2 // two\r\n 3\r\nst S = \"Jade\"\r\n[ ]\r\nl D = 4\r\n\r\nFITend\r\n");
+    REQUIRE_EQ(fit.Result, 0);
+    MCFitIniFile& file = fit.File;
+    REQUIRE_EQ(file.GetNumBlocks(), 2);
+    CHECK_EQ(file.GetBlockName(0), std::string_view("Name"));
+    CHECK_EQ(file.GetBlockName(1), std::string_view(" "));
+    REQUIRE_EQ(file.SeekBlock("Name"), 0);
+    CHECK(file.Read<int32_t>("A") == MCFitResult<int32_t>(5));
+    CHECK(FailedWith(file.Read<int32_t>("B"), MCFitError::VariableNotFound));
+    CHECK(file.ReadArray<int32_t>("C") == MCFitResult<std::vector<int32_t>>(std::vector<int32_t>{1, 2, 3}));
+
+    std::array<char, 6> text{'x', 'x', 'x', 'x', 'x', 'x'};
+    CHECK_EQ(file.ReadIdString("S", std::span(text).first(5)), 0);
+    CHECK_EQ(std::string_view(text.data()), std::string_view("Jade"));
+    text.fill('x');
+    CHECK_EQ(file.ReadIdString("S", std::span(text).first(4)), BUFFER_TOO_SMALL);
+    CHECK_EQ(std::string_view(text.data(), 5), std::string_view("Jadex"));
+    CHECK_EQ(file.ReadIdString("Missing", std::span(text).first(4)), VARIABLE_NOT_FOUND);
+
+    REQUIRE_EQ(file.SeekBlock(" "), 0);
+    CHECK(file.Read<int32_t>("D") == MCFitResult<int32_t>(4));
+
+    MemoryFit unclosed("FITini\r\n[Unclosed\r\nl A = 1\r\n\r\nFITend\r\n");
+    CHECK_EQ(unclosed.Result, SYNTAX_ERROR);
+}
+
+/// <summary>The original reader's quirks that a data file can meet (OB-135, OB-136, OB-137, OB-138, OB-139).</summary>
+TEST_CASE("inifile: the original reader's quirks are kept")
+{
+    // OB-136: an entry on the file's last line (no FITend after it) is reported missing.
+    MemoryFit last("FITini\r\n[Block]\r\nl First = 1\r\nl Last = 3");
+    REQUIRE_EQ(last.Result, 0);
+    REQUIRE_EQ(last.File.SeekBlock("Block"), 0);
+    CHECK(last.File.Read<int32_t>("First") == MCFitResult<int32_t>(1));
+    CHECK(FailedWith(last.File.Read<int32_t>("Last"), MCFitError::VariableNotFound));
+
+    // OB-137: array elements on the file's last line aren't read.
+    MemoryFit split("FITini\r\n[Block]\r\nl[3] Split = 5, 6\r\n7");
+    REQUIRE_EQ(split.Result, 0);
+    REQUIRE_EQ(split.File.SeekBlock("Block"), 0);
+    CHECK(split.File.ArraySize<int32_t>("Split") == MCFitResult<uint32_t>(3u));
+    CHECK(FailedWith(split.File.ReadArray<int32_t>("Split"), MCFitError::NotEnoughElementsForArray));
+
+    // OB-138: a file without blocks doesn't open.
+    MemoryFit empty("FITini\r\nl X = 1\r\nFITend\r\n");
+    CHECK_EQ(empty.Result, std::to_underlying(MCFitError::NoBlocks));
+
+    // OB-139: an array element longer than nine characters doesn't fit the original's word buffer.
+    MemoryFit words("FITini\r\n[Block]\r\nl[2] Nine = 123456789, 2\r\nl[2] Ten = 1234567890, 2\r\n\r\nFITend\r\n");
+    REQUIRE_EQ(words.Result, 0);
+    REQUIRE_EQ(words.File.SeekBlock("Block"), 0);
+    CHECK(words.File.ReadArray<int32_t>("Nine") ==
+          MCFitResult<std::vector<int32_t>>(std::vector<int32_t>{123456789, 2}));
+    CHECK(FailedWith(words.File.ReadArray<int32_t>("Ten"), MCFitError::BufferTooSmall));
+
+    // OB-135: a line over 254 characters is cut there and loses the next character, so a value past the cut reads
+    // from the rest of the line as if it were a line of its own.
+    const std::string longLine = "l Long = 1 //" + std::string(254 - 13, '-') + "Xl Cut = 8";
+    MemoryFit cut("FITini\r\n[Block]\r\n" + longLine + "\r\n\r\nFITend\r\n");
+    REQUIRE_EQ(cut.Result, 0);
+    REQUIRE_EQ(cut.File.SeekBlock("Block"), 0);
+    CHECK(cut.File.Read<int32_t>("Long") == MCFitResult<int32_t>(1));
+    CHECK(cut.File.Read<int32_t>("Cut") == MCFitResult<int32_t>(8));
 }
 
 TEST_CASE("game: SYSTEM.CFG and PREFS.CFG read as the game reads them")
@@ -419,52 +345,50 @@ TEST_CASE("game: SYSTEM.CFG and PREFS.CFG read as the game reads them")
         return;
     }
 
-    EnsureSystemHeap();
-
     OpenFit system("system.cfg");
     REQUIRE_EQ(system.Result, 0);
-    REQUIRE_EQ(system.File.seekBlock("systemHeap"), 0);
+    REQUIRE_EQ(system.File.SeekBlock("systemHeap"), 0);
     uint32_t size = 0;
-    CHECK_EQ(system.File.readIdULong("systemHeapSize", size), 0);
+    CHECK_EQ(system.File.ReadIdULong("systemHeapSize", size), 0);
     CHECK_EQ(size, 16383999u);
-    CHECK_EQ(system.File.readIdULong("logisticsHeapSize", size), 0);
+    CHECK_EQ(system.File.ReadIdULong("logisticsHeapSize", size), 0);
     CHECK_EQ(size, 33554430u);
 
-    REQUIRE_EQ(system.File.seekBlock("ABL"), 0);
-    CHECK_EQ(system.File.readIdULong("SymbolTableHeapSize", size), 0);
+    REQUIRE_EQ(system.File.SeekBlock("ABL"), 0);
+    CHECK_EQ(system.File.ReadIdULong("SymbolTableHeapSize", size), 0);
     CHECK_EQ(size, 4095999u);
     int32_t watches = 0;
-    CHECK_EQ(system.File.readIdLong("MaxWatchesPerModule", watches), 0);
+    CHECK_EQ(system.File.ReadIdLong("MaxWatchesPerModule", watches), 0);
     CHECK_EQ(watches, 20);
 
-    REQUIRE_EQ(system.File.seekBlock("FastFiles"), 0);
+    REQUIRE_EQ(system.File.SeekBlock("FastFiles"), 0);
     int32_t numFastFiles = 0;
-    CHECK_EQ(system.File.readIdLong("NumFastFiles", numFastFiles), 0);
+    CHECK_EQ(system.File.ReadIdLong("NumFastFiles", numFastFiles), 0);
     CHECK_EQ(numFastFiles, 5);
     char name[80] = {};
-    CHECK_EQ(system.File.readIdString("File0", name, sizeof(name)), 0);
+    CHECK_EQ(system.File.ReadIdString("File0", name), 0);
     CHECK(std::strcmp(name, "art.fst") == 0);
-    CHECK_EQ(system.File.readIdString("File4", name, sizeof(name)), 0); // spelled "FIle4" in the file
+    CHECK_EQ(system.File.ReadIdString("File4", name), 0); // spelled "FIle4" in the file
     CHECK(std::strcmp(name, "shapes.fst") == 0);
 
-    REQUIRE_EQ(system.File.seekBlock("systemPaths"), 0);
-    CHECK_EQ(system.File.readIdString("missionPath", name, sizeof(name)), 0);
+    REQUIRE_EQ(system.File.SeekBlock("systemPaths"), 0);
+    CHECK_EQ(system.File.ReadIdString("missionPath", name), 0);
     CHECK(std::strcmp(name, "data\\missions\\") == 0);
-    CHECK_EQ(system.File.seekBlock("UseSound"), 0);
+    CHECK_EQ(system.File.SeekBlock("UseSound"), 0);
 
     OpenFit prefs("prefs.cfg");
     REQUIRE_EQ(prefs.Result, 0);
-    REQUIRE_EQ(prefs.File.seekBlock("MechCommander"), 0);
+    REQUIRE_EQ(prefs.File.SeekBlock("MechCommander"), 0);
     int flag = 0;
-    CHECK_EQ(prefs.File.readIdBoolean("DirectDraw", flag), 0);
+    CHECK_EQ(prefs.File.ReadIdBoolean("DirectDraw", flag), 0);
     CHECK_EQ(flag, 1);
-    CHECK_EQ(prefs.File.readIdBoolean("Force16Mb", flag), 0);
+    CHECK_EQ(prefs.File.ReadIdBoolean("Force16Mb", flag), 0);
     CHECK_EQ(flag, 0);
     int32_t difficulty = -1;
-    CHECK_EQ(prefs.File.readIdLong("Difficulty", difficulty), 0);
+    CHECK_EQ(prefs.File.ReadIdLong("Difficulty", difficulty), 0);
     CHECK(difficulty >= 0 && difficulty <= 3);
     int32_t volume = -1;
-    CHECK_EQ(prefs.File.readIdLong("SFXVolume", volume), 0);
+    CHECK_EQ(prefs.File.ReadIdLong("SFXVolume", volume), 0);
     CHECK(volume >= 0);
 }
 
@@ -476,51 +400,50 @@ TEST_CASE("game: FIT files from the FastFiles read")
     }
 
     MCTestGame::OpenFastFiles();
-    EnsureSystemHeap();
 
     {
         OpenFit mission("data\\missions\\MCX0101.FIT");
         REQUIRE_EQ(mission.Result, 0);
-        FitIniFile& fit = mission.File;
-        REQUIRE_EQ(fit.seekBlock("GameScale"), 0);
+        MCFitIniFile& fit = mission.File;
+        REQUIRE_EQ(fit.SeekBlock("GameScale"), 0);
         float unitsPerMeter = 0.0f;
-        CHECK_EQ(fit.readIdFloat("WorldUnitsPerMeter", unitsPerMeter), 0);
+        CHECK_EQ(fit.ReadIdFloat("WorldUnitsPerMeter", unitsPerMeter), 0);
         CHECK_EQ(unitsPerMeter, 5.01f);
         uint32_t duration = 0;
-        CHECK_EQ(fit.readIdULong("Duration", duration), 0);
+        CHECK_EQ(fit.ReadIdULong("Duration", duration), 0);
         CHECK_EQ(duration, 60u);
 
-        REQUIRE_EQ(fit.seekBlock("Artillery"), 0);
+        REQUIRE_EQ(fit.SeekBlock("Artillery"), 0);
         int32_t strikes = -1;
-        CHECK_EQ(fit.readIdLong("NumLargeStrikes", strikes), 0); // "Null"
+        CHECK_EQ(fit.ReadIdLong("NumLargeStrikes", strikes), 0); // "Null"
         CHECK_EQ(strikes, 0);
-        CHECK_EQ(fit.readIdLong("NumSmallStrikes", strikes), 0);
+        CHECK_EQ(fit.ReadIdLong("NumSmallStrikes", strikes), 0);
         CHECK_EQ(strikes, 4);
 
-        REQUIRE_EQ(fit.seekBlock("Part1"), 0);
+        REQUIRE_EQ(fit.SeekBlock("Part1"), 0);
         uint32_t objectNumber = 0;
-        CHECK_EQ(fit.readIdULong("ObjectNumber", objectNumber), 0);
+        CHECK_EQ(fit.ReadIdULong("ObjectNumber", objectNumber), 0);
         CHECK_EQ(objectNumber, 15u);
         int playerPart = 1;
-        CHECK_EQ(fit.readIdBoolean("PlayerPart", playerPart), 0);
+        CHECK_EQ(fit.ReadIdBoolean("PlayerPart", playerPart), 0);
         CHECK_EQ(playerPart, 0);
         char team = 0;
-        CHECK_EQ(fit.readIdChar("TeamID", team), 0);
+        CHECK_EQ(fit.ReadIdChar("TeamID", team), 0);
         CHECK_EQ(team, 1);
         char profile[16] = {};
-        CHECK_EQ(fit.readIdString("ObjectProfile", profile, sizeof(profile)), 0);
+        CHECK_EQ(fit.ReadIdString("ObjectProfile", profile), 0);
         CHECK(std::strcmp(profile, "PM200300") == 0);
         float x = 0.0f;
         float y = 0.0f;
-        CHECK_EQ(fit.readIdFloat("PositionX", x), 0);
-        CHECK_EQ(fit.readIdFloat("PositionY", y), 0);
+        CHECK_EQ(fit.ReadIdFloat("PositionX", x), 0);
+        CHECK_EQ(fit.ReadIdFloat("PositionY", y), 0);
         CHECK_EQ(x, 1530.0f);
         CHECK_EQ(y, -1233.0f);
 
-        REQUIRE_EQ(fit.seekBlock("Commander1Group:0"), 0);
-        CHECK_EQ(fit.getIdLongArrayElements("Mates"), 12u);
+        REQUIRE_EQ(fit.SeekBlock("Commander1Group:0"), 0);
+        CHECK_EQ(fit.GetIdLongArrayElements("Mates"), 12u);
         int32_t mates[12] = {};
-        CHECK_EQ(fit.readIdLongArray("Mates", mates, 12), 0);
+        CHECK_EQ(fit.ReadIdLongArray("Mates", mates), 0);
         CHECK_EQ(mates[0], 1);
         CHECK_EQ(mates[4], 5);
         CHECK_EQ(mates[5], 0);
@@ -529,19 +452,19 @@ TEST_CASE("game: FIT files from the FastFiles read")
     {
         OpenFit clan("data\\missions\\E3_0101.FIT");
         REQUIRE_EQ(clan.Result, 0);
-        REQUIRE_EQ(clan.File.seekBlock("ClanStar:0"), 0);
+        REQUIRE_EQ(clan.File.SeekBlock("ClanStar:0"), 0);
         float withdraw[7] = {};
-        CHECK_EQ(clan.File.readIdFloatArray("WithdrawThreshold", withdraw, 7), 0);
+        CHECK_EQ(clan.File.ReadIdFloatArray("WithdrawThreshold", withdraw), 0);
         CHECK_EQ(withdraw[0], 0.25f);
         CHECK_EQ(withdraw[4], 500.0f);
         CHECK_EQ(withdraw[5], -2000.0f);
         CHECK_EQ(withdraw[6], -1.0f);
         float zone[4] = {};
-        CHECK_EQ(clan.File.readIdFloatArray("Zone1", zone, 4), 0); // ends in a // comment
+        CHECK_EQ(clan.File.ReadIdFloatArray("Zone1", zone), 0); // ends in a // comment
         CHECK_EQ(zone[0], -135.0f);
         CHECK_EQ(zone[3], 90.0f);
         int32_t roles[5] = {};
-        CHECK_EQ(clan.File.readIdLongArray("Roles", roles, 5), 0);
+        CHECK_EQ(clan.File.ReadIdLongArray("Roles", roles), 0);
         CHECK_EQ(roles[0], 0);
         CHECK_EQ(roles[4], 1);
     }
@@ -549,21 +472,21 @@ TEST_CASE("game: FIT files from the FastFiles read")
     {
         OpenFit screen("data\\art\\lanscreen.fit");
         REQUIRE_EQ(screen.Result, 0);
-        REQUIRE_EQ(screen.File.seekBlock("Element1"), 0);
+        REQUIRE_EQ(screen.File.SeekBlock("Element1"), 0);
         int32_t left = 0;
-        CHECK_EQ(screen.File.readIdLong("Left", left), 0);
+        CHECK_EQ(screen.File.ReadIdLong("Left", left), 0);
         CHECK_EQ(left, 549);
         char art[32] = {};
-        CHECK_EQ(screen.File.readIdString("GreyArt", art, sizeof(art)), 0);
+        CHECK_EQ(screen.File.ReadIdString("GreyArt", art), 0);
         CHECK(std::strcmp(art, "bn_cancl.tga") == 0);
-        REQUIRE_EQ(screen.File.seekBlock("Element0"), 0);
+        REQUIRE_EQ(screen.File.SeekBlock("Element0"), 0);
         int back = 0;
-        CHECK_EQ(screen.File.readIdBoolean("UseBackPalette", back), 0); // "T"
+        CHECK_EQ(screen.File.ReadIdBoolean("UseBackPalette", back), 0); // "T"
         CHECK_EQ(back, 1);
-        REQUIRE_EQ(screen.File.seekBlock("Blocks"), 0);
+        REQUIRE_EQ(screen.File.SeekBlock("Blocks"), 0);
         uint8_t block1[12] = {};
-        CHECK_EQ(screen.File.getIdUCharArrayElements("Block1"), 12u);
-        CHECK_EQ(screen.File.readIdUCharArray("Block1", block1, 12), 0); // "8, 9,10,11"
+        CHECK_EQ(screen.File.GetIdUCharArrayElements("Block1"), 12u);
+        CHECK_EQ(screen.File.ReadIdUCharArray("Block1", block1), 0); // "8, 9,10,11"
         CHECK_EQ(block1[7], 7);
         CHECK_EQ(block1[9], 9);
         CHECK_EQ(block1[11], 11);
@@ -572,13 +495,13 @@ TEST_CASE("game: FIT files from the FastFiles read")
     {
         OpenFit palette("data\\palette\\palette.fit");
         REQUIRE_EQ(palette.Result, 0);
-        REQUIRE_EQ(palette.File.seekBlock("Range2"), 0);
+        REQUIRE_EQ(palette.File.SeekBlock("Range2"), 0);
         uint8_t base = 0;
-        CHECK_EQ(palette.File.readIdUChar("BaseColorIndex", base), 0);
+        CHECK_EQ(palette.File.ReadIdUChar("BaseColorIndex", base), 0);
         CHECK_EQ(base, 32);
-        REQUIRE_EQ(palette.File.seekBlock("Ranges"), 0);
+        REQUIRE_EQ(palette.File.SeekBlock("Ranges"), 0);
         int32_t ranges = 0;
-        CHECK_EQ(palette.File.readIdLong("NumColorRanges", ranges), 0);
+        CHECK_EQ(palette.File.ReadIdLong("NumColorRanges", ranges), 0);
         CHECK_EQ(ranges, 9);
     }
 }
@@ -591,36 +514,34 @@ TEST_CASE("game: every FIT file in the FastFiles opens and every block seeks")
     }
 
     MCTestGame::OpenFastFiles();
-    EnsureSystemHeap();
 
     int opened = 0;
     int blocks = 0;
 
-    for (int32_t f = 0; f < numFastFiles; ++f)
+    for (const std::unique_ptr<MCFastFile>& fastFile : MCGameContext::Current().FastFiles().Files())
     {
-        for (int32_t i = 0; i < fastFiles[f]->getNumFiles(); ++i)
+        for (int32_t i = 0; i < fastFile->GetNumFiles(); ++i)
         {
-            const FILEENTRY* entry = fastFiles[f]->getEntry(i);
-            const std::string_view name(entry->name);
+            const std::string_view name = fastFile->GetEntries()[static_cast<size_t>(i)].GetName();
 
-            if (name.size() < 4 || MCPort::StrICmp(entry->name + name.size() - 4, ".fit") != 0)
+            if (name.size() < 4 || !MCIEquals(name.substr(name.size() - 4), ".fit"))
             {
                 continue;
             }
 
-            MCTest::Scope scope(entry->name);
-            FitIniFile fit;
-            CHECK_EQ(fit.open(entry->name), 0);
+            MCTest::Scope scope{std::string(name)};
+            MCFitIniFile fit;
+            CHECK_EQ(fit.Open(name), 0);
 
-            for (int32_t b = 0; b < fit.getNumBlocks(); ++b)
+            for (int32_t b = 0; b < fit.GetNumBlocks(); ++b)
             {
-                MCTest::Scope blockScope(fit.getBlockName(b));
+                MCTest::Scope blockScope{std::string(fit.GetBlockName(b))};
                 // A block named twice is found at its first copy; seeking still succeeds.
-                CHECK_EQ(fit.seekBlock(fit.getBlockName(b)), 0);
+                CHECK_EQ(fit.SeekBlock(fit.GetBlockName(b)), 0);
                 ++blocks;
             }
 
-            fit.close();
+            fit.Close();
             ++opened;
         }
     }

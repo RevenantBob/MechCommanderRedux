@@ -1,6 +1,7 @@
 #pragma once
 
 #include "platform/MCPresenter.h"
+#include "platform/MCSdlHandle.h"
 
 /// <summary>
 /// The software renderer's presenter: the CPU composites the screen's underlays (<see cref="MCRenderer::ComposeUnderlays"/>)
@@ -9,9 +10,19 @@
 /// </summary>
 class MCSdlPresenter final : public MCPresenter
 {
+    /// <summary>Only <see cref="Create"/> makes one.</summary>
+    struct Key
+    {
+        explicit Key() = default;
+    };
+
 public:
+    /// <summary>A presenter with no renderer yet.</summary>
+    explicit MCSdlPresenter(Key) {}
+
     /// <summary>Makes SDL's renderer for <paramref name="window"/>.</summary>
-    static std::expected<std::unique_ptr<MCSdlPresenter>, std::string> Create(SDL_Window* window, bool vsync,
+    static std::expected<std::unique_ptr<MCSdlPresenter>, std::string> Create(std::shared_ptr<SDL_Window> window,
+                                                                              bool vsync,
                                                                               const MCPresentation& presentation);
 
     ~MCSdlPresenter() override;
@@ -26,8 +37,6 @@ public:
     MCViewport Viewport(int viewWidth, int viewHeight) const override;
 
 private:
-    MCSdlPresenter() = default;
-
     /// <summary>Remakes the textures for a screen of <paramref name="width"/> x <paramref name="height"/>.</summary>
     std::expected<void, std::string> EnsureTextures(int width, int height);
     /// <summary>Uploads the frame's palette and pixels (composited by the CPU when it has underlays).</summary>
@@ -35,13 +44,14 @@ private:
     /// <summary>Fits <paramref name="view"/> into the window (SDL's logical presentation).</summary>
     void ApplyPresentation(const SDL_Rect& view);
 
-    SDL_Window* _Window = nullptr;
-    SDL_Renderer* _Renderer = nullptr;
-    SDL_Palette* _Palette = nullptr;
+    /// <summary>The window shown in (the display's); destroyed after the renderer.</summary>
+    std::shared_ptr<SDL_Window> _Window;
+    MCSdlHandle<SDL_Renderer> _Renderer;
+    MCSdlHandle<SDL_Palette> _Palette;
     /// <summary>The screen, INDEX8.</summary>
-    SDL_Texture* _Texture = nullptr;
+    MCSdlHandle<SDL_Texture> _Texture;
     /// <summary>With linear filtering: the screen converted to RGBA at its size, which is then scaled.</summary>
-    SDL_Texture* _Target = nullptr;
+    MCSdlHandle<SDL_Texture> _Target;
     int _Width = 0;
     int _Height = 0;
     /// <summary>The view the logical presentation was set for.</summary>

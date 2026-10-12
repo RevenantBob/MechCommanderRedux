@@ -1,6 +1,6 @@
 #include "stdafx.h"
 #include "MCTest.h"
-#include "vfx/vfxfuncs.h"
+#include "vfx/MCVfxFunctions.h"
 
 // The vfx3d polygon fillers on synthetic windows. The expected pixels follow from the asm's rules (edges at x + 0.5
 // rounded down, rows and spans inclusive of both ends); the port was also checked against MCX.EXE's own routines run
@@ -11,30 +11,31 @@ namespace
     /// <summary>A small window and a pane over it, filled with one colour.</summary>
     struct TestSurface
     {
-        std::vector<uint8_t> Pixels;
-        WINDOW Window{};
-        PANE Pane{};
+        std::shared_ptr<MCWindow> Window;
+        MCPane Pane{};
 
-        TestSurface(int32_t width, int32_t height, uint8_t fill) : Pixels(static_cast<size_t>(width) * height, fill)
+        TestSurface(int32_t width, int32_t height, uint8_t fill) : Window(MCWindow::Make(width, height))
         {
-            Window = {Pixels.data(), width - 1, height - 1};
-            Pane = {&Window, 0, 0, width - 1, height - 1};
+            std::ranges::fill(Pixels(), fill);
+            Pane = MCPane::Over(Window);
         }
 
-        uint8_t At(int32_t x, int32_t y) const { return Pixels[static_cast<size_t>(y) * (Window.x_max + 1) + x]; }
+        std::span<uint8_t> Pixels() const { return Window->Bytes(); }
+
+        uint8_t At(int32_t x, int32_t y) const { return Pixels()[static_cast<size_t>(y) * (Window->XMax + 1) + x]; }
     };
 
-    SCRNVERTEX Vertex(int32_t x, int32_t y, int32_t c = 0, int32_t u = 0, int32_t v = 0)
+    MCScreenVertex Vertex(int32_t x, int32_t y, int32_t c = 0, int32_t u = 0, int32_t v = 0)
     {
-        return SCRNVERTEX{x, y, c, u, v, 0};
+        return MCScreenVertex{x, y, c, u, v, 0};
     }
 }
 
 TEST_CASE("vfx3d: a flat square fills its corners inclusive")
 {
     TestSurface surface(16, 16, 0);
-    SCRNVERTEX quad[4] = {Vertex(2, 2, 7 << 16), Vertex(6, 2), Vertex(6, 6), Vertex(2, 6)};
-    VFX_flat_polygon(&surface.Pane, 4, quad);
+    MCScreenVertex quad[4] = {Vertex(2, 2, 7 << 16), Vertex(6, 2), Vertex(6, 6), Vertex(2, 6)};
+    VfxFlatPolygon(surface.Pane, std::span(quad, 4));
     int covered = 0;
 
     for (int32_t y = 0; y < 16; ++y)
@@ -54,8 +55,8 @@ TEST_CASE("vfx3d: flat triangle rows and the colour rounding")
 {
     TestSurface surface(16, 16, 0);
     // Colour 4.5 rounds to 5. A right triangle: row y spans x = 0..y.
-    SCRNVERTEX tri[3] = {Vertex(0, 0, (4 << 16) | 0x8000), Vertex(8, 8), Vertex(0, 8)};
-    VFX_flat_polygon(&surface.Pane, 3, tri);
+    MCScreenVertex tri[3] = {Vertex(0, 0, (4 << 16) | 0x8000), Vertex(8, 8), Vertex(0, 8)};
+    VfxFlatPolygon(surface.Pane, std::span(tri, 3));
 
     for (int32_t y = 0; y < 16; ++y)
     {
@@ -69,10 +70,10 @@ TEST_CASE("vfx3d: flat triangle rows and the colour rounding")
 TEST_CASE("vfx3d: polygons are clipped to the pane, relative to its corner")
 {
     TestSurface surface(16, 16, 1);
-    surface.Pane = {&surface.Window, 4, 4, 9, 9};
+    surface.Pane = MCPane{surface.Window, 4, 4, 9, 9};
     // Much larger than the pane: exactly the pane's pixels change.
-    SCRNVERTEX quad[4] = {Vertex(-7, -7, 9 << 16), Vertex(12, -7), Vertex(12, 12), Vertex(-7, 12)};
-    VFX_flat_polygon(&surface.Pane, 4, quad);
+    MCScreenVertex quad[4] = {Vertex(-7, -7, 9 << 16), Vertex(12, -7), Vertex(12, 12), Vertex(-7, 12)};
+    VfxFlatPolygon(surface.Pane, std::span(quad, 4));
 
     for (int32_t y = 0; y < 16; ++y)
     {
@@ -85,16 +86,16 @@ TEST_CASE("vfx3d: polygons are clipped to the pane, relative to its corner")
 
     // Wholly outside: nothing is drawn.
     TestSurface other(16, 16, 1);
-    SCRNVERTEX away[3] = {Vertex(20, 0, 9 << 16), Vertex(30, 0), Vertex(25, 5)};
-    VFX_flat_polygon(&other.Pane, 3, away);
-    CHECK(std::all_of(other.Pixels.begin(), other.Pixels.end(), [](uint8_t p) { return p == 1; }));
+    MCScreenVertex away[3] = {Vertex(20, 0, 9 << 16), Vertex(30, 0), Vertex(25, 5)};
+    VfxFlatPolygon(other.Pane, std::span(away, 3));
+    CHECK(std::all_of(other.Pixels().begin(), other.Pixels().end(), [](uint8_t p) { return p == 1; }));
 }
 
 TEST_CASE("vfx3d: Gouraud interpolates the colour along a span")
 {
     TestSurface surface(16, 8, 0);
-    SCRNVERTEX quad[4] = {Vertex(0, 0, 0), Vertex(10, 0, 10 << 16), Vertex(10, 3, 10 << 16), Vertex(0, 3, 0)};
-    VFX_Gouraud_polygon(&surface.Pane, 4, quad);
+    MCScreenVertex quad[4] = {Vertex(0, 0, 0), Vertex(10, 0, 10 << 16), Vertex(10, 3, 10 << 16), Vertex(0, 3, 0)};
+    VfxGouraudPolygon(surface.Pane, std::span(quad, 4));
 
     for (int32_t y = 0; y <= 3; ++y)
     {
@@ -111,8 +112,9 @@ TEST_CASE("vfx3d: dithered Gouraud adds the dither in a checkerboard")
 {
     TestSurface surface(16, 8, 0);
     // Colour 5.0 (+0.5 at the vertex): with a dither of 0.5 alternate pixels round to 6, the others to 5.
-    SCRNVERTEX quad[4] = {Vertex(0, 0, 5 << 16), Vertex(7, 0, 5 << 16), Vertex(7, 3, 5 << 16), Vertex(0, 3, 5 << 16)};
-    VFX_dithered_Gouraud_polygon(&surface.Pane, 0x8000, 4, quad);
+    MCScreenVertex quad[4] = {Vertex(0, 0, 5 << 16), Vertex(7, 0, 5 << 16), Vertex(7, 3, 5 << 16),
+                              Vertex(0, 3, 5 << 16)};
+    VfxDitheredGouraudPolygon(surface.Pane, 0x8000, std::span(quad, 4));
 
     for (int32_t y = 0; y <= 3; ++y)
     {
@@ -126,9 +128,9 @@ TEST_CASE("vfx3d: dithered Gouraud adds the dither in a checkerboard")
 TEST_CASE("vfx3d: illuminate adds, carrying within pixel pairs")
 {
     TestSurface surface(16, 4, 0xf0);
-    SCRNVERTEX quad[4] = {Vertex(0, 0, 0x20 << 16), Vertex(3, 0, 0x20 << 16), Vertex(3, 1, 0x20 << 16),
-                          Vertex(0, 1, 0x20 << 16)};
-    VFX_illuminate_polygon(&surface.Pane, 0, 4, quad);
+    MCScreenVertex quad[4] = {Vertex(0, 0, 0x20 << 16), Vertex(3, 0, 0x20 << 16), Vertex(3, 1, 0x20 << 16),
+                              Vertex(0, 1, 0x20 << 16)};
+    VfxIlluminatePolygon(surface.Pane, 0, std::span(quad, 4));
 
     // 0xf0f0 + 0x2020 = 0x1110 per pair: the low pixel's overflow carries into the high one (as the asm's word adds).
     for (int32_t y = 0; y <= 1; ++y)
@@ -145,9 +147,9 @@ TEST_CASE("vfx3d: translate polygon maps the pixels under it")
 {
     TestSurface surface(16, 16, 0);
 
-    for (size_t i = 0; i < surface.Pixels.size(); ++i)
+    for (size_t i = 0; i < surface.Pixels().size(); ++i)
     {
-        surface.Pixels[i] = static_cast<uint8_t>(i);
+        surface.Pixels()[i] = static_cast<uint8_t>(i);
     }
 
     uint8_t table[256];
@@ -157,8 +159,8 @@ TEST_CASE("vfx3d: translate polygon maps the pixels under it")
         table[i] = static_cast<uint8_t>(255 - i);
     }
 
-    SCRNVERTEX quad[4] = {Vertex(3, 3), Vertex(8, 3), Vertex(8, 5), Vertex(3, 5)};
-    VFX_translate_polygon(&surface.Pane, 4, quad, table);
+    MCScreenVertex quad[4] = {Vertex(3, 3), Vertex(8, 3), Vertex(8, 5), Vertex(3, 5)};
+    VfxTranslatePolygon(surface.Pane, std::span(quad, 4), table);
 
     for (int32_t y = 0; y < 16; ++y)
     {
@@ -181,12 +183,14 @@ TEST_CASE("vfx3d: map polygon copies an axis-aligned texture 1:1, with lookaside
     }
 
     texels[2 * 16 + 3] = 0xff; // transparent texel at (3, 2)
-    WINDOW texture{texels.data(), 15, 15};
-    SCRNVERTEX quad[4] = {Vertex(0, 0, 0, 0, 0), Vertex(7, 0, 0, 7 << 16, 0), Vertex(7, 7, 0, 7 << 16, 7 << 16),
-                          Vertex(0, 7, 0, 0, 7 << 16)};
+    const std::shared_ptr<MCWindow> textureWindow = MCWindow::Make(16, 16);
+    std::ranges::copy(texels, textureWindow->Bytes().begin());
+    const MCWindow& texture = *textureWindow;
+    MCScreenVertex quad[4] = {Vertex(0, 0, 0, 0, 0), Vertex(7, 0, 0, 7 << 16, 0), Vertex(7, 7, 0, 7 << 16, 7 << 16),
+                              Vertex(0, 7, 0, 0, 7 << 16)};
 
     TestSurface plain(16, 16, 0);
-    VFX_map_polygon(&plain.Pane, 4, quad, &texture, 0);
+    VfxMapPolygon(plain.Pane, std::span(quad, 4), texture, 0);
 
     for (int32_t y = 0; y < 16; ++y)
     {
@@ -198,7 +202,7 @@ TEST_CASE("vfx3d: map polygon copies an axis-aligned texture 1:1, with lookaside
     }
 
     TestSurface transparent(16, 16, 0);
-    VFX_map_polygon(&transparent.Pane, 4, quad, &texture, MP_XP);
+    VfxMapPolygon(transparent.Pane, std::span(quad, 4), texture, VfxMapTransparent);
     CHECK_EQ(transparent.At(3, 2), 0);
     CHECK_EQ(transparent.At(4, 2), texels[2 * 16 + 4]);
 
@@ -210,18 +214,18 @@ TEST_CASE("vfx3d: map polygon copies an axis-aligned texture 1:1, with lookaside
     }
 
     table[texels[5 * 16 + 5]] = 0xff;
-    VFX_map_lookaside(table);
+    VfxMapLookaside(table);
     TestSurface xlat(16, 16, 0);
-    VFX_map_polygon(&xlat.Pane, 4, quad, &texture, MP_XLAT | MP_XP);
+    VfxMapPolygon(xlat.Pane, std::span(quad, 4), texture, VfxMapXlat | VfxMapTransparent);
     CHECK_EQ(xlat.At(1, 1), static_cast<uint8_t>(texels[1 * 16 + 1] ^ 0x55));
     CHECK_EQ(xlat.At(5, 5), 0);                                 // translated to 255: transparent
     CHECK_EQ(xlat.At(3, 2), static_cast<uint8_t>(0xff ^ 0x55)); // the texel is 255, but its translation isn't
 
     // Mirrored (u decreasing along x): the texture reads backwards.
-    SCRNVERTEX mirrored[4] = {Vertex(0, 0, 0, 7 << 16, 0), Vertex(7, 0, 0, 0, 0), Vertex(7, 7, 0, 0, 7 << 16),
-                              Vertex(0, 7, 0, 7 << 16, 7 << 16)};
+    MCScreenVertex mirrored[4] = {Vertex(0, 0, 0, 7 << 16, 0), Vertex(7, 0, 0, 0, 0), Vertex(7, 7, 0, 0, 7 << 16),
+                                  Vertex(0, 7, 0, 7 << 16, 7 << 16)};
     TestSurface flipped(16, 16, 0);
-    VFX_map_polygon(&flipped.Pane, 4, mirrored, &texture, 0);
+    VfxMapPolygon(flipped.Pane, std::span(mirrored, 4), texture, 0);
     CHECK_EQ(flipped.At(0, 0), texels[7]);
     CHECK_EQ(flipped.At(7, 4), texels[4 * 16 + 0]);
 }

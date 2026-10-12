@@ -42,6 +42,33 @@ TEST_CASE("input: posted messages reach the window procedure")
     MCInput::Reset();
 }
 
+TEST_CASE("input: a posted WM_CLOSE destroys the window and quits, as DefWindowProc did")
+{
+    MCInput::Reset();
+    std::vector<uint32_t> seen;
+    bool cancel = true;
+    MCInput::SetWindowProc(
+        [&seen, &cancel](uint32_t message, uint32_t, int32_t)
+        {
+            seen.push_back(message);
+            return message == WM_CLOSE && cancel ? 1 : 0;
+        });
+
+    // A window procedure that cancels the close keeps the game running.
+    MCInput::PostMessage(WM_CLOSE, 0, 0);
+    CHECK(MCInput::PumpMessages());
+    CHECK(seen == std::vector<uint32_t>{WM_CLOSE});
+
+    seen.clear();
+    cancel = false;
+    MCInput::PostMessage(WM_CLOSE, 0, 0);
+    CHECK(!MCInput::PumpMessages());
+    CHECK(seen == (std::vector<uint32_t>{WM_CLOSE, WM_DESTROY}));
+    CHECK_EQ(MCInput::QuitCode(), 0);
+    MCInput::SetWindowProc({});
+    MCInput::Reset();
+}
+
 TEST_CASE("game: MCX.EXE string table loads")
 {
     if (!MCTestGame::Available())
@@ -56,7 +83,7 @@ TEST_CASE("game: MCX.EXE string table loads")
 
     for (uint32_t id = 0; id < 0x1000 && found == 0; id++)
     {
-        found = table.LoadString(id, buffer, sizeof(buffer));
+        found = table.LoadString(id, buffer);
     }
 
     CHECK(found > 0);

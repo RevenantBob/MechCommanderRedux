@@ -1,0 +1,18 @@
+#include "stdafx.h"
+#include "engine/MCFontElement.h"
+#include "camera/MCCamera.h"
+#include "gui/MCGuiFont.h"
+
+MCFontElement::MCFontElement(MCOptionalRef<MCGuiFont> font, const MCVector2D& pos, std::string_view text, int32_t depth)
+    : MCElement(depth), Font(font), Position(pos), Text(text)
+{
+}
+
+auto MCFontElement::Draw() -> void
+{
+    if (Font.has_value())
+    {
+        Font->get().WriteString(*GlobalPane, static_cast<int32_t>(Position.X), static_cast<int32_t>(Position.Y),
+                                Text.data(), -1);
+    }
+}

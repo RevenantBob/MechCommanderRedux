@@ -2,22 +2,35 @@
 #include "MCTest.h"
 #include "ScreenInput.h"
 #include "TestGame.h"
-#include "camera/camera.h"
-#include "color/color.h"
-#include "gui/aport.h"
-#include "gui/asystem.h"
-#include "iface/iface.h"
-#include "logistics/logmain.h"
-#include "logistics/logpur.h"
-#include "logistics/purchase.h"
-#include "main/logistics.h"
-#include "mission/mission.h"
-#include "mission/scenario.h"
-#include "gui/updisp.h"
+#include "camera/MCCamera.h"
+#include "color/MCPalette.h"
+#include "color/MCWaterCycle.h"
+#include "gui/MCGuiPort.h"
+#include "gui/MCGuiSystem.h"
+#include "iface/MCMechBar.h"
+#include "iface/MCTacticalInterface.h"
+#include "logistics/MCPreferencesMenu.h"
+#include "logistics/MCLoadSaveMenu.h"
+#include "logistics/MCMainMenu.h"
+#include "logistics/MCPurchaseScreen.h"
+#include "logistics/MCPurMechList.h"
+#include "logistics/MCPurPilotList.h"
+#include "logistics/MCPurVehicleList.h"
+#include "logistics/MCMechPurchaseBlock.h"
+#include "logistics/MCPilotPurchaseBlock.h"
+#include "logistics/MCVehiclePurchaseBlock.h"
+#include "logistics/MCCompPurchaseBlock.h"
+#include "logistics/MCUnitLimits.h"
+#include "logistics/MCPurProfile.h"
+#include "main/MCLogistics.h"
+#include "mission/MCMission.h"
+#include "mission/MCMissionResultsScreen.h"
+#include "mission/MCScenario.h"
+#include "gui/MCUpdateDisplay.h"
 #include "platform/MCDisplay.h"
 #include "platform/MCInput.h"
-#include "terrain/terrain.h"
-#include "terrain/terrmap.h"
+#include "terrain/MCTerrain.h"
+#include "terrain/MCTacticalMap.h"
 
 using namespace MCScreenInput;
 
@@ -60,12 +73,12 @@ namespace
 
         CHECK_EQ(MCRenderer::StaleCpuReads(), 0);
         CHECK_EQ(MCRenderer::UnregisteredDraws(), 0);
-        MCDisplay* display = MCInput::Display();
+        const std::shared_ptr<MCDisplay> display = MCInput::Display();
         REQUIRE(display != nullptr);
-        const _window* screen = display->Screen();
+        const MCWindow& screen = display->Screen();
 
         const std::vector<uint8_t> shown = display->ComposeScreen();
-        CHECK(!std::equal(shown.begin(), shown.end(), screen->buffer));
+        CHECK(!std::equal(shown.begin(), shown.end(), screen.Pixels.get()));
     }
 
     /// <summary>The mission results screen's frames (see the test), drawn by the GPU alone with <paramref name="gpu"/>.</summary>
@@ -140,7 +153,7 @@ TEST_CASE_ISOLATED("game: the GPU composite matches the CPU composite")
     }
 
     REQUIRE(MCTestGame::StartMission(1));
-    MCDisplay* display = MCInput::Display();
+    const std::shared_ptr<MCDisplay> display = MCInput::Display();
     REQUIRE(display != nullptr);
 
     if (!display->CompositesOnGpu())
@@ -194,25 +207,25 @@ TEST_CASE_ISOLATED("game: the water colours cycle over the palette without chang
     }
 
     REQUIRE(MCTestGame::StartMission(1));
-    MCDisplay* display = MCInput::Display();
+    const std::shared_ptr<MCDisplay> display = MCInput::Display();
     REQUIRE(display != nullptr);
-    VFX_RGB water[8];
-    display->GetPalette(0xd8, 8, water);
+    MCVfxRgb water[8];
+    display->GetPalette(0xd8, water);
     std::set<int32_t> steps;
 
     for (int32_t frame = 0; frame < 90; frame++)
     {
         MCTest::Scope scope(std::format("frame {}", frame));
         MCTestGame::RunFrame(1.0f / 15.0f);
-        VFX_RGB palette[256];
-        display->GetPalette(0, 256, palette);
+        MCVfxRgb palette[256];
+        display->GetPalette(0, palette);
         SDL_Color shown[256];
         display->GetShownColors(shown);
 
         for (int32_t i = 0; i < 8; i++)
         {
-            CHECK(palette[0xd8 + i].r == water[i].r && palette[0xd8 + i].g == water[i].g &&
-                  palette[0xd8 + i].b == water[i].b);
+            CHECK(palette[0xd8 + i].R == water[i].R && palette[0xd8 + i].G == water[i].G &&
+                  palette[0xd8 + i].B == water[i].B);
         }
 
         // The step the shown water colours are at: each entry the colour of its source.
@@ -220,10 +233,10 @@ TEST_CASE_ISOLATED("game: the water colours cycle over the palette without chang
         {
             for (int32_t i = 0; i < 8; i++)
             {
-                const VFX_RGB& source = palette[WaterMagicColors[(i + step) & 7]];
+                const MCVfxRgb& source = palette[WaterMagicColors[(i + step) & 7]];
                 const SDL_Color& colour = shown[0xd8 + i];
 
-                if (colour.r != source.r || colour.g != source.g || colour.b != source.b)
+                if (colour.r != source.R || colour.g != source.G || colour.b != source.B)
                 {
                     return false;
                 }
@@ -282,13 +295,13 @@ TEST_CASE_ISOLATED("game: the tactical map draws every page")
     }
 
     REQUIRE(MCTestGame::StartMission(1));
-    TacticalMap* map = Terrain::terrainTacticalMap;
+    const std::shared_ptr<MCTacticalMap> map = TacticalMap();
     REQUIRE(map != nullptr);
-    FriendlyMechIcon* icon = theInterface->mechBar->getButton(0);
+    std::shared_ptr<MCFriendlyMechIcon> icon = TacticalInterface()->MechBar->GetButton(0);
     REQUIRE(icon != nullptr);
 
     // Each page shown for 10 frames (two thirds of a second: the info and mission pages refresh every half second).
-    auto show = [map](const char* name, auto choose)
+    auto show = [map](std::string_view name, auto choose)
     {
         choose();
 
@@ -298,7 +311,7 @@ TEST_CASE_ISOLATED("game: the tactical map draws every page")
         }
 
         const uint32_t hash = ScreenHash();
-        SaveShot(std::string("tacmap ") + name, hash);
+        SaveShot(std::format("tacmap {}", name), hash);
         return hash;
     };
 
@@ -306,14 +319,14 @@ TEST_CASE_ISOLATED("game: the tactical map draws every page")
     const uint32_t infoEmpty = show("info empty",
                                     [map]
                                     {
-                                        map->infoObject = nullptr;
-                                        map->SetDisplayType(TACMAP_INFO);
+                                        map->InfoObject.reset();
+                                        map->SetDisplayType(MCTacmapPage::Info);
                                     });
-    const uint32_t infoMech = show("info mech", [map, icon] { map->SetID(icon->partId); });
+    const uint32_t infoMech = show("info mech", [map, icon] { map->SetID(icon->PartId); });
     const uint32_t infoPayload = show("info payload", [map] { map->SetDataDisplayMode(2, -1); });
-    const uint32_t missionPage = show("mission", [map] { map->SetDisplayType(TACMAP_MISSION); });
-    const uint32_t salvagePage = show("salvage", [map] { map->SetDisplayType(TACMAP_SALVAGE); });
-    const uint32_t mapAgain = show("map again", [map] { map->SetDisplayType(TACMAP_MAP); });
+    const uint32_t missionPage = show("mission", [map] { map->SetDisplayType(MCTacmapPage::Mission); });
+    const uint32_t salvagePage = show("salvage", [map] { map->SetDisplayType(MCTacmapPage::Salvage); });
+    const uint32_t mapAgain = show("map again", [map] { map->SetDisplayType(MCTacmapPage::Map); });
 
     const uint32_t pages[] = {mapPage, infoEmpty, infoMech, infoPayload, missionPage, salvagePage};
 
@@ -392,27 +405,27 @@ namespace
         // them itself.
         MouseTimerKill();
 
-        for (uint32_t i = 0; i < scenario->numObjectives; i++)
+        for (int32_t i = 0; i < Scenario()->Objectives.Count(); i++)
         {
-            scenario->objectives[i].status = 1;
+            Scenario()->Objectives[i].Status = 1;
         }
 
-        scenarioResult = 4;
+        ScenarioResult = 4;
 
-        for (int32_t frame = 0; frame < 30 && mission->missionState != 6; frame++)
+        for (int32_t frame = 0; frame < 30 && Mission()->State != MCMissionState::Results; frame++)
         {
             MCTestGame::RunFrame(1.0f / 15.0f);
         }
 
-        REQUIRE_EQ(mission->missionState, 6);
-        REQUIRE(mission->resultsScreen != nullptr);
+        REQUIRE(Mission()->State == MCMissionState::Results);
+        REQUIRE(Mission()->ResultsScreen != nullptr);
 
         // Five ticks a frame: a resource point step takes one tick, the others resultsStepTicks (20).
         uint32_t frames = 0x811c9dc5;
         uint32_t last = 0;
         int32_t frame = 0;
 
-        for (; frame < 3000 && mission->resultsScreen != nullptr && !mission->resultsScreen->Finished(); frame++)
+        for (; frame < 3000 && Mission()->ResultsScreen != nullptr && !Mission()->ResultsScreen->Finished(); frame++)
         {
             MouseTicks += 5;
             MCTestGame::RunFrame(1.0f / 15.0f);
@@ -487,41 +500,14 @@ namespace
             return hash;
         };
 
-        // Every frame presented is folded into one more hash, including those the screen wipes draw inside their own loop.
-        // --present-log <file> lists each present's hash (to find the first that differs between two builds), and
-        // --present-shot <n>,<n>... saves those presents into the --shots folder.
+        // Every frame presented is folded into one more hash, including those the screen wipes draw inside their own loop
+        // (--present-log lists them; see MCTestGame::OnPresent).
         uint32_t presents = 0x811c9dc5;
-        REQUIRE(MCInput::Display() != nullptr);
-        const char* logPath = MCTest::Option("present-log");
-        std::unique_ptr<FILE, decltype(&std::fclose)> presentLog(
-            logPath != nullptr ? std::fopen(logPath, "w") : nullptr, &std::fclose);
-        const char* shotList = MCTest::Option("present-shot");
-        const std::string shotsWanted = shotList != nullptr ? std::format(",{},", shotList) : std::string();
-        int32_t presentIndex = 0;
-        MCInput::Display()->OnPresent = [&]
-        {
-            const uint32_t hash = ScreenHash();
-            presents = (presents ^ hash) * 0x01000193;
-
-            if (presentLog)
-            {
-                std::fprintf(presentLog.get(), "%d 0x%08x\n", presentIndex, hash);
-            }
-
-            const char* shots = MCTest::Option("shots");
-
-            if (shots != nullptr && shotsWanted.contains(std::format(",{},", presentIndex)))
-            {
-                (void)MCInput::Display()->SaveScreenshot(std::filesystem::path(shots) /
-                                                         std::format("present{}.bmp", presentIndex));
-            }
-
-            presentIndex++;
-        };
+        MCTestGame::OnPresent = [&] { presents = (presents ^ ScreenHash()) * 0x01000193; };
 
         struct Step
         {
-            const char* Name;
+            std::string_view Name;
             std::function<void()> Action;
             uint32_t Expected;
         };
@@ -571,12 +557,12 @@ namespace
             {"load screen", [] { LoadScreen(); }, 0xb773197eu},
             {"main menu after load", [] { Cancel(); }, 0x59acc997u},
             {"briefing", [] { NewCampaign(); }, 0xbcd2ec30u},
-            {"purchase", [] { globalLogPtr->setUpPurchaseScreen(-1); }, 0x7e077fadu},
-            {"purchase, pilots", [] { globalLogPtr->purchaseScreen->setUpPilotInv(-1, -1); }, 0x4ae27598u},
-            {"purchase, components", [] { globalLogPtr->purchaseScreen->setUpCompInv(-1, -1); }, 0x62910f9cu},
-            {"purchase, mechs", [] { globalLogPtr->purchaseScreen->setUpMechInv(-1, -1); }, 0x2ef60e5eu},
-            {"repair", [] { globalLogPtr->setUpRepairScreen(-1); }, 0xd28d50c5u},
-            {"briefing again", [] { globalLogPtr->setUpBriefingScreen(-1); }, 0x042383bfu},
+            {"purchase", [] { GlobalLog()->SetUpPurchaseScreen(true); }, 0x7e077fadu},
+            {"purchase, pilots", [] { GlobalLog()->PurchaseScreen->SetUpPilotInv(true, true); }, 0x4ae27598u},
+            {"purchase, components", [] { GlobalLog()->PurchaseScreen->SetUpCompInv(true, true); }, 0x62910f9cu},
+            {"purchase, mechs", [] { GlobalLog()->PurchaseScreen->SetUpMechInv(true, true); }, 0x2ef60e5eu},
+            {"repair", [] { GlobalLog()->SetUpRepairScreen(true); }, 0xd28d50c5u},
+            {"briefing again", [] { GlobalLog()->SetUpBriefingScreen(true); }, 0x042383bfu},
             {"briefing, mission tab", [] { Click(202, 265); }, 0xd643b44du},
             {"briefing, deploy", [] { Drag(40, 385, 245, 60); }, 0x9339c191u},
             {"briefing, deploy second", [] { Drag(90, 385, 300, 60); }, 0x9a752797u},
@@ -593,31 +579,29 @@ namespace
                  // changed.
                  ResourcePoints = 100000;
 
-                 for (PurMech* mech = globalLogPtr->purMechList->first; mech != nullptr; mech = mech->next)
+                 for (const auto& mech : GlobalLog()->PurMechList->Mechs)
                  {
-                     for (PurMechData* variant : mech->variants)
+                     for (const auto& variant : mech->Variants)
                      {
                          if (variant != nullptr)
                          {
-                             variant->numAvailable = 2;
+                             variant->NumAvailable = 2;
                          }
                      }
 
-                     mech->block->drawBackground(mech->block->row);
+                     mech->Block->DrawBackground(mech->Block->Row);
                  }
 
-                 for (_LogInventoryItem* item = globalLogPtr->purchaseComponents->items; item != nullptr;
-                      item = item->next)
+                 for (const std::shared_ptr<MCLogInventoryItem>& item : GlobalLog()->PurchaseComponents->Items)
                  {
-                     item->count = 2;
-                     item->purchaseBlock->drawBackground(item->purchaseBlock->row, item->masterID);
+                     item->Count = 2;
+                     item->PurchaseBlock->DrawBackground(item->PurchaseBlock->Row, item->MasterID);
                  }
 
-                 for (PurVehicle* vehicle = globalLogPtr->purVehicleList->first; vehicle != nullptr;
-                      vehicle = vehicle->next)
+                 for (const auto& vehicle : GlobalLog()->PurVehicleList->Vehicles)
                  {
-                     vehicle->data->numAvailable = 2;
-                     vehicle->block->drawBackground(vehicle->block->row);
+                     vehicle->Data->NumAvailable = 2;
+                     vehicle->Block->DrawBackground(vehicle->Block->Row);
                  }
 
                  Click(100, 60);
@@ -670,7 +654,7 @@ namespace
             {"repair, mech out", [] { Drag(260, 170, 100, 200); }, 0xc5511bb0u},
             {"repair, weapon list scroll", [] { Click(560, 125); }, 0xe1d91675u},
             {"repair, first mech out", [] { Drag(260, 60, 100, 200); }, 0x36d78e5cu},
-            {"briefing after repair", [] { globalLogPtr->setUpBriefingScreen(-1); }, 0x0680f0e1u},
+            {"briefing after repair", [] { GlobalLog()->SetUpBriefingScreen(true); }, 0x0680f0e1u},
             {"briefing, unit out of slot", [] { Drag(300, 60, 60, 400); }, 0xc392dab4u},
         };
 
@@ -688,7 +672,7 @@ namespace
             index++;
         }
 
-        MCInput::Display()->OnPresent = nullptr;
+        MCTestGame::OnPresent = nullptr;
         SaveShot("logistics every frame", frames);
         CHECK_EQ(frames, gpu ? 0x5cdc376eu : 0x19ceb4beu);
         CHECK_EQ(presents, gpu ? 0x14d82a5du : 0x90a481cau);

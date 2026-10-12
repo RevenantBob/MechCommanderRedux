@@ -2,9 +2,10 @@
 #include "MCTest.h"
 #include "ScreenInput.h"
 #include "TestGame.h"
-#include "gui/aport.h"
-#include "gui/asystem.h"
-#include "gui/updisp.h"
+#include "gui/MCGuiInput.h"
+#include "gui/MCGuiPort.h"
+#include "gui/MCGuiSystem.h"
+#include "gui/MCUpdateDisplay.h"
 #include "platform/MCDisplay.h"
 #include "platform/MCInput.h"
 
@@ -12,28 +13,27 @@ namespace MCScreenInput
 {
     uint32_t ScreenHash()
     {
-        const _window* screen = screenPort->bitmap();
-        const int32_t width = screen->x_max + 1;
-        const int32_t height = screen->y_max + 1;
+        const MCWindow& screen = ScreenPort()->Bitmap();
+        const int32_t width = screen.XMax + 1;
+        const int32_t height = screen.YMax + 1;
         uint32_t hash = 0x811c9dc5;
         hash = (hash ^ static_cast<uint32_t>(width)) * 0x01000193;
         hash = (hash ^ static_cast<uint32_t>(height)) * 0x01000193;
         std::vector<uint8_t> shown;
 
-        if (MCInput::Display() != nullptr && MCInput::Display()->Screen()->buffer == screen->buffer)
+        if (MCInput::Display() != nullptr && MCInput::Display()->Screen().Pixels == screen.Pixels)
         {
             shown = MCInput::Display()->ComposeScreen();
         }
         else
         {
-            shown.assign(screen->buffer, screen->buffer + static_cast<size_t>(width) * static_cast<size_t>(height));
+            shown.assign(screen.Pixels.get(),
+                         screen.Pixels.get() + static_cast<size_t>(width) * static_cast<size_t>(height));
         }
 
-        const uint8_t* pixels = shown.data();
-
-        for (size_t i = 0; i < static_cast<size_t>(width) * static_cast<size_t>(height); i++)
+        for (const uint8_t pixel : std::span(shown).first(static_cast<size_t>(width) * static_cast<size_t>(height)))
         {
-            hash = (hash ^ pixels[i]) * 0x01000193;
+            hash = (hash ^ pixel) * 0x01000193;
         }
 
         return hash;
@@ -41,42 +41,42 @@ namespace MCScreenInput
 
     void SaveShot(const std::string& name, uint32_t hash)
     {
-        const char* shots = MCTest::Option("shots");
+        const std::optional<std::string_view> shots = MCTest::Option("shots");
 
-        if (shots == nullptr || MCInput::Display() == nullptr)
+        if (!shots || MCInput::Display() == nullptr)
         {
             return;
         }
 
-        (void)MCInput::Display()->SaveScreenshot(std::filesystem::path(shots) / (name + ".bmp"));
+        static_cast<void>(MCInput::Display()->SaveScreenshot(std::filesystem::path(*shots) / (name + ".bmp")));
         std::printf("  %s: 0x%08x\n", name.c_str(), hash);
     }
 
     void SendMouse(int32_t type, int32_t x, int32_t y, bool leftHeld)
     {
         // A motion event moves the game's cursor without warping the real mouse (SetCursorPos would).
-        if (MCDisplay* display = MCInput::Display(); display != nullptr)
+        if (const std::shared_ptr<MCDisplay> display = MCInput::Display(); display != nullptr)
         {
             SDL_Event motion{};
             motion.type = SDL_EVENT_MOUSE_MOTION;
-            motion.motion.windowID = SDL_GetWindowID(display->Window());
+            motion.motion.windowID = SDL_GetWindowID(&display->Window());
             display->LogicalToWindow(static_cast<float>(x) + 0.5f, static_cast<float>(y) + 0.5f, motion.motion.x,
                                      motion.motion.y);
             MCInput::HandleEvent(motion);
         }
 
-        mouseScreenX = x;
-        mouseScreenY = y;
-        oldMouseX = x;
-        oldMouseY = y;
-        aEvent event;
-        event.clear();
-        event.type = static_cast<uint8_t>(type);
-        event.x = x;
-        event.y = y;
-        event.leftButton = type == 1 ? 0xff : (leftHeld ? 1 : 0);
+        MouseScreenX = x;
+        MouseScreenY = y;
+        OldMouseX = x;
+        OldMouseY = y;
+        MCGuiEvent event;
+        event.Clear();
+        event.Type = static_cast<uint8_t>(type);
+        event.X = x;
+        event.Y = y;
+        event.LeftButton = type == 1 ? 0xff : (leftHeld ? 1 : 0);
         // CheckMouse, run each frame, sees no button held and no move, so it adds no events of its own.
-        handleEvent(&event);
+        DispatchGuiEvent(event);
     }
 
     void Click(int32_t x, int32_t y)
@@ -104,19 +104,19 @@ namespace MCScreenInput
 
     void SendKey(uint8_t key)
     {
-        aEvent event;
-        event.clear();
-        event.type = 10;
-        event.key = key;
-        handleEvent(&event);
+        MCGuiEvent event;
+        event.Clear();
+        event.Type = 10;
+        event.Key = key;
+        DispatchGuiEvent(event);
     }
 
     void RealMove(int32_t x, int32_t y)
     {
-        MCDisplay* display = MCInput::Display();
+        const std::shared_ptr<MCDisplay> display = MCInput::Display();
         SDL_Event motion{};
         motion.type = SDL_EVENT_MOUSE_MOTION;
-        motion.motion.windowID = SDL_GetWindowID(display->Window());
+        motion.motion.windowID = SDL_GetWindowID(&display->Window());
         display->LogicalToWindow(static_cast<float>(x) + 0.5f, static_cast<float>(y) + 0.5f, motion.motion.x,
                                  motion.motion.y);
         MCInput::HandleEvent(motion);
@@ -127,14 +127,14 @@ namespace MCScreenInput
 
     void RealButton(bool down)
     {
-        MCDisplay* display = MCInput::Display();
+        const std::shared_ptr<MCDisplay> display = MCInput::Display();
         SDL_Event button{};
         button.type = down ? SDL_EVENT_MOUSE_BUTTON_DOWN : SDL_EVENT_MOUSE_BUTTON_UP;
-        button.button.windowID = SDL_GetWindowID(display->Window());
+        button.button.windowID = SDL_GetWindowID(&display->Window());
         button.button.button = SDL_BUTTON_LEFT;
         button.button.down = down;
         button.button.clicks = 1;
-        display->LogicalToWindow(static_cast<float>(mouseScreenX) + 0.5f, static_cast<float>(mouseScreenY) + 0.5f,
+        display->LogicalToWindow(static_cast<float>(MouseScreenX) + 0.5f, static_cast<float>(MouseScreenY) + 0.5f,
                                  button.button.x, button.button.y);
         MCInput::HandleEvent(button);
         MCTestGame::RunFrame(1.0f / 15.0f);
@@ -149,13 +149,13 @@ namespace MCScreenInput
 
     void RealKey(SDL_Scancode scancode)
     {
-        MCDisplay* display = MCInput::Display();
+        const std::shared_ptr<MCDisplay> display = MCInput::Display();
 
         for (bool down : {true, false})
         {
             SDL_Event key{};
             key.type = down ? SDL_EVENT_KEY_DOWN : SDL_EVENT_KEY_UP;
-            key.key.windowID = SDL_GetWindowID(display->Window());
+            key.key.windowID = SDL_GetWindowID(&display->Window());
             key.key.scancode = scancode;
             key.key.key = SDL_GetKeyFromScancode(scancode, SDL_KMOD_NONE, false);
             key.key.down = down;
@@ -166,13 +166,13 @@ namespace MCScreenInput
 
     void RealWheel(int32_t notches)
     {
-        MCDisplay* display = MCInput::Display();
+        const std::shared_ptr<MCDisplay> display = MCInput::Display();
         SDL_Event wheel{};
         wheel.type = SDL_EVENT_MOUSE_WHEEL;
-        wheel.wheel.windowID = SDL_GetWindowID(display->Window());
+        wheel.wheel.windowID = SDL_GetWindowID(&display->Window());
         wheel.wheel.y = static_cast<float>(notches);
         wheel.wheel.direction = SDL_MOUSEWHEEL_NORMAL;
-        display->LogicalToWindow(static_cast<float>(mouseScreenX) + 0.5f, static_cast<float>(mouseScreenY) + 0.5f,
+        display->LogicalToWindow(static_cast<float>(MouseScreenX) + 0.5f, static_cast<float>(MouseScreenY) + 0.5f,
                                  wheel.wheel.mouse_x, wheel.wheel.mouse_y);
         MCInput::HandleEvent(wheel);
         MCTestGame::RunFrame(1.0f / 15.0f);

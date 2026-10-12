@@ -22,15 +22,16 @@ std::optional<MCRendererKind> MCRendererKindFromName(std::string_view name)
     return std::nullopt;
 }
 
-const char* MCRendererKindName(MCRendererKind kind)
+std::string_view MCRendererKindName(MCRendererKind kind)
 {
     return kind == MCRendererKind::Software ? "software" : "vulkan";
 }
 
 std::expected<std::vector<uint8_t>, std::string> MCPresenter::ReadScreen(const MCFrame& frame)
 {
-    std::vector<uint8_t> pixels(frame.Pixels, frame.Pixels + static_cast<size_t>(frame.Width) * frame.Height);
-    MCRenderer::ComposeUnderlays(frame.Screen, pixels.data(), MCRect{0, 0, frame.Width - 1, frame.Height - 1});
+    const auto size = static_cast<ptrdiff_t>(frame.Width) * frame.Height;
+    std::vector<uint8_t> pixels(frame.Pixels.begin(), frame.Pixels.begin() + size);
+    MCRenderer::ComposeUnderlays(frame.Screen.get(), pixels, MCRect{0, 0, frame.Width - 1, frame.Height - 1});
     return pixels;
 }
 

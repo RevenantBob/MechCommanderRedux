@@ -55,7 +55,16 @@ struct MCDisplayOptions
 /// </remarks>
 class MCDisplay
 {
+    /// <summary>Only <see cref="Create"/> makes one.</summary>
+    struct Key
+    {
+        explicit Key() = default;
+    };
+
 public:
+    /// <summary>A display with no window yet.</summary>
+    explicit MCDisplay(Key) {}
+
     /// <summary>Opens the window and the renderer and makes the screen buffer (initialising SDL's video if needed).</summary>
     static std::expected<std::unique_ptr<MCDisplay>, std::string> Create(const MCDisplayOptions& options);
 
@@ -64,7 +73,7 @@ public:
     MCDisplay& operator=(const MCDisplay&) = delete;
 
     /// <summary>The SDL window.</summary>
-    SDL_Window* Window() const { return _Window; }
+    SDL_Window& Window() const { return *_Window; }
 
     /// <summary>The renderer in use (Vulkan, or software when asked for or when Vulkan couldn't start).</summary>
     MCRendererKind RendererKind() const { return _Presenter->Kind(); }
@@ -76,7 +85,7 @@ public:
     /// Sets the window's title (the original's <c>SetWindowTextA</c>), with the renderer in use after it
     /// ("... [Vulkan]", "... [Software]").
     /// </summary>
-    void SetTitle(const char* title);
+    void SetTitle(std::string_view title);
 
     /// <summary>Whether the logical screen follows the window (<see cref="MCDisplayOptions::FollowWindow"/>).</summary>
     bool FollowsWindow() const { return _FollowWindow; }
@@ -101,13 +110,13 @@ public:
     int Height() const { return _Height; }
 
     /// <summary>
-    /// The screen as a VFX window. The pointer stays the same for the display's life; after
+    /// The screen as a VFX window. It stays the same window for the display's life; after
     /// <see cref="SetLogicalSize"/> its buffer and extents are the new ones.
     /// </summary>
-    _window* Screen() { return &_Screen; }
+    MCWindow& Screen() { return *_Screen; }
 
     /// <summary>The screen's pixels, <see cref="Width"/> bytes per row.</summary>
-    uint8_t* Pixels() { return _Pixels.data(); }
+    std::span<uint8_t> Pixels() const { return _Screen->Bytes(); }
 
     /// <summary>
     /// Changes the logical screen (the game's mode switch, <c>aSystem::resetDirectDraw</c>). The buffer is
@@ -130,17 +139,19 @@ public:
     SDL_Rect View() const { return _View; }
 
     /// <summary>
-    /// Sets <paramref name="count"/> palette entries from <paramref name="first"/> (DirectDraw's <c>SetEntries</c>
-    /// and <c>AnimatePalette</c>, GDI's <c>SetDIBColorTable</c>). 8 bits per channel. Takes effect at the next
-    /// <see cref="Present"/>; calling it every frame is cheap (palette animation).
+    /// Sets the palette entries from <paramref name="first"/> to <paramref name="entries"/> (DirectDraw's
+    /// <c>SetEntries</c> and <c>AnimatePalette</c>, GDI's <c>SetDIBColorTable</c>); those past entry 255 are left out.
+    /// 8 bits per channel. Takes effect at the next <see cref="Present"/>; calling it every frame is cheap (palette
+    /// animation).
     /// </summary>
-    void SetPalette(int first, int count, const VFX_RGB* entries);
+    void SetPalette(int first, std::span<const MCVfxRgb> entries);
 
-    /// <summary>As the other overload, from packed r, g, b bytes.</summary>
-    void SetPalette(int first, int count, const uint8_t* rgb);
+    /// <summary>As the other overload, from packed r, g, b bytes (three per entry).</summary>
+    void SetPalette(int first, std::span<const uint8_t> rgb);
 
-    /// <summary>Reads <paramref name="count"/> palette entries from <paramref name="first"/> (as set, without gamma).</summary>
-    void GetPalette(int first, int count, VFX_RGB* out) const;
+    /// <summary>Reads the palette entries from <paramref name="first"/> into <paramref name="out"/> (as set, without
+    /// gamma); those past entry 255 are left as they are.</summary>
+    void GetPalette(int first, std::span<MCVfxRgb> out) const;
 
     /// <summary>
     /// A display gamma applied to the palette on its way to the GPU (1 = none; above 1 brightens the midtones), and a
@@ -169,7 +180,7 @@ public:
     int Fade() const { return _Fade; }
 
     /// <summary>The 256 colours as they are shown: the palette through the gamma and brightness, then the cycle.</summary>
-    void GetShownColors(SDL_Color* out) const;
+    void GetShownColors(std::span<SDL_Color, 256> out) const;
 
     /// <summary>
     /// How many output pixels one logical pixel covers across and down (window pixels, not points; the two differ
@@ -237,8 +248,6 @@ public:
     std::function<void()> OnPresent;
 
 private:
-    MCDisplay() = default;
-
     /// <summary>Resizes the window to the screen's size times its scale (windowed, not following the window).</summary>
     void ResizeWindowToScale();
     /// <summary>Makes the screen's buffer and op plane for its size.</summary>
@@ -258,10 +267,11 @@ private:
     /// <summary>Where the shown view lands in the window, in window pixels.</summary>
     MCViewport ShownViewport() const;
 
-    SDL_Window* _Window = nullptr;
+    /// <summary>The window; the presenter shares it, so it outlives what draws into it.</summary>
+    std::shared_ptr<SDL_Window> _Window;
     std::unique_ptr<MCPresenter> _Presenter;
     /// <summary>The screen's op plane (see <see cref="MCRenderer::SetOpPlane"/>).</summary>
-    std::vector<uint8_t> _Ops;
+    std::shared_ptr<std::vector<uint8_t>> _Ops = std::make_shared<std::vector<uint8_t>>();
     /// <summary>This frame's underlays on the screen, and the colours as shown.</summary>
     std::vector<MCUnderlay> _FrameUnderlays;
     std::array<SDL_Color, 256> _ShownColors{};
@@ -277,11 +287,16 @@ private:
     int _MinWidth = 0;
     int _MinHeight = 0;
     bool _FollowWindow = false;
-    std::vector<uint8_t> _Pixels;
-    _window _Screen{};
+    /// <summary>
+    /// The screen's window. Its pixels are shared by the screen ports; they are reallocated only when the screen grows
+    /// past <see cref="_PixelCapacity"/>, so a smaller screen keeps the pixels the ports share.
+    /// </summary>
+    std::shared_ptr<MCWindow> _Screen = std::make_shared<MCWindow>();
+    /// <summary>How many pixels the screen's pixels hold.</summary>
+    size_t _PixelCapacity = 0;
 
     mutable std::mutex _PaletteLock;
-    std::array<VFX_RGB, 256> _Palette{};
+    std::array<MCVfxRgb, 256> _Palette{};
     bool _PaletteDirty = true;
     MCColorCycle _Cycle;
     bool _CycleDirty = false;

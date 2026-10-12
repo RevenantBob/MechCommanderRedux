@@ -1,9 +1,10 @@
 #include "stdafx.h"
 #include "MCTest.h"
 #include "TestGame.h"
-#include "appear/appear.h"
-#include "camera/camera.h"
-#include "object/mover.h"
+#include "appear/MCAppearance.h"
+#include "camera/MCCamera.h"
+#include "object/MCMover.h"
+#include "object/MCMoverGameSystem.h"
 
 /// <summary>
 /// While the zoom eases, units stay where the terrain is: each frame, the screen position a mover took in its update
@@ -18,11 +19,11 @@ TEST_CASE_ISOLATED("game: units keep their place on the ground while the zoom ea
     }
 
     REQUIRE(MCTestGame::StartMission(1));
-    viewWindow* view = MCMainView();
+    const std::shared_ptr<MCViewWindow> view = MCMainView();
     REQUIRE(view != nullptr);
-    Mover* mover = getMoverFromPartId(0x200);
+    std::shared_ptr<MCMover> mover = GetMoverFromPartId(0x200);
     REQUIRE(mover != nullptr);
-    REQUIRE(mover->getAppearance() != nullptr);
+    REQUIRE(mover->GetAppearance() != nullptr);
 
     MCFixedZoomHeight = 0.0f;
     REQUIRE(view->ZoomTo(800.0f));
@@ -32,10 +33,10 @@ TEST_CASE_ISOLATED("game: units keep their place on the ground while the zoom ea
     {
         MCTest::Scope scope(std::format("frame {}, {:.1f} lines", frame, view->ZoomHeight));
         MCTestGame::RunFrame(1.0f / 15.0f);
-        const vector_2d placed = mover->getScreenPos(0);
-        const vector_2d projected = mover->getAppearance()->getScreenPos(view->camera);
-        CHECK(std::fabs(placed.x - projected.x) <= 1.0f);
-        CHECK(std::fabs(placed.y - projected.y) <= 1.0f);
+        const MCVector2D placed = mover->GetScreenPos(0);
+        const MCVector2D projected = mover->GetAppearance()->GetScreenPos(*view->GetCamera());
+        CHECK(std::fabs(placed.X - projected.X) <= 1.0f);
+        CHECK(std::fabs(placed.Y - projected.Y) <= 1.0f);
         easedFrames++;
     }
 

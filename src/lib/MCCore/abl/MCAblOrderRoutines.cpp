@@ -1,0 +1,404 @@
+#include "stdafx.h"
+#include "abl/MCAblRoutineList.h"
+#include "abl/MCAblDebugger.h"
+#include "ai/MCMoveSystem.h"
+#include "gui/MCGuiSystem.h"
+#include "iface/MCTacticalInterface.h"
+#include "lib/MCDice.h"
+#include "lib/MCFatal.h"
+#include "lib/MCFile.h"
+#include "lib/MCFrameOfRef.h"
+#include "lib/MCVector2D.h"
+#include "mission/MCScenario.h"
+#include "network/MCMultiPlayer.h"
+#include "object/MCArtillery.h"
+#include "object/MCArtilleryType.h"
+#include "object/MCArtilleryChunk.h"
+#include "object/MCCameraDrone.h"
+#include "object/MCCameraDroneType.h"
+#include "object/MCBuilding.h"
+#include "object/MCBuildingType.h"
+#include "object/MCBuildingMarines.h"
+#include "object/MCObjectDrawing.h"
+#include "object/MCMiscTerrainObject.h"
+#include "object/MCMiscTerrainObjectType.h"
+#include "object/MCMasterComponent.h"
+#include "object/MCForces.h"
+#include "object/MCContactSystem.h"
+#include "object/MCBigGameObject.h"
+#include "object/MCGate.h"
+#include "object/MCGateType.h"
+#include "object/MCMoverGroup.h"
+#include "object/MCGroundVehicle.h"
+#include "object/MCGroundVehicleType.h"
+#include "object/MCGroundVehicleGameSystem.h"
+#include "object/MCMover.h"
+#include "object/MCMoverGameSystem.h"
+#include "object/MCObjectSystem.h"
+#include "object/MCObjectQueue.h"
+#include "object/MCObjectType.h"
+#include "object/MCTreeBuilding.h"
+#include "object/MCTreeBuildingType.h"
+#include "object/MCTerrainObject.h"
+#include "object/MCTerrainObjectType.h"
+#include "object/MCTrain.h"
+#include "object/MCTrainCar.h"
+#include "object/MCTrainCarType.h"
+#include "object/MCTrainManager.h"
+#include "object/MCTurret.h"
+#include "object/MCTurretType.h"
+#include "object/MCMechWarrior.h"
+#include "sound/MCRadio.h"
+#include "sound/MCSoundSystem.h"
+#include "sprite/MCVfxAppearance.h"
+#include "sprite/MCVfxBuildingAppearance.h"
+#include "terrain/MCTacticalMap.h"
+#include "terrain/MCTerrain.h"
+
+// Tactical orders and their state.
+
+namespace
+{
+    /// <summary>gettacorder / getlasttacorder: the order's time stamp and parameters of a mover's pilot.</summary>
+    auto GetTacOrderData(MCAblRuntime& abl, bool last) -> void
+    {
+        abl.GetCodeToken();
+        abl.GetCodeToken();
+        abl.ExecExpression();
+        int32_t partId = abl.Top().Integer;
+        abl.GetCodeToken();
+        std::span<float> timeStamp = abl.NextReference<float>();
+        abl.Pop();
+        abl.GetCodeToken();
+        std::span<int32_t> paramList = abl.NextReference<int32_t>();
+        abl.Top().Integer = 0;
+
+        if (!IsGroupId(partId))
+        {
+            std::shared_ptr<MCGameObject> object = FindObject(abl, partId);
+
+            if (object && IsMover(*object))
+            {
+                std::shared_ptr<MCMechWarrior> pilot = object->GetPilot();
+
+                if (pilot)
+                {
+                    MCTacticalOrder& order = last ? pilot->LastTacOrder : pilot->CurTacOrder;
+                    // Only as many as the script's array holds (OB-173).
+                    std::array<int32_t, MCTacticalOrder::NumParams> params{};
+                    const std::span<int32_t> fitting = ArrayArgument(paramList, params.size());
+                    std::ranges::copy(fitting, params.begin());
+                    abl.Top().Integer = order.GetParamData(timeStamp[0], params);
+                    std::ranges::copy(std::span(params).first(fitting.size()), fitting.begin());
+                }
+            }
+        }
+
+        abl.GetCodeToken();
+    }
+}
+
+auto ExecHbGetTacOrder(MCAblRuntime& abl) -> MCAblTypeId
+{
+    GetTacOrderData(abl, false);
+    return MCAblTypeId::Integer;
+}
+
+auto ExecHbGetLastTacOrder(MCAblRuntime& abl) -> MCAblTypeId
+{
+    GetTacOrderData(abl, true);
+    return MCAblTypeId::Integer;
+}
+
+auto ExecHbSetOrderMode(MCAblRuntime& abl) -> MCAblTypeId
+{
+    abl.GetCodeToken();
+    abl.GetCodeToken();
+    abl.ExecExpression();
+    // Original behaviour: the argument is ignored; the mode is always reset to pilot orders.
+    int wasUnitOrder = abl.Brain.IsUnitOrder != 0;
+    abl.Brain.IsUnitOrder = false;
+    abl.Top().Integer = wasUnitOrder;
+    abl.GetCodeToken();
+    return MCAblTypeId::Integer;
+}
+
+auto ExecHbWait(MCAblRuntime& abl) -> MCAblTypeId
+{
+    abl.GetCodeToken();
+    abl.GetCodeToken();
+    abl.ExecExpression();
+    float seconds = abl.Top().Real;
+    abl.Pop();
+    abl.GetCodeToken();
+    abl.ExecExpression();
+    int clearLastTarget = abl.Top().Integer == 1;
+    int32_t result = 0;
+
+    if (abl.Brain.IsUnitOrder == 0)
+    {
+        // The original rounds with the 1.5 * 2^52 addition trick: to nearest, ties to even.
+        result = abl.Brain.Warrior()->OrderWait(0, MCOrderOrigin::Commander,
+                                                static_cast<int32_t>(std::nearbyint(seconds)), clearLastTarget);
+    }
+    else
+    {
+        Fatal(0, " Team orderwait needs support ");
+    }
+
+    abl.Top().Integer = result;
+    abl.GetCodeToken();
+    return MCAblTypeId::Integer;
+}
+
+auto ExecHbSetAttackRadius(MCAblRuntime& abl) -> MCAblTypeId
+{
+    abl.GetCodeToken();
+    abl.GetCodeToken();
+    abl.ExecExpression();
+    float radius = abl.Top().Real;
+    abl.Top().Real = abl.Brain.Warrior()->AttackRadius;
+    abl.Brain.Warrior()->AttackRadius = radius;
+    abl.GetCodeToken();
+    return MCAblTypeId::Real;
+}
+
+auto ExecHbMoveToPoint(MCAblRuntime& abl) -> MCAblTypeId
+{
+    abl.GetCodeToken();
+    abl.GetCodeToken();
+    std::span<float> location = abl.NextReference<float>();
+    abl.Pop();
+    abl.GetCodeToken();
+    abl.ExecExpression();
+    MCVector3D goal;
+    goal.X = location[0];
+    goal.Y = location[1];
+    goal.Z = location[2];
+    uint32_t params = abl.Top().Integer == 1 ? 1 : 0;
+    int32_t result;
+
+    if (abl.Brain.IsUnitOrder == 0)
+    {
+        result = abl.Brain.Warrior()->OrderMoveToPoint(0, 1, MCOrderOrigin::Commander, goal, -1, params);
+    }
+    else
+    {
+        result = abl.Brain.Group()->OrderMoveToPoint(1, MCOrderOrigin::Commander, goal, params);
+    }
+
+    abl.Top().Integer = result;
+    abl.GetCodeToken();
+    return MCAblTypeId::Integer;
+}
+
+auto ExecHbMoveToObject(MCAblRuntime& abl) -> MCAblTypeId
+{
+    abl.GetCodeToken();
+    abl.GetCodeToken();
+    abl.ExecExpression();
+    int32_t partId = abl.Top().Integer;
+    abl.Pop();
+    abl.GetCodeToken();
+    abl.ExecExpression();
+    int32_t flag = abl.Top().Integer;
+
+    if (!IsGroupId(partId))
+    {
+        std::shared_ptr<MCGameObject> object = FindObject(abl, partId);
+
+        if (object)
+        {
+            if (abl.Brain.IsUnitOrder == 0)
+            {
+                abl.Top().Integer = abl.Brain.Warrior()->OrderMoveToObject(0, 1, MCOrderOrigin::Commander, object, -1,
+                                                                           flag == 1 ? 1 : 0);
+            }
+            else
+            {
+                abl.Top().Integer = abl.Brain.Group()->OrderMoveToObject(1, MCOrderOrigin::Commander, object, 1);
+            }
+
+            abl.GetCodeToken();
+            return MCAblTypeId::Integer;
+        }
+    }
+
+    abl.Top().Integer = 1;
+    abl.GetCodeToken();
+    return MCAblTypeId::Integer;
+}
+
+auto ExecHbMoveToContact(MCAblRuntime& abl) -> MCAblTypeId
+{
+    abl.GetCodeToken();
+    abl.GetCodeToken();
+    abl.ExecExpression();
+    int32_t result = -1;
+
+    if (abl.Brain.Contact())
+    {
+        if (abl.Brain.IsUnitOrder != 0)
+        {
+            result = abl.Brain.Group()->OrderMoveToObject(1, MCOrderOrigin::Commander,
+                                                          abl.Brain.Contact()->SharedAs<MCGameObject>(), 1);
+        }
+        else
+        {
+            result = abl.Brain.Warrior()->OrderMoveToObject(0, 1, MCOrderOrigin::Commander,
+                                                            abl.Brain.Contact()->SharedAs<MCGameObject>(), -1,
+                                                            abl.Top().Integer == 1 ? 1 : 0);
+        }
+    }
+
+    abl.Top().Integer = result;
+    abl.GetCodeToken();
+    return MCAblTypeId::Integer;
+}
+
+auto ExecHbOrderPowerDown(MCAblRuntime& abl) -> MCAblTypeId
+{
+    abl.PushInteger(0);
+
+    if (abl.Brain.IsUnitOrder != 0)
+    {
+        abl.Top().Integer = abl.Brain.Group()->OrderPowerDown(MCOrderOrigin::Commander);
+    }
+    else
+    {
+        abl.Top().Integer = abl.Brain.Warrior()->OrderPowerDown(0, MCOrderOrigin::Commander);
+    }
+
+    abl.GetCodeToken();
+    return MCAblTypeId::Integer;
+}
+
+auto ExecHbOrderPowerUp(MCAblRuntime& abl) -> MCAblTypeId
+{
+    abl.PushInteger(0);
+
+    if (abl.Brain.IsUnitOrder != 0)
+    {
+        abl.Top().Integer = abl.Brain.Group()->OrderPowerUp(MCOrderOrigin::Commander);
+    }
+    else
+    {
+        abl.Top().Integer = abl.Brain.Warrior()->OrderPowerUp(0, MCOrderOrigin::Commander);
+    }
+
+    abl.GetCodeToken();
+    return MCAblTypeId::Integer;
+}
+
+auto ExecHbOrderAttackObject(MCAblRuntime& abl) -> MCAblTypeId
+{
+    abl.GetCodeToken();
+    abl.GetCodeToken();
+    abl.ExecExpression();
+    uint32_t partId = static_cast<uint32_t>(abl.Top().Integer);
+    abl.Pop();
+    int32_t attackType = abl.NextInteger();
+    int32_t attackMethod = abl.NextInteger();
+    int32_t attackRange = abl.NextInteger();
+    abl.GetCodeToken();
+    abl.ExecExpression();
+    uint32_t params = abl.Top().Integer != 0 ? 0x10 : 0;
+
+    if (partId != 0 && partId < 0x200)
+    {
+        abl.Top().Integer = 1;
+        abl.GetCodeToken();
+        return MCAblTypeId::Integer;
+    }
+
+    // Unlike the other routines, -1 is looked up as a part id rather than meaning the current object.
+    std::shared_ptr<MCGameObject> target;
+
+    if (partId != 0)
+    {
+        target = std::static_pointer_cast<MCGameObject>(ObjectList()->FindObjectFromPart(static_cast<int32_t>(partId)));
+    }
+
+    if (abl.Brain.IsUnitOrder != 0)
+    {
+        abl.Top().Integer = abl.Brain.Group()->OrderAttackObject(MCOrderOrigin::Commander, target, attackType,
+                                                                 attackMethod, attackRange, -1, params);
+    }
+    else
+    {
+        abl.Top().Integer = abl.Brain.Warrior()->OrderAttackObject(0, MCOrderOrigin::Commander, target, attackType,
+                                                                   attackMethod, attackRange, -1, params);
+    }
+
+    abl.GetCodeToken();
+    return MCAblTypeId::Integer;
+}
+
+auto ExecHbOrderAttackContact(MCAblRuntime& abl) -> MCAblTypeId
+{
+    abl.GetCodeToken();
+    abl.GetCodeToken();
+    abl.ExecExpression();
+    int32_t attackType = abl.Top().Integer;
+    abl.Pop();
+    int32_t attackMethod = abl.NextInteger();
+    int32_t attackRange = abl.NextInteger();
+    abl.GetCodeToken();
+    abl.ExecExpression();
+    uint32_t params = abl.Top().Integer != 0 ? 0x10 : 0;
+    int32_t result = -2;
+
+    if (abl.Brain.Contact())
+    {
+        result = abl.Brain.Warrior()->OrderAttackObject(0, MCOrderOrigin::Commander,
+                                                        abl.Brain.Contact()->SharedAs<MCGameObject>(), attackType,
+                                                        attackMethod, attackRange, -1, params);
+    }
+
+    abl.Top().Integer = result;
+    abl.GetCodeToken();
+    return MCAblTypeId::Integer;
+}
+
+auto ExecHbOrderTest(MCAblRuntime& abl) -> MCAblTypeId
+{
+    abl.GetCodeToken();
+    abl.GetCodeToken();
+    abl.ExecExpression();
+    abl.GetCodeToken();
+    return MCAblTypeId::Integer;
+}
+
+auto ExecHbPlaySmacker(MCAblRuntime& abl) -> MCAblTypeId
+{
+    abl.GetCodeToken();
+    abl.GetCodeToken();
+    abl.ExecExpression();
+    abl.Top().Integer = 0;
+    abl.GetCodeToken();
+    return MCAblTypeId::Integer;
+}
+
+auto ExecHbObjectChangeSides(MCAblRuntime& abl) -> void
+{
+    abl.GetCodeToken();
+    abl.GetCodeToken();
+    abl.ExecExpression();
+    int32_t partId = abl.Top().Integer;
+    abl.Pop();
+    int32_t alignment = abl.NextInteger();
+
+    if (IsGroupId(partId))
+    {
+        Fatal(0, " Cannot ABL:ObjectChangeSides for Mover Units ");
+    }
+
+    std::shared_ptr<MCBaseObject> object = ObjectList()->FindObjectFromPart(partId);
+
+    if (object && object->GetObjectType())
+    {
+        static_cast<MCGameObject&>(*object).SetAlignment(alignment);
+    }
+
+    abl.GetCodeToken();
+}

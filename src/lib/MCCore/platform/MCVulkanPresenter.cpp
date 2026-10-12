@@ -41,19 +41,21 @@ namespace
 }
 
 std::expected<std::unique_ptr<MCVulkanPresenter>, std::string> MCVulkanPresenter::Create(
-    SDL_Window* window, bool vsync, const MCPresentation& presentation)
+    std::shared_ptr<SDL_Window> window, bool vsync, const MCPresentation& presentation)
 {
-    std::unique_ptr<MCVulkanPresenter> presenter(new MCVulkanPresenter());
-    presenter->_Window = window;
+    auto presenter = std::make_unique<MCVulkanPresenter>(Key{});
+    presenter->_Window = std::move(window);
     presenter->_Presentation = presentation;
-    presenter->_Device = SDL_CreateGPUDevice(SDL_GPU_SHADERFORMAT_SPIRV, false, "vulkan");
+    SDL_GPUDevice* device = SDL_CreateGPUDevice(SDL_GPU_SHADERFORMAT_SPIRV, false, "vulkan");
 
-    if (presenter->_Device == nullptr)
+    if (device == nullptr)
     {
         return std::unexpected(SdlError("SDL_CreateGPUDevice(vulkan)"));
     }
 
-    if (!SDL_ClaimWindowForGPUDevice(presenter->_Device, window))
+    presenter->_Device = std::shared_ptr<SDL_GPUDevice>(device, MCSdlDeleter{});
+
+    if (!SDL_ClaimWindowForGPUDevice(device, presenter->_Window.get()))
     {
         return std::unexpected(SdlError("SDL_ClaimWindowForGPUDevice"));
     }
@@ -68,7 +70,7 @@ std::expected<std::unique_ptr<MCVulkanPresenter>, std::string> MCVulkanPresenter
         return std::unexpected(quad.error());
     }
 
-    presenter->_QuadShader = *quad;
+    presenter->_QuadShader = std::move(*quad);
     auto composite = MCVulkanShaders::Load(presenter->_Device, MCVulkanShaders::Composite);
 
     if (!composite)
@@ -76,19 +78,20 @@ std::expected<std::unique_ptr<MCVulkanPresenter>, std::string> MCVulkanPresenter
         return std::unexpected(composite.error());
     }
 
-    presenter->_CompositeShader = *composite;
+    presenter->_CompositeShader = std::move(*composite);
 
     SDL_GPUColorTargetDescription target{};
     target.format = SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM;
     SDL_GPUGraphicsPipelineCreateInfo pipeline{};
-    pipeline.vertex_shader = presenter->_QuadShader;
-    pipeline.fragment_shader = presenter->_CompositeShader;
+    pipeline.vertex_shader = presenter->_QuadShader.get();
+    pipeline.fragment_shader = presenter->_CompositeShader.get();
     pipeline.primitive_type = SDL_GPU_PRIMITIVETYPE_TRIANGLELIST;
     pipeline.rasterizer_state.fill_mode = SDL_GPU_FILLMODE_FILL;
     pipeline.rasterizer_state.cull_mode = SDL_GPU_CULLMODE_NONE;
     pipeline.target_info.num_color_targets = 1;
     pipeline.target_info.color_target_descriptions = &target;
-    presenter->_CompositePipeline = SDL_CreateGPUGraphicsPipeline(presenter->_Device, &pipeline);
+    presenter->_CompositePipeline = MCGpuHandle<SDL_GPUGraphicsPipeline>(
+        SDL_CreateGPUGraphicsPipeline(device, &pipeline), MCGpuRelease{presenter->_Device});
 
     if (presenter->_CompositePipeline == nullptr)
     {
@@ -102,7 +105,8 @@ std::expected<std::unique_ptr<MCVulkanPresenter>, std::string> MCVulkanPresenter
     sampler.address_mode_u = SDL_GPU_SAMPLERADDRESSMODE_CLAMP_TO_EDGE;
     sampler.address_mode_v = SDL_GPU_SAMPLERADDRESSMODE_CLAMP_TO_EDGE;
     sampler.address_mode_w = SDL_GPU_SAMPLERADDRESSMODE_CLAMP_TO_EDGE;
-    presenter->_Nearest = SDL_CreateGPUSampler(presenter->_Device, &sampler);
+    presenter->_Nearest =
+        MCGpuHandle<SDL_GPUSampler>(SDL_CreateGPUSampler(device, &sampler), MCGpuRelease{presenter->_Device});
 
     if (presenter->_Nearest == nullptr)
     {
@@ -119,7 +123,7 @@ std::expected<std::unique_ptr<MCVulkanPresenter>, std::string> MCVulkanPresenter
         if (renderer)
         {
             presenter->_Renderer = std::move(*renderer);
-            MCRenderer::SetHardware(presenter->_Renderer.get(), drawing);
+            MCRenderer::SetHardware(presenter->_Renderer, drawing);
         }
         else
         {
@@ -138,18 +142,19 @@ MCVulkanPresenter::~MCVulkanPresenter()
         return;
     }
 
-    SDL_WaitForGPUIdle(_Device);
+    SDL_WaitForGPUIdle(_Device.get());
 
-    if (_Renderer != nullptr && MCRenderer::Hardware() == _Renderer.get())
+    if (_Renderer != nullptr && MCRenderer::Hardware() == _Renderer)
     {
         MCRenderer::SetHardware(nullptr, MCGpuDrawing::Off);
     }
 
     _Renderer.reset();
 
-    for (Texture* texture : {&_Screen, &_Ops, &_Tables, &_Palette, &_Frame})
+    for (Texture& texture :
+         {std::ref(_Screen), std::ref(_Ops), std::ref(_Tables), std::ref(_Palette), std::ref(_Frame)})
     {
-        Release(*texture);
+        Release(texture);
     }
 
     for (Texture& texture : _Underlays)
@@ -157,42 +162,25 @@ MCVulkanPresenter::~MCVulkanPresenter()
         Release(texture);
     }
 
-    if (_Upload != nullptr)
-    {
-        SDL_ReleaseGPUTransferBuffer(_Device, _Upload);
-    }
-
-    if (_Nearest != nullptr)
-    {
-        SDL_ReleaseGPUSampler(_Device, _Nearest);
-    }
-
-    if (_CompositePipeline != nullptr)
-    {
-        SDL_ReleaseGPUGraphicsPipeline(_Device, _CompositePipeline);
-    }
-
-    for (SDL_GPUShader* shader : {_QuadShader, _CompositeShader})
-    {
-        if (shader != nullptr)
-        {
-            SDL_ReleaseGPUShader(_Device, shader);
-        }
-    }
+    _Upload.reset();
+    _Nearest.reset();
+    _CompositePipeline.reset();
+    _QuadShader.reset();
+    _CompositeShader.reset();
 
     if (_Claimed)
     {
-        SDL_ReleaseWindowFromGPUDevice(_Device, _Window);
+        SDL_ReleaseWindowFromGPUDevice(_Device.get(), _Window.get());
     }
 
-    SDL_DestroyGPUDevice(_Device);
+    // The device is destroyed with its last holder: this, once the members are gone.
 }
 
 std::string MCVulkanPresenter::Name() const
 {
-    const char* device =
-        SDL_GetStringProperty(SDL_GetGPUDeviceProperties(_Device), SDL_PROP_GPU_DEVICE_NAME_STRING, "");
-    return *device != '\0' ? std::format("vulkan ({})", device) : std::string("vulkan");
+    const std::string_view device =
+        SDL_GetStringProperty(SDL_GetGPUDeviceProperties(_Device.get()), SDL_PROP_GPU_DEVICE_NAME_STRING, "");
+    return !device.empty() ? std::format("vulkan ({})", device) : std::string("vulkan");
 }
 
 void MCVulkanPresenter::SetVSync(bool on)
@@ -202,26 +190,21 @@ void MCVulkanPresenter::SetVSync(bool on)
 
     if (!on)
     {
-        if (SDL_WindowSupportsGPUPresentMode(_Device, _Window, SDL_GPU_PRESENTMODE_IMMEDIATE))
+        if (SDL_WindowSupportsGPUPresentMode(_Device.get(), _Window.get(), SDL_GPU_PRESENTMODE_IMMEDIATE))
         {
             mode = SDL_GPU_PRESENTMODE_IMMEDIATE;
         }
-        else if (SDL_WindowSupportsGPUPresentMode(_Device, _Window, SDL_GPU_PRESENTMODE_MAILBOX))
+        else if (SDL_WindowSupportsGPUPresentMode(_Device.get(), _Window.get(), SDL_GPU_PRESENTMODE_MAILBOX))
         {
             mode = SDL_GPU_PRESENTMODE_MAILBOX;
         }
     }
 
-    SDL_SetGPUSwapchainParameters(_Device, _Window, SDL_GPU_SWAPCHAINCOMPOSITION_SDR, mode);
+    SDL_SetGPUSwapchainParameters(_Device.get(), _Window.get(), SDL_GPU_SWAPCHAINCOMPOSITION_SDR, mode);
 }
 
 void MCVulkanPresenter::Release(Texture& texture)
 {
-    if (texture.Handle != nullptr)
-    {
-        SDL_ReleaseGPUTexture(_Device, texture.Handle);
-    }
-
     texture = Texture{};
 }
 
@@ -251,7 +234,7 @@ std::expected<void, std::string> MCVulkanPresenter::Ensure(Texture& texture, SDL
     info.height = height;
     info.layer_count_or_depth = 1;
     info.num_levels = 1;
-    texture.Handle = SDL_CreateGPUTexture(_Device, &info);
+    texture.Handle = MCGpuHandle<SDL_GPUTexture>(SDL_CreateGPUTexture(_Device.get(), &info), MCGpuRelease{_Device});
 
     if (texture.Handle == nullptr)
     {
@@ -268,10 +251,10 @@ bool MCVulkanPresenter::ShowsGpuSurfaces(const MCFrame& frame) const
     uint32_t width = 0;
     uint32_t height = 0;
     return _Renderer != nullptr && MCRenderer::GpuDrawing() == MCGpuDrawing::On &&
-           _Renderer->SurfaceTexture(frame.Screen, width, height) != nullptr;
+           _Renderer->SurfaceTexture(frame.Screen.get(), width, height) != nullptr;
 }
 
-std::expected<void, std::string> MCVulkanPresenter::Prepare(SDL_GPUCommandBuffer* commands, const MCFrame& frame,
+std::expected<void, std::string> MCVulkanPresenter::Prepare(SDL_GPUCommandBuffer& commands, const MCFrame& frame,
                                                             bool& gpuSurfaces)
 {
     if (_Renderer != nullptr && MCRenderer::GpuDrawing() != MCGpuDrawing::Off)
@@ -289,7 +272,7 @@ std::expected<void, std::string> MCVulkanPresenter::Prepare(SDL_GPUCommandBuffer
     return Upload(commands, frame, gpuSurfaces);
 }
 
-std::expected<void, std::string> MCVulkanPresenter::Upload(SDL_GPUCommandBuffer* commands, const MCFrame& frame,
+std::expected<void, std::string> MCVulkanPresenter::Upload(SDL_GPUCommandBuffer& commands, const MCFrame& frame,
                                                            bool gpuSurfaces)
 {
     const uint32_t width = static_cast<uint32_t>(frame.Width);
@@ -312,8 +295,8 @@ std::expected<void, std::string> MCVulkanPresenter::Upload(SDL_GPUCommandBuffer*
     // underlays their surfaces, the ops and the op tables in use.
     struct Part
     {
-        const void* Data;
-        SDL_GPUTexture* Texture;
+        std::span<const std::byte> Data;
+        std::reference_wrapper<SDL_GPUTexture> Texture;
         uint32_t Width;
         uint32_t Height;
         uint32_t BytesPerPixel;
@@ -321,6 +304,13 @@ std::expected<void, std::string> MCVulkanPresenter::Upload(SDL_GPUCommandBuffer*
     };
 
     std::vector<Part> parts;
+    // The underlays' pictures, held while their pixels go up.
+    std::vector<std::shared_ptr<const MCWindow>> sources;
+
+    for (const MCUnderlay& underlay : frame.Underlays)
+    {
+        sources.push_back(underlay.Source.lock());
+    }
 
     if (!gpuSurfaces)
     {
@@ -341,38 +331,39 @@ std::expected<void, std::string> MCVulkanPresenter::Upload(SDL_GPUCommandBuffer*
 
         for (size_t i = 0; i < frame.Underlays.size(); ++i)
         {
-            const _window* source = frame.Underlays[i].Source;
+            const MCWindow& source = *sources[i];
 
             if (auto made =
-                    Ensure(_Underlays[i], R8, SDL_GPU_TEXTUREUSAGE_SAMPLER, static_cast<uint32_t>(source->x_max + 1),
-                           static_cast<uint32_t>(source->y_max + 1), false);
+                    Ensure(_Underlays[i], R8, SDL_GPU_TEXTUREUSAGE_SAMPLER, static_cast<uint32_t>(source.XMax + 1),
+                           static_cast<uint32_t>(source.YMax + 1), false);
                 !made)
             {
                 return made;
             }
         }
 
-        parts.push_back({frame.Pixels, _Screen.Handle, width, height, 1, 0});
+        parts.push_back({std::as_bytes(frame.Pixels), *_Screen.Handle, width, height, 1, 0});
     }
 
     if (!gpuSurfaces && !frame.Underlays.empty())
     {
-        parts.push_back({frame.Ops, _Ops.Handle, width, height, 1, 0});
-        parts.push_back(
-            {MCRenderer::OpTables(), _Tables.Handle, 256, static_cast<uint32_t>(MCRenderer::OpTableCount()), 1, 0});
+        parts.push_back({std::as_bytes(frame.Ops), *_Ops.Handle, width, height, 1, 0});
+        parts.push_back({std::as_bytes(MCRenderer::OpTables()), *_Tables.Handle, 256,
+                         static_cast<uint32_t>(MCRenderer::OpTableCount()), 1, 0});
 
         for (size_t i = 0; i < frame.Underlays.size(); ++i)
         {
-            const _window* source = frame.Underlays[i].Source;
-            parts.push_back({source->buffer, _Underlays[i].Handle, static_cast<uint32_t>(source->x_max + 1),
-                             static_cast<uint32_t>(source->y_max + 1), 1, 0});
+            const MCWindow& source = *sources[i];
+            const auto sourceWidth = static_cast<uint32_t>(source.XMax + 1);
+            const auto sourceHeight = static_cast<uint32_t>(source.YMax + 1);
+            parts.push_back({std::as_bytes(source.Bytes()), *_Underlays[i].Handle, sourceWidth, sourceHeight, 1, 0});
         }
     }
 
     if (frame.PaletteChanged || paletteNew)
     {
         // SDL_Color is r, g, b, a bytes: RGBA's layout. The alpha isn't used. The colour cycle is the shader's.
-        parts.push_back({frame.PaletteColors, _Palette.Handle, 256, 1, 4, 0});
+        parts.push_back({std::as_bytes(frame.PaletteColors), *_Palette.Handle, 256, 1, 4, 0});
     }
 
     if (parts.empty())
@@ -390,15 +381,12 @@ std::expected<void, std::string> MCVulkanPresenter::Upload(SDL_GPUCommandBuffer*
 
     if (_Upload == nullptr || _UploadSize < total)
     {
-        if (_Upload != nullptr)
-        {
-            SDL_ReleaseGPUTransferBuffer(_Device, _Upload);
-        }
-
+        _Upload.reset();
         SDL_GPUTransferBufferCreateInfo info{};
         info.usage = SDL_GPU_TRANSFERBUFFERUSAGE_UPLOAD;
         info.size = total + total / 4;
-        _Upload = SDL_CreateGPUTransferBuffer(_Device, &info);
+        _Upload = MCGpuHandle<SDL_GPUTransferBuffer>(SDL_CreateGPUTransferBuffer(_Device.get(), &info),
+                                                     MCGpuRelease{_Device});
         _UploadSize = _Upload != nullptr ? info.size : 0;
 
         if (_Upload == nullptr)
@@ -407,7 +395,7 @@ std::expected<void, std::string> MCVulkanPresenter::Upload(SDL_GPUCommandBuffer*
         }
     }
 
-    auto* mapped = static_cast<uint8_t*>(SDL_MapGPUTransferBuffer(_Device, _Upload, true));
+    void* const mapped = SDL_MapGPUTransferBuffer(_Device.get(), _Upload.get(), true);
 
     if (mapped == nullptr)
     {
@@ -416,22 +404,22 @@ std::expected<void, std::string> MCVulkanPresenter::Upload(SDL_GPUCommandBuffer*
 
     for (const Part& part : parts)
     {
-        std::memcpy(mapped + part.Offset, part.Data,
+        std::memcpy(static_cast<uint8_t*>(mapped) + part.Offset, part.Data.data(),
                     static_cast<size_t>(part.Width) * part.Height * part.BytesPerPixel);
     }
 
-    SDL_UnmapGPUTransferBuffer(_Device, _Upload);
-    SDL_GPUCopyPass* pass = SDL_BeginGPUCopyPass(commands);
+    SDL_UnmapGPUTransferBuffer(_Device.get(), _Upload.get());
+    SDL_GPUCopyPass* pass = SDL_BeginGPUCopyPass(&commands);
 
     for (const Part& part : parts)
     {
         SDL_GPUTextureTransferInfo source{};
-        source.transfer_buffer = _Upload;
+        source.transfer_buffer = _Upload.get();
         source.offset = part.Offset;
         source.pixels_per_row = part.Width;
         source.rows_per_layer = part.Height;
         SDL_GPUTextureRegion destination{};
-        destination.texture = part.Texture;
+        destination.texture = &part.Texture.get();
         destination.w = part.Width;
         destination.h = part.Height;
         destination.d = 1;
@@ -442,37 +430,39 @@ std::expected<void, std::string> MCVulkanPresenter::Upload(SDL_GPUCommandBuffer*
     return {};
 }
 
-void MCVulkanPresenter::Composite(SDL_GPUCommandBuffer* commands, const MCFrame& frame, bool gpuSurfaces)
+void MCVulkanPresenter::Composite(SDL_GPUCommandBuffer& commands, const MCFrame& frame, bool gpuSurfaces)
 {
     const float width = static_cast<float>(frame.Width);
     const float height = static_cast<float>(frame.Height);
 
     // The screen's texture and its allocated size; the GPU's surfaces have no op plane or op tables (the screen is
     // bound in their place, unread).
-    SDL_GPUTexture* screen = _Screen.Handle;
+    SDL_GPUTexture* screen = _Screen.Handle.get();
     uint32_t screenWidth = static_cast<uint32_t>(frame.Width);
     uint32_t screenHeight = static_cast<uint32_t>(frame.Height);
+    // The GPU's surfaces drawn from, held while the composite is recorded.
+    std::vector<std::shared_ptr<SDL_GPUTexture>> held;
 
     if (gpuSurfaces)
     {
-        screen = _Renderer->SurfaceTexture(frame.Screen, screenWidth, screenHeight);
+        screen = held.emplace_back(_Renderer->SurfaceTexture(frame.Screen.get(), screenWidth, screenHeight)).get();
     }
 
-    SDL_GPUTexture* ops = gpuSurfaces ? screen : _Ops.Handle;
-    SDL_GPUTexture* tables = gpuSurfaces ? screen : _Tables.Handle;
+    SDL_GPUTexture* ops = gpuSurfaces ? screen : _Ops.Handle.get();
+    SDL_GPUTexture* tables = gpuSurfaces ? screen : _Tables.Handle.get();
     const float source = gpuSurfaces ? 1.0f : 0.0f;
     const float screenSize[4] = {width, height, static_cast<float>(screenWidth), static_cast<float>(screenHeight)};
     SDL_GPUColorTargetInfo target{};
-    target.texture = _Frame.Handle;
+    target.texture = _Frame.Handle.get();
     // The first quad covers every pixel.
     target.load_op = SDL_GPU_LOADOP_DONT_CARE;
     target.store_op = SDL_GPU_STOREOP_STORE;
-    SDL_GPURenderPass* pass = SDL_BeginGPURenderPass(commands, &target, 1, nullptr);
-    SDL_BindGPUGraphicsPipeline(pass, _CompositePipeline);
+    SDL_GPURenderPass* pass = SDL_BeginGPURenderPass(&commands, &target, 1, nullptr);
+    SDL_BindGPUGraphicsPipeline(pass, _CompositePipeline.get());
     const SDL_GPUViewport viewport{0.0f, 0.0f, width, height, 0.0f, 1.0f};
     SDL_SetGPUViewport(pass, &viewport);
 
-    auto draw = [&](float x, float y, float w, float h, SDL_GPUTexture* world, CompositeUniforms uniforms)
+    auto draw = [&](float x, float y, float w, float h, SDL_GPUTexture& world, CompositeUniforms uniforms)
     {
         uniforms.Cycle[0] = frame.Cycle.First;
         uniforms.Cycle[1] = frame.Cycle.Step;
@@ -485,18 +475,22 @@ void MCVulkanPresenter::Composite(SDL_GPUCommandBuffer* commands, const MCFrame&
         uniforms.Fade[0] = static_cast<float>(frame.Fade) / 255.0f;
 
         const SDL_GPUTextureSamplerBinding bindings[5] = {
-            {screen, _Nearest}, {ops, _Nearest}, {world, _Nearest}, {tables, _Nearest}, {_Palette.Handle, _Nearest},
+            {screen, _Nearest.get()},
+            {ops, _Nearest.get()},
+            {&world, _Nearest.get()},
+            {tables, _Nearest.get()},
+            {_Palette.Handle.get(), _Nearest.get()},
         };
 
         const QuadUniforms quad{{x, y, w, h}, {width, height, 0.0f, 0.0f}};
         SDL_BindGPUFragmentSamplers(pass, 0, bindings, 5);
-        SDL_PushGPUVertexUniformData(commands, 0, &quad, sizeof(quad));
-        SDL_PushGPUFragmentUniformData(commands, 0, &uniforms, sizeof(uniforms));
+        SDL_PushGPUVertexUniformData(&commands, 0, &quad, sizeof(quad));
+        SDL_PushGPUFragmentUniformData(&commands, 0, &uniforms, sizeof(uniforms));
         SDL_DrawGPUPrimitives(pass, 6, 1, 0, 0);
     };
 
     // The screen alone, then each underlay's rectangle with its surface.
-    draw(0.0f, 0.0f, width, height, screen,
+    draw(0.0f, 0.0f, width, height, *screen,
          CompositeUniforms{{screenSize[0], screenSize[1], screenSize[2], screenSize[3]},
                            {0.0f, 0.0f, 1.0f, 1.0f},
                            {1.0f, 1.0f, 1.0f, 1.0f},
@@ -522,9 +516,16 @@ void MCVulkanPresenter::Composite(SDL_GPUCommandBuffer* commands, const MCFrame&
 
         if (!gpuSurfaces)
         {
-            world = _Underlays[i].Handle;
-            worldSize[0] = static_cast<float>(underlay.Source->x_max + 1);
-            worldSize[1] = static_cast<float>(underlay.Source->y_max + 1);
+            const std::shared_ptr<const MCWindow> source = underlay.Source.lock();
+
+            if (source == nullptr)
+            {
+                continue;
+            }
+
+            world = _Underlays[i].Handle.get();
+            worldSize[0] = static_cast<float>(source->XMax + 1);
+            worldSize[1] = static_cast<float>(source->YMax + 1);
             worldSize[2] = static_cast<float>(_Underlays[i].Width);
             worldSize[3] = static_cast<float>(_Underlays[i].Height);
         }
@@ -532,7 +533,14 @@ void MCVulkanPresenter::Composite(SDL_GPUCommandBuffer* commands, const MCFrame&
         {
             uint32_t worldWidth = 0;
             uint32_t worldHeight = 0;
-            world = _Renderer->SurfaceTexture(underlay.Source, worldWidth, worldHeight);
+            const std::shared_ptr<const MCWindow> source = underlay.Source.lock();
+
+            if (source == nullptr)
+            {
+                continue;
+            }
+
+            world = held.emplace_back(_Renderer->SurfaceTexture(*source, worldWidth, worldHeight)).get();
 
             if (world == nullptr)
             {
@@ -553,7 +561,7 @@ void MCVulkanPresenter::Composite(SDL_GPUCommandBuffer* commands, const MCFrame&
         };
 
         draw(static_cast<float>(x0), static_cast<float>(y0), static_cast<float>(x1 - x0 + 1),
-             static_cast<float>(y1 - y0 + 1), world, uniforms);
+             static_cast<float>(y1 - y0 + 1), *world, uniforms);
     }
 
     SDL_EndGPURenderPass(pass);
@@ -561,7 +569,7 @@ void MCVulkanPresenter::Composite(SDL_GPUCommandBuffer* commands, const MCFrame&
 
 std::expected<void, std::string> MCVulkanPresenter::Present(const MCFrame& frame)
 {
-    SDL_GPUCommandBuffer* commands = SDL_AcquireGPUCommandBuffer(_Device);
+    SDL_GPUCommandBuffer* commands = SDL_AcquireGPUCommandBuffer(_Device.get());
 
     if (commands == nullptr)
     {
@@ -572,7 +580,7 @@ std::expected<void, std::string> MCVulkanPresenter::Present(const MCFrame& frame
 
     if (MCFrameLog::Scope part("present.prepare"); true)
     {
-        if (auto prepared = Prepare(commands, frame, gpuSurfaces); !prepared)
+        if (auto prepared = Prepare(*commands, frame, gpuSurfaces); !prepared)
         {
             SDL_CancelGPUCommandBuffer(commands);
             return prepared;
@@ -583,7 +591,7 @@ std::expected<void, std::string> MCVulkanPresenter::Present(const MCFrame& frame
 
     if (MCFrameLog::Scope part("present.composite"); true)
     {
-        Composite(commands, frame, gpuSurfaces);
+        Composite(*commands, frame, gpuSurfaces);
     }
 
     SDL_GPUTexture* swapchain = nullptr;
@@ -591,7 +599,7 @@ std::expected<void, std::string> MCVulkanPresenter::Present(const MCFrame& frame
     uint32_t swapchainHeight = 0;
 
     if (MCFrameLog::Scope part("present.acquire");
-        !SDL_WaitAndAcquireGPUSwapchainTexture(commands, _Window, &swapchain, &swapchainWidth, &swapchainHeight))
+        !SDL_WaitAndAcquireGPUSwapchainTexture(commands, _Window.get(), &swapchain, &swapchainWidth, &swapchainHeight))
     {
         SDL_SubmitGPUCommandBuffer(commands);
         return std::unexpected(SdlError("SDL_WaitAndAcquireGPUSwapchainTexture"));
@@ -603,7 +611,7 @@ std::expected<void, std::string> MCVulkanPresenter::Present(const MCFrame& frame
         const MCViewport shown = MCPresentViewport(static_cast<int>(swapchainWidth), static_cast<int>(swapchainHeight),
                                                    frame.View.w, frame.View.h, _Presentation);
         SDL_GPUBlitInfo blit{};
-        blit.source.texture = _Frame.Handle;
+        blit.source.texture = _Frame.Handle.get();
         blit.source.x = static_cast<uint32_t>(frame.View.x);
         blit.source.y = static_cast<uint32_t>(frame.View.y);
         blit.source.w = static_cast<uint32_t>(frame.View.w);
@@ -641,7 +649,7 @@ std::expected<void, std::string> MCVulkanPresenter::Present(const MCFrame& frame
 
 std::expected<std::vector<SDL_Color>, std::string> MCVulkanPresenter::ReadFrame(const MCFrame& frame)
 {
-    SDL_GPUCommandBuffer* commands = SDL_AcquireGPUCommandBuffer(_Device);
+    SDL_GPUCommandBuffer* commands = SDL_AcquireGPUCommandBuffer(_Device.get());
 
     if (commands == nullptr)
     {
@@ -650,18 +658,18 @@ std::expected<std::vector<SDL_Color>, std::string> MCVulkanPresenter::ReadFrame(
 
     bool gpuSurfaces = false;
 
-    if (auto prepared = Prepare(commands, frame, gpuSurfaces); !prepared)
+    if (auto prepared = Prepare(*commands, frame, gpuSurfaces); !prepared)
     {
         SDL_CancelGPUCommandBuffer(commands);
         return std::unexpected(prepared.error());
     }
 
-    Composite(commands, frame, gpuSurfaces);
+    Composite(*commands, frame, gpuSurfaces);
     const uint32_t size = static_cast<uint32_t>(frame.Width) * static_cast<uint32_t>(frame.Height) * 4;
     SDL_GPUTransferBufferCreateInfo info{};
     info.usage = SDL_GPU_TRANSFERBUFFERUSAGE_DOWNLOAD;
     info.size = size;
-    SDL_GPUTransferBuffer* download = SDL_CreateGPUTransferBuffer(_Device, &info);
+    SDL_GPUTransferBuffer* download = SDL_CreateGPUTransferBuffer(_Device.get(), &info);
 
     if (download == nullptr)
     {
@@ -671,7 +679,7 @@ std::expected<std::vector<SDL_Color>, std::string> MCVulkanPresenter::ReadFrame(
 
     SDL_GPUCopyPass* pass = SDL_BeginGPUCopyPass(commands);
     SDL_GPUTextureRegion source{};
-    source.texture = _Frame.Handle;
+    source.texture = _Frame.Handle.get();
     source.w = static_cast<uint32_t>(frame.Width);
     source.h = static_cast<uint32_t>(frame.Height);
     source.d = 1;
@@ -685,25 +693,25 @@ std::expected<std::vector<SDL_Color>, std::string> MCVulkanPresenter::ReadFrame(
 
     if (fence == nullptr)
     {
-        SDL_ReleaseGPUTransferBuffer(_Device, download);
+        SDL_ReleaseGPUTransferBuffer(_Device.get(), download);
         return std::unexpected(SdlError("SDL_SubmitGPUCommandBufferAndAcquireFence"));
     }
 
-    SDL_WaitForGPUFences(_Device, true, &fence, 1);
-    SDL_ReleaseGPUFence(_Device, fence);
+    SDL_WaitForGPUFences(_Device.get(), true, &fence, 1);
+    SDL_ReleaseGPUFence(_Device.get(), fence);
     std::vector<SDL_Color> pixels(static_cast<size_t>(frame.Width) * frame.Height);
-    const void* mapped = SDL_MapGPUTransferBuffer(_Device, download, false);
+    const void* mapped = SDL_MapGPUTransferBuffer(_Device.get(), download, false);
 
     if (mapped == nullptr)
     {
-        SDL_ReleaseGPUTransferBuffer(_Device, download);
+        SDL_ReleaseGPUTransferBuffer(_Device.get(), download);
         return std::unexpected(SdlError("SDL_MapGPUTransferBuffer(download)"));
     }
 
     // R8G8B8A8 is SDL_Color's byte order.
     std::memcpy(pixels.data(), mapped, size);
-    SDL_UnmapGPUTransferBuffer(_Device, download);
-    SDL_ReleaseGPUTransferBuffer(_Device, download);
+    SDL_UnmapGPUTransferBuffer(_Device.get(), download);
+    SDL_ReleaseGPUTransferBuffer(_Device.get(), download);
     return pixels;
 }
 
@@ -711,7 +719,7 @@ std::expected<std::vector<uint8_t>, std::string> MCVulkanPresenter::ReadScreen(c
 {
     if (_Renderer != nullptr && MCRenderer::GpuDrawing() == MCGpuDrawing::On)
     {
-        auto shown = _Renderer->ReadShown(frame.Screen, frame.Underlays);
+        auto shown = _Renderer->ReadShown(frame.Screen.get(), frame.Underlays);
 
         if (!shown || !shown->empty())
         {
@@ -738,6 +746,6 @@ MCViewport MCVulkanPresenter::Viewport(int viewWidth, int viewHeight) const
 {
     int width = 0;
     int height = 0;
-    SDL_GetWindowSizeInPixels(_Window, &width, &height);
+    SDL_GetWindowSizeInPixels(_Window.get(), &width, &height);
     return MCPresentViewport(width, height, viewWidth, viewHeight, _Presentation);
 }

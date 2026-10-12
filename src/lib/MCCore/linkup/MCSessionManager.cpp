@@ -1,0 +1,762 @@
+#include "stdafx.h"
+#include "linkup/MCSessionManager.h"
+#include "linkup/MCFidpGroup.h"
+#include "linkup/MCFidpMessage.h"
+#include "linkup/MCFidpPlayer.h"
+#include "linkup/MCFidpSession.h"
+#include "linkup/MCFileTransferInfo.h"
+#include "lib/MCFatal.h"
+#include "platform/MCDirectPlay.h"
+#include "platform/MCSocket.h"
+
+// The session manager's life, its connections, and the sessions, players and groups DirectPlay lists. The receive
+// pass and guaranteed delivery are in MCSessionManagerReceive.cpp, the sends in MCSessionManagerSend.cpp, the players
+// coming and going and the message handlers in MCSessionManagerPlayers.cpp.
+
+bool LaunchedFromLobby = false;
+
+namespace
+{
+    using namespace MCDirectPlayGuids;
+
+    /// <summary>The enumeration flags GetSessions and Dial ask DirectPlay for.</summary>
+    constexpr uint32_t EnumSessionFlags =
+        DPENUMSESSIONS_AVAILABLE | DPENUMSESSIONS_ASYNC | DPENUMSESSIONS_PASSWORDREQUIRED | DPENUMSESSIONS_RETURNSTATUS;
+}
+
+uint32_t MCSessionManager::TicksPerMs()
+{
+    return static_cast<uint32_t>(MCPort::PerformanceFrequency()) / 1000;
+}
+
+// ---- lifetime ------------------------------------------------------------------------------------------------------
+
+MCSessionManager::MCSessionManager(const _GUID& appGUID) : _AppGuid(appGUID)
+{
+    CreateDirectPlayInterface();
+    _ServerMessage.Header = LinkupHeader(MCLinkupMessageType::NewServer, FIMSG_GUARANTEED);
+    _NextPingTime = static_cast<uint32_t>(MCPort::PerformanceCounter());
+}
+
+MCSessionManager::~MCSessionManager()
+{
+    std::scoped_lock lock(CriticalSection);
+    DestroyDirectPlayInterface();
+}
+
+void MCSessionManager::CreateDirectPlayInterface()
+{
+    // Port: CoCreateInstance(CLSID_DirectPlay, IID_IDirectPlay3A) becomes the port's stand-in, which can't fail.
+    if (DirectPlay == nullptr)
+    {
+        DirectPlay = std::make_unique<MCDirectPlay>();
+    }
+
+    EnumerateConnections();
+}
+
+void MCSessionManager::DestroyDirectPlayInterface()
+{
+    LeaveSession();
+    DirectPlay.reset();
+    CurrentConnection = MCNetProtocol::None;
+}
+
+// ---- message queues ------------------------------------------------------------------------------------------------
+
+bool MCSessionManager::IsMyPlayer(const MCFidpPlayer& player) const
+{
+    return MyPlayer().get() == &player;
+}
+
+void MCSessionManager::AddMessageToEmptyQueue(std::shared_ptr<MCFidpMessage> msg)
+{
+    std::scoped_lock lock(_EmptyQueueLock);
+    msg->Clear();
+    _EmptyMessages.push_back(std::move(msg));
+}
+
+std::shared_ptr<MCFidpMessage> MCSessionManager::GetMessageFromEmptyQueue()
+{
+    std::scoped_lock lock(_EmptyQueueLock);
+
+    // Port fix: a new message when the free queue is empty (the original's senders went on with the null they got).
+    if (_EmptyMessages.empty())
+    {
+        return std::make_shared<MCFidpMessage>(MyPlayerID, 0x200);
+    }
+
+    std::shared_ptr<MCFidpMessage> msg = std::move(_EmptyMessages.front());
+    _EmptyMessages.pop_front();
+    return msg;
+}
+
+std::shared_ptr<MCFidpMessage> MCSessionManager::CopyToFreeMessage(std::span<const uint8_t> message, uint32_t toID)
+{
+    std::shared_ptr<MCFidpMessage> msg = GetMessageFromEmptyQueue();
+    msg->SetMessageBuffer(message);
+    msg->ToID = toID;
+    return msg;
+}
+
+namespace
+{
+    /// <summary>The bytes of <paramref name="value"/>.</summary>
+    template <class T> std::vector<uint8_t> ValueBytes(const T& value)
+    {
+        static_assert(std::is_trivially_copyable_v<T>);
+        std::vector<uint8_t> bytes(sizeof(T));
+        std::memcpy(bytes.data(), &value, sizeof(T));
+        return bytes;
+    }
+
+    /// <summary>An address element holding a GUID.</summary>
+    DPCOMPOUNDADDRESSELEMENT AddressGuid(const _GUID& type, const _GUID& value)
+    {
+        return DPCOMPOUNDADDRESSELEMENT{type, ValueBytes(value)};
+    }
+
+    /// <summary>An address element holding a string, null-terminated as DirectPlay's were.</summary>
+    DPCOMPOUNDADDRESSELEMENT AddressText(const _GUID& type, std::string_view text)
+    {
+        std::vector<uint8_t> bytes(text.begin(), text.end());
+        bytes.push_back(0);
+        return DPCOMPOUNDADDRESSELEMENT{type, std::move(bytes)};
+    }
+}
+
+// ---- connections ---------------------------------------------------------------------------------------------------
+
+void MCSessionManager::EnumerateConnections()
+{
+    Assert(DirectPlay != nullptr, 0);
+    Connections.clear();
+    MCDirectPlay::EnumConnections(
+        [this](const _GUID& serviceProvider, std::span<const uint8_t> connection, const DPNAME& name, uint32_t)
+        {
+            AddConnection(serviceProvider, connection, name);
+            return true;
+        },
+        0);
+}
+
+MCNetProtocol MCSessionManager::ConnectionType(const _GUID& guid)
+{
+    constexpr std::array<std::pair<_GUID, MCNetProtocol>, 5> known = {{{DPSPGUID_TCPIP, MCNetProtocol::TcpIp},
+                                                                       {DPSPGUID_IPX, MCNetProtocol::Ipx},
+                                                                       {DPSPGUID_MODEM, MCNetProtocol::Modem},
+                                                                       {DPSPGUID_SERIAL, MCNetProtocol::Serial},
+                                                                       {DPSPGUID_LOBBY, MCNetProtocol::Lobby}}};
+
+    for (const auto& [provider, protocol] : known)
+    {
+        if (MCSameGuid(guid, provider))
+        {
+            AvailableProtocols |= ProtocolBit(protocol);
+            return protocol;
+        }
+    }
+
+    return MCNetProtocol::None;
+}
+
+void MCSessionManager::AddConnection(const _GUID& serviceProvider, std::span<const uint8_t> connection,
+                                     const DPNAME& name)
+{
+    auto protocol = std::make_unique<MCFidpNetworkProtocol>(name, connection);
+    protocol->ProtocolType = ConnectionType(serviceProvider);
+    Connections.push_back(std::move(protocol));
+}
+
+int32_t MCSessionManager::SetCurrentConnection(MCNetProtocol type)
+{
+    const auto found =
+        std::ranges::find_if(Connections, [&](const auto& protocol) { return protocol->ProtocolType == type; });
+    Assert(found != Connections.end(), 0);
+
+    if (found == Connections.end())
+    {
+        return -1;
+    }
+
+    // Port fix: recreating the DirectPlay object below re-enumerates the connections, which frees the data just found
+    // (the original went on using it); a copy is kept.
+    std::vector<uint8_t> copy = (*found)->ConnectionBuffer;
+    copy.resize(std::max<size_t>(copy.size(), MCDirectPlay::ConnectionDataSize));
+
+    if (CurrentConnection != MCNetProtocol::None)
+    {
+        DestroyDirectPlayInterface();
+        CreateDirectPlayInterface();
+    }
+
+    const int32_t result = static_cast<int32_t>(DirectPlay->InitializeConnection(copy, 0));
+
+    if (type != MCNetProtocol::Modem && result == 0)
+    {
+        GetSessions();
+    }
+
+    CurrentConnection = type;
+    return result;
+}
+
+void MCSessionManager::ConnectIpx()
+{
+    SetCurrentConnection(MCNetProtocol::Ipx);
+}
+
+void MCSessionManager::ConnectTcp(std::string_view ipAddress)
+{
+    if (CurrentConnection == MCNetProtocol::TcpIp)
+    {
+        DestroyDirectPlayInterface();
+        CreateDirectPlayInterface();
+    }
+
+    const std::array<DPCOMPOUNDADDRESSELEMENT, 2> elements = {AddressGuid(DPAID_ServiceProvider, DPSPGUID_TCPIP),
+                                                              AddressText(DPAID_INet, ipAddress)};
+
+    if (InitializeConnection(elements) == 0)
+    {
+        CurrentConnection = MCNetProtocol::TcpIp;
+    }
+}
+
+int32_t MCSessionManager::ConnectModem(std::string_view phoneNumber, std::string_view modemName)
+{
+    std::vector<DPCOMPOUNDADDRESSELEMENT> elements{AddressGuid(DPAID_ServiceProvider, DPSPGUID_MODEM)};
+
+    if (modemName.size() > 1)
+    {
+        elements.push_back(AddressText(DPAID_Modem, modemName));
+    }
+
+    elements.push_back(AddressText(DPAID_Phone, phoneNumber));
+    const int32_t result = InitializeConnection(elements);
+
+    if (result == 0)
+    {
+        CurrentConnection = MCNetProtocol::Modem;
+    }
+
+    return result;
+}
+
+int32_t MCSessionManager::ConnectComPort(uint32_t port, uint32_t baudRate, uint32_t stopBits, uint32_t parity,
+                                         uint32_t flowControl)
+{
+    const std::array<uint32_t, 5> settings = {port, baudRate, stopBits, parity, flowControl};
+    const std::array<DPCOMPOUNDADDRESSELEMENT, 2> elements = {
+        AddressGuid(DPAID_ServiceProvider, DPSPGUID_SERIAL),
+        DPCOMPOUNDADDRESSELEMENT{DPAID_ComPort, ValueBytes(settings)}};
+    const int32_t result = InitializeConnection(elements);
+
+    if (result == 0)
+    {
+        CurrentConnection = MCNetProtocol::Serial;
+        GetSessions();
+    }
+
+    return result;
+}
+
+int32_t MCSessionManager::InitializeConnection(std::span<const DPCOMPOUNDADDRESSELEMENT> elements)
+{
+    if (CurrentConnection != MCNetProtocol::None)
+    {
+        DestroyDirectPlayInterface();
+        CreateDirectPlayInterface();
+    }
+
+    // Port: the original made a DirectPlay lobby object only to build the address, which the stand-in does itself.
+    const std::vector<uint8_t> address = MCDirectPlay::CreateCompoundAddress(elements);
+    return static_cast<int32_t>(DirectPlay->InitializeConnection(address, 0));
+}
+
+bool MCSessionManager::FindModems()
+{
+    if (CurrentSession() != nullptr || ConnectModem("", "") != 0)
+    {
+        return false;
+    }
+
+    // Port: not reached. MCDirectPlay has no modem service provider, so ConnectModem always fails above. The original
+    // went on to read the modem connection's address and walk it with the lobby's EnumAddress, collecting the names.
+    _ModemNames.clear();
+    return false;
+}
+
+std::optional<std::string> MCSessionManager::GetModemName(int32_t index) const
+{
+    if (index < 0 || static_cast<size_t>(index) >= _ModemNames.size())
+    {
+        return std::nullopt;
+    }
+
+    return _ModemNames[static_cast<size_t>(index)];
+}
+
+bool MCSessionManager::WasLaunchedFromLobby()
+{
+    // Port: no DirectPlay lobby launches the game; GetConnectionSettings answered DPERR_NOTLOBBIED.
+    return false;
+}
+
+uint32_t MCSessionManager::SetupLobbyConnection(const std::function<void()>&, const std::function<void()>&)
+{
+    // Port: the original dropped its DirectPlay object, asked the lobby for the connection it was launched with
+    // (Connect, showing the status while it waited), and joined or hosted that session. Without a lobby
+    // GetConnectionSettings answers DPERR_NOTLOBBIED, and the original then made a new DirectPlay object without
+    // enumerating its connections; so does the port.
+    if (DirectPlay != nullptr)
+    {
+        DirectPlay->Close();
+    }
+
+    DirectPlay = std::make_unique<MCDirectPlay>();
+    return DPERR_NOTLOBBIED;
+}
+
+int32_t MCSessionManager::Dial()
+{
+    if (CurrentConnection != MCNetProtocol::Modem)
+    {
+        return 1;
+    }
+
+    ClearSessionList();
+    DPSESSIONDESC2 desc{};
+    desc.dwSize = sizeof(DPSESSIONDESC2);
+    desc.guidApplication = _AppGuid;
+    return static_cast<int32_t>(DirectPlay->EnumSessions(desc, 0, SessionAdder(), EnumSessionFlags));
+}
+
+void MCSessionManager::CancelDialing()
+{
+    DestroyDirectPlayInterface();
+    CreateDirectPlayInterface();
+}
+
+bool MCSessionManager::IsTcpAvailable()
+{
+    // Port: the original looked for the TCP/IP stack in the registry. The port's transport is TCP/IP: available when
+    // the sockets library starts.
+    if (!_TcpChecked)
+    {
+        _TcpAvailable = MCSocket::Startup();
+        _TcpChecked = true;
+    }
+
+    return _TcpAvailable;
+}
+
+bool MCSessionManager::IsIpxAvailable()
+{
+    // Port: the original looked for the IPX stack in the registry. The port's "IPX" connection is its LAN search over
+    // TCP/IP (see MCDirectPlay), available with TCP/IP.
+    if (!_IpxChecked)
+    {
+        _IpxAvailable = MCSocket::Startup();
+        _IpxChecked = true;
+    }
+
+    return _IpxAvailable;
+}
+
+bool MCSessionManager::IsModemAvailable()
+{
+    // Original behaviour: the "checked" flag is never set, so every call looks for modems again.
+    return FindModems() && GetModemName(0).has_value();
+}
+
+// ---- sessions ------------------------------------------------------------------------------------------------------
+
+void MCSessionManager::AddSession(const DPSESSIONDESC2& desc)
+{
+    if (const std::shared_ptr<MCFidpSession> current = CurrentSession();
+        current != nullptr && MCSameGuid(current->SessionDesc.guidInstance, desc.guidInstance))
+    {
+        return;
+    }
+
+    Sessions.push_back(std::make_shared<MCFidpSession>(desc));
+}
+
+MCEnumSessionsCallback MCSessionManager::SessionAdder()
+{
+    return [this](const DPSESSIONDESC2& session, uint32_t flags)
+    {
+        if ((flags & DPESC_TIMEDOUT) != 0)
+        {
+            return false;
+        }
+
+        AddSession(session);
+        return true;
+    };
+}
+
+void MCSessionManager::ClearSessionList()
+{
+    const std::shared_ptr<MCFidpSession> current = CurrentSession();
+    std::erase_if(Sessions, [&](const auto& session) { return session != current; });
+}
+
+std::optional<std::vector<std::shared_ptr<MCFidpSession>>> MCSessionManager::GetSessions()
+{
+    if (DirectPlay == nullptr)
+    {
+        return std::nullopt;
+    }
+
+    ClearSessionList();
+    DPSESSIONDESC2 desc{};
+    desc.dwSize = sizeof(DPSESSIONDESC2);
+    desc.guidApplication = _AppGuid;
+    DirectPlay->EnumSessions(desc, 0, SessionAdder(), EnumSessionFlags);
+    return Sessions;
+}
+
+std::shared_ptr<MCFidpSession> MCSessionManager::FindMatchingSession(const _GUID& sessionGUID)
+{
+    const auto found = std::ranges::find_if(Sessions, [&](const auto& session)
+                                            { return MCSameGuid(session->SessionDesc.guidInstance, sessionGUID); });
+    return found != Sessions.end() ? *found : nullptr;
+}
+
+int32_t MCSessionManager::HostSession(const MCFidpSession& session, std::string_view playerName)
+{
+    Assert(DirectPlay != nullptr, 0, "Can't host session.  No DirectPlayObject");
+    IsHost = true;
+
+    if (DirectPlay->Open(session.SessionDesc, DPOPEN_CREATE | DPOPEN_RETURNSTATUS) != DP_OK)
+    {
+        return -1;
+    }
+
+    _CurrentSession = Sessions.emplace_back(std::make_shared<MCFidpSession>(session));
+
+    if (CreatePlayer(playerName) != 0)
+    {
+        return -2;
+    }
+
+    SendSystemInformation();
+    return 0;
+}
+
+int32_t MCSessionManager::JoinSession(const _GUID& sessionGUID, std::string_view playerName)
+{
+    Assert(DirectPlay != nullptr, 0);
+    const std::shared_ptr<MCFidpSession> session = FindMatchingSession(sessionGUID);
+
+    if (session == nullptr)
+    {
+        return -1;
+    }
+
+    _CurrentSession = session;
+    int32_t result = static_cast<int32_t>(DirectPlay->Open(session->SessionDesc, DPOPEN_JOIN | DPOPEN_RETURNSTATUS));
+
+    if (result == 0)
+    {
+        result = CreatePlayer(playerName);
+
+        if (result == 0)
+        {
+            SendSystemInformation();
+        }
+    }
+
+    return result;
+}
+
+bool MCSessionManager::LockSession()
+{
+    const std::shared_ptr<MCFidpSession> session = CurrentSession();
+
+    if (session == nullptr || !IsHost)
+    {
+        return false;
+    }
+
+    session->SessionDesc.dwFlags |= DPSESSION_NEWPLAYERSDISABLED;
+    DirectPlay->SetSessionDesc(session->SessionDesc, 0);
+    _SessionLocked = true;
+    GameStarted = true;
+    return true;
+}
+
+bool MCSessionManager::LeaveSession()
+{
+    if (CurrentSession() == nullptr || MyPlayer() == nullptr)
+    {
+        return false;
+    }
+
+    MyPlayerID = 0;
+    IsHost = false;
+    ServerID = 0;
+    HasPlayerNumber = false;
+    _CurrentSession.reset();
+    _MyPlayer.reset();
+    DirectPlay->Close();
+    DestroyDirectPlayInterface();
+    CreateDirectPlayInterface();
+    PlayersByLatency = {0, 1, 2, 3, 4, 5};
+    return true;
+}
+
+// ---- players and groups --------------------------------------------------------------------------------------------
+
+int32_t MCSessionManager::CreatePlayer(std::string_view playerName)
+{
+    _SessionLocked = false;
+    _NewPlayerNumbers.fill(0);
+    const DPNAME dpName{std::string(playerName), std::nullopt};
+    // Port: the original made two Win32 events here (DirectPlay signalled one on every arrival; nothing waited on
+    // either).
+    const uint32_t result = DirectPlay->CreatePlayer(MyPlayerID, dpName, {}, 0);
+
+    if (result != DP_OK)
+    {
+        MyPlayerID = 0;
+        return static_cast<int32_t>(result);
+    }
+
+    {
+        std::scoped_lock lock(_EmptyQueueLock);
+
+        for (int i = 0; i < 900; i++)
+        {
+            _EmptyMessages.push_back(std::make_shared<MCFidpMessage>(MyPlayerID, 0x200));
+        }
+    }
+
+    if (IsHost)
+    {
+        ServerID = MyPlayerID;
+        _ServerMessage.Value = MyPlayerID;
+        HasPlayerNumber = true;
+    }
+
+    EnumeratePlayers(nullptr);
+    GetGroups(nullptr);
+    return 0;
+}
+
+void MCSessionManager::SetHomeDirectory(std::string_view directory)
+{
+    _HomeDirectory = directory.substr(0, 0x1ff);
+}
+
+void MCSessionManager::NewPlayerEnumeration(uint32_t playerID, const DPNAME& name, uint32_t flags)
+{
+    std::shared_ptr<MCFidpPlayer> player;
+
+    {
+        std::scoped_lock lock(CriticalSection);
+
+        if (GetPlayer(playerID) != nullptr)
+        {
+            return;
+        }
+
+        player = Players.emplace_back(std::make_shared<MCFidpPlayer>(playerID, name, flags));
+    }
+
+    if (player->Id == MyPlayerID)
+    {
+        _MyPlayer = player;
+
+        if (IsHost)
+        {
+            player->PlayerNumber = 0;
+        }
+    }
+    else if (!LaunchedFromLobby)
+    {
+        if (!IsHost && HasPlayerNumber)
+        {
+            GivePlayerAnID(*player);
+        }
+    }
+    else
+    {
+        for (int32_t i = 0; i < MaxLinkupPlayers; i++)
+        {
+            if (_NewPlayerNumbers[i] == playerID)
+            {
+                player->PlayerNumber = i;
+                player->HasPlayerNumber = true;
+            }
+        }
+    }
+}
+
+void MCSessionManager::NewGroupEnumeration(uint32_t groupID, const DPNAME& name, uint32_t flags)
+{
+    Groups.push_back(std::make_shared<MCFidpGroup>(groupID, name, flags));
+}
+
+std::shared_ptr<MCFidpGroup> MCSessionManager::GetGroup(uint32_t groupID)
+{
+    const auto found = std::ranges::find_if(Groups, [&](const auto& group) { return group->Id == groupID; });
+    return found != Groups.end() ? *found : nullptr;
+}
+
+std::shared_ptr<MCFidpPlayer> MCSessionManager::GetPlayer(uint32_t playerID)
+{
+    const auto found = std::ranges::find_if(Players, [&](const auto& player) { return player->Id == playerID; });
+    return found != Players.end() ? *found : nullptr;
+}
+
+std::shared_ptr<MCFidpPlayer> MCSessionManager::GetPlayerNumber(int32_t playerNumber)
+{
+    const auto found =
+        std::ranges::find_if(Players, [&](const auto& player) { return player->PlayerNumber == playerNumber; });
+    return found != Players.end() ? *found : nullptr;
+}
+
+const std::vector<std::shared_ptr<MCFidpPlayer>>& MCSessionManager::GetPlayers(std::shared_ptr<MCFidpSession> session)
+{
+    if (MyPlayerID == 0)
+    {
+        EnumeratePlayers(std::move(session));
+    }
+
+    return Players;
+}
+
+void MCSessionManager::EnumeratePlayers(std::shared_ptr<MCFidpSession> session)
+{
+    // A list made again drops this machine's player too: the enumeration finds it again.
+    _MyPlayer.reset();
+    Players.clear();
+    Assert(DirectPlay != nullptr, 0);
+    Assert(CurrentConnection != MCNetProtocol::None, 0);
+    const MCEnumPlayersCallback callback = [this](uint32_t id, uint32_t, const DPNAME& name, uint32_t flags)
+    {
+        NewPlayerEnumeration(id, name, flags);
+        return true;
+    };
+
+    if (session == nullptr)
+    {
+        DirectPlay->EnumPlayers(callback, 0);
+    }
+    else
+    {
+        DirectPlay->EnumPlayers(session->SessionDesc.guidInstance, callback, DPENUMPLAYERS_SESSION);
+    }
+
+    if (const std::shared_ptr<MCFidpSession> current = CurrentSession(); current != nullptr)
+    {
+        current->SessionDesc.dwCurrentPlayers = static_cast<uint32_t>(Players.size());
+    }
+}
+
+const std::vector<std::shared_ptr<MCFidpGroup>>& MCSessionManager::GetGroups(std::shared_ptr<MCFidpSession> session)
+{
+    Groups.clear();
+    Assert(DirectPlay != nullptr, 0);
+    Assert(CurrentConnection != MCNetProtocol::None, 0);
+    const MCEnumPlayersCallback callback = [this](uint32_t id, uint32_t, const DPNAME& name, uint32_t flags)
+    {
+        NewGroupEnumeration(id, name, flags);
+        return true;
+    };
+
+    if (session == nullptr)
+    {
+        DirectPlay->EnumGroups(callback, 0);
+    }
+    else
+    {
+        // Original behaviour: a listed session's groups are asked for with EnumPlayers (its players come back).
+        DirectPlay->EnumPlayers(session->SessionDesc.guidInstance, callback, DPENUMPLAYERS_SESSION);
+    }
+
+    return Groups;
+}
+
+void MCSessionManager::CreateGroup(uint32_t& groupID, std::string_view groupName, std::span<const uint8_t> data,
+                                   uint32_t flags)
+{
+    const DPNAME dpName{std::string(groupName), std::nullopt};
+    DirectPlay->CreateGroup(groupID, dpName, {}, flags);
+    auto group = std::make_shared<MCFidpGroup>(groupID, dpName, flags);
+
+    if (!data.empty())
+    {
+        group->SetGroupData(data);
+    }
+
+    Groups.push_back(std::move(group));
+    SetGroupData(groupID, data, 0);
+}
+
+bool MCSessionManager::AddPlayerToGroup(uint32_t groupID, uint32_t playerID)
+{
+    if (playerID == 0)
+    {
+        playerID = MyPlayerID;
+    }
+
+    const std::shared_ptr<MCFidpGroup> group = GetGroup(groupID);
+
+    if (group == nullptr)
+    {
+        return false;
+    }
+
+    if (group->AddPlayer(playerID))
+    {
+        const std::shared_ptr<MCFidpPlayer> player = GetPlayer(playerID);
+
+        if (player == nullptr)
+        {
+            return false;
+        }
+
+        player->JoinGroup(groupID);
+    }
+
+    DirectPlay->AddPlayerToGroup(groupID, playerID);
+    return true;
+}
+
+bool MCSessionManager::RemovePlayerFromGroup(uint32_t groupID, uint32_t playerID)
+{
+    if (playerID == 0)
+    {
+        playerID = MyPlayerID;
+    }
+
+    const std::shared_ptr<MCFidpGroup> group = GetGroup(groupID);
+
+    if (group == nullptr || !group->RemovePlayer(playerID))
+    {
+        return false;
+    }
+
+    const std::shared_ptr<MCFidpPlayer> player = GetPlayer(playerID);
+
+    if (player == nullptr)
+    {
+        return false;
+    }
+
+    player->LeaveGroup(groupID);
+    DirectPlay->DeletePlayerFromGroup(groupID, playerID);
+    return true;
+}
+
+void MCSessionManager::SetGroupData(uint32_t groupID, std::span<const uint8_t> data, uint32_t flags) const
+{
+    if (!data.empty())
+    {
+        DirectPlay->SetGroupData(groupID, data, flags);
+    }
+}

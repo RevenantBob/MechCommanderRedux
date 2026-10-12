@@ -15,7 +15,8 @@ namespace
     /// <summary>Everything the input layer keeps.</summary>
     struct MCInputState
     {
-        MCDisplay* Display = nullptr;
+        /// <summary>The display attached (see <see cref="MCInput::Attach"/>).</summary>
+        std::weak_ptr<MCDisplay> Display;
         MCWindowProc Proc;
 
         std::mutex QueueLock;
@@ -33,8 +34,8 @@ namespace
         MCPoint MessagePos;
 
         int CursorCounter = 0;
-        /// <summary>The game's cursor as a system cursor, or null (SetGameCursor).</summary>
-        SDL_Cursor* GameCursor = nullptr;
+        /// <summary>The game's cursor as a system cursor, or null (SetGameCursor); held while it is set.</summary>
+        std::shared_ptr<SDL_Cursor> GameCursor;
         /// <summary>The game's ClipCursor rectangle (logical screen), if it set one.</summary>
         std::optional<MCClipRect> ClipRect;
         /// <summary>The mouse is over the window's letterbox bars, not the picture.</summary>
@@ -67,6 +68,19 @@ namespace
         return 0;
     }
 
+    /// <summary>
+    /// WM_CLOSE as DefWindowProc handled it: unless the window procedure cancels it, the window is destroyed and the
+    /// loop told to end.
+    /// </summary>
+    void close()
+    {
+        if (send(WM_CLOSE, 0, 0) == 0)
+        {
+            send(WM_DESTROY, 0, 0);
+            MCInput::PostQuitMessage(0);
+        }
+    }
+
     void setKey(int vk, bool down)
     {
         if (vk <= 0 || vk > 255)
@@ -88,7 +102,7 @@ namespace
     /// <summary>The shown part of the logical screen (the display's view, or 640x480 without one).</summary>
     MCClipRect screenArea()
     {
-        MCDisplay* display = state().Display;
+        const std::shared_ptr<MCDisplay> display = state().Display.lock();
 
         if (display == nullptr)
         {
@@ -103,7 +117,7 @@ namespace
     MCPoint toLogical(float windowX, float windowY)
     {
         MCPoint point;
-        MCDisplay* display = state().Display;
+        const std::shared_ptr<MCDisplay> display = state().Display.lock();
         float x = windowX;
         float y = windowY;
 
@@ -176,7 +190,7 @@ namespace
         }
         else if (input.GameCursor != nullptr)
         {
-            cursor = input.GameCursor;
+            cursor = input.GameCursor.get();
         }
         else if (input.OutsidePicture)
         {
@@ -209,16 +223,17 @@ namespace
     void applyMouseRect()
     {
         MCInputState& input = state();
+        const std::shared_ptr<MCDisplay> display = input.Display.lock();
 
-        if (input.Display == nullptr || input.Display->Window() == nullptr)
+        if (display == nullptr)
         {
             return;
         }
 
-        SDL_Window* window = input.Display->Window();
+        SDL_Window* window = &display->Window();
         std::optional<MCClipRect> logical = input.ClipRect;
 
-        if (!logical && input.Active && input.Display->IsFullscreen())
+        if (!logical && input.Active && display->IsFullscreen())
         {
             logical = screenArea();
         }
@@ -233,9 +248,9 @@ namespace
         float top = 0.0f;
         float right = 0.0f;
         float bottom = 0.0f;
-        input.Display->LogicalToWindow(static_cast<float>(logical->left), static_cast<float>(logical->top), left, top);
-        input.Display->LogicalToWindow(static_cast<float>(logical->right), static_cast<float>(logical->bottom), right,
-                                       bottom);
+        display->LogicalToWindow(static_cast<float>(logical->left), static_cast<float>(logical->top), left, top);
+        display->LogicalToWindow(static_cast<float>(logical->right), static_cast<float>(logical->bottom), right,
+                                 bottom);
         SDL_Rect area;
         area.x = static_cast<int>(std::ceil(left));
         area.y = static_cast<int>(std::ceil(top));
@@ -391,14 +406,15 @@ namespace
     }
 
     /// <summary>The code points of UTF-8 text.</summary>
-    std::vector<uint32_t> decodeUtf8(const char* text)
+    std::vector<uint32_t> decodeUtf8(std::string_view text)
     {
         std::vector<uint32_t> codePoints;
-        const uint8_t* p = reinterpret_cast<const uint8_t*>(text);
+        size_t at = 0;
+        const auto byte = [&](size_t index) { return static_cast<uint8_t>(text[index]); };
 
-        while (*p != 0)
+        while (at < text.size())
         {
-            uint32_t c = *p++;
+            uint32_t c = byte(at++);
             int extra = 0;
 
             if (c >= 0xf0)
@@ -417,9 +433,9 @@ namespace
                 extra = 1;
             }
 
-            for (; extra > 0 && (*p & 0xc0) == 0x80; extra--)
+            for (; extra > 0 && at < text.size() && (byte(at) & 0xc0) == 0x80; extra--)
             {
-                c = (c << 6) | (*p++ & 0x3f);
+                c = (c << 6) | (byte(at++) & 0x3f);
             }
 
             codePoints.push_back(c);
@@ -431,23 +447,24 @@ namespace
 
 namespace MCInput
 {
-    void Attach(MCDisplay* display)
+    void Attach(std::weak_ptr<MCDisplay> attached)
     {
         MCInputState& input = state();
-        input.Display = display;
+        input.Display = std::move(attached);
+        const std::shared_ptr<MCDisplay> display = input.Display.lock();
 
-        if (display == nullptr || display->Window() == nullptr)
+        if (display == nullptr)
         {
             return;
         }
 
-        SDL_StartTextInput(display->Window());
+        SDL_StartTextInput(&display->Window());
         SDL_Keymod mod = SDL_GetModState();
         input.Toggled[VK_CAPITAL] = (mod & SDL_KMOD_CAPS) != 0;
         input.Toggled[VK_NUMLOCK] = (mod & SDL_KMOD_NUM) != 0;
         input.Toggled[VK_SCROLL] = (mod & SDL_KMOD_SCROLL) != 0;
 
-        if (SDL_GetKeyboardFocus() == display->Window())
+        if (SDL_GetKeyboardFocus() == &display->Window())
         {
             activate(true);
         }
@@ -455,9 +472,9 @@ namespace MCInput
         applyMouseRect();
     }
 
-    MCDisplay* Display()
+    std::shared_ptr<MCDisplay> Display()
     {
-        return state().Display;
+        return state().Display.lock();
     }
 
     void SetWindowProc(MCWindowProc proc)
@@ -470,13 +487,20 @@ namespace MCInput
         MCInputState& input = state();
         std::deque<MCPostedMessage> posted;
         {
-            std::lock_guard<std::mutex> lock(input.QueueLock);
+            std::scoped_lock lock(input.QueueLock);
             posted.swap(input.Posted);
         }
 
         for (const MCPostedMessage& message : posted)
         {
-            send(message.Message, message.WParam, message.LParam);
+            if (message.Message == WM_CLOSE)
+            {
+                close();
+            }
+            else
+            {
+                send(message.Message, message.WParam, message.LParam);
+            }
         }
 
         SDL_Event event;
@@ -527,7 +551,7 @@ namespace MCInput
         }
 
         MCInputState& input = state();
-        std::lock_guard<std::mutex> lock(input.QueueLock);
+        std::scoped_lock lock(input.QueueLock);
         input.Posted.push_back({message, wParam, lParam});
     }
 
@@ -576,8 +600,8 @@ namespace MCInput
     {
         MCInputState& input = state();
 
-        if (input.Display != nullptr && input.Display->Window() != nullptr &&
-            SDL_GetMouseFocus() == input.Display->Window())
+        if (const std::shared_ptr<MCDisplay> display = input.Display.lock();
+            display != nullptr && SDL_GetMouseFocus() == &display->Window())
         {
             float x = 0.0f;
             float y = 0.0f;
@@ -604,14 +628,14 @@ namespace MCInput
         input.CursorY = point.y;
 
         // A hidden window (the headless tests) has no mouse of its own: warping would move the user's.
-        if (input.Display != nullptr && input.Display->Window() != nullptr &&
-            (SDL_GetWindowFlags(input.Display->Window()) & SDL_WINDOW_HIDDEN) == 0)
+        if (const std::shared_ptr<MCDisplay> display = input.Display.lock();
+            display != nullptr && (SDL_GetWindowFlags(&display->Window()) & SDL_WINDOW_HIDDEN) == 0)
         {
             float windowX = 0.0f;
             float windowY = 0.0f;
-            input.Display->LogicalToWindow(static_cast<float>(point.x) + 0.5f, static_cast<float>(point.y) + 0.5f,
-                                           windowX, windowY);
-            SDL_WarpMouseInWindow(input.Display->Window(), windowX, windowY);
+            display->LogicalToWindow(static_cast<float>(point.x) + 0.5f, static_cast<float>(point.y) + 0.5f, windowX,
+                                     windowY);
+            SDL_WarpMouseInWindow(&display->Window(), windowX, windowY);
         }
     }
 
@@ -623,7 +647,7 @@ namespace MCInput
         return input.CursorCounter;
     }
 
-    void SetGameCursor(SDL_Cursor* cursor)
+    void SetGameCursor(std::shared_ptr<SDL_Cursor> cursor)
     {
         MCInputState& input = state();
 
@@ -632,23 +656,13 @@ namespace MCInput
             return;
         }
 
-        input.GameCursor = cursor;
+        input.GameCursor = std::move(cursor);
         updateCursorVisibility();
     }
 
-    void ClipCursor(const MCClipRect* rect)
+    void ClipCursor(std::optional<MCClipRect> rect)
     {
-        MCInputState& input = state();
-
-        if (rect != nullptr)
-        {
-            input.ClipRect = *rect;
-        }
-        else
-        {
-            input.ClipRect.reset();
-        }
-
+        state().ClipRect = rect;
         applyMouseRect();
     }
 
@@ -685,14 +699,8 @@ namespace MCInput
         {
             case SDL_EVENT_QUIT:
             case SDL_EVENT_WINDOW_CLOSE_REQUESTED:
-            {
-                if (send(WM_CLOSE, 0, 0) == 0)
-                {
-                    send(WM_DESTROY, 0, 0);
-                    PostQuitMessage(0);
-                }
+                close();
                 break;
-            }
             case SDL_EVENT_WINDOW_FOCUS_GAINED:
                 activate(true);
                 break;
@@ -735,11 +743,11 @@ namespace MCInput
             }
             case SDL_EVENT_MOUSE_MOTION:
             {
-                if (input.Display != nullptr)
+                if (const std::shared_ptr<MCDisplay> display = input.Display.lock())
                 {
                     float x;
                     float y;
-                    const bool outside = !input.Display->WindowToLogical(event.motion.x, event.motion.y, x, y);
+                    const bool outside = !display->WindowToLogical(event.motion.x, event.motion.y, x, y);
 
                     if (outside != input.OutsidePicture)
                     {
@@ -826,7 +834,7 @@ namespace MCInput
         }
 
         {
-            std::lock_guard<std::mutex> lock(input.QueueLock);
+            std::scoped_lock lock(input.QueueLock);
             input.Posted.clear();
         }
 

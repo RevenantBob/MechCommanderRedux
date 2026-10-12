@@ -2,12 +2,16 @@
 #include "MCTest.h"
 #include "ScreenInput.h"
 #include "TestGame.h"
-#include "gui/asystem.h"
-#include "linkup/sessionmanager.h"
-#include "logistics/loggen.h"
-#include "logistics/logmain.h"
-#include "main/logistics.h"
-#include "network/multplyr.h"
+#include "gui/MCGuiSystem.h"
+#include "linkup/MCSessionManager.h"
+#include "logistics/MCFileScrollPane.h"
+#include "logistics/MCGameList.h"
+#include "logistics/MCLogComboBox.h"
+#include "logistics/MCLogSlider.h"
+#include "logistics/MCSplashScreen.h"
+#include "logistics/MCConnectMenu.h"
+#include "main/MCLogistics.h"
+#include "network/MCMultiPlayer.h"
 #include "platform/MCDirectPlay.h"
 #include "platform/MCDisplay.h"
 #include "platform/MCInput.h"
@@ -17,22 +21,19 @@ using namespace MCScreenInput;
 namespace
 {
     /// <summary>The loopback address the game hosts on (not the default port, so a running game is left alone).</summary>
-    constexpr const char* HostAddress = "127.0.0.1:28877";
+    constexpr std::string_view HostAddress = "127.0.0.1:28877";
 
     /// <summary>Selects the TCP/IP connection to <paramref name="address"/> ("host:port").</summary>
-    uint32_t Connect(MCDirectPlay& directPlay, const char* address)
+    uint32_t Connect(MCDirectPlay& directPlay, std::string_view address)
     {
-        DPCOMPOUNDADDRESSELEMENT elements[2];
-        elements[0].guidDataType = MCDirectPlayGuids::DPAID_ServiceProvider;
-        elements[0].dwDataSize = sizeof(_GUID);
-        elements[0].lpData = const_cast<_GUID*>(&MCDirectPlayGuids::DPSPGUID_TCPIP);
-        elements[1].guidDataType = MCDirectPlayGuids::DPAID_INet;
-        elements[1].dwDataSize = static_cast<uint32_t>(std::strlen(address) + 1);
-        elements[1].lpData = const_cast<char*>(address);
-        uint8_t connection[MCDirectPlay::ConnectionDataSize];
-        uint32_t size = sizeof(connection);
-        const uint32_t result = MCDirectPlay::CreateCompoundAddress(elements, 2, connection, &size);
-        return result != DP_OK ? result : directPlay.InitializeConnection(connection, 0);
+        const auto provider = std::bit_cast<std::array<uint8_t, sizeof(_GUID)>>(MCDirectPlayGuids::DPSPGUID_TCPIP);
+        std::vector<uint8_t> host(address.begin(), address.end());
+        host.push_back(0);
+        const std::array<DPCOMPOUNDADDRESSELEMENT, 2> elements{
+            DPCOMPOUNDADDRESSELEMENT{MCDirectPlayGuids::DPAID_ServiceProvider,
+                                     std::vector<uint8_t>(provider.begin(), provider.end())},
+            DPCOMPOUNDADDRESSELEMENT{MCDirectPlayGuids::DPAID_INet, host}};
+        return directPlay.InitializeConnection(MCDirectPlay::CreateCompoundAddress(elements), 0);
     }
 
     /// <summary>Runs <paramref name="call"/> while another thread pumps <paramref name="other"/> (the game is not running).</summary>
@@ -75,28 +76,20 @@ namespace
             {
                 DPSESSIONDESC2 desc{};
                 desc.dwSize = sizeof(desc);
-                desc.guidApplication = thisAppGUID;
-                struct Context
-                {
-                    DPSESSIONDESC2* Found;
-                    bool* FoundOne;
-                } context{&found, &foundOne};
+                desc.guidApplication = MultiPlayerAppGuid;
                 _DirectPlay.EnumSessions(
-                    &desc, 0,
-                    [](const DPSESSIONDESC2* session, uint32_t*, uint32_t flags, void* data)
+                    desc, 0,
+                    [&](const DPSESSIONDESC2& session, uint32_t flags)
                     {
-                        auto* context = static_cast<Context*>(data);
-
-                        if ((flags & DPESC_TIMEDOUT) != 0)
+                        if ((flags & DPESC_TIMEDOUT) == 0)
                         {
-                            return 0;
+                            found = session;
+                            foundOne = true;
                         }
 
-                        *context->Found = *session;
-                        *context->FoundOne = true;
-                        return 0;
+                        return false;
                     },
-                    &context, DPENUMSESSIONS_AVAILABLE);
+                    DPENUMSESSIONS_AVAILABLE);
                 host.Pump();
                 SDL_Delay(5);
             }
@@ -106,17 +99,15 @@ namespace
                 return false;
             }
 
-            if (WhilePumping(host, [&] { return _DirectPlay.Open(&found, DPOPEN_JOIN | DPOPEN_RETURNSTATUS); }) !=
-                DP_OK)
+            if (WhilePumping(host, [&] { return _DirectPlay.Open(found, DPOPEN_JOIN | DPOPEN_RETURNSTATUS); }) != DP_OK)
             {
                 return false;
             }
 
-            DPNAME name{sizeof(DPNAME), 0, const_cast<char*>("Guest"), nullptr};
+            const DPNAME name{std::string("Guest"), std::nullopt};
             uint32_t id = 0;
 
-            if (WhilePumping(host, [&] { return _DirectPlay.CreatePlayer(&id, &name, nullptr, nullptr, 0, 0); }) !=
-                DP_OK)
+            if (WhilePumping(host, [&] { return _DirectPlay.CreatePlayer(id, name, {}, 0); }) != DP_OK)
             {
                 return false;
             }
@@ -126,14 +117,13 @@ namespace
                 {
                     while (!_Stop)
                     {
-                        uint8_t buffer[4096];
-                        uint32_t size = sizeof(buffer);
+                        std::array<uint8_t, 4096> buffer{};
+                        uint32_t size = 0;
                         uint32_t from = 0;
                         uint32_t to = 0;
 
-                        while (_DirectPlay.Receive(&from, &to, DPRECEIVE_ALL, buffer, &size) == DP_OK)
+                        while (_DirectPlay.Receive(from, to, DPRECEIVE_ALL, buffer, size) == DP_OK)
                         {
-                            size = sizeof(buffer);
                         }
 
                         _DirectPlay.Pump();
@@ -175,11 +165,11 @@ namespace
     }
 
     /// <summary>Types <paramref name="text"/> into the text object that has the focus.</summary>
-    void Type(const char* text)
+    void Type(std::string_view text)
     {
-        for (const char* c = text; *c != 0; c++)
+        for (const char c : text)
         {
-            SendKey(static_cast<uint8_t>(*c));
+            SendKey(static_cast<uint8_t>(c));
             MCTestGame::RunFrame(1.0f / 15.0f);
         }
     }
@@ -203,34 +193,34 @@ TEST_CASE_ISOLATED("game: the multiplayer session screen matches the pre-rendere
     // The LAN screen as the TCP/IP button leaves it, hosting on the loopback.
     ConnectScreen();
     Settle();
-    REQUIRE(MPlayer != nullptr);
-    SessionManager* manager = MPlayer->sessionManager;
-    manager->ConnectTCP(const_cast<char*>(HostAddress));
-    MCSplashScreen* lanScreen = globalLogPtr->lanScreen;
-    globalLogPtr->multiplayerScreen->ShowGUIWindow(0);
-    lanScreen->ShowGUIWindow(1);
-    lanScreen->showBlock(0);
-    globalLogPtr->currentScreen = lanScreen;
-    globalLogPtr->logisticsState = 0xb;
-    static_cast<lTextObject*>(lanScreen->elements[4])->setStringBuffer(const_cast<char*>("Commander"));
-    static_cast<lTextObject*>(lanScreen->elements[10])->setStringBuffer(const_cast<char*>("Test game"));
-    static_cast<lTextObject*>(lanScreen->elements[11])->setStringBuffer(const_cast<char*>("6"));
+    REQUIRE(MultiPlayer() != nullptr);
+    MCSessionManager& manager = *MultiPlayer()->SessionManager;
+    manager.ConnectTcp(HostAddress);
+    MCSplashScreen& lanScreen = *GlobalLog()->LanScreen;
+    GlobalLog()->MultiplayerScreen->ShowGuiWindow(0);
+    lanScreen.ShowGuiWindow(1);
+    lanScreen.ShowBlock(0);
+    GlobalLog()->SetCurrentScreen(lanScreen);
+    GlobalLog()->LogisticsState = 0xb;
+    lanScreen.Element<MCLogTextObject>(4)->SetStringBuffer("Commander");
+    lanScreen.Element<MCLogTextObject>(10)->SetStringBuffer("Test game");
+    lanScreen.Element<MCLogTextObject>(11)->SetStringBuffer("6");
     CreateSession();
     Settle();
-    REQUIRE(manager->currentSession != nullptr);
-    REQUIRE(manager->directPlay != nullptr);
+    REQUIRE(manager.CurrentSession() != nullptr);
+    REQUIRE(manager.DirectPlay != nullptr);
 
     Guest guest;
-    REQUIRE(guest.Join(*manager->directPlay));
+    REQUIRE(guest.Join(*manager.DirectPlay));
     Settle();
 
     // Every frame presented from here on is folded into one more hash.
     uint32_t presents = 0x811c9dc5;
-    MCInput::Display()->OnPresent = [&] { presents = (presents ^ ScreenHash()) * 0x01000193; };
+    MCTestGame::OnPresent = [&] { presents = (presents ^ ScreenHash()) * 0x01000193; };
 
     struct Step
     {
-        const char* Name;
+        std::string_view Name;
         std::function<void()> Action;
         uint32_t Expected;
     };
@@ -238,7 +228,7 @@ TEST_CASE_ISOLATED("game: the multiplayer session screen matches the pre-rendere
     // The cursor hasn't moved yet in the first step: at (0, 0) the original's over test (OB-129, fixed) took it as over
     // every tool button, so its frame was 0x3d56c0c0 before the fix.
     const Step steps[] = {
-        {"session", [] { GO(); }, 0xa6b1053fu},
+        {"session", [] { Go(); }, 0xa6b1053fu},
         {"first name to team 1", [] { Drag(0x15, 0x16a, 0x100, 0x13a); }, 0x7548a837u},
         {"next name to team 2", [] { Drag(0x15, 0x16a, 0x1c4, 0x13a); }, 0xf143dbb4u},
         {"team 1 points up", [] { Click(0x106, 0x186); }, 0x1a793ae4u},
@@ -267,7 +257,7 @@ TEST_CASE_ISOLATED("game: the multiplayer session screen matches the pre-rendere
         index++;
     }
 
-    MCInput::Display()->OnPresent = nullptr;
+    MCTestGame::OnPresent = nullptr;
     // 0xa176a052 before the OB-129 fix (the first step's frames), 0x87982e74 before the control audit (2026-10-04: the
     // steps are unchanged; between them presses end at the release, and the ready lights' backing and the clock show
     // at once).
