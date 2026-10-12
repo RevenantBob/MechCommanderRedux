@@ -840,7 +840,7 @@ auto MCBriefingScreen::Launch() -> void
         if (units <= MaxOwnedUnits)
         {
             SoundSystem()->PlayDigitalSample(0x3a, 1, std::nullopt, false, false);
-            Mission()->StartScenario(Mission()->Scenarios[Mission()->CurrentScenario].data());
+            Mission()->RequestScenario(Mission()->Scenarios[Mission()->CurrentScenario]);
             return;
         }
 

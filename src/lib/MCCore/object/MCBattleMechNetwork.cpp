@@ -234,15 +234,15 @@ auto MCBattleMech::NetUpdateMovement() -> void
     int32_t maxThrottle = 100;
     const int32_t bodyState = GetBodyState();
     MCMovePath& path = Pilot.lock()->GetMovePath();
-    MCVector3D destination = path.StepList[path.CurStep].Destination;
-    const auto distance = static_cast<float>(DistanceFrom(destination));
+    std::optional<MCVector3D> destination = path.CurrentDestination();
 
     if (path.NumStepsWhenNotPaused > 0 && bodyState == 0)
     {
         StartUpThisFrame = true;
     }
 
-    if (path.NumSteps - 1 <= path.CurStep && distance < MoveMarginOfError[1])
+    if (path.NumSteps - 1 <= path.CurStep && destination &&
+        static_cast<float>(DistanceFrom(*destination)) < MoveMarginOfError[1])
     {
         // At the end of the path: take up the body state the server sent.
         StartUpThisFrame = false;

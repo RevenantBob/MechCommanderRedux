@@ -47,9 +47,10 @@ auto MCGroundVehicle::NetUpdateMovement() -> void
 {
     auto& controlData = static_cast<MCGroundVehicleControlData&>(*Control->ControlData);
     MCMovePath& path = Pilot.lock()->GetMovePath();
-    const auto distance = static_cast<float>(DistanceFrom(path.StepList[path.CurStep].Destination));
+    std::optional<MCVector3D> destination = path.CurrentDestination();
 
-    if (path.CurStep == path.NumSteps - 1 && distance < MoveMarginOfError[1])
+    if (path.CurStep == path.NumSteps - 1 && destination &&
+        static_cast<float>(DistanceFrom(*destination)) < MoveMarginOfError[1])
     {
         // At the end of the path: stop once the server says the vehicle has.
         GetBodyState();

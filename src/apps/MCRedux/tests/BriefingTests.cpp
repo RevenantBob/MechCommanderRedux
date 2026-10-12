@@ -332,6 +332,52 @@ TEST_CASE_ISOLATED("game: units dragged into the drop slots count against the dr
     CHECK(mech->BriefBlock->ParentObject().get() == &pane);
 }
 
+/// <summary>
+/// The launch button starts the mission once its click is handled: logistics and its screens are gone, and the
+/// loading frames never draw the briefing screen whose click asked for it.
+/// </summary>
+TEST_CASE_ISOLATED("game: the launch button leaves logistics and starts the mission")
+{
+    if (!MCTestGame::Available())
+    {
+        return;
+    }
+
+    REQUIRE(MCTestGame::StartLogistics());
+    Settle();
+    NewCampaign();
+    Settle();
+    std::weak_ptr<MCLogistics> logistics = GlobalLog();
+    std::weak_ptr<MCBriefingScreen> briefing;
+    {
+        // Pinned only for the set-up: the launch takes logistics down.
+        const std::shared_ptr<MCLogistics> pinned = GlobalLog();
+        briefing = pinned->BriefingScreen;
+        REQUIRE(pinned->CurrentScreen() == pinned->BriefingScreen);
+        MCScrollPane& pane = *pinned->BriefingScreen->DeployPane;
+        REQUIRE(pane.NumberOfChildren() > 0);
+        std::shared_ptr<MCLogMech> mech = std::static_pointer_cast<MCMechBriefBlock>(pane.Child(0))->Mech();
+        REQUIRE(mech != nullptr);
+        MaxDeployTonnage = CurDeployTonnage + static_cast<int32_t>(mech->CurTonnage);
+        DragMech(*mech, SlotMiddle(0).x, SlotMiddle(0).y);
+        REQUIRE(mech->Deployed != 0);
+    }
+
+    // The launch button.
+    RealClick(0x230, 0x152);
+
+    for (int32_t frame = 0; frame < 300 && Scenario() == nullptr; frame++)
+    {
+        MCTestGame::RunFrame(1.0f / 15.0f);
+    }
+
+    REQUIRE(Scenario() != nullptr);
+    CHECK(Mission()->State == MCMissionState::Scenario);
+    CHECK(GlobalLog() == nullptr);
+    CHECK(logistics.expired());
+    CHECK(briefing.expired());
+}
+
 TEST_CASE_ISOLATED("game: the operation tab starts the briefing movie half a second later")
 {
     if (!MCTestGame::Available())

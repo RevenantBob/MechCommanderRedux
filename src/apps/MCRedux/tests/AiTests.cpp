@@ -295,6 +295,21 @@ TEST_CASE("move map: an enclosed goal has no path")
     CHECK_EQ(path.NumSteps, 0);
 }
 
+TEST_CASE("move path: a path never set has no current destination, and a cleared one keeps its old steps")
+{
+    // A network client's mech asks for its current step before the server has sent it a path.
+    MCMovePath path;
+    CHECK(!path.CurrentDestination().has_value());
+
+    path.SetNumSteps(2);
+    path.SetDestination(0, MCVector3D(10.0f, 20.0f, 0.0f));
+    path.Clear();
+    const std::optional<MCVector3D> destination = path.CurrentDestination();
+    REQUIRE(destination.has_value());
+    CHECK_EQ(destination->X, 10.0f);
+    CHECK_EQ(destination->Y, 20.0f);
+}
+
 TEST_CASE("path locks: a locked step is set on the map, and a path planned with locks steps around it")
 {
     PathWorld world(24);

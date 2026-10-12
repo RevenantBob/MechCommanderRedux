@@ -462,7 +462,7 @@ auto MCLogistics::HandleLostPlayer(uint32_t playerID, int) const -> void
 auto MCLogistics::HandlePrepareScenarioMessage() const -> void
 {
     SoundSystem()->PlayDigitalSample(0x3a, 1, std::nullopt, false, false);
-    Mission()->StartScenario(MpMissionName);
+    Mission()->RequestScenario(MpMissionName);
 }
 
 auto MCLogistics::PrepareMultiplayerScenario(std::string_view scenarioName, std::string_view startFile) -> int32_t

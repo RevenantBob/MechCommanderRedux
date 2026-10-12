@@ -83,6 +83,16 @@ public:
     void StartScenario(std::string_view scenarioName);
 
     /// <summary>
+    /// Asks for scenario <paramref name="scenarioName"/> to start: <see cref="Run"/> starts it after its frame's work,
+    /// once the click or network handler that asked has returned.
+    /// </summary>
+    /// <remarks>
+    /// Starting the scenario frees logistics, and its load draws frames. Started from inside a logistics handler, those
+    /// frames drew the screen whose handler was still running after logistics had gone.
+    /// </remarks>
+    void RequestScenario(std::string_view scenarioName);
+
+    /// <summary>
     /// Ends the scenario: writes the results for logistics, frees the scenario and goes back to logistics (or on to
     /// the next movie / game over).
     /// </summary>
@@ -157,6 +167,8 @@ private:
     int32_t _PlayingLogisticsMusic = 0;
     /// <summary>Whether the demo's feature-screen music has started.</summary>
     bool _FeatureMusicPlaying = false;
+    /// <summary>The scenario <see cref="RequestScenario"/> asked for, until <see cref="Run"/> starts it.</summary>
+    std::optional<std::string> _RequestedScenario;
 };
 
 /// <summary>The mission (null before the game's start-up makes it).</summary>

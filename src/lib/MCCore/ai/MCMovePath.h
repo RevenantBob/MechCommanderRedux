@@ -54,6 +54,12 @@ public:
     void SetMoveChunk(const MCMoveChunk& chunk);
     /// <summary>Sets a step's world position.</summary>
     void SetDestination(int32_t stepNumber, MCVector3D position);
+    /// <summary>World position of the current step, or none while the list holds no such step.</summary>
+    /// <remarks>
+    /// The original's 200 steps lived in the path, so a path that was never set read 0xFF heap fill: NaN, which fails
+    /// every distance test. A cleared path keeps its old steps, as the original did.
+    /// </remarks>
+    std::optional<MCVector3D> CurrentDestination() const;
 
     /// <summary>World position of the last step.</summary>
     MCVector3D Goal;

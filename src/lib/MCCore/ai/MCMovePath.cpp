@@ -217,3 +217,13 @@ auto MCMovePath::SetDestination(int32_t stepNumber, MCVector3D position) -> void
 {
     StepList[static_cast<size_t>(stepNumber)].Destination = position;
 }
+
+auto MCMovePath::CurrentDestination() const -> std::optional<MCVector3D>
+{
+    if (CurStep < 0 || static_cast<size_t>(CurStep) >= StepList.size())
+    {
+        return std::nullopt;
+    }
+
+    return StepList[static_cast<size_t>(CurStep)].Destination;
+}

@@ -444,6 +444,7 @@ auto MCMission::Shutdown() -> void
 {
     Movies.clear();
     Scenarios.clear();
+    _RequestedScenario.reset();
     _MissionFile.reset();
     RemoveCallback(ScenarioCallback);
     RemoveCallback(_InterfaceUpdateCallback);
@@ -702,6 +703,13 @@ auto MCMission::Run() -> int32_t
             break;
     }
 
+    if (_RequestedScenario.has_value())
+    {
+        const std::string scenarioName = std::move(*_RequestedScenario);
+        _RequestedScenario.reset();
+        StartScenario(scenarioName);
+    }
+
     if (resetDisplay)
     {
         ResetFullScreenDisplay();
@@ -859,6 +867,11 @@ auto MCMission::StartScenario(std::string_view name) -> void
 
     _InterfaceUpdateCallback->SetExec(UpdateMouseStateCallback);
     GuiSystem().AddCallback(_InterfaceUpdateCallback);
+}
+
+auto MCMission::RequestScenario(std::string_view scenarioName) -> void
+{
+    _RequestedScenario = std::string(scenarioName);
 }
 
 auto MCMission::StopScenarioCallbacks() -> void
