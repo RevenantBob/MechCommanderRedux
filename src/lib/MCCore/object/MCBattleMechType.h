@@ -52,6 +52,10 @@ public:
     /// the gesture has none.</summary>
     std::span<const float> GestureOutline(uint32_t gesture) const;
 
+    /// <summary>The offset of jump jet <paramref name="jet"/> at frame <paramref name="frame"/> of the jump, from
+    /// <see cref="JumpData"/>; frames past the file's hold its last one.</summary>
+    MCVector3D JumpJetOffset(int32_t jet, int32_t frame) const;
+
     /// <summary>"ID".</summary>
     uint32_t MechId = 0;
     /// <summary>"Name".</summary>
@@ -85,6 +89,8 @@ public:
     std::vector<uint32_t> WeaponHotSpots;
     /// <summary>The .jmp file: the jump jets' offsets per frame.</summary>
     std::vector<float> JumpData;
+    /// <summary>The jump jets a .jmp file holds, one after the other: all its frames of one, then the other's.</summary>
+    static constexpr size_t JumpJetCount = 2;
     /// <summary>The .out file's packet per gesture (empty where it has none; one slot more than the gestures).</summary>
     std::vector<std::vector<uint8_t>> GestureOutlines;
     /// <summary>"FootprintType".</summary>

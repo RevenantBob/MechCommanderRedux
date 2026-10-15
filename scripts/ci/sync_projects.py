@@ -31,6 +31,7 @@ PROJECTS = [
                                       "stdafx.cpp", "stdafx.h"]),
     ("apps/MCRedux/mc_tests.vcxproj", ["MCConsole.cpp", "MCConsole.h", "MCCrashTrace.cpp", "MCCrashTrace.h", "stdafx.cpp",
                                        "stdafx.h", "tests/"]),
+    ("apps/MCEditor/MCEditor.vcxproj", "tree"),
 ]
 
 ITEM = re.compile(r'[ \t]*<(ClCompile|ClInclude) Include="([^"]+)"\s*(?:/>|>(.*?)</\1>)[ \t]*\r?\n?', re.S)

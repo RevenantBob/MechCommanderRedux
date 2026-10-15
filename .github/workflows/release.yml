@@ -58,11 +58,14 @@ jobs:
         shell: pwsh
         run: |
           $bin = "src\build\bin\x64\Release"
-          $name = "MechCommanderRedux-${{ steps.version.outputs.tag }}"
+          # The zips keep the same names in every release, so README.md can link to the newest one
+          # (releases/latest/download/<name>); the version is in the release's title and tag, and in the exes.
+          $name = "MechCommanderRedux"
           New-Item -ItemType Directory -Force "dist\$name" | Out-Null
-          Copy-Item "$bin\MCRedux.exe", "$bin\SDL3.dll", src\docs\README.txt, src\docs\INSTALL.txt "dist\$name"
+          # The editor links MFC and SQLite statically, so it needs no DLLs beside it.
+          Copy-Item "$bin\MCRedux.exe", "$bin\SDL3.dll", "$bin\MCEditor.exe", src\docs\README.txt, src\docs\INSTALL.txt "dist\$name"
           Compress-Archive -Path "dist\$name\*" -DestinationPath "dist\$name-win-x64.zip"
-          Compress-Archive -Path "$bin\MCRedux.pdb", "$bin\SDL3.pdb" -DestinationPath "dist\$name-win-x64-symbols.zip"
+          Compress-Archive -Path "$bin\MCRedux.pdb", "$bin\SDL3.pdb", "$bin\MCEditor.pdb" -DestinationPath "dist\$name-win-x64-symbols.zip"
 
       # gh creates the tag on the built commit.
       - name: Publish the release
