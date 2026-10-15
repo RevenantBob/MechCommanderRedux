@@ -1,0 +1,324 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <VCProjectVersion>18.0</VCProjectVersion>
+    <Keyword>MFCProj</Keyword>
+    <ProjectGuid>{e89ccfd8-657c-48b8-ba0c-9c4dfe431dc9}</ProjectGuid>
+    <RootNamespace>MCEditor</RootNamespace>
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <!-- The Mission Editor, reconstructed from the Gold CD's MCEditor.exe (docs/editor/plan.md). Like the original it
+       links MFC statically and uses multibyte strings (the 1999 code calls the A APIs and keeps char data); a move to
+       Unicode belongs to the later modernization pass. It doesn't link MCCore. -->
+  <PropertyGroup Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <PlatformToolset>v145</PlatformToolset>
+    <CharacterSet>MultiByte</CharacterSet>
+    <UseOfMfc>Static</UseOfMfc>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)'=='Debug'" Label="Configuration">
+    <UseDebugLibraries>true</UseDebugLibraries>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)'=='Release'" Label="Configuration">
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings" />
+  <ImportGroup Label="Shared" />
+  <ImportGroup Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+    <Import Project="..\..\MechCommander.props" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <!-- The version resource uses the game's version (MechCommander.props). The editor doesn't reference MCCore, so it
+       writes its own MCVersion.h into its intermediate folder. -->
+  <PropertyGroup>
+    <MCGenerateVersion>true</MCGenerateVersion>
+    <MCVersionDir>$(IntDir)generated\</MCVersionDir>
+  </PropertyGroup>
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <!-- MFC's multibyte libraries are deprecated but shipped; this keeps the build quiet about it. -->
+      <PreprocessorDefinitions>NO_WARN_MBCS_MFC_DEPRECATION;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <!-- The editor's own copy of the game code (lib/...) comes first: MechCommander.props also puts MCCore, which
+           has files of the same names, on the include path. -->
+      <!-- SQLite holds the mission database (FitAbl.db), where the original used DAO and Jet (FitAbl.mdb). -->
+      <AdditionalIncludeDirectories>$(ProjectDir);$(MCLibDir)sqlite-3.50.4;$(MCLibDir)miniz-3.0.2;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <!-- winmm: the views' click sound (PlaySound); rpcrt4: the distribution file's GUID (UuidCreate). -->
+      <AdditionalDependencies>winmm.lib;rpcrt4.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ResourceCompile Include="MCEditor.rc" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="AboutDialog.cpp" />
+    <ClCompile Include="ai\move.cpp" />
+    <ClCompile Include="BrushTool.cpp" />
+    <ClCompile Include="ChoiceDialog.cpp" />
+    <ClCompile Include="ChooseEditorDialog.cpp" />
+    <ClCompile Include="ControlLink.cpp" />
+    <ClCompile Include="DamageTool.cpp" />
+    <ClCompile Include="DaoDatabase.cpp" />
+    <ClCompile Include="DaoRecordset.cpp" />
+    <ClCompile Include="DistributionFile.cpp" />
+    <ClCompile Include="DreditorApp.cpp" />
+    <ClCompile Include="DreditorDoc.cpp" />
+    <ClCompile Include="DreditorDocSave.cpp" />
+    <ClCompile Include="DreditorView.cpp" />
+    <ClCompile Include="DropZoneRecord.cpp" />
+    <ClCompile Include="EditorAction.cpp" />
+    <ClCompile Include="EditorFiles.cpp" />
+    <ClCompile Include="EditorMap.cpp" />
+    <ClCompile Include="EditorMapEdit.cpp" />
+    <ClCompile Include="EditorMapSave.cpp" />
+    <ClCompile Include="EditorObject.cpp" />
+    <ClCompile Include="EditorPalette.cpp" />
+    <ClCompile Include="EditorSetupDialog.cpp" />
+    <ClCompile Include="EditorTacticalImages.cpp" />
+    <ClCompile Include="EditorTacticalMap.cpp" />
+    <ClCompile Include="EditorTile.cpp" />
+    <ClCompile Include="EditorTool.cpp" />
+    <ClCompile Include="EditorUtil.cpp" />
+    <ClCompile Include="ErrorDialog.cpp" />
+    <ClCompile Include="FitAbl.cpp" />
+    <ClCompile Include="FitAblFit.cpp" />
+    <ClCompile Include="FitAblObjectives.cpp" />
+    <ClCompile Include="FitAblSchema.cpp" />
+    <ClCompile Include="FitAblScript.cpp" />
+    <ClCompile Include="FitAblStructures.cpp" />
+    <ClCompile Include="GroundTools.cpp" />
+    <ClCompile Include="HillTool.cpp" />
+    <ClCompile Include="InstallShieldCabinet.cpp" />
+    <ClCompile Include="JetDatabase.cpp" />
+    <ClCompile Include="lib\aerror.cpp" />
+    <ClCompile Include="lib\fastfile.cpp" />
+    <ClCompile Include="lib\ffile.cpp" />
+    <ClCompile Include="lib\file.cpp" />
+    <ClCompile Include="lib\lzcomp.cpp" />
+    <ClCompile Include="lib\lzdecomp.cpp" />
+    <ClCompile Include="lib\packet.cpp" />
+    <ClCompile Include="lib\pqueue.cpp" />
+    <ClCompile Include="LinkTool.cpp" />
+    <ClCompile Include="LookOutPtRecord.cpp" />
+    <ClCompile Include="MainFrame.cpp" />
+    <ClCompile Include="MapFeaturesBar.cpp" />
+    <ClCompile Include="MapOverlay.cpp" />
+    <ClCompile Include="MapPickTool.cpp" />
+    <ClCompile Include="MechRecord.cpp" />
+    <ClCompile Include="MissionDescriptionDialog.cpp" />
+    <ClCompile Include="MissionEditorDialog.cpp" />
+    <ClCompile Include="MissionPreview.cpp" />
+    <ClCompile Include="MissionRecordSet.cpp" />
+    <ClCompile Include="MissionSave.cpp" />
+    <ClCompile Include="MissionText.cpp" />
+    <ClCompile Include="MoverObject.cpp" />
+    <ClCompile Include="MultiMap.cpp" />
+    <ClCompile Include="MultiView.cpp" />
+    <ClCompile Include="NewMapDialog.cpp" />
+    <ClCompile Include="Objective.cpp" />
+    <ClCompile Include="ObjectiveMainRecord.cpp" />
+    <ClCompile Include="ObjectiveRecord.cpp" />
+    <ClCompile Include="ObjectiveRowDialog.cpp" />
+    <ClCompile Include="ObjectivesTeamDialog.cpp" />
+    <ClCompile Include="ObjectLibrary.cpp" />
+    <ClCompile Include="OpenDialog.cpp" />
+    <ClCompile Include="OverlayTools.cpp" />
+    <ClCompile Include="PaletteBar.cpp" />
+    <ClCompile Include="Parameter.cpp" />
+    <ClCompile Include="ParameterFields.cpp" />
+    <ClCompile Include="ParameterWrite.cpp" />
+    <ClCompile Include="PilotRecord.cpp" />
+    <ClCompile Include="PlaceMoverTool.cpp" />
+    <ClCompile Include="PlaceObjectTool.cpp" />
+    <ClCompile Include="PlayerBriefingDialog.cpp" />
+    <ClCompile Include="RotateTool.cpp" />
+    <ClCompile Include="SaveDialog.cpp" />
+    <ClCompile Include="SelectMissionDialog.cpp" />
+    <ClCompile Include="SelectTool.cpp" />
+    <ClCompile Include="SetHeightDialog.cpp" />
+    <ClCompile Include="SettingsPlayerDialog.cpp" />
+    <ClCompile Include="SingleView.cpp" />
+    <ClCompile Include="SplashDialog.cpp" />
+    <ClCompile Include="SprayTreesTool.cpp" />
+    <ClCompile Include="StaticObject.cpp" />
+    <ClCompile Include="stdafx.cpp">
+      <PrecompiledHeader>Create</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="StructureLink.cpp" />
+    <ClCompile Include="StructureRecord.cpp" />
+    <ClCompile Include="TacticalMapDialog.cpp" />
+    <ClCompile Include="TileLibrary.cpp" />
+    <ClCompile Include="ToolButtonBar.cpp" />
+    <ClCompile Include="ToolFactory.cpp" />
+    <ClCompile Include="UndoList.cpp" />
+    <ClCompile Include="UnitBrain.cpp" />
+    <ClCompile Include="UnitBrainWrite.cpp" />
+    <ClCompile Include="UnitOrdersDialog.cpp" />
+    <ClCompile Include="UnitRecord.cpp" />
+    <ClCompile Include="UnitSettingsDialog.cpp" />
+    <ClCompile Include="ValueDialog.cpp" />
+    <ClCompile Include="VbRuntime.cpp" />
+    <ClCompile Include="VertexTool.cpp" />
+    <ClCompile Include="vfx\alphapalette.cpp" />
+    <ClCompile Include="vfx\vfxa_shape.cpp" />
+    <ClCompile Include="vfx\vfxnshape.cpp" />
+    <ClCompile Include="vfx\vfxtile.cpp" />
+    <ClCompile Include="ViewTools.cpp" />
+    <ClCompile Include="X87Extended.cpp" />
+    <ClInclude Include="AboutDialog.h" />
+    <ClInclude Include="ai\move.h" />
+    <ClInclude Include="BrushTool.h" />
+    <ClInclude Include="ChoiceDialog.h" />
+    <ClInclude Include="ChooseEditorDialog.h" />
+    <ClInclude Include="ControlLink.h" />
+    <ClInclude Include="DamageTool.h" />
+    <ClInclude Include="DaoDatabase.h" />
+    <ClInclude Include="DaoRecordset.h" />
+    <ClInclude Include="DistributionFile.h" />
+    <ClInclude Include="DreditorApp.h" />
+    <ClInclude Include="DreditorDoc.h" />
+    <ClInclude Include="DreditorView.h" />
+    <ClInclude Include="DropZoneRecord.h" />
+    <ClInclude Include="EditorAction.h" />
+    <ClInclude Include="EditorFiles.h" />
+    <ClInclude Include="EditorMap.h" />
+    <ClInclude Include="EditorObject.h" />
+    <ClInclude Include="EditorPalette.h" />
+    <ClInclude Include="EditorSetupDialog.h" />
+    <ClInclude Include="EditorTile.h" />
+    <ClInclude Include="EditorTool.h" />
+    <ClInclude Include="EditorUtil.h" />
+    <ClInclude Include="ErrorDialog.h" />
+    <ClInclude Include="FitAbl.h" />
+    <ClInclude Include="FitAblSchema.h" />
+    <ClInclude Include="GroundTools.h" />
+    <ClInclude Include="HillTool.h" />
+    <ClInclude Include="InstallShieldCabinet.h" />
+    <ClInclude Include="JetDatabase.h" />
+    <ClInclude Include="lib\aerror.h" />
+    <ClInclude Include="lib\cvmath.h" />
+    <ClInclude Include="lib\fastfile.h" />
+    <ClInclude Include="lib\ffile.h" />
+    <ClInclude Include="lib\file.h" />
+    <ClInclude Include="lib\lzcomp.h" />
+    <ClInclude Include="lib\lzdecomp.h" />
+    <ClInclude Include="lib\packet.h" />
+    <ClInclude Include="lib\pqueue.h" />
+    <ClInclude Include="LinkTool.h" />
+    <ClInclude Include="LookOutPtRecord.h" />
+    <ClInclude Include="MainFrame.h" />
+    <ClInclude Include="MapFeaturesBar.h" />
+    <ClInclude Include="MapMarker.h" />
+    <ClInclude Include="MapOverlay.h" />
+    <ClInclude Include="MapPickTool.h" />
+    <ClInclude Include="MechRecord.h" />
+    <ClInclude Include="MissionDescriptionDialog.h" />
+    <ClInclude Include="MissionEditorDialog.h" />
+    <ClInclude Include="MissionPreview.h" />
+    <ClInclude Include="MissionRecordSet.h" />
+    <ClInclude Include="MissionText.h" />
+    <ClInclude Include="MoverObject.h" />
+    <ClInclude Include="MultiMap.h" />
+    <ClInclude Include="MultiView.h" />
+    <ClInclude Include="NewMapDialog.h" />
+    <ClInclude Include="Objective.h" />
+    <ClInclude Include="ObjectiveMainRecord.h" />
+    <ClInclude Include="ObjectiveRecord.h" />
+    <ClInclude Include="ObjectiveRowDialog.h" />
+    <ClInclude Include="ObjectivesTeamDialog.h" />
+    <ClInclude Include="ObjectLibrary.h" />
+    <ClInclude Include="OpenDialog.h" />
+    <ClInclude Include="OverlayTools.h" />
+    <ClInclude Include="PaletteBar.h" />
+    <ClInclude Include="Parameter.h" />
+    <ClInclude Include="ParameterFields.h" />
+    <ClInclude Include="PilotRecord.h" />
+    <ClInclude Include="PlaceMoverTool.h" />
+    <ClInclude Include="PlaceObjectTool.h" />
+    <ClInclude Include="PlayerBriefingDialog.h" />
+    <ClInclude Include="resource.h" />
+    <ClInclude Include="RotateTool.h" />
+    <ClInclude Include="SaveDialog.h" />
+    <ClInclude Include="SelectMissionDialog.h" />
+    <ClInclude Include="SelectTool.h" />
+    <ClInclude Include="SetHeightDialog.h" />
+    <ClInclude Include="SettingsPlayerDialog.h" />
+    <ClInclude Include="SingleView.h" />
+    <ClInclude Include="SplashDialog.h" />
+    <ClInclude Include="SprayTreesTool.h" />
+    <ClInclude Include="StaticObject.h" />
+    <ClInclude Include="stdafx.h" />
+    <ClInclude Include="StructureLink.h" />
+    <ClInclude Include="StructureRecord.h" />
+    <ClInclude Include="TacticalMapDialog.h" />
+    <ClInclude Include="TileLibrary.h" />
+    <ClInclude Include="ToolButtonBar.h" />
+    <ClInclude Include="ToolFactory.h" />
+    <ClInclude Include="UndoList.h" />
+    <ClInclude Include="UnitBrain.h" />
+    <ClInclude Include="UnitOrdersDialog.h" />
+    <ClInclude Include="UnitRecord.h" />
+    <ClInclude Include="UnitSettingsDialog.h" />
+    <ClInclude Include="ValueDialog.h" />
+    <ClInclude Include="VbRuntime.h" />
+    <ClInclude Include="VertexTool.h" />
+    <ClInclude Include="vfx\alphapalette.h" />
+    <ClInclude Include="vfx\vfx.h" />
+    <ClInclude Include="vfx\vfxnshape.h" />
+    <ClInclude Include="vfx\vfxtile.h" />
+    <ClInclude Include="ViewTools.h" />
+    <ClInclude Include="X87Extended.h" />
+  </ItemGroup>
+  <!-- SQLite (src\lib\sqlite-3.50.4, the public-domain amalgamation) compiles as one C unit. It lives outside the
+       editor, so it has its own ItemGroup, which sync_projects.py leaves alone. -->
+  <ItemGroup>
+    <ClCompile Include="$(MCLibDir)sqlite-3.50.4\sqlite3.c">
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <CompileAs>CompileAsC</CompileAs>
+      <WarningLevel>Level1</WarningLevel>
+      <PreprocessorDefinitions>SQLITE_THREADSAFE=1;SQLITE_OMIT_LOAD_EXTENSION;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ClCompile>
+  </ItemGroup>
+  <!-- miniz (src\lib\miniz-3.0.2, MIT): its inflate unpacks the Gold CD's editor setup (InstallShieldCabinet). One C
+       unit outside the editor, so its own ItemGroup too. -->
+  <ItemGroup>
+    <ClCompile Include="$(MCLibDir)miniz-3.0.2\miniz.c">
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <CompileAs>CompileAsC</CompileAs>
+      <WarningLevel>Level1</WarningLevel>
+      <PreprocessorDefinitions>MINIZ_NO_ARCHIVE_APIS;MINIZ_NO_TIME;MINIZ_NO_STDIO;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ClCompile>
+  </ItemGroup>
+  <!-- The game's crash trace (a symbolized stack and a minidump beside the exe on a crash, never a dialog), shared from
+       src\apps\MCRedux; outside the editor, so in its own ItemGroup too. -->
+  <ItemGroup>
+    <ClCompile Include="..\MCRedux\MCConsole.cpp">
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="..\MCRedux\MCCrashTrace.cpp">
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <AdditionalIncludeDirectories>$(MCLibDir)MCCore;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ClCompile>
+    <ClInclude Include="..\MCRedux\MCConsole.h" />
+    <ClInclude Include="..\MCRedux\MCCrashTrace.h" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets" />
+</Project>
