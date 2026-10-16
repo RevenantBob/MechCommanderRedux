@@ -11,6 +11,7 @@
 #include "object/MCForces.h"
 #include "object/MCMover.h"
 #include "object/MCMoverGroup.h"
+#include "platform/MCDisplay.h"
 
 // The tactical interface (iface/): the command parser's subject limits, the mover ranking, and, on a booted mission,
 // the key bindings, the click orders, the selection and the cursor the mouse state picks.
@@ -653,4 +654,34 @@ TEST_CASE_ISOLATED("game: held arrow keys scroll together, diagonally, until eac
     CHECK_EQ(iface->TacScrollDirection, -1);
     SendKey(left);
     CHECK_EQ(iface->ScrollDirection, 6);
+}
+
+TEST_CASE_ISOLATED("game: edge scrolling follows the window's new size (a window made full screen)")
+{
+    if (!MCTestGame::Available())
+    {
+        return;
+    }
+
+    REQUIRE(MCTestGame::StartMission(1));
+    const std::shared_ptr<MCDisplay> display = GuiSystem().Display();
+    REQUIRE(display != nullptr);
+
+    // The mouse scrolls once it is past these edges: one pixel in at the top left, four at the bottom right.
+    constexpr int32_t grownWidth = 1600;
+    constexpr int32_t grownHeight = 1000;
+    REQUIRE(SDL_SetWindowSize(&display->Window(), grownWidth, grownHeight));
+    SDL_SyncWindow(&display->Window());
+    MCTestGame::RunFrame(1.0f / 15.0f);
+
+    int32_t width = 0;
+    int32_t height = 0;
+    display->WindowScreenSize(width, height);
+    REQUIRE_EQ(GuiSystem().Width(), width);
+    REQUIRE_EQ(GuiSystem().Height(), height);
+    const tagRECT area = GuiSystem().ScrollRect;
+    CHECK_EQ(area.left, 1);
+    CHECK_EQ(area.top, 1);
+    CHECK_EQ(area.right, width - 4);
+    CHECK_EQ(area.bottom, height - 4);
 }

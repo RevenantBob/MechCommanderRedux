@@ -166,6 +166,9 @@ auto MCGuiSystem::FollowWindowSize() -> bool
     ScreenWidth = width;
     ScreenHeight = height;
 
+    // Edge scrolling follows the new screen's edges (Start set them for the first size only).
+    SetScrollRect();
+
     if (ScreenPixels != nullptr && ScreenPixels->SharedBitmap() != nullptr)
     {
         ScreenPixels->Resize(width, height);
