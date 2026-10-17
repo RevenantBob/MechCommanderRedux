@@ -3,6 +3,7 @@
     <Platform Name="x64" />
   </Configurations>
   <Folder Name="/apps/">
+    <Project Path="apps/MCEditor/MCEditor.vcxproj" Id="e89ccfd8-657c-48b8-ba0c-9c4dfe431dc9" />
     <Project Path="apps/MCRedux/MCRedux.vcxproj" Id="5062c893-6493-4c1c-a17e-ec04a46fd4d4" />
     <Project Path="apps/MCRedux/mc_tests.vcxproj" Id="80e85b7f-fda4-4243-8fa5-094f46480d45" />
   </Folder>

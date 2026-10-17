@@ -95,6 +95,10 @@ public:
     /// </summary>
     std::span<const float> FrameHeights() const;
 
+    /// <summary>The height of <paramref name="frame"/> in <see cref="FrameHeights"/>; frames past the table hold its
+    /// last height (OB-175: every mech's jump gesture has one frame more than its outline). 0 without a table.</summary>
+    float FrameHeight(int32_t frame) const;
+
     /// <summary>The tree.</summary>
     std::shared_ptr<MCSpriteTree> MechTree;
     /// <summary>Each part's shape (expired once the cache drops it).</summary>

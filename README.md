@@ -9,9 +9,19 @@ rewritten as modern C++, and replaces that Windows/DirectX layer with SDL3.
 It is not an emulator and not a patch to the original executable. It is a from-scratch reconstruction that reads the
 data files from your own copy of MechCommander Gold.
 
+## Download
+
+**[⬇ Download the latest version for Windows (64-bit)](https://github.com/RevenantBob/MechCommanderRedux/releases/latest/download/MechCommanderRedux-win-x64.zip)**
+
+This is a zip file with the game (`MCRedux.exe`), the Mission Editor (`MCEditor.exe`) and instructions. You also need
+your own copy of MechCommander Gold: see [Running the Game](#running-the-game) and [Mission Editor](#mission-editor)
+for how to set it up. To see what changed in each version, or to download an older one, visit the
+[releases page](https://github.com/RevenantBob/MechCommanderRedux/releases).
+
 ## Table of Contents
 
 - [MechCommander Redux](#mechcommander-redux)
+  - [Download](#download)
   - [Table of Contents](#table-of-contents)
     - [Highlights](#highlights)
     - [Planned Features](#planned-features)
@@ -21,6 +31,12 @@ data files from your own copy of MechCommander Gold.
     - [Installing](#installing)
     - [Command-Line Options](#command-line-options)
     - [Saves and Settings](#saves-and-settings)
+  - [Mission Editor](#mission-editor)
+    - [What You Need](#what-you-need)
+    - [Setting Up the Editor](#setting-up-the-editor)
+    - [What the Editor Changes in Your Game Folder](#what-the-editor-changes-in-your-game-folder)
+    - [Editor Command-Line Options](#editor-command-line-options)
+    - [Troubleshooting the Editor](#troubleshooting-the-editor)
   - [Building](#building)
     - [Requirements](#requirements)
     - [Compiling](#compiling)
@@ -72,7 +88,7 @@ from your installation; it never modifies it.
 
 ### Installing
 
-1. Download the latest MechCommander Redux zip file.
+1. Download the latest MechCommander Redux zip file ([direct link](#download)).
 2. Extract it. Either:
    - extract it into your MechCommander Gold folder (the one containing `SYSTEM.CFG`), then run `MCRedux.exe`; or
    - extract it anywhere you like, and point it at your MechCommander Gold folder with `--data` (see below).
@@ -115,6 +131,101 @@ MCRedux.exe --data "C:\Games\MechCommander Gold"
 Without `--user`, saves and preferences go to your user profile, in
 `%APPDATA%\MechCommander Redux\` on Windows, so they never touch the game folder.
 
+## Mission Editor
+
+`MCEditor.exe` is a 64-bit recreation of the **MechCommander Mission Editor**, the tool that came on the MechCommander
+Gold CD for making your own maps and missions. It works like the original, but runs on modern Windows without any of
+the old components the original needed: no MFC 4.2 DLLs, no Microsoft Jet or DAO database engine, no Visual Basic
+runtime, and nothing to register with Windows. Everything it needs is built into the one `.exe` file.
+
+The editor is optional. You don't need it to play the game.
+
+### What You Need
+
+1. **MechCommander Gold installed on your PC.** The editor uses the game's own art, terrain and settings, so it works
+   inside the game's folder, just as the original editor did.
+2. **One of these**, so the editor can get its own files (its templates, tables and mission database) the first time
+   you run it:
+   - the **MechCommander Gold CD** in your CD/DVD drive,
+   - a **disc image of the CD** (an `.iso` file), or
+   - a folder where the **original Mission Editor** was installed in the past.
+
+You only need the CD (or the image, or the old folder) once. After the first run, the editor has everything it needs.
+
+### Setting Up the Editor
+
+**Step 1: Find your MechCommander Gold folder.** This is the folder that contains the files `SYSTEM.CFG` and
+`MCX.EXE`.
+
+**Step 2: Put the editor in that folder.** Copy `MCEditor.exe` from the release zip into the MechCommander Gold folder,
+next to `SYSTEM.CFG`. If you installed the game the same way, `MCEditor.exe` will be next to `MCRedux.exe`.
+`MCEditor.exe` doesn't need any other files next to it.
+
+> If you'd rather keep `MCEditor.exe` somewhere else, you can, but then you have to tell it where the game is each time
+> you start it, with `--data` (see [Editor Command-Line Options](#editor-command-line-options)).
+
+**Step 3: Get the CD (or the image) ready.**
+
+- **With the CD:** put it in the drive before you start the editor.
+- **With an `.iso` file:** double-click the `.iso` file in Windows Explorer, or right-click it and choose **Mount**.
+  Windows opens it as if it were a real CD, under a new drive letter in **This PC**.
+- **With an old editor folder:** there's nothing to prepare. You'll choose the folder in the next step.
+
+**Step 4: Run the editor for the first time.** Double-click `MCEditor.exe`. The first time, the editor notices that its
+own files are missing and opens a window called **Mission Editor Setup**, asking where to copy them from:
+
+- If the CD or a mounted `.iso` is there, the editor finds it by itself and fills in its drive (for example `D:\`).
+  Just click **Install**.
+- Otherwise, click **Browse** and choose either the CD's drive, or the folder where the original editor was installed
+  (the one with a `Teditor` folder inside it; choosing the `Teditor` folder itself works too). Then click **Install**.
+
+It only takes a moment. When it's done, the editor starts normally, and you won't see the setup window again.
+
+Nothing on the CD is run: the editor reads its files straight out of the Mission Editor setup package on the CD
+(`MCEDSETP\DISK1`), and checks each one as it unpacks it. Nothing is written to the Windows registry for this either.
+
+### What the Editor Changes in Your Game Folder
+
+- It adds a **`Teditor`** folder with the editor's own files (23 files: templates, tables, the starting inventories,
+  the unit "brain" templates and the mission database).
+- It adds **six small sound files** to `Data\Sound`: the clicks and sounds the editor plays.
+- When you save your work, it writes your **maps and missions** into `Data\Terrain` and `Data\Missions`, just like the
+  original editor.
+
+It never replaces a file that's already there. If you want to be safe, make a copy of your MechCommander Gold folder
+before you start making missions.
+
+The first time the editor opens its mission database, it converts `Teditor\FitAbl.mdb` (the original's Microsoft
+Access file) into a new file, `FitAbl.db`, next to it, and uses that from then on. The original `FitAbl.mdb` is left
+untouched.
+
+### Editor Command-Line Options
+
+```
+MCEditor.exe [-d|--data <game folder>]
+```
+
+| Option                  | Description                                                                                  |
+|-------------------------|----------------------------------------------------------------------------------------------|
+| `-d`, `--data <folder>` | Your MechCommander Gold folder (the one containing `SYSTEM.CFG`), if `MCEditor.exe` isn't in it |
+
+The easiest way to use it is a shortcut: right-click `MCEditor.exe`, choose **Create shortcut**, open the shortcut's
+**Properties**, and add the option to the end of **Target**, for example:
+
+```
+"C:\Tools\MCEditor.exe" --data "C:\Games\MechCommander Gold"
+```
+
+### Troubleshooting the Editor
+
+| What you see | What it means and what to do |
+|---|---|
+| *"... isn't a MechCommander Gold folder: it has no SYSTEM.CFG."* | `MCEditor.exe` isn't in your game folder. Move it there (step 2), or start it with `--data` and your game folder. |
+| *"... has neither the Mission Editor's files (a Teditor folder) nor its setup ..."* | The folder you chose isn't the CD, a mounted CD image, or an installed editor. Click **Browse** and choose the CD's drive itself (for example `D:\`), or the folder that contains the old editor's `Teditor` folder. |
+| *"Couldn't make ..."*, *"Couldn't copy ..."* or *"Couldn't write ..."* | Windows didn't let the editor write into your game folder. This usually happens when the game is installed under `C:\Program Files` or `C:\Program Files (x86)`, which normal programs aren't allowed to change. The best fix is to move (or reinstall) MechCommander Gold to a folder of your own, such as `C:\Games\MechCommander Gold`, because the editor also saves your missions there. Running `MCEditor.exe` as administrator (right-click, **Run as administrator**) also works. |
+| You clicked **Exit** in the setup window by mistake | Nothing was changed. Start the editor again and it asks again. |
+| **Help > Help Topics** (or **Help** on a right-click menu) doesn't open | The original help file uses Windows Help (`.hlp`), which Windows 10 and 11 can no longer show. This doesn't affect the rest of the editor. |
+
 ## Building
 
 ### Requirements
@@ -147,6 +258,7 @@ The output goes to `src/build/bin/x64/<Configuration>/`:
 | File           | Purpose                      |
 |----------------|------------------------------|
 | `MCRedux.exe`  | The game                     |
+| `MCEditor.exe` | The Mission Editor           |
 | `mc_tests.exe` | The test suite               |
 | `SDL3.dll`     | SDL3 runtime                 |
 
@@ -154,7 +266,9 @@ The output goes to `src/build/bin/x64/<Configuration>/`:
 
 Releases come from the **Release** workflow on GitHub (Actions → Release → Run workflow). It builds `main`, runs the
 tests, tags the commit `v<version>` (the same version the build puts in the exe) and publishes a GitHub Release with
-the game zip (the exe, `SDL3.dll`, and `src/docs/README.txt` and `INSTALL.txt`) and a symbols zip. It refuses to run twice for the same commit, since the tag would already exist.
+the game zip `MechCommanderRedux-win-x64.zip` (`MCRedux.exe`, `SDL3.dll`, `MCEditor.exe`, and `src/docs/README.txt`
+and `INSTALL.txt`) and a symbols zip, `MechCommanderRedux-win-x64-symbols.zip`. The zips have the same names in every
+release, so the [Download](#download) link always gets the newest one. It refuses to run twice for the same commit, since the tag would already exist.
 
 ### Technologies
 
@@ -163,6 +277,9 @@ the game zip (the exe, `SDL3.dll`, and `src/docs/README.txt` and `INSTALL.txt`) 
 - **SDL3's GPU renderer** (Vulkan where available) to present the game's 8-bit frame buffer, scaled to the window
 - **TCP/UDP sockets** in place of DirectPlay for multiplayer
 - A built-in **Smacker** video decoder for the game's cutscenes
+- **MFC** (linked statically) for the Mission Editor, as the original editor used
+- **SQLite** for the editor's mission database, in place of Microsoft Jet/DAO
+- **miniz** to unpack the editor's files from the CD's InstallShield setup
 - **MSBuild / Visual Studio 2026** (toolset v145)
 
 ### Project Layout
@@ -173,3 +290,6 @@ the game zip (the exe, `SDL3.dll`, and `src/docs/README.txt` and `INSTALL.txt`) 
 | `src/lib/MCCore/platform/`    | The SDL3 platform layer (display, input, audio, files, network)    |
 | `src/lib/SDL-release-3.4.12/` | SDL3                                                               |
 | `src/apps/MCRedux/`           | The game executable and the test suite                             |
+| `src/apps/MCEditor/`          | The Mission Editor                                                 |
+| `src/lib/sqlite-3.50.4/`      | SQLite, for the editor's mission database                          |
+| `src/lib/miniz-3.0.2/`        | miniz, for unpacking the editor's files from the CD                |

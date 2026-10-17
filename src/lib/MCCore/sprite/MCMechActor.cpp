@@ -573,11 +573,21 @@ auto MCMechActor::FrameHeights() const -> std::span<const float>
     return GestureHeights(*Owner.lock(), HeightsGesture);
 }
 
-auto MCMechActor::RenderJump() -> void
+auto MCMechActor::FrameHeight(int32_t frame) const -> float
 {
     const std::span<const float> heights = FrameHeights();
 
     if (heights.empty())
+    {
+        return 0.0f;
+    }
+
+    return heights[std::min(static_cast<size_t>(std::max(frame, 0)), heights.size() - 1)];
+}
+
+auto MCMechActor::RenderJump() -> void
+{
+    if (FrameHeights().empty())
     {
         return;
     }
@@ -592,7 +602,7 @@ auto MCMechActor::RenderJump() -> void
     }
 
     const int32_t frameNum = CurrentFrame[MCMechPart::Legs];
-    const float height = heights[frameNum] * 30.0f;
+    const float height = FrameHeight(frameNum) * 30.0f;
 
     if (LiftOffFrame <= frameNum)
     {

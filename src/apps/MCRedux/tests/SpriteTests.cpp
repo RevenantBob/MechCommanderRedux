@@ -8,6 +8,7 @@
 #include "lib/MCPacketFile.h"
 #include "main/MCGamePaths.h"
 #include "main/MCMissionGlobals.h"
+#include "object/MCBattleMechType.h"
 #include "platform/MCRenderer.h"
 #include "sprite/MCGVAppearance.h"
 #include "sprite/MCMechActor.h"
@@ -537,6 +538,30 @@ TEST_CASE("sprites: a jump leaves the ground at the bottom of its crouch and lan
     const std::array<float, 3> flat = {0.0f, 1.0f, 2.0f};
     CHECK_EQ(MCFindJumpFrames(flat).LiftOff, 0);
     CHECK_EQ(MCFindJumpFrames(flat).TouchDown, 0);
+}
+
+/// The .jmp file holds each jet's frames in a row the file's frames long, and the jump gesture's extra last frame
+/// (OB-175) keeps the jets where the file's last frame put them.
+TEST_CASE("sprites: a jump jet's offset comes from its own row of the jump file, held past the file's last frame")
+{
+    MCBattleMechType type;
+    // Two jets of three frames: x is 10 * jet + frame, y and z mark the jet.
+    type.JumpData = {0.0f,  1.0f, 2.0f, 1.0f,  1.0f, 2.0f, 2.0f,  1.0f, 2.0f,
+                     10.0f, 3.0f, 4.0f, 11.0f, 3.0f, 4.0f, 12.0f, 3.0f, 4.0f};
+
+    CHECK_EQ(type.JumpJetOffset(0, 0).X, 0.0f);
+    CHECK_EQ(type.JumpJetOffset(0, 2).X, 2.0f);
+    CHECK_EQ(type.JumpJetOffset(1, 0).X, 10.0f);
+    CHECK_EQ(type.JumpJetOffset(1, 1).Y, 3.0f);
+    CHECK_EQ(type.JumpJetOffset(1, 2).Z, 4.0f);
+
+    // The gesture's frame past the file holds the last one, for either jet.
+    CHECK_EQ(type.JumpJetOffset(0, 3).X, 2.0f);
+    CHECK_EQ(type.JumpJetOffset(1, 3).X, 12.0f);
+
+    // No file: no offset.
+    MCBattleMechType empty;
+    CHECK_EQ(empty.JumpJetOffset(1, 5).X, 0.0f);
 }
 
 TEST_CASE("sprites: the shadow facing is one of 32, wrapped and clamped")

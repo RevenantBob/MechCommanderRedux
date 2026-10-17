@@ -13,6 +13,9 @@
     <IntDir>$(SolutionDir)build\intermediate\$(ProjectName)\$(Platform)\$(Configuration)\</IntDir>
     <MCLibDir>$(MSBuildThisFileDirectory)lib\</MCLibDir>
     <MCGeneratedDir>$(MSBuildThisFileDirectory)build\generated\</MCGeneratedDir>
+    <!-- Where MCGenerateVersionHeader writes MCVersion.h. A project that doesn't reference MCCore (the editor) writes
+         its own copy elsewhere, so two projects building in parallel never write the same file. -->
+    <MCVersionDir Condition="'$(MCVersionDir)'==''">$(MCGeneratedDir)</MCVersionDir>
   </PropertyGroup>
   <!-- The HLSL compiler: Microsoft's DirectXShaderCompiler release, pinned by version and SHA-256, so every machine
        and CI compile the shaders with the same dxc. MCFetchDxc downloads it into build\tools on first use. To update
@@ -40,7 +43,7 @@
       <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;_CRT_NONSTDC_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
     <ResourceCompile>
-      <AdditionalIncludeDirectories>$(MCGeneratedDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(MCVersionDir);$(MCGeneratedDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ResourceCompile>
     <Manifest>
       <EnableSegmentHeap>true</EnableSegmentHeap>
@@ -105,8 +108,8 @@
       <_MCVersionLine Include="#define MC_VERSION_SEMVER &quot;$(_MCSemVer)&quot;" />
       <_MCVersionLine Include="#define MC_VERSION_COMMIT &quot;$(_MCCommit)&quot;" />
     </ItemGroup>
-    <MakeDir Directories="$(MCGeneratedDir)" />
-    <WriteLinesToFile File="$(MCGeneratedDir)MCVersion.h" Lines="@(_MCVersionLine)" Overwrite="true"
+    <MakeDir Directories="$(MCVersionDir)" />
+    <WriteLinesToFile File="$(MCVersionDir)MCVersion.h" Lines="@(_MCVersionLine)" Overwrite="true"
                       WriteOnlyWhenDifferent="true" />
     <Message Importance="high" Text="MechCommander Redux $(_MCVersion) ($(_MCCommit))" />
   </Target>

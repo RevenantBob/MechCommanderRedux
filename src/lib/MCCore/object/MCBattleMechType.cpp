@@ -711,11 +711,13 @@ auto MCBattleMechType::LoadHotSpots(MCFitIniFile& mechFile) -> int32_t
 
     LayOutHotSpotPackets(packets);
 
-    // The jump jets' offsets: (x, y, z) per frame of the jump gesture, for each jet.
+    // The jump jets' offsets: (x, y, z) per frame of the jump gesture, for each jet. Whole frames only: two retail
+    // files (bw.jmp, ml.jmp) end in a few stray bytes.
     std::vector<uint8_t> jumpBytes(jumpFile.FileSize(), 0);
     jumpFile.Read(jumpBytes);
-    JumpData.assign((jumpBytes.size() + sizeof(float) - 1) / sizeof(float), 0.0f);
-    std::memcpy(JumpData.data(), jumpBytes.data(), jumpBytes.size());
+    const size_t jumpFloats = jumpBytes.size() / (JumpJetCount * 3 * sizeof(float)) * JumpJetCount * 3;
+    JumpData.assign(jumpFloats, 0.0f);
+    std::memcpy(JumpData.data(), jumpBytes.data(), jumpFloats * sizeof(float));
     return 0;
 }
 
@@ -736,6 +738,22 @@ auto MCBattleMechType::GestureOutline(uint32_t gesture) const -> std::span<const
 {
     const std::vector<uint8_t>& outline = GestureOutlines[gesture];
     return {reinterpret_cast<const float*>(outline.data()), outline.size() / sizeof(float)};
+}
+
+auto MCBattleMechType::JumpJetOffset(int32_t jet, int32_t frame) const -> MCVector3D
+{
+    const size_t framesPerJet = JumpData.size() / (JumpJetCount * 3);
+
+    if (framesPerJet == 0)
+    {
+        return {};
+    }
+
+    // OB-175: the jump gesture has a frame more than the file; its last frame holds the jets where they were.
+    const size_t jetIndex = std::min(static_cast<size_t>(std::max(jet, 0)), JumpJetCount - 1);
+    const size_t frameIndex = std::min(static_cast<size_t>(std::max(frame, 0)), framesPerJet - 1);
+    const size_t first = (framesPerJet * jetIndex + frameIndex) * 3;
+    return {JumpData[first], JumpData[first + 1], JumpData[first + 2]};
 }
 
 auto MCBattleMechType::LayOutHotSpotPackets(const std::vector<std::vector<uint8_t>>& packets) -> void
