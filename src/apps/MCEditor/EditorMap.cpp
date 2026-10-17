@@ -2020,8 +2020,7 @@ bool SingleMap::loadMission(DaoDatabase& database, const CString& name)
     const long missionId = mission.m_MissionID;
     mission.Close();
 
-    const CString savePath =
-        EditorDataPath() + "\\Data\\Savegame\\" + name + ".sol";
+    const CString savePath = EditorDataPath() + "\\Data\\Savegame\\" + name + ".sol";
     CString textPath = EditorDataPath();
     textPath += "\\Data\\Missions\\";
     textPath += name + ".txt";
