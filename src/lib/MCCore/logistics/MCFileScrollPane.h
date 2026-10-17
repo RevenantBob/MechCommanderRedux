@@ -42,6 +42,10 @@ public:
         /// <summary>The mission number.</summary>
         int32_t Mission = 0;
         uint32_t ResourcePoints = 0;
+        /// <summary>Whether the user folder has the save (the list and Load use that copy when both have it).</summary>
+        bool InUserFolder = false;
+        /// <summary>Whether the game's folder has the save (the original kept saves there).</summary>
+        bool InGameFolder = false;
     };
 
     /// <summary>The characters a save's name takes (the name entry's buffer, a game rule).</summary>

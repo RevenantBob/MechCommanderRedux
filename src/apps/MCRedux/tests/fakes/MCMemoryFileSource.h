@@ -48,8 +48,10 @@ public:
     bool MakeDirectory(std::string_view gamePath) override;
     bool RemoveDirectory(std::string_view gamePath) override;
     std::vector<std::string> FindFiles(std::string_view gamePattern) override;
+    std::vector<MCFoundFile> FindFileSources(std::string_view gamePattern) override;
     bool Exists(std::string_view gamePath) override;
     bool RemoveFile(std::string_view gamePath) override;
+    bool RemoveSave(std::string_view gamePath) override;
     bool RenameFile(std::string_view fromGamePath, std::string_view toGamePath) override;
     bool CopyFile(std::string_view fromGamePath, std::string_view toGamePath) override;
     std::optional<std::span<const uint8_t>> FindImage(std::string_view gamePath) override;

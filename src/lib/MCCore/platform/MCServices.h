@@ -80,6 +80,17 @@ public:
     uint32_t State() const override;
 };
 
+/// <summary>A file a folder listing found, and which of the two folders have it.</summary>
+struct MCFoundFile
+{
+    /// <summary>The name, as the first folder that has it spells it.</summary>
+    std::string Name;
+    /// <summary>Whether the user folder has it.</summary>
+    bool InUserFolder = false;
+    /// <summary>Whether the game's folder (the install) has it.</summary>
+    bool InGameFolder = false;
+};
+
 /// <summary>
 /// Where the game's files come from: the paths the original spells (relative DOS paths, any case) mapped to files.
 /// The methods are those of <c>MCFileSystem</c> (platform/MCFileSystem.h), which forwards to the current source.
@@ -116,11 +127,17 @@ public:
     /// <summary>The names of the files in a folder that match a DOS wildcard.</summary>
     virtual std::vector<std::string> FindFiles(std::string_view gamePattern) = 0;
 
+    /// <summary>The same files as <see cref="FindFiles"/>, each with the folders that have it.</summary>
+    virtual std::vector<MCFoundFile> FindFileSources(std::string_view gamePattern) = 0;
+
     /// <summary>Whether a loose file (not one inside a FastFile) exists.</summary>
     virtual bool Exists(std::string_view gamePath) = 0;
 
     /// <summary>Deletes a loose file.</summary>
     virtual bool RemoveFile(std::string_view gamePath) = 0;
+
+    /// <summary>Deletes a save game, the install's copy included.</summary>
+    virtual bool RemoveSave(std::string_view gamePath) = 0;
 
     /// <summary>Renames a loose file, replacing an existing target.</summary>
     virtual bool RenameFile(std::string_view fromGamePath, std::string_view toGamePath) = 0;
@@ -156,8 +173,10 @@ public:
     bool MakeDirectory(std::string_view gamePath) override;
     bool RemoveDirectory(std::string_view gamePath) override;
     std::vector<std::string> FindFiles(std::string_view gamePattern) override;
+    std::vector<MCFoundFile> FindFileSources(std::string_view gamePattern) override;
     bool Exists(std::string_view gamePath) override;
     bool RemoveFile(std::string_view gamePath) override;
+    bool RemoveSave(std::string_view gamePath) override;
     bool RenameFile(std::string_view fromGamePath, std::string_view toGamePath) override;
     bool CopyFile(std::string_view fromGamePath, std::string_view toGamePath) override;
 

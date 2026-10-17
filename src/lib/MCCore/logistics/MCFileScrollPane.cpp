@@ -341,14 +341,14 @@ auto MCFileScrollPane::DrawFiles() -> void
 
 auto MCFileScrollPane::GetAllFiles(std::string_view extension, bool sort) -> void
 {
-    const std::vector<std::string> found = MCFileSystem::FindFiles(GamePath(StartDirectory, "*", extension));
+    const std::vector<MCFoundFile> saves = MCFileSystem::FindFileSources(GamePath(StartDirectory, "*", extension));
     Files.clear();
 
     // Saving mid-campaign offers a new (empty) slot first (single player only: the original left a multiplayer list's
     // slot unnamed).
     const bool newSlot = SavePane && GlobalLog()->CurrentMission >= 0 && !Multiplayer;
 
-    if (found.empty() && !newSlot)
+    if (saves.empty() && !newSlot)
     {
         SetSelectedFile(-1);
     }
@@ -376,11 +376,13 @@ auto MCFileScrollPane::GetAllFiles(std::string_view extension, bool sort) -> voi
         }
     }
 
-    for (const std::string& name : found)
+    for (const MCFoundFile& found : saves)
     {
         File& file = Files.emplace_back();
         // The name without its extension.
-        file.Name = std::filesystem::path(name).stem().string();
+        file.Name = std::filesystem::path(found.Name).stem().string();
+        file.InUserFolder = found.InUserFolder;
+        file.InGameFolder = found.InGameFolder;
 
         if (Multiplayer)
         {
