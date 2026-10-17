@@ -18,6 +18,7 @@ Bugs that have an impact on how the game *plays* may remain in the game, and are
     - [Sound](#sound)
     - [Multiplayer](#multiplayer)
     - [Files and Saves](#files-and-saves)
+    - [Mission Editor](#mission-editor)
   - [Bug Fixes](#bug-fixes)
     - [Crashes and Hangs](#crashes-and-hangs)
     - [Combat](#combat)
@@ -25,6 +26,7 @@ Bugs that have an impact on how the game *plays* may remain in the game, and are
     - [Mission Scripts](#mission-scripts)
     - [Multiplayer Fixes](#multiplayer-fixes)
     - [Graphics and Text](#graphics-and-text)
+    - [Mission Editor Fixes](#mission-editor-fixes)
   - [Known Issues](#known-issues)
     - [Turrets](#turrets)
     - [Units and Combat](#units-and-combat)
@@ -34,6 +36,7 @@ Bugs that have an impact on how the game *plays* may remain in the game, and are
     - [Sound Issues](#sound-issues)
     - [Multiplayer Issues](#multiplayer-issues)
     - [Mission Scripts (Modding)](#mission-scripts-modding)
+    - [Mission Editor Issues](#mission-editor-issues)
 
 ---
 
@@ -91,6 +94,21 @@ Bugs that have an impact on how the game *plays* may remain in the game, and are
   [README](README.md#running-the-game) for how the folder is found.
 - Saves, preferences and temporary files go to `%APPDATA%\MechCommander Redux\`, or to the folder given with `--user`.
 - Data files saved with Unix line endings load correctly, so edited files work.
+
+### Mission Editor
+
+- The Mission Editor from the MechCommander Gold CD is rebuilt as a native 64-bit program (`MCEditor.exe`) on current
+  MFC, in one file. It needs no MFC 4.2 DLLs, no Microsoft Jet or DAO database engine and no Visual Basic runtime, and
+  registers nothing with Windows. The original registered itself as an OLE automation server on every start, though
+  that server had nothing to call; the rebuild doesn't.
+- The mission script writer (the original's Visual Basic `FitAbl.dll`) is rebuilt into the editor and writes the same
+  `.FIT` and `.ABL` files.
+- The mission database is SQLite. The first time the editor opens it, it converts `Teditor\FitAbl.mdb` into
+  `FitAbl.db` next to it and uses that from then on; the `.mdb` is left untouched.
+- On its first run, the editor copies its own files (the `Teditor` folder and its six sounds) from the CD, a mounted
+  CD image or an old editor folder. Nothing on the CD is run, and nothing is written to the registry.
+- The editor finds the game in its own folder, or in the folder given with `--data`.
+- A crash writes a stack trace and `MCEditor.dmp` beside the exe instead of showing a dialog.
 
 ---
 
@@ -169,6 +187,42 @@ Bugs that have an impact on how the game *plays* may remain in the game, and are
 - Chat from an unknown player takes the first player's colour instead of crashing.
 - A mech icon part for a location without armor no longer divides by zero when it picks its colour. It shows red, as
   in the original.
+
+### Mission Editor Fixes
+
+- Loading the fade tables from `misc.fst` no longer overruns memory on every start.
+- Loading a mission no longer crashes on an objective that doesn't load, an objective with more than three script
+  rows, a unit or structure link whose object isn't on the map, an order that names a missing structure, or a mission
+  without a save file. A unit whose orders don't read keeps its default orders.
+- Changing an objective's value no longer leaves it pointing at freed memory.
+- Saving no longer crashes on a guard or destroy order without a structure, a kill or escort order without a unit, an
+  objective whose structure or unit is gone, or a Move to Area objective whose flag was erased.
+- Saving no longer quits the editor without a word when `Data\Savegame` is missing, or when a file for a distribution
+  file can't be opened. It also no longer writes to a path map or tactical map file that didn't open.
+- The multiplayer save no longer overruns memory with a long description.
+- Pressing a tool's key while dragging on the map no longer leaves the view using a deleted tool.
+- Changing a control structure's side no longer crashes when one of its linked buildings was erased.
+- Drawing or saving after the libraries failed to load no longer uses the freed map.
+- The Select Mission dialog no longer crashes on a preview picture that isn't 256 colours.
+- Mission names with accented characters no longer read outside the character tables.
+- A damaged tile, shape, FIT entry or order in the data no longer crashes the editor or reads past its buffers.
+- Objects near the map's edges no longer write outside the map, the tactical map picture or the mission marks
+  picture, and objects near the top and left edges are no longer drawn or hidden at random.
+- Long words in the editor's tables, `System.cfg` and the dispatch text, and a dispatch file shorter than 256 bytes,
+  no longer overrun memory.
+- The pathfinding maps no longer overrun memory on maps with more than 5000 doors or very long routes.
+- Packing very small or very large packets into save and distribution files no longer overruns memory.
+- A side with more than four objectives no longer overruns the objectives dialog.
+- Thinning a forest no longer reads freed memory, and a dock's overlay no longer comes from leftover memory.
+- Every template texture is looked up when the cell map is built. In the original, the first texture missing from
+  `Template.txt` broke every later lookup, so every template texture after it blocked all its cells. The cell maps now
+  match the ones shipped with the game, and building twice in one session gives the same result.
+- Saved files no longer carry stray memory: a map's `.fit` ends at `FITend`, the campaign file, `.sol` and `.mpk` end
+  with their text, and the unused parts of the `.gmm` path map are zeros.
+- The drop zone and objective marks are drawn on the logistics map picture. On Windows NT and later the original drew
+  garbage pixels instead.
+- More than six objectives no longer draw garbage marks, and marks near the picture's edges are clipped.
+- Fixed several memory, file and handle leaks.
 
 ---
 
@@ -275,3 +329,33 @@ These only matter when writing or editing mission scripts (ABL).
 - A camera block without `MinScrollSpeed` gets a `DistanceThreshold` of 90.
 - `getrepairstate` returns -2147483648 for a part that isn't a unit, or a unit with every location destroyed, so it
   passes any "below n%" test.
+
+### Mission Editor Issues
+
+These are in the original Mission Editor.
+
+- **Saving a mission with a prison stops with "Object required", and one with a structure that has salvage stops with
+  "Type mismatch".** So does a Guard Structure objective whose third parameter is "Yes".
+- Some objective actions and structures write `.ABL` files that don't compile: an action given a parameter it doesn't
+  know, a captureable Power Control, and a lookout point that uses neither a radius nor ABL.
+- Allied move objectives wait for the player's force or lance instead of the allied one.
+- In multiplayer scripts a Perimeter Alarm raises the general alarm twice, and its name is used as typed, so spaces or
+  punctuation in it break the script.
+- A secondary objective's success repeats its status line in the `.ABL`.
+- The saved map's highest and lowest points are swapped.
+- Every multiplayer save says the map is on Garotte, Port Arthur maps too.
+- Deleting a mission in the save dialog leaves it in the database, so it comes back in the list.
+- A map saved without mission data opens from the recent files list as the mission of the same name, or not at all.
+- Linking a structure that wasn't linked, taking rough off with the alternate button, and objects erased with an
+  overlay tool's alternate use can't be undone.
+- The right-click menu opens away from the cursor, by the view's distance from the screen's corner.
+- Double-clicking beside a unit opens its settings only when the unit is in the column to the right.
+- Ctrl+Shift+Tab turns the Map Features palette forward, not back.
+- The lower tool's alternate use is never allowed.
+- The goto, circle and patrol orders show the wrong description in the order dialog.
+- Transition tiles never pick their first variant when they have others.
+- Colours 233 to 245 ignore the gamma setting, and the brightest colours brighten to dark ones.
+- The hourglass cursor stays after a failed save.
+- Some error messages are empty: a mission file missing while writing a distribution file, or a path map file that
+  doesn't open.
+- **Help > Help Topics** doesn't open: the help file is Windows Help (`.hlp`), which Windows 10 and 11 can't show.

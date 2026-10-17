@@ -1311,22 +1311,21 @@ auto MCBattleMech::GetJumpPosition(int32_t jet) -> MCVector3D
 
     auto& actor = static_cast<MCMechActor&>(*Appearance);
     const int32_t frameNumber = actor.CurrentFrame[0];
-    const int32_t numFrames = static_cast<int32_t>(actor.GetNumFramesInGesture(0x14));
-    const int32_t index = numFrames * jet + frameNumber;
-    const std::span<const float> offsets = TypeAs<MCBattleMechType>().JumpData;
-    const float offsetX = offsets[index * 3];
-    const float offsetY = offsets[index * 3 + 1];
-    const float offsetZ = offsets[index * 3 + 2];
+    // OB-175: the jets' rows are the file's frames long, not the jump gesture's (one more).
+    const MCVector3D offset = TypeAs<MCBattleMechType>().JumpJetOffset(jet, frameNumber);
+    const float offsetX = offset.X;
+    const float offsetY = offset.Y;
+    const float offsetZ = offset.Z;
     const double facing = MCMoverMath::ExactFrameFacing(Frame);
     double s;
     double c;
     MCMoverMath::SnappedFacing(facing, s, c);
     MCVector3D base = Position;
 
-    if (const std::span<const float> heights = actor.FrameHeights(); !heights.empty())
+    if (!actor.FrameHeights().empty())
     {
         // Lifted along the mech's up axis by the jump's height this frame.
-        const float height = heights[frameNumber] * 30.0f;
+        const float height = actor.FrameHeight(frameNumber) * 30.0f;
         base.X = Frame.K.X * height + base.X;
         base.Y = base.Y + Frame.K.Y * height;
         base.Z = base.Z + height * Frame.K.Z;

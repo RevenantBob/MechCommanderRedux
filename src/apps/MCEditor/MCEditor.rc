@@ -1,0 +1,1202 @@
+// Microsoft Visual C++ generated resource script.
+// Decompiled from the original program by tools/re/res_extract.py.
+//
+#include "resource.h"
+
+#define APSTUDIO_READONLY_SYMBOLS
+#include "afxres.h"
+#undef APSTUDIO_READONLY_SYMBOLS
+
+#if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_ENU)
+LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
+#pragma code_page(65001)
+
+#ifdef APSTUDIO_INVOKED
+1 TEXTINCLUDE
+BEGIN
+    "resource.h\0"
+END
+
+2 TEXTINCLUDE
+BEGIN
+    "#include ""afxres.h""\r\n"
+    "\0"
+END
+
+3 TEXTINCLUDE
+BEGIN
+    "#include ""afxres.rc""\r\n"
+    "#include ""afxprint.rc""\r\n"
+    "\0"
+END
+#endif
+
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//
+// Icon
+//
+
+// Icon with lowest ID value placed first to ensure application icon
+// remains consistent on all systems.
+IDR_MAINFRAME                ICON "res\\mainframe.ico"
+IDI_MULTIPLAYER_MISSION      ICON "res\\icon_210.ico"
+IDI_SOLO_MISSION             ICON "res\\icon_211.ico"
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//
+// Bitmap
+//
+
+IDR_TOOLBAR                  BITMAP "res\\toolbar.bmp"  // 64x15, 4 bpp
+IDB_NOT_ALLOWED              BITMAP "res\\bitmap_147.bmp"  // 32x32, 8 bpp
+IDB_DRAG_VIEW_CURSOR         BITMAP "res\\bitmap_166.bmp"  // 32x32, 8 bpp
+IDB_SPLASH                   BITMAP "res\\splash.bmp"  // 500x330, 8 bpp
+IDB_CHOOSE_EDITOR            BITMAP "res\\choose_editor.bmp"  // 259x63, 8 bpp
+IDB_PICK_CURSOR              BITMAP "res\\bitmap_188.bmp"  // 32x32, 8 bpp
+IDB_LINK_CURSOR              BITMAP "res\\bitmap_189.bmp"  // 32x32, 8 bpp
+IDB_FLAG                     BITMAP "res\\bitmap_202.bmp"  // 32x32, 8 bpp
+IDB_DROP_ZONE_MARKS          BITMAP "res\\bitmap_203.bmp"  // 140x48, 8 bpp
+IDB_OBJECTIVE_MARKS          BITMAP "res\\bitmap_204.bmp"  // 84x128, 8 bpp
+IDB_STANDARD_TOOLBAR         BITMAP "res\\bitmap_218.bmp"  // 88x18, 8 bpp
+IDB_MAIN_TOOLBAR             BITMAP "res\\bitmap_220.bmp"  // 352x18, 8 bpp
+IDB_SELECT_CURSOR            BITMAP "res\\bitmap_228.bmp"  // 32x32, 8 bpp
+IDB_ZOOM_OUT_CURSOR          BITMAP "res\\bitmap_230.bmp"  // 32x32, 8 bpp
+IDB_ZOOM_IN_CURSOR           BITMAP "res\\bitmap_231.bmp"  // 32x32, 8 bpp
+IDB_ERASE_CURSOR             BITMAP "res\\bitmap_233.bmp"  // 32x32, 8 bpp
+IDB_SPRAY_TREES_CURSOR       BITMAP "res\\bitmap_234.bmp"  // 32x32, 8 bpp
+IDB_LOWER_CURSOR             BITMAP "res\\bitmap_235.bmp"  // 32x32, 8 bpp
+IDB_RAISE_CURSOR             BITMAP "res\\bitmap_236.bmp"  // 32x32, 8 bpp
+IDB_DAMAGE_CURSOR            BITMAP "res\\bitmap_237.bmp"  // 32x32, 8 bpp
+IDB_MAKE_HILLY_CURSOR        BITMAP "res\\bitmap_238.bmp"  // 32x32, 8 bpp
+IDB_FLATTEN_CURSOR           BITMAP "res\\bitmap_240.bmp"  // 32x32, 8 bpp
+IDB_UNLINK_CURSOR            BITMAP "res\\bitmap_241.bmp"  // 32x32, 8 bpp
+IDB_PAINT_CURSOR             BITMAP "res\\bitmap_242.bmp"  // 32x32, 8 bpp
+IDB_ROTATE_CURSOR            BITMAP "res\\bitmap_243.bmp"  // 32x32, 8 bpp
+IDB_REPAIR_CURSOR            BITMAP "res\\bitmap_245.bmp"  // 32x32, 8 bpp
+IDB_CTL3D_BUTTONS            BITMAP "res\\bitmap_26567.bmp"  // 70x39, 4 bpp
+IDB_CHECK_LIST_BOX           BITMAP "res\\bitmap_30995.bmp"  // 39x13, 4 bpp
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//
+// Toolbar
+//
+
+IDR_TOOLBAR TOOLBAR 16, 15
+BEGIN
+    BUTTON      ID_FILE_NEW
+    BUTTON      ID_FILE_OPEN
+    BUTTON      ID_FILE_SAVE
+    BUTTON      ID_QUICK_SAVE
+END
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//
+// Menu
+//
+
+IDR_MAINFRAME MENU
+BEGIN
+    POPUP "&File"
+    BEGIN
+        MENUITEM "&New...\tCtrl+N", ID_FILE_NEW
+        MENUITEM "&Open...\tCtrl+O", ID_FILE_OPEN
+        MENUITEM "&Save...\tCtrl+S", ID_FILE_SAVE
+        MENUITEM "Save &As...", ID_FILE_SAVE_AS
+        MENUITEM SEPARATOR
+        MENUITEM "&Write Distribution File (DPK)...", ID_FILE_WRITE_DISTRIBUTION_FILE_DPK
+        MENUITEM SEPARATOR
+        MENUITEM "Save &Map Only", ID_FILE_SAVE_MAP_ONLY
+        MENUITEM SEPARATOR
+        MENUITEM "E&xit", ID_APP_EXIT
+    END
+    POPUP "&Edit"
+    BEGIN
+        MENUITEM "&Undo\tCtrl+Z", ID_UNDO
+        MENUITEM "&Redo\tCtrl+Y", ID_REDO
+    END
+    POPUP "&View"
+    BEGIN
+        MENUITEM "&Tactical Map", ID_VIEW_TACTICAL_MAP
+        MENUITEM SEPARATOR
+        MENUITEM "Map Features &Palette", ID_VIEW_MAP_FEATURES_PALETTE
+        MENUITEM "&Main Toolbar", ID_VIEW_MAIN_TOOLBAR
+        MENUITEM "&Standard Toolbar", ID_VIEW_STANDARD_TOOLBAR
+        MENUITEM SEPARATOR
+        MENUITEM "&Gridlines", ID_VIEW_GRIDLINES
+        MENUITEM SEPARATOR
+        MENUITEM "Zoom &In\t+", ID_VIEW_ZOOM_IN
+        MENUITEM "Zoom &Out\t-", ID_VIEW_ZOOM_OUT
+    END
+    POPUP "&Mission"
+    BEGIN
+        MENUITEM "Objectives--Team &1", ID_MISSION_OBJECTIVES_TEAM_1
+        MENUITEM "Objectives--Team &2", ID_MISSION_OBJECTIVES_TEAM_2, HELP
+        MENUITEM SEPARATOR
+        MENUITEM "Descriptio&n", ID_MISSION_DESCRIPTION
+        MENUITEM SEPARATOR
+        MENUITEM "&Settings--Team 1", ID_MISSION_SETTINGS_TEAM_1
+        MENUITEM "Set&tings--Team 2", ID_MISSION_SETTINGS_TEAM_2
+        MENUITEM SEPARATOR
+        MENUITEM "&Drop Zones--Team 1", ID_MISSION_DROP_ZONES_TEAM_1
+        MENUITEM "Drop &Zones--Team 2", ID_MISSION_DROP_ZONES_TEAM_2
+    END
+    POPUP "&Tools"
+    BEGIN
+        MENUITEM "&Select", ID_TOOLS_SELECT
+        MENUITEM "Select &Area", ID_TOOLS_SELECT_AREA
+        MENUITEM "Dra&g View\tSpacebar", ID_TOOLS_DRAG_VIEW
+        MENUITEM "Zoom &In\t+", ID_TOOLS_ZOOM_IN
+        MENUITEM "&Zoom Out\t-", ID_TOOLS_ZOOM_OUT
+        MENUITEM "Spray &Trees\tT", ID_TOOLS_SPRAY_TREES
+        MENUITEM "&Erase\tE", ID_TOOLS_ERASE
+        MENUITEM "R&otate\tLeft Arrow", ID_TOOLS_ROTATE
+        MENUITEM "Raise &Vertex\tUp Arrow", ID_TOOLS_RAISE_VERTEX
+        MENUITEM "Lo&wer Vertex\tDown Arrow", ID_TOOLS_LOWER_VERTEX
+        MENUITEM "Make &Hilly\tH", ID_TOOLS_MAKE_HILLY
+        MENUITEM "&Flatten\tF", ID_TOOLS_FLATTEN
+        MENUITEM "&Link Buildings\tL", ID_TOOLS_LINK_BUILDINGS
+        MENUITEM "&Unlink Buildings\tU", ID_TOOLS_UNLINK_BUILDINGS
+        MENUITEM "&Damage\tD", ID_TOOLS_DAMAGE
+        MENUITEM "&Repair\tR", ID_TOOLS_REPAIR
+    END
+    POPUP "&Help"
+    BEGIN
+        MENUITEM "&Help Topics", ID_HELP
+        MENUITEM SEPARATOR
+        MENUITEM "&About Mission Editor", ID_APP_ABOUT
+    END
+END
+
+IDR_TEAM_MISSION_POPUP MENU
+BEGIN
+    POPUP "                                  "
+    BEGIN
+        MENUITEM "Objectives--Team &1", ID_MISSION_OBJECTIVES_TEAM_1
+        MENUITEM "Objectives--Team &2", ID_MISSION_OBJECTIVES_TEAM_2
+        MENUITEM "&Settings--Team 1", ID_MISSION_SETTINGS_TEAM_1
+        MENUITEM "Set&tings--Team 2", ID_MISSION_SETTINGS_TEAM_2
+        MENUITEM "&Drop Zones--Team 1", ID_MISSION_DROP_ZONES_TEAM_1
+        MENUITEM "Drop &Zones--Team 2", ID_MISSION_DROP_ZONES_TEAM_2
+        MENUITEM SEPARATOR
+        MENUITEM "&Help", ID_CONTEXT_HELP
+    END
+END
+
+IDR_MISSION_POPUP MENU
+BEGIN
+    POPUP " "
+    BEGIN
+        MENUITEM "&Objectives", ID_MISSION_OBJECTIVES_TEAM_1
+        MENUITEM "&Settings", ID_MISSION_SETTINGS_TEAM_1
+        MENUITEM "&Drop Zones", ID_MISSION_DROP_ZONES_TEAM_1
+        MENUITEM SEPARATOR
+        MENUITEM "&Help", ID_CONTEXT_HELP
+    END
+END
+
+IDR_BUILDING_POPUP MENU
+BEGIN
+    POPUP " "
+    BEGIN
+        MENUITEM "&Allied", ID_ALLIED
+        MENUITEM "&Enemy", ID_ENEMY
+        MENUITEM "&Neutral", ID_NEUTRAL
+        MENUITEM "&Rotate Building", ID_ROTATE_BUILDING
+        MENUITEM SEPARATOR
+        MENUITEM "&Help", ID_CONTEXT_HELP
+    END
+END
+
+IDR_TEAM_BUILDING_POPUP MENU
+BEGIN
+    POPUP " "
+    BEGIN
+        MENUITEM "Team &1", ID_ALLIED
+        MENUITEM "Team &2", ID_ENEMY
+        MENUITEM "&Neutral", ID_NEUTRAL
+        MENUITEM "&Rotate Building", ID_ROTATE_BUILDING
+        MENUITEM SEPARATOR
+        MENUITEM "&Help", ID_CONTEXT_HELP
+    END
+END
+
+IDR_UNIT_POPUP MENU
+BEGIN
+    POPUP " "
+    BEGIN
+        MENUITEM "&Unit Settings", ID_UNIT_SETTINGS
+        MENUITEM "&Rotate Unit", ID_ROTATE_BUILDING
+        MENUITEM SEPARATOR
+        MENUITEM "&Objectives", ID_MISSION_OBJECTIVES_TEAM_1
+        MENUITEM "&Settings", ID_MISSION_SETTINGS_TEAM_1
+        MENUITEM SEPARATOR
+        MENUITEM "&Help", ID_CONTEXT_HELP
+    END
+END
+
+IDR_SOLO_MISSION_MENU MENU
+BEGIN
+    MENUITEM "&Objectives", ID_MISSION_OBJECTIVES_TEAM_1
+    MENUITEM "&Settings", ID_MISSION_SETTINGS_TEAM_1
+    MENUITEM "&Drop Zones", ID_MISSION_DROP_ZONES_TEAM_1
+END
+
+IDR_MULTIPLAYER_MISSION_MENU MENU
+BEGIN
+    MENUITEM "Objectives--Team &1", ID_MISSION_OBJECTIVES_TEAM_1
+    MENUITEM "Objectives--Team &2", ID_MISSION_OBJECTIVES_TEAM_2, HELP
+    MENUITEM SEPARATOR
+    MENUITEM "Descriptio&n", ID_MISSION_DESCRIPTION
+    MENUITEM SEPARATOR
+    MENUITEM "&Settings--Team 1", ID_MISSION_SETTINGS_TEAM_1
+    MENUITEM "Set&tings--Team 2", ID_MISSION_SETTINGS_TEAM_2
+    MENUITEM SEPARATOR
+    MENUITEM "&Drop Zones--Team 1", ID_MISSION_DROP_ZONES_TEAM_1
+    MENUITEM "Drop &Zones--Team 2", ID_MISSION_DROP_ZONES_TEAM_2
+END
+
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//
+// Accelerator
+//
+
+IDR_MAINFRAME ACCELERATORS
+BEGIN
+    "+",           ID_VIEW_ZOOM_IN,                 ASCII, NOINVERT
+    "-",           ID_VIEW_ZOOM_OUT,                ASCII, NOINVERT
+    "0",           ID_OVERLAY_ROCKS,                VIRTKEY, NOINVERT, SHIFT
+    "1",           ID_TERRAIN_DIRT,                 ASCII, NOINVERT
+    "1",           ID_OVERLAY_FOREST,               VIRTKEY, NOINVERT, SHIFT
+    "2",           ID_TERRAIN_GRASS,                ASCII, NOINVERT
+    "2",           ID_OVERLAY_REGULAR_WALL,         VIRTKEY, NOINVERT, SHIFT
+    "3",           ID_TERRAIN_ROUGH_GRASS,          ASCII, NOINVERT
+    "3",           ID_OVERLAY_RUNWAY,               VIRTKEY, NOINVERT, SHIFT
+    "4",           ID_TERRAIN_MOUNTAIN,             ASCII, NOINVERT
+    "4",           ID_OVERLAY_WOODEN_WALL,          VIRTKEY, NOINVERT, SHIFT
+    "5",           ID_TERRAIN_CLIFFS,               ASCII, NOINVERT
+    "5",           ID_OVERLAY_RAILROAD_BRIDGE,      VIRTKEY, NOINVERT, SHIFT
+    "6",           ID_TERRAIN_WATER,                ASCII, NOINVERT
+    "6",           ID_OVERLAY_PAVED_ROAD,           VIRTKEY, NOINVERT, SHIFT
+    "7",           ID_TERRAIN_CONCRETE,             ASCII, NOINVERT
+    "7",           ID_OVERLAY_DIRT_ROAD,            VIRTKEY, NOINVERT, SHIFT
+    "8",           ID_TERRAIN_CROPS,                ASCII, NOINVERT
+    "8",           ID_OVERLAY_BRIDGE,               VIRTKEY, NOINVERT, SHIFT
+    "9",           ID_OVERLAY_RAILROAD,             VIRTKEY, NOINVERT, SHIFT
+    "C",           ID_EDIT_COPY,                    VIRTKEY, NOINVERT, CONTROL
+    "D",           ID_TOOLS_DAMAGE,                 VIRTKEY, NOINVERT
+    "E",           ID_TOOLS_ERASE,                  VIRTKEY, NOINVERT
+    "F",           ID_TOOLS_FLATTEN,                VIRTKEY, NOINVERT
+    "G",           ID_VIEW_GRIDLINES,               VIRTKEY, NOINVERT
+    "H",           ID_TOOLS_MAKE_HILLY,             VIRTKEY, NOINVERT
+    "L",           ID_TOOLS_LINK_BUILDINGS,         VIRTKEY, NOINVERT
+    "N",           ID_FILE_NEW,                     VIRTKEY, NOINVERT, CONTROL
+    "O",           ID_FILE_OPEN,                    VIRTKEY, NOINVERT, CONTROL
+    "R",           ID_TOOLS_REPAIR,                 VIRTKEY, NOINVERT
+    "S",           ID_KEY_S,                        VIRTKEY, NOINVERT
+    "S",           ID_FILE_SAVE,                    VIRTKEY, NOINVERT, CONTROL
+    "T",           ID_TOOLS_SPRAY_TREES,            VIRTKEY, NOINVERT
+    "U",           ID_TOOLS_UNLINK_BUILDINGS,       VIRTKEY, NOINVERT
+    "V",           ID_EDIT_PASTE,                   VIRTKEY, NOINVERT, CONTROL
+    VK_ADD,        ID_VIEW_ZOOM_IN,                 VIRTKEY, NOINVERT
+    VK_BACK,       ID_TOOLS_ERASE,                  VIRTKEY, NOINVERT
+    VK_BACK,       ID_UNDO,                         VIRTKEY, NOINVERT, ALT
+    VK_DELETE,     ID_TOOLS_ERASE,                  VIRTKEY, NOINVERT
+    VK_DELETE,     ID_EDIT_CUT,                     VIRTKEY, NOINVERT, SHIFT
+    VK_DOWN,       ID_LOWER,                        VIRTKEY, NOINVERT
+    VK_ESCAPE,     ID_KEY_ESCAPE,                   VIRTKEY, NOINVERT
+    VK_F1,         ID_HELP,                         VIRTKEY, NOINVERT
+    VK_F1,         ID_CONTEXT_HELP,                 VIRTKEY, NOINVERT, SHIFT
+    VK_F10,        ID_KEY_F10,                      VIRTKEY, NOINVERT
+    VK_F6,         ID_PREV_PANE,                    VIRTKEY, NOINVERT, SHIFT
+    VK_INSERT,     ID_EDIT_COPY,                    VIRTKEY, NOINVERT, CONTROL
+    VK_INSERT,     ID_EDIT_PASTE,                   VIRTKEY, NOINVERT, SHIFT
+    VK_LEFT,       ID_PREVIOUS_FRAME,               VIRTKEY, NOINVERT
+    VK_RETURN,     ID_KEY_ENTER,                    VIRTKEY, NOINVERT
+    VK_RIGHT,      ID_NEXT_FRAME,                   VIRTKEY, NOINVERT
+    VK_SPACE,      ID_TOOLS_DRAG_VIEW,              VIRTKEY, NOINVERT
+    VK_SUBTRACT,   ID_VIEW_ZOOM_OUT,                VIRTKEY, NOINVERT
+    VK_UP,         ID_RAISE,                        VIRTKEY, NOINVERT
+    "X",           ID_EDIT_CUT,                     VIRTKEY, NOINVERT, CONTROL
+    "Y",           ID_REDO,                         VIRTKEY, NOINVERT, CONTROL
+    "Z",           ID_UNDO,                         VIRTKEY, NOINVERT, CONTROL
+    "_",           ID_OVERLAY_HEAVY_WALL,           ASCII, NOINVERT
+END
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//
+// Dialog
+//
+
+IDD_ABOUTBOX DIALOG 0, 0, 217, 55
+STYLE DS_MODALFRAME | WS_POPUP | WS_SYSMENU
+CAPTION "About MechCommander Mission Editor"
+FONT 8, "MS Sans Serif"
+BEGIN
+    CONTROL IDR_MAINFRAME, IDC_STATIC, "Static", SS_ICON, 11, 17, 20, 20
+    CONTROL "Version\t\t02.99.07.26.01", IDC_STATIC, "Static", SS_LEFT | SS_NOPREFIX | SS_CENTERIMAGE | WS_GROUP, 40, 10, 119, 8
+    CONTROL "Copyright (C) 1999", IDC_STATIC, "Static", SS_LEFT | WS_GROUP, 40, 36, 119, 8
+    CONTROL "OK", IDOK, "Button", BS_DEFPUSHBUTTON | WS_GROUP | WS_TABSTOP, 178, 8, 32, 14
+    CONTROL "FitAbl Version\t02.99.04.2801", IDC_STATIC, "Static", SS_LEFT | SS_NOPREFIX | SS_CENTERIMAGE | WS_GROUP, 40, 21, 119, 8
+END
+
+IDD_PLAYER_BRIEFING_DIALOG DIALOGEX 0, 0, 185, 213
+STYLE DS_MODALFRAME | WS_POPUP | WS_SYSMENU
+EXSTYLE WS_EX_APPWINDOW
+CAPTION "Player Briefing"
+FONT 8, "MS Sans Serif", 0, 0, 0x1
+BEGIN
+    CONTROL "&Mission Title:", IDC_MISSION_TITLE_LABEL, "Static", SS_LEFT | WS_GROUP, 7, 3, 171, 10
+    CONTROL "", IDC_MISSION_TITLE, "Edit", ES_LEFT | ES_AUTOHSCROLL | WS_BORDER | WS_TABSTOP, 7, 13, 171, 12
+    CONTROL "&Objectives:", IDC_OBJECTIVES_LABEL, "Static", SS_LEFT | WS_GROUP, 7, 27, 171, 10
+    CONTROL "", IDC_OBJECTIVES, "Edit", ES_LEFT | ES_MULTILINE | ES_WANTRETURN | WS_BORDER | WS_VSCROLL | WS_TABSTOP, 7, 37, 171, 24
+    CONTROL "&Description:", IDC_DESCRIPTION_LABEL, "Static", SS_LEFT | WS_GROUP, 7, 65, 171, 10
+    CONTROL "", IDC_DESCRIPTION, "Edit", ES_LEFT | ES_MULTILINE | ES_WANTRETURN | WS_BORDER | WS_VSCROLL | WS_TABSTOP, 7, 75, 171, 59
+    CONTROL "Tactical &Warnings:", IDC_TACTICAL_WARNINGS_LABEL, "Static", SS_LEFT | WS_GROUP, 7, 136, 84, 10
+    CONTROL "", IDC_TACTICAL_WARNINGS, "Edit", ES_LEFT | ES_MULTILINE | ES_WANTRETURN | WS_BORDER | WS_VSCROLL | WS_TABSTOP, 7, 146, 79, 40
+    CONTROL "Tactical &Notices:", IDC_TACTICAL_NOTICES_LABEL, "Static", SS_LEFT | WS_GROUP, 92, 136, 84, 10
+    CONTROL "", IDC_TACTICAL_NOTICES, "Edit", ES_LEFT | ES_MULTILINE | ES_WANTRETURN | WS_BORDER | WS_VSCROLL | WS_TABSTOP, 92, 146, 86, 40
+    CONTROL "OK", IDOK, "Button", BS_DEFPUSHBUTTON | WS_TABSTOP, 35, 192, 50, 14
+    CONTROL "Cancel", IDCANCEL, "Button", BS_PUSHBUTTON | WS_TABSTOP, 93, 192, 50, 14
+END
+
+IDD_SET_HEIGHT_DIALOG DIALOG 0, 0, 156, 50
+STYLE DS_MODALFRAME | WS_POPUP | WS_SYSMENU
+CAPTION "Set Height"
+FONT 8, "MS Sans Serif"
+BEGIN
+    CONTROL "", IDC_HEIGHT, "Edit", ES_LEFT | ES_AUTOHSCROLL | WS_BORDER | WS_TABSTOP, 36, 5, 25, 12
+    CONTROL "&Height", IDC_STATIC, "Static", SS_LEFT | WS_GROUP, 68, 6, 67, 10
+    CONTROL "OK", IDOK, "Button", BS_DEFPUSHBUTTON | WS_TABSTOP, 9, 27, 40, 14
+    CONTROL "Cancel", IDCANCEL, "Button", BS_PUSHBUTTON | WS_TABSTOP, 57, 27, 40, 14
+    CONTROL "&Apply", IDC_APPLY, "Button", BS_PUSHBUTTON | WS_TABSTOP, 105, 27, 40, 14
+END
+
+IDD_NEW_MAP_DIALOG DIALOG 0, 0, 142, 173
+STYLE DS_MODALFRAME | WS_POPUP | WS_SYSMENU
+CAPTION "New Map"
+FONT 8, "MS Sans Serif"
+BEGIN
+    CONTROL "Locale", IDC_STATIC, "Button", BS_GROUPBOX, 7, 0, 128, 27
+    CONTROL "&Port Arthur", IDC_PORT_ARTHUR, "Button", BS_AUTORADIOBUTTON | WS_GROUP, 21, 13, 53, 8
+    CONTROL "&Cermak", IDC_CERMAK, "Button", BS_AUTORADIOBUTTON, 84, 13, 39, 10
+    CONTROL "Terrain", IDC_STATIC, "Button", BS_GROUPBOX, 7, 29, 128, 23
+    CONTROL "&Grass", IDC_GRASS, "Button", BS_AUTORADIOBUTTON | WS_GROUP, 24, 39, 38, 10
+    CONTROL "&Dirt", IDC_DIRT, "Button", BS_AUTORADIOBUTTON, 83, 39, 30, 10
+    CONTROL "&Water Coverage", IDC_STATIC, "Button", BS_GROUPBOX, 7, 54, 128, 27
+    CONTROL "Slider1", IDC_WATER_COVERAGE, "msctls_trackbar32", TBS_HORZ | TBS_BOTH | TBS_NOTICKS | TBS_ENABLESELRANGE | WS_TABSTOP, 17, 66, 109, 13
+    CONTROL "&Forest Coverage", IDC_STATIC, "Button", BS_GROUPBOX, 7, 83, 128, 27
+    CONTROL "Slider1", IDC_FOREST_COVERAGE, "msctls_trackbar32", TBS_HORZ | TBS_BOTH | TBS_NOTICKS | TBS_ENABLESELRANGE | WS_TABSTOP, 17, 94, 109, 13
+    CONTROL "&Hill Coverage", IDC_STATIC, "Button", BS_GROUPBOX, 7, 113, 128, 27
+    CONTROL "Slider1", IDC_HILL_COVERAGE, "msctls_trackbar32", TBS_HORZ | TBS_BOTH | TBS_NOTICKS | TBS_ENABLESELRANGE | WS_TABSTOP, 17, 124, 109, 13
+    CONTROL "OK", IDOK, "Button", BS_DEFPUSHBUTTON | WS_TABSTOP, 17, 148, 40, 14
+    CONTROL "Cancel", IDCANCEL, "Button", BS_PUSHBUTTON | WS_TABSTOP, 84, 148, 40, 14
+END
+
+IDD_CHOOSE_EDITOR_DIALOG DIALOG 0, 0, 144, 148
+STYLE WS_POPUP | WS_BORDER
+FONT 12, "MS Sans Serif"
+BEGIN
+    CONTROL "&Multiplayer Mission Editor", IDC_MULTIPLAYER_MISSION_EDITOR, "Button", BS_PUSHBUTTON | WS_TABSTOP, 26, 57, 90, 19
+    CONTROL "&Solo Mission Editor", IDC_SOLO_MISSION_EDITOR, "Button", BS_PUSHBUTTON | WS_TABSTOP, 26, 84, 90, 19
+    CONTROL "Cancel", IDCANCEL, "Button", BS_PUSHBUTTON | WS_TABSTOP, 27, 111, 90, 19
+    CONTROL "", IDC_STATIC, "Button", BS_GROUPBOX, 7, 41, 130, 101
+    CONTROL IDB_CHOOSE_EDITOR, IDC_STATIC, "Static", SS_BITMAP, 15, 9, 115, 25
+END
+
+IDD_SELECT_MISSION_DIALOG DIALOG 0, 0, 245, 127
+STYLE DS_MODALFRAME | WS_POPUP | WS_SYSMENU
+CAPTION "Select Mission"
+FONT 8, "MS Sans Serif"
+BEGIN
+    CONTROL "List1", IDC_MISSION_LIST, "SysListView32", LVS_LIST | LVS_SINGLESEL | LVS_SORTASCENDING | LVS_ALIGNLEFT | WS_BORDER | WS_TABSTOP, 7, 7, 116, 113
+    CONTROL "OK", IDOK, "Button", BS_DEFPUSHBUTTON | WS_TABSTOP, 129, 106, 32, 14
+    CONTROL "Cancel", IDCANCEL, "Button", BS_PUSHBUTTON | WS_TABSTOP, 207, 106, 32, 14
+    CONTROL "", IDC_MISSION_PREVIEW, "Static", SS_BLACKFRAME, 134, 7, 104, 86
+    CONTROL "&Delete", IDC_DELETE, "Button", BS_PUSHBUTTON | WS_TABSTOP, 168, 106, 32, 14
+END
+
+IDD_SAVE_DIALOG DIALOGEX 0, 0, 222, 137
+STYLE DS_MODALFRAME | WS_POPUP | WS_SYSMENU
+CAPTION "Save"
+FONT 8, "MS Sans Serif", 0, 0, 0x1
+BEGIN
+    CONTROL "Map &Name:", IDC_STATIC, "Static", SS_LEFT | WS_GROUP, 21, 93, 37, 13
+    CONTROL "", IDC_MAP_NAME, "Edit", ES_LEFT | ES_AUTOHSCROLL | WS_BORDER | WS_TABSTOP, 65, 91, 74, 14
+    CONTROL "OK", IDOK, "Button", BS_DEFPUSHBUTTON | WS_TABSTOP, 161, 89, 40, 14
+    CONTROL "Cancel", IDCANCEL, "Button", BS_PUSHBUTTON | WS_TABSTOP, 162, 106, 40, 14
+    CONTROL "List2", IDC_SAVE_FILES, "SysListView32", LVS_LIST | LVS_SINGLESEL | LVS_SORTASCENDING | WS_BORDER | WS_TABSTOP, 19, 7, 185, 74, WS_EX_CLIENTEDGE
+END
+
+IDD_OBJECTIVES_TEAM_DIALOG DIALOGEX 0, 0, 475, 191
+STYLE DS_MODALFRAME | WS_POPUP | WS_SYSMENU
+CAPTION "Objectives--Team"
+FONT 8, "MS Sans Serif", 0, 0, 0x1
+BEGIN
+    CONTROL "OK", IDOK, "Button", BS_DEFPUSHBUTTON | WS_TABSTOP, 172, 170, 50, 14
+    CONTROL "Cancel", IDCANCEL, "Button", BS_PUSHBUTTON | WS_TABSTOP, 236, 170, 50, 14
+    CONTROL "Objective", IDC_OBJECTIVE_LABEL, "Static", SS_LEFT | WS_GROUP, 24, 19, 31, 8
+    CONTROL "Parameters", IDC_STATIC, "Static", SS_LEFT | WS_GROUP, 315, 19, 36, 8
+    CONTROL "", IDC_STATIC, "Static", SS_GRAYFRAME, 7, 7, 461, 153, WS_EX_CLIENTEDGE
+    CONTROL "", IDC_OBJECTIVE, "Static", SS_ETCHEDHORZ, 13, 28, 448, 1, WS_EX_CLIENTEDGE
+    CONTROL "Description", IDC_STATIC, "Static", SS_LEFT | WS_GROUP, 99, 19, 36, 8
+END
+
+IDD_OBJECTIVE_ROW_DIALOG DIALOGEX 0, 0, 445, 27
+STYLE WS_CHILD
+EXSTYLE WS_EX_TRANSPARENT
+FONT 8, "MS Sans Serif", 0, 0, 0x1
+BEGIN
+    CONTROL "", IDC_OBJECTIVE_KIND, "ComboBox", CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP, 0, 10, 73, 119
+    CONTROL "Marker", IDC_MARKER, "Button", BS_AUTOCHECKBOX | WS_TABSTOP, 155, 9, 38, 8
+    CONTROL "Static", IDC_OBJECTIVE_FIELDS, "Static", SS_LEFT | WS_GROUP | NOT WS_VISIBLE, 232, 9, 213, 13
+    CONTROL "", IDC_OBJECTIVE_DESCRIPTION, "Edit", ES_LEFT | ES_AUTOHSCROLL | WS_BORDER | WS_TABSTOP, 80, 10, 72, 12
+    CONTROL "Complete Previous", IDC_COMPLETE_PREVIOUS, "Button", BS_AUTOCHECKBOX | WS_TABSTOP, 155, 18, 75, 8
+    CONTROL "Primary", IDC_PRIMARY, "Button", BS_AUTOCHECKBOX | WS_TABSTOP, 155, 0, 39, 8
+END
+
+IDD_OBJECTIVE_AREA_DIALOG DIALOGEX 0, 0, 206, 18
+STYLE WS_CHILD
+FONT 8, "MS Sans Serif", 0, 0, 0x1
+BEGIN
+    CONTROL "...", IDC_OBJECTIVE_AREA_PICK, "Button", BS_PUSHBUTTON | WS_TABSTOP, 56, 0, 17, 13, WS_EX_STATICEDGE
+    CONTROL "Enemies Allowed in Area", IDC_ENEMIES_ALLOWED_IN_AREA, "Button", BS_AUTOCHECKBOX | WS_TABSTOP, 85, 3, 94, 10
+    CONTROL "", IDC_OBJECTIVE_AREA_TEXT, "Edit", ES_LEFT | ES_AUTOHSCROLL | ES_READONLY | WS_BORDER | WS_TABSTOP, 3, 0, 53, 12, WS_EX_TRANSPARENT
+END
+
+IDD_MISSION_DESCRIPTION_DIALOG DIALOG 0, 0, 186, 104
+STYLE DS_MODALFRAME | WS_POPUP | WS_SYSMENU
+CAPTION "Mission Description"
+FONT 9, "Arial Narrow"
+BEGIN
+    CONTROL "OK", IDOK, "Button", BS_DEFPUSHBUTTON | WS_TABSTOP, 40, 83, 50, 14
+    CONTROL "Cancel", IDCANCEL, "Button", BS_PUSHBUTTON | WS_TABSTOP, 104, 83, 50, 14
+    CONTROL "", IDC_MISSION_DESCRIPTION_TEXT, "Edit", ES_LEFT | ES_MULTILINE | ES_WANTRETURN | WS_BORDER | WS_TABSTOP, 10, 7, 164, 68
+END
+
+IDD_UNIT_SETTINGS_DIALOG DIALOG 0, 0, 276, 223
+STYLE DS_MODALFRAME | WS_POPUP | WS_SYSMENU
+CAPTION "Unit Settings"
+FONT 8, "MS Sans Serif"
+BEGIN
+    CONTROL "Alignment", IDC_STATIC, "Button", BS_GROUPBOX, 7, 4, 128, 27
+    CONTROL "&Allied", IDC_ALLIED, "Button", BS_AUTORADIOBUTTON | WS_GROUP, 25, 17, 33, 10
+    CONTROL "&Enemy", IDC_ENEMY, "Button", BS_AUTORADIOBUTTON, 74, 17, 37, 10
+    CONTROL "Variant", IDC_STATIC, "Button", BS_GROUPBOX, 139, 4, 128, 27
+    CONTROL "A", IDC_VARIANT_A, "Button", BS_AUTORADIOBUTTON | WS_GROUP, 160, 17, 21, 10
+    CONTROL "W", IDC_VARIANT_W, "Button", BS_AUTORADIOBUTTON, 193, 17, 23, 10
+    CONTROL "J", IDC_VARIANT_J, "Button", BS_AUTORADIOBUTTON, 228, 17, 19, 10
+    CONTROL "", IDC_PAINT_SCHEME, "ComboBox", CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP, 20, 46, 99, 77
+    CONTROL "Color", IDC_STATIC, "Button", BS_GROUPBOX, 8, 34, 128, 30
+    CONTROL "", IDC_PILOT, "ComboBox", CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP, 155, 46, 96, 82
+    CONTROL "", IDC_ORDERS, "ComboBox", CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP, 16, 82, 66, 57
+    CONTROL "OK", IDOK, "Button", BS_DEFPUSHBUTTON | WS_TABSTOP, 77, 202, 50, 14
+    CONTROL "Cancel", IDCANCEL, "Button", BS_PUSHBUTTON | WS_TABSTOP, 137, 202, 50, 14
+    CONTROL "Pilot", IDC_STATIC, "Button", BS_GROUPBOX, 139, 34, 128, 30
+    CONTROL "Orders", IDC_STATIC, "Button", BS_GROUPBOX, 7, 65, 262, 130
+    CONTROL "Here goes a long winded description", IDC_UNIT_DESCRIPTION, "Static", SS_LEFT | WS_GROUP, 83, 72, 176, 49
+    CONTROL "Parameters", IDC_PARAMETERS, "Button", BS_GROUPBOX, 12, 120, 252, 71
+END
+
+IDD_UNIT_ORDERS_DIALOG DIALOGEX 0, 0, 253, 60
+STYLE WS_CHILD | WS_VISIBLE
+EXSTYLE WS_EX_TRANSPARENT
+FONT 8, "MS Sans Serif", 0, 0, 0x1
+BEGIN
+    CONTROL "", IDC_ENGAGE_RADIUS, "ComboBox", CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP, 12, 14, 70, 42
+    CONTROL "Engage Radius", IDC_ENGAGE_RADIUS_LABEL, "Static", SS_LEFT | SS_CENTERIMAGE | WS_GROUP, 13, 4, 50, 9
+    CONTROL "Move Speed", IDC_MOVE_SPEED_LABEL, "Static", SS_LEFT | WS_GROUP, 172, 5, 42, 8
+    CONTROL "", IDC_TACTIC, "ComboBox", CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP, 91, 14, 70, 66
+    CONTROL "Tactic", IDC_TACTIC_LABEL, "Static", SS_LEFT | WS_GROUP, 93, 5, 21, 8
+    CONTROL "", IDC_MOVE_SPEED, "ComboBox", CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP, 170, 14, 70, 35
+END
+
+IDD_BROWSE_FIELD_DIALOG DIALOGEX 0, 0, 70, 18
+STYLE WS_CHILD
+FONT 8, "MS Sans Serif", 0, 0, 0x1
+BEGIN
+    CONTROL "Static", IDC_BROWSE_FIELD_TEXT, "Static", SS_SIMPLE | SS_CENTERIMAGE | WS_GROUP, 0, 0, 57, 12, WS_EX_TRANSPARENT | WS_EX_CLIENTEDGE
+    CONTROL "...", IDC_BROWSE_FIELD_PICK, "Button", BS_PUSHBUTTON | WS_TABSTOP, 40, 0, 17, 12, WS_EX_CLIENTEDGE
+END
+
+IDD_SPLASH_DIALOG DIALOG 0, 0, 405, 265
+STYLE DS_3DLOOK | WS_POPUP | WS_BORDER
+FONT 8, "MS Sans Serif"
+BEGIN
+END
+
+IDD_SOLO_MISSION_EDITOR_DIALOG DIALOG 0, 0, 138, 93
+STYLE DS_MODALFRAME | WS_POPUP | WS_SYSMENU
+CAPTION "Solo Mission Editor"
+FONT 12, "MS Sans Serif"
+BEGIN
+    CONTROL "&New Mission", IDC_NEW_MISSION, "Button", BS_DEFPUSHBUTTON | WS_TABSTOP, 31, 17, 78, 14
+    CONTROL "&Edit Mission", IDC_EDIT_MISSION, "Button", BS_PUSHBUTTON | WS_TABSTOP, 31, 39, 78, 14
+    CONTROL "Cancel", IDCANCEL, "Button", BS_PUSHBUTTON | WS_TABSTOP, 31, 61, 78, 14
+    CONTROL "", IDC_STATIC, "Button", BS_GROUPBOX, 7, 4, 124, 79
+END
+
+IDD_MULTIPLAYER_MISSION_EDITOR_DIALOG DIALOG 0, 0, 138, 93
+STYLE DS_MODALFRAME | WS_POPUP | WS_SYSMENU
+CAPTION "Multiplayer Mission Editor"
+FONT 12, "MS Sans Serif"
+BEGIN
+    CONTROL "&New Mission", IDC_NEW_MISSION, "Button", BS_DEFPUSHBUTTON | WS_TABSTOP, 31, 18, 78, 14
+    CONTROL "&Edit Mission", IDC_EDIT_MISSION, "Button", BS_PUSHBUTTON | WS_TABSTOP, 31, 40, 78, 14
+    CONTROL "Cancel", IDCANCEL, "Button", BS_PUSHBUTTON | WS_TABSTOP, 31, 62, 78, 14
+    CONTROL "", IDC_STATIC, "Button", BS_GROUPBOX, 7, 4, 124, 79
+END
+
+IDD_OPEN_DIALOG DIALOG 0, 0, 144, 95
+STYLE DS_MODALFRAME | WS_POPUP | WS_SYSMENU
+CAPTION "Open"
+FONT 12, "MS Sans Serif"
+BEGIN
+    CONTROL "Load &Map with Mission Data", IDC_LOAD_MAP_WITH_MISSION_DATA, "Button", BS_DEFPUSHBUTTON | WS_TABSTOP, 22, 20, 99, 14
+    CONTROL "Load Map &Only", IDC_LOAD_MAP_ONLY, "Button", BS_PUSHBUTTON | WS_TABSTOP, 22, 42, 99, 14
+    CONTROL "&Cancel", IDCANCEL, "Button", BS_PUSHBUTTON | WS_TABSTOP, 22, 64, 99, 14
+    CONTROL "", IDC_STATIC, "Button", BS_GROUPBOX, 7, 6, 132, 82
+END
+
+IDD_SETTINGS_PLAYER_DIALOG DIALOG 0, 0, 256, 151
+STYLE DS_MODALFRAME | WS_POPUP | WS_SYSMENU
+CAPTION "Settings Player"
+FONT 8, "MS Sans Serif"
+BEGIN
+    CONTROL "&Small Artillery:", IDC_STATIC, "Static", SS_LEFT | WS_GROUP, 23, 22, 44, 8
+    CONTROL "", IDC_SMALL_ARTILLERY, "Edit", ES_LEFT | ES_AUTOHSCROLL | WS_BORDER | WS_TABSTOP, 78, 21, 38, 12
+    CONTROL "Sensor &Probes:", IDC_STATIC, "Static", SS_LEFT | WS_GROUP, 23, 43, 49, 8
+    CONTROL "", IDC_SENSOR_PROBES, "Edit", ES_LEFT | ES_AUTOHSCROLL | WS_BORDER | WS_TABSTOP, 78, 42, 38, 12
+    CONTROL "Ti&me Limit (min):", IDC_TIME_LIMIT_MIN_LABEL, "Static", SS_LEFT | WS_GROUP, 23, 65, 51, 8
+    CONTROL "", IDC_TIME_LIMIT_MIN, "Edit", ES_LEFT | ES_AUTOHSCROLL | WS_BORDER | WS_TABSTOP, 78, 63, 38, 12
+    CONTROL "Camera &Drones:", IDC_CAMERA_DRONES_LABEL, "Static", SS_LEFT | WS_GROUP, 23, 86, 52, 8
+    CONTROL "", IDC_CAMERA_DRONES, "Edit", ES_LEFT | ES_AUTOHSCROLL | WS_BORDER | WS_TABSTOP, 78, 84, 38, 12
+    CONTROL "&Large Artillery:", IDC_STATIC, "Static", SS_LEFT | WS_GROUP, 134, 23, 46, 8
+    CONTROL "", IDC_LARGE_ARTILLERY, "Edit", ES_LEFT | ES_AUTOHSCROLL | WS_BORDER | WS_TABSTOP, 194, 21, 38, 12
+    CONTROL "&Resource Points:", IDC_STATIC, "Static", SS_LEFT | WS_GROUP, 134, 44, 55, 8
+    CONTROL "", IDC_RESOURCE_POINTS, "Edit", ES_LEFT | ES_AUTOHSCROLL | WS_BORDER | WS_TABSTOP, 194, 42, 38, 12
+    CONTROL "Drop &Weight:", IDC_STATIC, "Static", SS_LEFT | WS_GROUP, 134, 65, 42, 8
+    CONTROL "", IDC_DROP_WEIGHT, "Edit", ES_LEFT | ES_AUTOHSCROLL | WS_BORDER | WS_TABSTOP, 194, 63, 38, 12
+    CONTROL "Technology Base:", IDC_TECHNOLOGY_BASE, "Static", SS_LEFT | WS_GROUP, 134, 86, 58, 8
+    CONTROL "&IS", IDC_IS, "Button", BS_AUTORADIOBUTTON | BS_LEFTTEXT | WS_GROUP, 204, 80, 23, 10
+    CONTROL "&Clan", IDC_CLAN, "Button", BS_AUTORADIOBUTTON | BS_LEFTTEXT, 197, 90, 30, 10
+    CONTROL "Player &Briefing...", IDC_PLAYER_BRIEFING, "Button", BS_PUSHBUTTON | WS_TABSTOP, 165, 122, 84, 17
+    CONTROL "OK", IDOK, "Button", BS_DEFPUSHBUTTON | WS_TABSTOP, 7, 124, 50, 14
+    CONTROL "Cancel", IDCANCEL, "Button", BS_PUSHBUTTON | WS_TABSTOP, 68, 124, 50, 14
+    CONTROL "Parameters", IDC_STATIC, "Button", BS_GROUPBOX, 7, 3, 242, 112
+END
+
+IDD_ERROR_DIALOG DIALOGEX 0, 0, 170, 57
+STYLE DS_SYSMODAL | DS_MODALFRAME | DS_SETFOREGROUND | WS_POPUP | WS_VISIBLE | WS_SYSMENU
+EXSTYLE WS_EX_TOOLWINDOW
+CAPTION "MCEditor"
+FONT 8, "MS Sans Serif", 0, 0, 0x1
+BEGIN
+    CONTROL "OK", IDOK, "Button", BS_DEFPUSHBUTTON | WS_TABSTOP, 60, 36, 50, 14
+    CONTROL "Error String goes here", IDC_ERROR_TEXT, "Static", SS_CENTER | WS_GROUP, 7, 13, 156, 16
+END
+
+IDD_TACTICAL_MAP_DIALOG DIALOGEX 0, 0, 186, 95
+STYLE DS_MODALFRAME | WS_POPUP | WS_SYSMENU
+EXSTYLE WS_EX_TOOLWINDOW
+CAPTION "Tactical Map"
+FONT 8, "MS Sans Serif", 0, 0, 0x1
+BEGIN
+END
+
+IDD_YES_NO_DIALOG DIALOGEX 0, 0, 170, 57
+STYLE DS_SYSMODAL | DS_MODALFRAME | DS_SETFOREGROUND | WS_VISIBLE
+EXSTYLE WS_EX_TOOLWINDOW
+CAPTION "MCEditor"
+FONT 8, "MS Sans Serif", 0, 0, 0x1
+BEGIN
+    CONTROL "&Yes", IDC_YES, "Button", BS_PUSHBUTTON | WS_TABSTOP, 27, 36, 50, 14
+    CONTROL "Error String goes here", IDC_ERROR_TEXT, "Static", SS_CENTER | WS_GROUP, 7, 13, 156, 16
+    CONTROL "&No", IDCANCEL, "Button", BS_PUSHBUTTON | WS_TABSTOP, 84, 36, 50, 14
+END
+
+// The port's own: asks where to install the editor's Teditor files from when they're missing (EditorSetupDialog).
+IDD_EDITOR_SETUP_DIALOG DIALOGEX 0, 0, 300, 110
+STYLE DS_MODALFRAME | DS_SETFOREGROUND | DS_CENTER | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Mission Editor Setup"
+FONT 8, "MS Shell Dlg", 0, 0, 0x1
+BEGIN
+    CONTROL "", IDC_EDITOR_SETUP_TEXT, "Static", SS_LEFT, 7, 7, 286, 42
+    CONTROL "Copy them &from:", IDC_STATIC, "Static", SS_LEFT, 7, 52, 286, 8
+    CONTROL "", IDC_EDITOR_SOURCE, "Edit", ES_LEFT | ES_AUTOHSCROLL | WS_BORDER | WS_TABSTOP, 7, 62, 230, 14
+    CONTROL "&Browse...", IDC_EDITOR_BROWSE, "Button", BS_PUSHBUTTON | WS_TABSTOP, 243, 62, 50, 14
+    CONTROL "&Install", IDOK, "Button", BS_DEFPUSHBUTTON | WS_TABSTOP, 189, 89, 50, 14
+    CONTROL "Exit", IDCANCEL, "Button", BS_PUSHBUTTON | WS_TABSTOP, 243, 89, 50, 14
+END
+
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//
+// Dialog Info
+//
+
+IDD_UNIT_SETTINGS_DIALOG DLGINIT
+BEGIN
+    IDC_ORDERS, 0x403 /* CB_ADDSTRING */, 7, 0, "Attack\000",
+    IDC_ORDERS, 0x403 /* CB_ADDSTRING */, 7, 0, "Sentry\000",
+    IDC_ORDERS, 0x403 /* CB_ADDSTRING */, 6, 0, "Guard\000",
+    IDC_ORDERS, 0x403 /* CB_ADDSTRING */, 6, 0, "Go To\000",
+    IDC_ORDERS, 0x403 /* CB_ADDSTRING */, 14, 0, "Patrol (loop)\000",
+    IDC_ORDERS, 0x403 /* CB_ADDSTRING */, 16, 0, "Patrol (linear)\000",
+    IDC_ORDERS, 0x403 /* CB_ADDSTRING */, 18, 0, "Destroy Structure\000",
+    IDC_ORDERS, 0x403 /* CB_ADDSTRING */, 13, 0, "Destroy Unit\000",
+    IDC_ORDERS, 0x403 /* CB_ADDSTRING */, 7, 0, "Ambush\000",
+    IDC_ORDERS, 0x403 /* CB_ADDSTRING */, 7, 0, "Escort\000",
+    IDC_ORDERS, 0x403 /* CB_ADDSTRING */, 5, 0, "None\000",
+    0
+END
+
+IDD_UNIT_ORDERS_DIALOG DLGINIT
+BEGIN
+    IDC_ENGAGE_RADIUS, 0x403 /* CB_ADDSTRING */, 5, 0, "Zero\000",
+    IDC_ENGAGE_RADIUS, 0x403 /* CB_ADDSTRING */, 6, 0, "Short\000",
+    IDC_ENGAGE_RADIUS, 0x403 /* CB_ADDSTRING */, 7, 0, "Medium\000",
+    IDC_ENGAGE_RADIUS, 0x403 /* CB_ADDSTRING */, 5, 0, "Long\000",
+    IDC_TACTIC, 0x403 /* CB_ADDSTRING */, 8, 0, "Default\000",
+    IDC_TACTIC, 0x403 /* CB_ADDSTRING */, 6, 0, "Joust\000",
+    IDC_TACTIC, 0x403 /* CB_ADDSTRING */, 6, 0, "Swarm\000",
+    IDC_TACTIC, 0x403 /* CB_ADDSTRING */, 11, 0, "Flank Left\000",
+    IDC_TACTIC, 0x403 /* CB_ADDSTRING */, 12, 0, "Flank Right\000",
+    IDC_TACTIC, 0x403 /* CB_ADDSTRING */, 12, 0, "Attack Rear\000",
+    IDC_TACTIC, 0x403 /* CB_ADDSTRING */, 16, 0, "Fire from Short\000",
+    IDC_TACTIC, 0x403 /* CB_ADDSTRING */, 17, 0, "Fire from Medium\000",
+    IDC_TACTIC, 0x403 /* CB_ADDSTRING */, 15, 0, "Fire from Long\000",
+    IDC_TACTIC, 0x403 /* CB_ADDSTRING */, 13, 0, "Stop to Fire\000",
+    IDC_MOVE_SPEED, 0x403 /* CB_ADDSTRING */, 5, 0, "Walk\000",
+    IDC_MOVE_SPEED, 0x403 /* CB_ADDSTRING */, 4, 0, "Run\000",
+    0
+END
+
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//
+// Version
+//
+
+// The game's version (MCVersion.h, written by MechCommander.props from version.json and the git history), as
+// MCRedux.rc has it. The original's block said 1.99.04.08 / "MCEditor MFC Application".
+#include "MCVersion.h"
+
+VS_VERSION_INFO VERSIONINFO
+ FILEVERSION MC_VERSION_COMMAS
+ PRODUCTVERSION MC_VERSION_COMMAS
+ FILEFLAGSMASK VS_FFI_FILEFLAGSMASK
+#ifdef _DEBUG
+ FILEFLAGS VS_FF_DEBUG
+#else
+ FILEFLAGS 0x0L
+#endif
+ FILEOS VOS_NT_WINDOWS32
+ FILETYPE VFT_APP
+ FILESUBTYPE VFT2_UNKNOWN
+BEGIN
+    BLOCK "StringFileInfo"
+    BEGIN
+        BLOCK "040904b0"
+        BEGIN
+            VALUE "Comments", "Unofficial recreation of the MechCommander Gold Mission Editor. Commit " MC_VERSION_COMMIT
+            VALUE "FileDescription", "MechCommander Redux Mission Editor"
+            VALUE "FileVersion", MC_VERSION
+            VALUE "InternalName", "MCEditor"
+            VALUE "OriginalFilename", "MCEditor.exe"
+            VALUE "ProductName", "MechCommander Redux"
+            VALUE "ProductVersion", MC_VERSION_SEMVER
+        END
+    END
+    BLOCK "VarFileInfo"
+    BEGIN
+        VALUE "Translation", 0x409, 1200
+    END
+END
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//
+// Cursor
+//
+
+IDC_BLANK_CURSOR             CURSOR "res\\cursor_170.cur"
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//
+// Custom resources
+//
+
+IDR_TEMPLATE TEMPLATE "res\\template_144.txt"
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//
+// String Table
+//
+
+STRINGTABLE
+BEGIN
+    ID_SEPARATOR                             "MechCommander Mission Editor"
+    IDS_MECHCOMMANDER                        "MechCommander"
+    IDS_MCEDITOR                             "MCEditor"
+    IDS_MISSION                              "&Mission"
+    IDS_THIS_MAP_CONTAINS_TOO                "This map contains too many objects to successfully run in a mission. Try removing some buildings, forest, bridges, or walls."
+    IDS_SETTINGS                             "Settings"
+    IDS_THIS_MAP_CONTAINS_TOO_MANY_GAME      "This map contains too many game play objects to successfully run in a mission.  Try removing some control buildings, Mech Bays, perimeter alrams, artillery crates or units."
+END
+
+STRINGTABLE
+BEGIN
+    IDS_OVERLAYS                             "Overlays"
+    IDS_MAIN_TOOLBAR                         "Main Toolbar"
+    IDS_MAP_FEATURES                         "Map Features"
+    IDS_ALL                                  "All"
+    IDS_LINK                                 "Link"
+END
+
+STRINGTABLE
+BEGIN
+    IDS_CLASSIFIED                           "CLASSIFIED"
+    IDS_FIRE_SUPPORT                         "FIRE SUPPORT"
+    IDS_ARTILLERY_LD_SMALL_LD                "ARTILLERY:    %ld Small    %ld Large"
+    IDS_SENSOR_PROBE_LD                      "SENSOR PROBE:   %ld"
+    IDS_CAMERA_DRONE_LD                      "CAMERA DRONE:    %ld"
+    IDS_TACTICAL_WARNING                     "TACTICAL WARNING"
+    IDS_TACTICAL_NOTICE                      "TACTICAL NOTICE"
+    IDS_END_DISPATCH                         "END DISPATCH"
+    IDS_UNITS                                "Units"
+    IDS_STRUCTURE                            "Structure"
+    IDS_DELAY_SEC                            "Delay (sec)"
+    IDS_POINTS                               "Points"
+    IDS_BUILDINGS                            "Buildings"
+    IDS_LOCATION                             "Location"
+    IDS_PATH_ENTER_TO_FINISH                 "Path (Enter to Finish)"
+    IDS_NUMBER_OF_ENEMIES                    "Number of Enemies"
+END
+
+STRINGTABLE
+BEGIN
+    IDS_PALETTE                              "Palette"
+END
+
+STRINGTABLE
+BEGIN
+    IDS_OLE_INITIALIZATION_FAILED_MAKE       "OLE initialization failed. Make sure that the OLE libraries are the correct version."
+    ID_INDICATOR_X                           "x = 0.0000"
+    ID_INDICATOR_Y                           "y = 0.0000"
+    ID_INDICATOR_Z                           "z = 0.0000"
+    ID_INDICATOR_BLOCK                       "Block = 000"
+    ID_INDICATOR_VERTEX                      "Vertex = 0000"
+    ID_INDICATOR_DELTA                       "Delta = 0.0000"
+    ID_INDICATOR_RANGE                       "Range = 00"
+    ID_INDICATOR_AREA                        "Area = 0000"
+    IDS_TAB_TERRAINS                         "Terrains"
+END
+
+STRINGTABLE
+BEGIN
+    IDS_TAB_OVERLAYS                         "Overlays"
+    IDS_TAB_FORCE                            "Force"
+    IDS_TAB_BUILDINGS                        "Buildings"
+    IDS_TAB_UNITS                            "Units"
+    IDS_INDICATOR_X_FORMAT                   "x = %.1f"
+    IDS_INDICATOR_Y_FORMAT                   "y = %.1f"
+    IDS_INDICATOR_Z_FORMAT                   "z = %.1f"
+    IDS_INDICATOR_BLOCK_FORMAT               "Block = %ld"
+    IDS_INDICATOR_VERTEX_FORMAT              "Vertex = %ld"
+    IDS_INDICATOR_RANGE_FORMAT               "Range = %ld"
+    IDS_INDICATOR_DELTA_FORMAT               "Delta = %.1f"
+END
+
+STRINGTABLE
+BEGIN
+    IDR_MAINFRAME                            "Dreditor\n\nDredit\nDreditor Files(*.fit)\n.fit\nDreditor.Document\nDredit Document    "
+    IDS_YOU_HAVE_LD_BUILDINGS                "You have %ld buildings."
+    IDS_MAIN                                 "Main"
+    IDS_STANDARD                             "Standard"
+END
+
+STRINGTABLE
+BEGIN
+    IDS_NORTH                                "North"
+    IDS_NORTHEAST                            "Northeast"
+    IDS_EAST                                 "East"
+    IDS_SOUTHEAST                            "Southeast"
+    IDS_SOUTH                                "South"
+    IDS_SOUTHWEST                            "Southwest"
+    IDS_WEST                                 "West"
+    IDS_NORTHWEST                            "Northwest"
+END
+
+STRINGTABLE
+BEGIN
+    IDS_RELATIVE_DIRECTION                   "Relative Direction"
+END
+
+STRINGTABLE
+BEGIN
+    IDS_SETTINGS_TEAM_1                      "Settings--Team 1"
+    IDS_SETTINGS_TEAM_2                      "Settings--Team 2"
+END
+
+STRINGTABLE
+BEGIN
+    ID_TOOLS_SELECT                          "Select an individual tile.\nSelect"
+    ID_TOOLS_SELECT_AREA                     "Select an area by dragging the mouse.\nSelect Area"
+    ID_TOOLS_DRAG_VIEW                       "Drag the view using the mouse.\nDrag View"
+    ID_TOOLS_ZOOM_IN                         "Zoom in using the left mouse button.\nZoom In"
+    ID_TOOLS_ZOOM_OUT                        "Zoom out using the left mouse button.\nZoom Out"
+    ID_TOOLS_SPRAY_TREES                     "Spray random trees.\nSpray Trees"
+    ID_TOOLS_ERASE                           "Erase objects.\nErase"
+    ID_TOOLS_ROTATE                          "Rotate objects.\nRotate"
+    ID_TOOLS_RAISE_VERTEX                    "Raise vertices.\nRaise Vertex"
+    ID_TOOLS_LOWER_VERTEX                    "Lower vertices.\nLower Vertex"
+    ID_TOOLS_MAKE_HILLY                      "Place hills on the selected area.\nMake Hilly"
+    ID_TOOLS_FLATTEN                         "Flatten the selected terrain.\nFlatten"
+    ID_TOOLS_LINK_BUILDINGS                  "Link buildings for control.\nLink Buildings"
+    ID_TOOLS_UNLINK_BUILDINGS                "Remove existing links from buildings.\nUnlink Buildings"
+    ID_TOOLS_DAMAGE                          "Damage overlays and structures.\nDamage"
+    ID_TOOLS_REPAIR                          "Repair damage on overlays and structures.\nRepair"
+END
+
+STRINGTABLE
+BEGIN
+    ID_VIEW_GRIDLINES                        "Display the tile outlines.\nDisplay Grid"
+    ID_UNDO                                  "Undo the last operation.\nUndo"
+    ID_REDO                                  "Redo the previously undone action.\nRedo"
+    IDS_ASSIGN_A_SPECIFIC_HEIGHT             "Assign a specific height to all selected vertices.\nSet Height"
+    IDS_MISSION_SUCCESSFULLY_SAVED           "Mission successfully saved."
+END
+
+STRINGTABLE
+BEGIN
+    IDS_WARNING                              "Warning"
+END
+
+STRINGTABLE
+BEGIN
+    IDS_FLATTEN                              "Flatten"
+    IDS_HILLS                                "Hills"
+END
+
+STRINGTABLE
+BEGIN
+    IDS_NONE                                 "None"
+END
+
+STRINGTABLE
+BEGIN
+    IDS_DESTROY_ALL_ENEMIES                  "Destroy All Enemies"
+    IDS_DESTROY_UNITS                        "Destroy Units"
+    IDS_DESTROY_BUILDINGS                    "Destroy Buildings"
+    IDS_GUARD_UNITS                          "Guard Units"
+    IDS_GUARD_BUILDINGS                      "Guard Buildings"
+    IDS_CAPTURE_UNITS                        "Capture Units"
+    IDS_CAPTURE_BUILDINGS                    "Capture Buildings"
+    IDS_MOVE_TO_AREA                         "Move to Area"
+    IDS_A                                    "A"
+    IDS_W                                    "W"
+    IDS_J                                    "J"
+    IDS_VARIANT                              "Variant"
+    IDS_MOVE_FIRE                            "Move && Fire"
+    IDS_AMBUSH                               "Ambush"
+    IDS_ESCORT                               "Escort"
+END
+
+STRINGTABLE
+BEGIN
+    IDS_THE_SPECIFIED_FILE_WAS               "The specified file was not found\n. Please check your spelling and try again."
+END
+
+STRINGTABLE
+BEGIN
+    IDS_DIRT                                 "Dirt"
+    IDS_GRASS                                "Grass"
+    IDS_ROUGH_GRASS                          "Rough Grass"
+    IDS_MOUNTAIN                             "Mountain"
+    IDS_CLIFFS                               "Cliffs"
+    IDS_WATER                                "Water"
+    IDS_CONCRETE                             "Concrete"
+    IDS_CROPS                                "Crops"
+END
+
+STRINGTABLE
+BEGIN
+    IDS_ASH                                  "Ash"
+    IDS_SAND                                 "Sand"
+    IDS_ROUGH_SAND                           "Rough Sand"
+    IDS_FUNGUS                               "Fungus"
+    IDS_CLIFF                                "Cliff"
+    IDS_SLUDGE                               "Sludge"
+    IDS_CERMAK_CONCRETE                      "Concrete"
+    IDS_TARMAC                               "Tarmac"
+END
+
+STRINGTABLE
+BEGIN
+    IDS_FOREST                               "Forest"
+    IDS_REGULAR_WALL                         "Regular Wall"
+    IDS_RUNWAY                               "Runway"
+    IDS_WOODEN_WALL                          "Wooden Wall"
+    IDS_RAILROAD_BRIDGE                      "Railroad Bridge"
+    IDS_PAVED_ROAD                           "Paved Road"
+    IDS_DIRT_ROAD                            "Dirt Road"
+    IDS_BRIDGE                               "Bridge"
+END
+
+STRINGTABLE
+BEGIN
+    IDS_RAILROAD                             "Railroad"
+    IDS_ROCKS                                "Rocks"
+    IDS_HEAVY_WALL                           "Heavy Wall"
+    IDS_DOCK                                 "Dock"
+END
+
+STRINGTABLE
+BEGIN
+    IDS_CERMAK_FOREST                        "Forest"
+    IDS_CERMAK_REGULAR_WALL                  "Regular Wall"
+    IDS_CERMAK_RUNWAY                        "Runway"
+    IDS_CERMAK_WOODEN_WALL                   "Wooden Wall"
+    IDS_CERMAK_RAILROAD_BRIDGE               "Railroad Bridge"
+    IDS_ROAD                                 "Road"
+END
+
+STRINGTABLE
+BEGIN
+    IDS_FISSURE                              "Fissure"
+    IDS_CERMAK_BRIDGE                        "Bridge"
+    IDS_CERMAK_RAILROAD                      "Railroad"
+    IDS_CERMAK_ROCKS                         "Rocks"
+    IDS_CERMAK_HEAVY_WALL                    "Heavy Wall"
+    IDS_ORDERS_THE_UNIT_TO                   "Orders the unit to attack enemies within the engage radius of the unit. This is the default order."
+    IDS_ORDERS_THE_UNIT_TO_ATTACK_ENEMIES    "Orders the unit to attack enemies within the engage radius of the unit's starting position. If the enemy moves out of the unit's engage radius or there is no enemy, the unit moves to its starting position."
+    IDS_ORDERS_THE_UNIT_TO_ATTACK_ANY        "Orders the unit to attack any enemies within the engage radius of the target structure."
+    IDS_ORDERS_THE_UNIT_TO_MOVE_ALONG        "Orders the unit to move along the specified path after the Delay time has elapsed. The unit will stop and attack enemies along its way. It remains at its final destination point for the rest of the game."
+    IDS_ORDERS_THE_UNIT_TO_MOVE_ALONG_THE_SPECIFIED "Orders the unit to move along the specified path after the Delay time has elapsed. The unit will stop to fight enemies within its given engage radius unless Move && Fire is selected. Once the unit reaches its final destination point, it will continue to its starting position and continue to loop."
+    IDS_ORDERS_THE_UNIT_TO_MOVE_ALONG_THE_SPECIFIED_PATH_AFTER "Orders the unit to move along the specified path after the Delay time has elapsed. The unit will stop to fight enemies within its given engage radius unless Move && Fire is selected. The unit will continuously move back and forth between its starting position and final destination point."
+    IDS_ORDERS_THE_UNIT_TO_MOVE_TO           "Orders the unit to move to the given structure after the Delay time has elapsed. Once the unit gets there, it will attack the given structure. The unit will stop along the way to attack any enemies it encounters."
+    IDS_ORDERS_THE_UNIT_TO_MOVE_TOWARD       "Orders the unit to move toward the given unit after the Delay time has elapsed. Once the unit reaches the given unit, it will attack. The unit will attack any other units that get within its given engage radius."
+    IDS_ORDERS_THE_UNIT_TO_REMAIN_INVISIBLE  "Orders the unit to remain invisible to sensors until it is engaged."
+    IDS_ORDERS_THE_UNIT_TO_FOLLOW_THE        "Orders the unit to follow the selected unit, staying to the side indicated by Relative Direction."
+    IDS_ORDERS_THE_UNIT_TO_NOT_MOVE          "Orders the unit to not move or attack."
+END
+
+STRINGTABLE
+BEGIN
+    IDS_RED_WHITE                            "Red/White"
+    IDS_WHITE_RED                            "White/Red"
+    IDS_GOLD_NAVY                            "Gold/Navy"
+    IDS_ORANGE_GOLD                          "Orange/Gold"
+    IDS_TAN_GOLD                             "Tan/Gold"
+    IDS_BLACK_RED                            "Black/Red"
+    IDS_BLACK_WHITE                          "Black/White"
+    IDS_GRAY_BLUE                            "Gray/Blue"
+    IDS_GRAY_RED                             "Gray/Red"
+    IDS_BLACK_YELLOW                         "Black/Yellow"
+    IDS_COPPER_GRAY                          "Copper/Gray"
+    IDS_COPPER_BLACK                         "Copper/Black"
+    IDS_NAVY_RED                             "Navy/Red"
+    IDS_NAVY_GOLD                            "Navy/Gold"
+    IDS_TAN_GRAY                             "Tan/Gray"
+    IDS_TAN_COPPER                           "Tan/Copper"
+END
+
+STRINGTABLE
+BEGIN
+    IDS_RED_GRAY                             "Red/Gray"
+    IDS_RED_YELLOW                           "Red/Yellow"
+    IDS_YELLOW_BLACK                         "Yellow/Black"
+END
+
+STRINGTABLE
+BEGIN
+    ID_PAINT                                 "Begin paint selection.\nPaint"
+    ID_SPRAY_TREES                           "Spray Trees"
+END
+
+STRINGTABLE
+BEGIN
+    ID_UNDO_S                                "&Undo %s\tCtrl+Z"
+    ID_ROTATION                              "Rotation"
+    ID_LOWER                                 "Lower the selected vertices.\nLower"
+    ID_RAISE                                 "Raise the selected vertices.\nRaise"
+    ID_ROTATE_OVERLAYS                       "Rotate overlays."
+    ID_ROTATES_SELECTED_ITEMS_COUNTERCLOCKWISE "Rotate counterclockwise.\nRotates selected items counterclockwise"
+END
+
+STRINGTABLE
+BEGIN
+    ID_ERASE_OVERLAYS                        "Erase selected overlays.\nErase Overlays"
+    ID_ERASE                                 "Erase"
+    ID_ZOOM_IN                               "Zoom in.\nZoom In"
+    ID_ZOOM_OUT                              "Zoom out.\nZoom Out"
+    ID_SELECT_ALL                            "Select the entire map.\nSelect All"
+    ID_DAMAGE                                "Damage"
+    ID_REPAIR                                "Repair"
+    ID_QUICK_SAVE                            "Save enough information to reload the map.\nQuick Save"
+END
+
+STRINGTABLE
+BEGIN
+    ID_VIEW_MAIN_TOOLBAR                     "Toggle the Main Toolbar.\nToggle Main Toolbar"
+    ID_TOGGLE_THE_PALETTE_TOOLBAR            "Toggle the palette toolbar."
+    ID_TOGGLE_CELLS                          "Toggle blocked cells.\nToggle Cells"
+END
+
+STRINGTABLE
+BEGIN
+    IDS_ORDER_TARGETS_ITSELF                 "A unit's order cannot target itself."
+END
+
+STRINGTABLE
+BEGIN
+    ID_MISSION_DROP_ZONES_TEAM_1             "Add Drop Zones for Team 1."
+    ID_MISSION_DROP_ZONES_TEAM_2             "Add Drop Zones for Team 2."
+    IDS_SIDE_TEAM_1                          "Team 1"
+    IDS_SIDE_TEAM_2                          "Team 2"
+    IDS_SIDE_ALLIED                          "Allied"
+    IDS_SIDE_ENEMY                           "Enemy"
+    IDS_SIDE_NEUTRAL                         "Neutral"
+END
+
+STRINGTABLE
+BEGIN
+    IDS_RANK_VEHICLE_CREW                    "Vehicle Crew"
+    IDS_RANK_GREEN                           "Green"
+    IDS_RANK_REGULAR                         "Regular"
+    IDS_RANK_VETERAN                         "Veteran"
+    IDS_RANK_ELITE                           "Elite"
+END
+
+STRINGTABLE
+BEGIN
+    ID_REDO_S                                "&Redo %s\tCtrl+Y"
+    ID_CHANGE_HEIGHT                         "Change Height"
+END
+
+STRINGTABLE
+BEGIN
+    AFX_IDS_APP_TITLE                        "MechCommander Mission Editor"
+    AFX_IDS_IDLEMESSAGE                      "For Help, press F1."
+    AFX_IDS_HELPMODEMESSAGE                  "Select an object on which to get Help."
+    AFX_IDS_APP_TITLE_EMBEDDING              "Undo failed."
+    AFX_IDS_COMPANY_NAME                     "Redo failed."
+    AFX_IDS_OBJ_TITLE_INPLACE                "Apply paint failed."
+    AFX_IDS_APP_ID                           "Couldn't open the %s file."
+    IDS_THE_S_FILE_HAS                       "The %s file has been corrupted."
+    IDS_COULDNT_OPEN_THE_SYSTEM              "Couldn't open the System.cfg file in directory %s."
+    IDS_COULDNT_FIND_S_IN                    "Couldn't find %s in the %s file."
+    IDS_COULDNT_OPEN_THE_DATABASE            "Couldn't open the database because %s."
+    IDS_CURRENTLY_THERE_ARE_NO               "Currently there are no saved maps."
+    IDS_OVERWRITE_THE_S_FILE                 "Overwrite the %s file?"
+    IDS_SPACES_CANNOT_BE_USED                "Spaces cannot be used in file names."
+    IDS_A_DATABASE_QUERY_FAILED              "A database query failed because %s."
+    IDS_SOME_MISSION_DATA_MAY                "Some mission data may be invalid."
+END
+
+STRINGTABLE
+BEGIN
+    IDS_COULDNT_ADD_AN_OBJECTIVE             "Couldn't add an objective to the database because %s."
+    IDS_IF_YOU_ERASE_THIS                    "If you erase this %s, objective %s will become invalid and will be deleted. Continue anyway?"
+    IDS_COULDNT_ADD_THE_STRUCTURE            "Couldn't add the structure to the database because %s."
+    IDS_ADDING_A_UNIT_FAILED                 "Adding a unit failed because %s."
+    IDS_THE_MISSION_LOAD_FAILED              "The mission load failed. %s"
+    IDS_A_MULTIPLAYER_MISSION_REQUIRES       "A multiplayer mission requires at least one objective for each team. Currently Team 1 has %ld objectives and Team 2 has %ld objectives."
+    IDS_YOU_MUST_ASSIGN_THREE                "You must assign three Drop Zones for each team. Currently Team 1 has %ld Drop Zones and Team 2 has %ld Drop Zones."
+    IDS_THE_S_COULD_NOT                      "The %s could not be saved because the specified combination of color %s and pilot skill %s was not in the database. Please tell Mike Lee."
+    IDS_THE_S_PARAMETER_IS                   "The %s Parameter is invalid."
+    IDS_THIS_S_IS_THE                        "This %s is the target of objective %s. If you change this alignment, the objective will become invalid and will be deleted. Continue anyway?"
+    IDS_THIS_MISSION_NEEDS_AT                "This mission needs at least one objective in order to be valid."
+    IDS_THIS_MAP_REQUIRES_AT                 "This map requires at least one Drop Zone."
+    IDS_THIS_MISSION_REQUIRES_AT             "This mission requires at least one unit."
+    IDS_DELETE_MISSION_S                     "Delete mission %s?"
+    IDS_FAILED_TO_SAVE_S                     "Failed to save %s. %s"
+    IDS_NOT_ENOUGH_MEMORY_TRY                "Not enough memory. Try zooming out."
+END
+
+STRINGTABLE
+BEGIN
+    IDS_NO_TWO_PARAMETERS_CAN                "No two parameters can be the same. Change either parameter %d or %d."
+    IDS_FAILED_TO_CREATE_ONE                 "Failed to create one of the %s orders."
+    IDS_YOU_CANNOT_OPEN_MECHCOMMANDER        "You cannot open MechCommander: Desperate Measures and Mission Editor at the same time. Please close MechCommander: Desperate Measures to continue."
+    IDS_WARNING_THIS_MISSION_CONTAINS        "Warning: This mission contains a guard objective yet no time limit. This mission may never end."
+    IDS_THE_TIME_LIMIT_MUST                  "The time limit must be more than 2 minutes. If you do not want a time limit, set it to 0."
+    IDS_PLEASE_ENTER_A_NAME                  "Please enter a name for this map."
+    IDS_THE_MISSION_MUST_BE                  "The mission must be saved before it can be exported."
+    IDS_COULDNT_FIND_THE_PROFILE             "Couldn't find the profile in the database."
+    IDS_CHANGING_THIS_UNITS_ALIGNMENT        "Changing this unit's alignment will invalidate its order. Continue anyway?"
+    IDS_CS_CANNOT_BE_USED                    "%cs cannot be used in file names."
+    IDS_A_MAP_MAY_ONLY                       "A map may only contain %ld units."
+    IDS_THE_MAXIMUM_NUMBER_OF                "The maximum number of turrets for this mission is %ld."
+    IDS_A_PLAYER_MAY_ONLY                    "A player may only have %ld Drop Zones."
+    IDS_PLEASE_INSERT_THE_MECHCOMMANDER      "Please insert the MechCommander: Desperate Measures compact disc in the CD-ROM drive."
+    IDS_THIS_S_IS_TARGETED                   "This %s is targeted by an enemy %s. Changing its alignment will reset the enemy %s's order. Continue anyway?"
+    IDS_THE_S_AT_LD                          "The %s at (%ld,%ld) is placed in an invalid area. It will not be able to move in the game."
+END
+
+STRINGTABLE
+BEGIN
+    IDS_THE_S_FILE_IS                        "The %s file is already used by MechCommander. Please choose another name."
+    IDS_S_PARAMETE_LD_IS                     " %s Paramete %ld is Invalid."
+    IDS_THIS_S_IS_TARGETED_BY_A              "This %s is targeted by a %s. Deleting it will reset the %s's orders. Continue anyway?"
+END
+
+STRINGTABLE
+BEGIN
+    ID_FILE_NEW                              "Create a new mission.\nNew"
+    ID_FILE_OPEN                             "Open an existing mission.\nOpen"
+    ID_FILE_CLOSE                            "Close the active mission.\nClose"
+    ID_FILE_SAVE                             "Save the active mission.\nSave"
+    ID_FILE_SAVE_AS                          "Save the active mission with a new name.\nSave As"
+    ID_FILE_PAGE_SETUP                       "Change the printing options.\nPage Setup"
+    ID_FILE_PRINT_SETUP                      "Change the printer and printing options.\nPrint Setup"
+    ID_FILE_PRINT                            "Print the active mission.\nPrint"
+    ID_FILE_PRINT_PREVIEW                    "Display full pages.\nPrint Preview"
+    IDS_FILE_NAME_MUST_START_WITH_LETTER     "File names must begin with a letter."
+END
+
+STRINGTABLE
+BEGIN
+    ID_APP_ABOUT                             "Display program information, version number, and copyright.\nAbout"
+    ID_APP_EXIT                              "Quit the application, after being prompted to save any active missions.\nExit"
+    ID_HELP_INDEX                            "Open Help.\nHelp Topics"
+    ID_HELP_FINDER                           "Display the Help topics.\nHelp Topics"
+    ID_HELP_USING                            "Display instructions about how to use Help.\nHelp"
+    ID_CONTEXT_HELP                          "Display Help for highlighted menus, commands, and buttons.\nHelp"
+    ID_HELP                                  "Display Help for the current task or command.\nHelp"
+END
+
+STRINGTABLE
+BEGIN
+    ID_INDICATOR_EXT                         "EXT"
+    ID_INDICATOR_CAPS                        "CAP"
+    ID_INDICATOR_NUM                         "NUM"
+    ID_INDICATOR_SCRL                        "SCRL"
+    ID_INDICATOR_OVR                         "OVR"
+    ID_INDICATOR_REC                         "REC"
+END
+
+STRINGTABLE
+BEGIN
+    AFX_IDS_SCSIZE                           "Change the window size."
+    AFX_IDS_SCMOVE                           "Change the window position."
+    AFX_IDS_SCMINIMIZE                       "Reduce the window to an icon."
+    AFX_IDS_SCMAXIMIZE                       "Enlarge the window to full size."
+    AFX_IDS_SCNEXTWINDOW                     "Switch to the next mission window."
+    AFX_IDS_SCPREVWINDOW                     "Switch to the previous mission window."
+    AFX_IDS_SCCLOSE                          "Close the active window, after being prompted to save the mission."
+END
+
+STRINGTABLE
+BEGIN
+    AFX_IDS_SCRESTORE                        "Restore the window to normal size."
+    AFX_IDS_SCTASKLIST                       "Open the Task List."
+END
+
+#endif
+
+#ifndef APSTUDIO_INVOKED
+#include "afxres.rc"
+#include "afxprint.rc"
+#endif

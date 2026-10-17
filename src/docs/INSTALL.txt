@@ -1,6 +1,51 @@
 Installing MechCommander Redux
 ==============================
 
-1. Copy MCRedux.exe and SDL3.dll into your MechCommander Gold install folder (the one
-   containing SYSTEM.CFG).
-2. Run MCRedux.exe.
+You need MechCommander Gold installed on your PC first. MechCommander Redux doesn't
+include any of the game's data; it uses the files from your own copy of the game.
+
+
+The game
+--------
+
+1. Find your MechCommander Gold folder. It's the folder that contains the files
+   SYSTEM.CFG and MCX.EXE.
+
+2. Copy MCRedux.exe and SDL3.dll from this zip into that folder, next to SYSTEM.CFG.
+   Both files are needed: MCRedux.exe won't start without SDL3.dll next to it.
+
+3. Double-click MCRedux.exe to play.
+
+Your saved games and settings are kept in your user folder
+(%APPDATA%\MechCommander Redux), not in the game folder, so the game folder isn't
+changed. README.txt explains how to keep MCRedux.exe somewhere else instead.
+
+
+The Mission Editor (optional)
+-----------------------------
+
+The Mission Editor lets you make your own maps and missions. You don't need it to play.
+
+Besides the game, the editor needs its own files the first time you run it. You can get
+them from ONE of these:
+   - the MechCommander Gold CD in your CD/DVD drive,
+   - a disc image of that CD (an .iso file), or
+   - a folder where the original Mission Editor was installed in the past.
+
+1. Copy MCEditor.exe from this zip into your MechCommander Gold folder, next to
+   SYSTEM.CFG (the same folder as in step 1 above).
+
+2. If you're using the CD, put it in the drive. If you're using an .iso file,
+   double-click it in Windows Explorer (or right-click it and choose "Mount"), so it
+   shows up as a drive in "This PC".
+
+3. Double-click MCEditor.exe. A window called "Mission Editor Setup" appears:
+   - With the CD or a mounted .iso, its drive is already filled in. Click Install.
+   - With an old editor folder, click Browse, choose that folder, then click Install.
+
+4. The editor copies its files into a Teditor folder inside your game folder and then
+   starts. From now on it starts straight away; you won't need the CD again.
+
+If the game is installed under C:\Program Files or C:\Program Files (x86), Windows may
+not let the editor write into the game folder, and you'll see a "Couldn't ..." message.
+README.txt explains what to do, along with the other messages you might see.
