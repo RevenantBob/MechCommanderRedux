@@ -9,6 +9,7 @@
 #include "iface/MCOrderSink.h"
 #include "iface/MCTacticalInterface.h"
 #include "object/MCForces.h"
+#include "object/MCGroundVehicle.h"
 #include "object/MCMover.h"
 #include "object/MCMoverGroup.h"
 #include "platform/MCDisplay.h"
@@ -394,6 +395,115 @@ TEST_CASE_ISOLATED("game: a click on the ground moves, runs or attacks the point
 
     CHECK_EQ(sink.ServerOrders, 0);
     iface->SetOrderSink(nullptr);
+}
+
+/// <summary>
+/// F and ctrl+F pick the lay-mines mode for one selected mine layer (a ground vehicle with mines left), as MCX.EXE
+/// tests class 3 and GroundVehicle's mineLayer and minesToLay; a mech, a plain vehicle, two movers or an empty layer
+/// get no mode. The boot skips logistics, where the player buys a mine layer, so the scenario's first ground vehicle is
+/// made one as a mine layer's type makes it (mines to lay, hence a layer).
+/// </summary>
+TEST_CASE_ISOLATED("game: F picks the lay-mines mode for one selected mine layer only")
+{
+    if (!MCTestGame::Available())
+    {
+        return;
+    }
+
+    REQUIRE(MCTestGame::StartMission(5));
+    std::shared_ptr<MCTacticalInterface> iface = TacticalInterface();
+    REQUIRE(iface != nullptr);
+    std::shared_ptr<MCGroundVehicle> layer;
+
+    for (int32_t partId = MCMover::FirstPartId; partId < MCMover::EndPartId && layer == nullptr; partId++)
+    {
+        if (std::shared_ptr<MCMover> mover = GetMoverFromPartId(partId);
+            mover != nullptr && mover->ObjectClass == MCObjectClass::GroundVehicle)
+        {
+            layer = std::static_pointer_cast<MCGroundVehicle>(mover);
+        }
+    }
+
+    std::shared_ptr<MCMover> mech;
+
+    for (const std::shared_ptr<MCFriendlyMechIcon>& button : iface->MechBar->Buttons)
+    {
+        if (const auto mover = std::static_pointer_cast<MCMover>(LockObject(button->Mover));
+            button->Active && mover != nullptr && mover->ObjectClass == MCObjectClass::BattleMech)
+        {
+            mech = mover;
+            break;
+        }
+    }
+
+    REQUIRE(layer != nullptr);
+    REQUIRE(mech != nullptr);
+    REQUIRE(!layer->MineLayer);
+
+    // The selection as the key reads it (SelectMech refuses the scenario's vehicles, which start disabled).
+    auto select = [&](std::initializer_list<int32_t> partIds)
+    {
+        iface->ClearMechSelection();
+        iface->SelectedMovers.assign(partIds);
+        iface->SetMode(MCInterfaceMode::None);
+    };
+
+    constexpr int16_t KeyF = 0x21;
+
+    {
+        MCTest::Scope scope("F with a vehicle that lays no mines");
+        select({layer->PartId});
+        SendKey(KeyF);
+        CHECK(iface->CurrentMode == MCInterfaceMode::None);
+        SendKey(KeyF, 0, false);
+    }
+
+    layer->MinesToLay = 10;
+    layer->MineLayer = true;
+
+    {
+        MCTest::Scope scope("F with the mine layer");
+        select({layer->PartId});
+        SendKey(KeyF);
+        CHECK(iface->CurrentMode == MCInterfaceMode::LayMines);
+        SendKey(KeyF, 0, false);
+        CHECK(iface->CurrentMode == MCInterfaceMode::None);
+    }
+
+    {
+        MCTest::Scope scope("ctrl+F with the mine layer");
+        select({layer->PartId});
+        SendKey(KeyF, KeyCtrl);
+        CHECK(iface->CurrentMode == MCInterfaceMode::LayMines);
+        SendKey(KeyF, KeyCtrl, false);
+    }
+
+    {
+        MCTest::Scope scope("F with a mech");
+        select({mech->PartId});
+        SendKey(KeyF);
+        CHECK(iface->CurrentMode == MCInterfaceMode::None);
+        SendKey(KeyF, 0, false);
+    }
+
+    {
+        MCTest::Scope scope("F with the mine layer and a mech");
+        select({layer->PartId, mech->PartId});
+        SendKey(KeyF);
+        CHECK(iface->CurrentMode == MCInterfaceMode::None);
+        SendKey(KeyF, 0, false);
+    }
+
+    {
+        MCTest::Scope scope("F with a mine layer out of mines");
+        layer->MinesToLay = 0;
+        select({layer->PartId});
+        SendKey(KeyF);
+        CHECK(iface->CurrentMode == MCInterfaceMode::None);
+        SendKey(KeyF, 0, false);
+    }
+
+    iface->ClearMechSelection();
 }
 
 /// <summary>
