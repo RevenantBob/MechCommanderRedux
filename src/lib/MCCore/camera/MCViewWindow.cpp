@@ -13,6 +13,7 @@
 #include "mission/MCScenario.h"
 #include "network/MCMultiPlayer.h"
 #include "object/MCBaseObject.h"
+#include "platform/MCDisplay.h"
 #include "platform/MCRenderer.h"
 #include "terrain/MCTacticalMap.h"
 #include "terrain/MCTerrain.h"
@@ -34,6 +35,22 @@ namespace
     /// <summary>Port: how much of the way to its target the zoom eases in a millisecond (about 70 ms to settle most of
     /// the way).</summary>
     constexpr double ZoomEaseTime = 70.0;
+
+    /// <summary>
+    /// Port: the window pixels a screen pixel covers down where the world view is shown (above 1 when the UI is drawn
+    /// at fewer lines than the window has, PREFS "UIResolution"), so one world pixel per screen pixel is one per
+    /// window pixel.
+    /// </summary>
+    float ShownScale()
+    {
+        if (!HasGuiSystem())
+        {
+            return 1.0f;
+        }
+
+        const std::shared_ptr<MCDisplay> display = GuiSystem().Display();
+        return display != nullptr ? display->UnderlayScale() : 1.0f;
+    }
 
     /// <summary>
     /// Port: keeps the tactical map's zoom button (pushed when zoomed out, as the original flipped it) in step with
@@ -385,7 +402,7 @@ auto MCViewWindow::ZoomInHeight() -> float
     float closest = 0.0f;
     float furthest = 0.0f;
     ZoomLimits(closest, furthest);
-    const float oneToOne = std::clamp(static_cast<float>(Height()), closest, furthest);
+    const float oneToOne = std::clamp(static_cast<float>(Height()) * ShownScale(), closest, furthest);
     return oneToOne < furthest ? oneToOne : closest;
 }
 
@@ -396,12 +413,12 @@ auto MCViewWindow::StartZoom() -> void
         return;
     }
 
-    // A view starts at one world pixel per screen pixel where it can, or zoomed out when its camera started at scale
+    // A view starts at one world pixel per window pixel where it can, or zoomed out when its camera started at scale
     // 1 (by then its size is the one the main window gave it).
     float closest = 0.0f;
     float furthest = 0.0f;
     ZoomLimits(closest, furthest);
-    ZoomHeight = ZoomStartsOut ? furthest : std::clamp(static_cast<float>(Height()), closest, furthest);
+    ZoomHeight = ZoomStartsOut ? furthest : std::clamp(static_cast<float>(Height()) * ShownScale(), closest, furthest);
     ZoomTarget = ZoomHeight;
     ZoomClock = MCPort::Milliseconds();
 }
@@ -411,7 +428,7 @@ auto MCViewWindow::UpdateWorldSurface() -> void
     float closest = 0.0f;
     float furthest = 0.0f;
     ZoomLimits(closest, furthest);
-    float shownHeight = ZoomStartsOut ? furthest : static_cast<float>(Height());
+    float shownHeight = ZoomStartsOut ? furthest : static_cast<float>(Height()) * ShownScale();
 
     if (ZoomHeight > 0.0f)
     {

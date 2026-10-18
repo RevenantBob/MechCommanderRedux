@@ -65,6 +65,11 @@ private:
     /// one).</summary>
     bool ShowsGpuSurfaces(const MCFrame& frame) const;
     /// <summary>
+    /// Tells the renderer the scale the underlays are composited at (the window's pixels per screen pixel of a
+    /// scaled-up view, else 1), so the world view's surface is drawn at the resolution it is shown at.
+    /// </summary>
+    void PlaceUnderlays(const MCFrame& frame);
+    /// <summary>
     /// Runs the renderer's recorded commands on <paramref name="commands"/> when it draws, then uploads the frame's
     /// textures in a copy pass (with <paramref name="gpuSurfaces"/>, the palette only); sets
     /// <paramref name="gpuSurfaces"/> to what the composite should read.

@@ -72,6 +72,17 @@ public:
     void SetColors(std::span<const SDL_Color> palette, const MCColorCycle& cycle);
 
     /// <summary>
+    /// The output pixels per screen pixel across and down the underlays are shown at (above 1 when the screen is shown
+    /// scaled up but its underlays keep the window's resolution): from the next <see cref="Execute"/> on, an underlay's
+    /// surface is drawn at its rectangle's size times these.
+    /// </summary>
+    void SetUnderlayScale(float scaleX, float scaleY)
+    {
+        _UnderlayScaleX = scaleX;
+        _UnderlayScaleY = scaleY;
+    }
+
+    /// <summary>
     /// Runs the commands recorded since the last call on <paramref name="commands"/>: uploads what they read, then
     /// draws into the surfaces. The kept surfaces (the fog of war the terrain reads) are drawn first, then the
     /// underlays (<paramref name="underlays"/>), then the rest. On a surface shown over an underlay the key colour is
@@ -197,9 +208,9 @@ private:
         uint32_t RecordedWidth = 0;
         uint32_t RecordedHeight = 0;
         /// <summary>
-        /// The size it is drawn at: the window's, or for a surface shown as an underlay, the rectangle it's shown in.
-        /// Its draws are scaled into that (shaders/draw.pshader), so the zoom costs nothing and the composite shows it
-        /// pixel for pixel.
+        /// The size it is drawn at: the window's, or for a surface shown as an underlay, the rectangle it's shown in
+        /// (in output pixels: times the underlay scale, <see cref="SetUnderlayScale"/>). Its draws are scaled into
+        /// that (shaders/draw.pshader), so the zoom costs nothing and the composite shows it pixel for pixel.
         /// </summary>
         uint32_t DrawnWidth = 0;
         uint32_t DrawnHeight = 0;
@@ -478,6 +489,9 @@ private:
     Texture _PaletteTexture;
     std::array<SDL_Color, 256> _Colors{};
     bool _ColorsChanged = true;
+    /// <summary>Output pixels per screen pixel the underlays are shown at (<see cref="SetUnderlayScale"/>).</summary>
+    float _UnderlayScaleX = 1.0f;
+    float _UnderlayScaleY = 1.0f;
     MCColorCycle _Cycle;
     /// <summary>The pixels <see cref="Write"/> was given this frame: a row each (StripWidth wide), and the texture.</summary>
     std::vector<uint8_t> _StripPixels;

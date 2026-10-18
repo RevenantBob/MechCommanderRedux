@@ -129,9 +129,17 @@ void MCSdlPresenter::ApplyPresentation(const SDL_Rect& view)
     SDL_SetRenderLogicalPresentation(_Renderer.get(), view.w, view.h, mode);
 }
 
+SDL_Rect MCSdlPresenter::ShownRect(const MCFrame& frame)
+{
+    return frame.ScaledOutput() ? SDL_Rect{0, 0, frame.OutputWidth, frame.OutputHeight} : frame.View;
+}
+
 std::expected<void, std::string> MCSdlPresenter::Upload(const MCFrame& frame)
 {
-    if (auto made = EnsureTextures(frame.Width, frame.Height); !made)
+    const int width = frame.ScaledOutput() ? frame.OutputWidth : frame.Width;
+    const int height = frame.ScaledOutput() ? frame.OutputHeight : frame.Height;
+
+    if (auto made = EnsureTextures(width, height); !made)
     {
         return made;
     }
@@ -155,7 +163,13 @@ std::expected<void, std::string> MCSdlPresenter::Upload(const MCFrame& frame)
 
     std::span<const uint8_t> pixels = frame.Pixels;
 
-    if (!frame.Underlays.empty())
+    if (frame.ScaledOutput())
+    {
+        // The view at the window's pixels: the UI taken nearest, the underlays at their own resolution.
+        MCComposeScaled(frame, _Composed);
+        pixels = _Composed;
+    }
+    else if (!frame.Underlays.empty())
     {
         _Composed.assign(frame.Pixels.begin(),
                          frame.Pixels.begin() + static_cast<ptrdiff_t>(frame.Width) * frame.Height);
@@ -163,14 +177,15 @@ std::expected<void, std::string> MCSdlPresenter::Upload(const MCFrame& frame)
         pixels = _Composed;
     }
 
-    if (!SDL_UpdateTexture(_Texture.get(), nullptr, pixels.data(), frame.Width))
+    if (!SDL_UpdateTexture(_Texture.get(), nullptr, pixels.data(), width))
     {
         return std::unexpected(SdlError("SDL_UpdateTexture"));
     }
 
-    if (frame.View.x != _View.x || frame.View.y != _View.y || frame.View.w != _View.w || frame.View.h != _View.h)
+    if (const SDL_Rect shown = ShownRect(frame);
+        shown.x != _View.x || shown.y != _View.y || shown.w != _View.w || shown.h != _View.h)
     {
-        ApplyPresentation(frame.View);
+        ApplyPresentation(shown);
     }
 
     return {};
@@ -185,8 +200,9 @@ std::expected<void, std::string> MCSdlPresenter::Present(const MCFrame& frame)
 
     SDL_SetRenderDrawColor(_Renderer.get(), 0, 0, 0, 255);
     SDL_RenderClear(_Renderer.get());
-    const SDL_FRect view{static_cast<float>(frame.View.x), static_cast<float>(frame.View.y),
-                         static_cast<float>(frame.View.w), static_cast<float>(frame.View.h)};
+    const SDL_Rect shown = ShownRect(frame);
+    const SDL_FRect view{static_cast<float>(shown.x), static_cast<float>(shown.y), static_cast<float>(shown.w),
+                         static_cast<float>(shown.h)};
 
     if (_Target != nullptr)
     {
@@ -195,7 +211,7 @@ std::expected<void, std::string> MCSdlPresenter::Present(const MCFrame& frame)
         SDL_SetRenderTarget(_Renderer.get(), _Target.get());
         SDL_RenderTexture(_Renderer.get(), _Texture.get(), nullptr, nullptr);
         SDL_SetRenderTarget(_Renderer.get(), nullptr);
-        ApplyPresentation(frame.View);
+        ApplyPresentation(shown);
         SDL_RenderClear(_Renderer.get());
         SDL_RenderTexture(_Renderer.get(), _Target.get(), &view, nullptr);
     }
@@ -233,7 +249,7 @@ std::expected<std::vector<SDL_Color>, std::string> MCSdlPresenter::ReadFrame(con
     SDL_Surface* read = SDL_RenderReadPixels(_Renderer.get(), nullptr);
     SDL_SetRenderTarget(_Renderer.get(), nullptr);
     SDL_DestroyTexture(target);
-    ApplyPresentation(frame.View);
+    ApplyPresentation(ShownRect(frame));
 
     if (read == nullptr)
     {

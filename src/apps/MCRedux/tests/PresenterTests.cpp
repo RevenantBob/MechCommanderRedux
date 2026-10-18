@@ -128,6 +128,98 @@ TEST_CASE("presenter: the view is letterboxed, integer-scaled or stretched into 
     CHECK(SameViewport(MCPresentViewport(1920, 1080, 0, 480, {}), MCViewport{}));
 }
 
+/// <summary>
+/// A screen shown scaled up keeps its underlay at the output's resolution (PREFS "UIResolution" under the window's
+/// height): each output pixel shows the screen pixel under its centre, and where that is the key over the underlay,
+/// the world pixel under the output pixel's own centre. A 4x2 screen at 8x4 with a 6x4 world under its right three
+/// columns: the UI's pixels are doubled, the world's shown one for one, and a key outside the underlay stays the key.
+/// </summary>
+TEST_CASE("presenter: a scaled-up screen composites its underlay at the output's resolution")
+{
+    constexpr uint8_t Key = MCRenderer::UnderlayKey;
+    const std::array<uint8_t, 8> screenPixels = {7, Key, Key, 9, Key, Key, 8, Key};
+    auto world = std::make_shared<MCWindow>();
+    world->Pixels = std::make_shared<uint8_t[]>(6 * 4);
+    world->XMax = 5;
+    world->YMax = 3;
+
+    for (size_t i = 0; i < 6 * 4; i++)
+    {
+        world->Pixels[i] = static_cast<uint8_t>(100 + i);
+    }
+
+    MCWindow screen;
+    MCUnderlay underlay;
+    underlay.Rect = MCRect{1, 0, 3, 1};
+    underlay.Source = world;
+    const std::array<MCUnderlay, 1> underlays = {underlay};
+    MCFrame frame{.Screen = screen};
+    frame.Pixels = screenPixels;
+    frame.Width = 4;
+    frame.Height = 2;
+    frame.View = SDL_Rect{0, 0, 4, 2};
+    frame.Underlays = underlays;
+    frame.OutputWidth = 8;
+    frame.OutputHeight = 4;
+    REQUIRE(frame.ScaledOutput());
+
+    std::vector<uint8_t> composed;
+    MCComposeScaled(frame, composed);
+    const std::vector<uint8_t> expected = {
+        7,   7,   100, 101, 102, 103, 9,   9,   //
+        7,   7,   106, 107, 108, 109, 9,   9,   //
+        Key, Key, 112, 113, 8,   8,   116, 117, //
+        Key, Key, 118, 119, 8,   8,   122, 123,
+    };
+
+    CHECK(composed == expected);
+}
+
+namespace
+{
+    /// <summary>
+    /// Boots mission 1, picks <paramref name="uiResolution"/> (PREFS "UIResolution") and makes the window 1600x1200:
+    /// the screen is then <paramref name="lines"/> tall at the window's aspect, and the world view is composited at
+    /// the window's pixels (the display's underlay scale is the window's lines per screen line).
+    /// </summary>
+    void CheckUiResolution(int uiResolution, int lines)
+    {
+        if (!MCTestGame::Available())
+        {
+            return;
+        }
+
+        REQUIRE(MCTestGame::StartMission(1));
+        const std::shared_ptr<MCDisplay> display = GuiSystem().Display();
+        REQUIRE(display != nullptr);
+        GUiResolution = uiResolution;
+        REQUIRE(SDL_SetWindowSize(&display->Window(), 1600, 1200));
+        SDL_SyncWindow(&display->Window());
+        MCTestGame::RunFrame(1.0f / 15.0f);
+
+        int pixelWidth = 0;
+        int pixelHeight = 0;
+        REQUIRE(SDL_GetWindowSizeInPixels(&display->Window(), &pixelWidth, &pixelHeight));
+        REQUIRE(pixelHeight > lines);
+        CHECK_EQ(GuiSystem().Height(), lines);
+        CHECK_EQ(GuiSystem().Width(), static_cast<int32_t>(std::lround(static_cast<double>(pixelWidth) * lines /
+                                                                       static_cast<double>(pixelHeight))));
+        CHECK_EQ(display->Height(), lines);
+        CHECK(std::fabs(display->UnderlayScale() - static_cast<float>(pixelHeight) / static_cast<float>(lines)) <
+              0.01f);
+    }
+}
+
+TEST_CASE_ISOLATED("game: UI RESOLUTION 480P draws the mission's UI 480 lines tall in a taller window")
+{
+    CheckUiResolution(480, 480);
+}
+
+TEST_CASE_ISOLATED("game: UI RESOLUTION NATIVE stops at 1080 lines")
+{
+    CheckUiResolution(0, MaxUiResolution);
+}
+
 /// <summary>The renderer's name in PREFS "Renderer" and on the command line (-renderer), any case.</summary>
 TEST_CASE("presenter: renderer names")
 {

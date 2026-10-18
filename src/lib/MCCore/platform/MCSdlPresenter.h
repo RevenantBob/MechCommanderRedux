@@ -39,8 +39,13 @@ public:
 private:
     /// <summary>Remakes the textures for a screen of <paramref name="width"/> x <paramref name="height"/>.</summary>
     std::expected<void, std::string> EnsureTextures(int width, int height);
-    /// <summary>Uploads the frame's palette and pixels (composited by the CPU when it has underlays).</summary>
+    /// <summary>
+    /// Uploads the frame's palette and pixels (composited by the CPU when it has underlays, at the window's pixels
+    /// when <see cref="MCFrame::ScaledOutput"/>).
+    /// </summary>
     std::expected<void, std::string> Upload(const MCFrame& frame);
+    /// <summary>The part of the uploaded texture that is shown: the view, or the whole composite at the output's size.</summary>
+    static SDL_Rect ShownRect(const MCFrame& frame);
     /// <summary>Fits <paramref name="view"/> into the window (SDL's logical presentation).</summary>
     void ApplyPresentation(const SDL_Rect& view);
 

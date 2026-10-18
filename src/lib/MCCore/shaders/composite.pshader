@@ -1,11 +1,14 @@
 // The composite of the screen: the screen (UI) in palette indices over the world view's surface, then the palette.
 //
-// Drawn by MCVulkanPresenter into the frame texture (the screen's size), with quad.vshader: once over the whole
-// screen without an underlay, then over each underlay's rectangle with it. A screen pixel other than the key (255) is
-// shown as it is. Over an underlay, a key pixel shows the world pixel under its centre (nearest), mapped through the op
-// table its op names (row 0 is the identity): a translucent UI draw over the world recorded its palette table there.
-// This is MCRenderer::ComposeUnderlays, which the CPU uses for screenshots, tests and the software renderer, done per
-// pixel.
+// Drawn by MCVulkanPresenter into the frame texture, with quad.vshader: once over the whole target without an
+// underlay, then over each underlay's rectangle with it. The target is the screen's size, or, when the screen is shown
+// scaled up (a UI held under the window's height, MCDisplay::SetMaxHeight), the window pixels the view covers: each
+// target pixel then shows the screen pixel under its centre (screenMap), while the world keeps the window's resolution.
+// A screen pixel other than the key (255) is shown as it is. Over an underlay, a key pixel shows the world pixel under
+// the target pixel's centre (nearest), mapped through the op table its screen pixel's op names (row 0 is the
+// identity): a translucent UI draw over the world recorded its palette table there. This is
+// MCRenderer::ComposeUnderlays (at the screen's size) and MCComposeScaled (scaled), which the CPU uses for
+// screenshots, tests and the software renderer, done per pixel.
 //
 // Two sources (mode.y): the software renderer's pixels uploaded each frame (the screen, the op plane and the world
 // R8), or the GPU renderer's own surfaces' colours (MCVulkanRenderer: premultiplied RGBA, see draw.pshader), where the
@@ -34,7 +37,10 @@ cbuffer Composite : register(b0, space3)
 {
     // The screen's size in pixels (xy); the screen texture's allocated size (zw).
     float4 screenSize;
-    // The underlay's rectangle on the screen: left, top, width, height.
+    // The screen pixel of target pixel p is xy + floor((p + 0.5) * zw): the view's corner (xy) and the screen pixels
+    // per target pixel (zw; 1 at the screen's size).
+    float4 screenMap;
+    // The underlay's rectangle on the target: left, top, width, height.
     float4 shown;
     // The world surface's size in pixels (xy); the world texture's allocated size (zw).
     float4 worldSize;
@@ -88,7 +94,8 @@ float3 Shown(uint index)
 float4 main(float4 position : SV_Position) : SV_Target
 {
     const float2 pixel = floor(position.xy);
-    const float4 screen = TexelAt(screenTex, screenSampler, pixel, screenSize.zw);
+    const float2 screenPixel = screenMap.xy + floor((pixel + 0.5) * screenMap.zw);
+    const float4 screen = TexelAt(screenTex, screenSampler, screenPixel, screenSize.zw);
     // The world pixel under this pixel's centre: (2 * offset + 1) * surface / (2 * shown), as the CPU picks it.
     const float2 offset = pixel - shown.xy;
     const float2 world = clamp(floor((2.0 * offset + 1.0) * worldSize.xy / (2.0 * shown.zw)), 0.0, worldSize.xy - 1.0);
@@ -106,7 +113,7 @@ float4 main(float4 position : SV_Position) : SV_Target
     if (mode.x != 0.0 && index == 255)
     {
         index = Byte(TexelAt(worldTex, worldSampler, world, worldSize.zw).r);
-        const uint op = IndexAt(opTex, opSampler, pixel, screenSize.zw);
+        const uint op = IndexAt(opTex, opSampler, screenPixel, screenSize.zw);
         index = IndexAt(tableTex, tableSampler, float2(index, op), float2(256.0, 256.0));
     }
 

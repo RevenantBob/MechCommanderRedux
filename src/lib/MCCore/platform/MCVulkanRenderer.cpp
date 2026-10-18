@@ -2658,8 +2658,10 @@ void MCVulkanRenderer::PlaceSurfaces(std::span<const MCUnderlay> underlays)
         {
             if (SourceSurfaceKey(underlay) == surface.Key && !Empty(underlay.Rect))
             {
-                surface.DrawnWidth = static_cast<uint32_t>(underlay.Rect.X1 - underlay.Rect.X0 + 1);
-                surface.DrawnHeight = static_cast<uint32_t>(underlay.Rect.Y1 - underlay.Rect.Y0 + 1);
+                surface.DrawnWidth = static_cast<uint32_t>(std::max(
+                    1L, std::lround(static_cast<float>(underlay.Rect.X1 - underlay.Rect.X0 + 1) * _UnderlayScaleX)));
+                surface.DrawnHeight = static_cast<uint32_t>(std::max(
+                    1L, std::lround(static_cast<float>(underlay.Rect.Y1 - underlay.Rect.Y0 + 1) * _UnderlayScaleY)));
                 break;
             }
         }

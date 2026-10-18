@@ -62,11 +62,14 @@ namespace
     /// <summary>The panel: the art's panel at its corner, made tall enough for the settings and the buttons.</summary>
     constexpr MCPrefsPlace PanelPlace{13, 51, 263, 275};
 
-    /// <summary>The boxes on the panel: the art's (SOUND one row taller), and RENDERER under DIFFICULTY.</summary>
+    /// <summary>
+    /// The boxes on the panel: the art's (SOUND one row taller), then RENDERER and UI RESOLUTION under DIFFICULTY.
+    /// </summary>
     constexpr MCPrefsPlace BrightnessBoxPlace{10, 11, 112, 38};
     constexpr MCPrefsPlace SoundBoxPlace{10, 59, 112, 113};
     constexpr MCPrefsPlace DifficultyBoxPlace{132, 11, 120, 63};
     constexpr MCPrefsPlace RendererBoxPlace{132, 78, 120, 50};
+    constexpr MCPrefsPlace UiResolutionBoxPlace{132, 132, 120, 50};
 
     /// <summary>The panel's outline (the art's panel's grey) and every box's fill (black).</summary>
     constexpr uint8_t PanelOutlineColor = 0x18;
@@ -116,8 +119,9 @@ namespace
     /// <summary>The INTERFACE VOLUME slider (the screen owns it).</summary>
     std::weak_ptr<MCLogSlider> InterfaceSlider;
 
-    /// <summary>The renderer choice and the interface volume when the screen opened (for CancelPrefs).</summary>
+    /// <summary>The renderer choice, the UI resolution and the interface volume when the screen opened (for CancelPrefs).</summary>
     int32_t SavedRendererPreference = 0;
+    int32_t SavedUiResolution = 0;
     int32_t SavedInterfaceLevel = 0;
 
     /// <summary>The click INTERFACE VOLUME plays at its new level.</summary>
@@ -278,6 +282,18 @@ void AddPreferencesPanel(MCGenericScreen& screen)
                  {"SOFTWARE", static_cast<int32_t>(MCRendererKind::Software)}},
                 RendererChanged);
 
+    // UI RESOLUTION: the most lines the in-mission UI is drawn at, from the next scenario on.
+    MCLogGroupBox& uiResolution = AddBox(screen, panel, UiResolutionBoxPlace, BoxOutlineColor);
+    AddLabel(screen, uiResolution, "UI RESOLUTION", BoxTitleLeft, BoxTitleTop);
+    std::vector<MCLogComboBox::Item> uiResolutions = {{"NATIVE", 0}};
+
+    for (const int lines : UiResolutions)
+    {
+        uiResolutions.push_back({std::format("{}P", lines), lines});
+    }
+
+    AddDropDown(screen, uiResolution, GUiResolution, std::move(uiResolutions), nullptr);
+
     MoveOnto(screen, AcceptElement, panel, AcceptLeft, ButtonsTop);
     MoveOnto(screen, CancelElement, panel, CancelLeft, ButtonsTop);
 }
@@ -297,6 +313,7 @@ void ShowPreferences()
     logistics->SavedPrefs5 = SoundSystem()->DigitalMasterVolume;
     logistics->SavedPrefs6 = GameDifficulty;
     SavedRendererPreference = GRendererPreference;
+    SavedUiResolution = GUiResolution;
     SavedInterfaceLevel = SoundSystem()->InterfaceLevel;
     MCGenericScreen& screen = *logistics->PrefScreen;
     screen.Element<MCLogSlider>(BrightnessSliderElement)->SetCurrentValue(brightness);
@@ -331,6 +348,7 @@ void CancelPrefs()
     RestoreVolume(SoundSystem()->InterfaceLevel, SavedInterfaceLevel);
     GameDifficulty = logistics->SavedPrefs6;
     GRendererPreference = SavedRendererPreference;
+    GUiResolution = SavedUiResolution;
     Cancel();
 }
 
@@ -355,6 +373,7 @@ void WritePrefs()
     prefs.WriteIdBoolean("StretchToFit", GStretchToFit != 0);
     prefs.WriteIdBoolean("SoftwareCursor", GSoftwareCursor != 0);
     prefs.WriteIdString("Renderer", MCRendererKindName(static_cast<MCRendererKind>(GRendererPreference)));
+    prefs.WriteIdLong("UIResolution", GUiResolution);
     prefs.WriteIdBoolean("ShowFps", GShowFpsPreference != 0);
     Cancel();
 }

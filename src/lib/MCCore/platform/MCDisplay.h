@@ -32,6 +32,11 @@ struct MCDisplayOptions
     /// screen starts at the window's size in pixels. The window is never resized to fit the screen.
     /// </summary>
     bool FollowWindow = false;
+    /// <summary>
+    /// The tallest a window-following screen gets (0: as tall as the window); see
+    /// <see cref="MCDisplay::SetMaxHeight"/>.
+    /// </summary>
+    int MaxHeight = 0;
     /// <summary>The renderer asked for; Vulkan falls back to software when it can't start.</summary>
     MCRendererKind Renderer = MCRendererKind::Vulkan;
 };
@@ -91,11 +96,26 @@ public:
     bool FollowsWindow() const { return _FollowWindow; }
 
     /// <summary>
-    /// The size a window-following screen should have now: the window's size in pixels, no smaller than the minimum
+    /// The size a window-following screen should have now: the window's size in pixels, or, for a window taller than
+    /// the most (<see cref="SetMaxHeight"/>), that many lines at the window's aspect; no smaller than the minimum
     /// (<see cref="MCDisplayOptions::Width"/> x <see cref="MCDisplayOptions::Height"/>). A minimised window keeps the
     /// current size.
     /// </summary>
     void WindowScreenSize(int& width, int& height) const;
+
+    /// <summary>
+    /// Sets the tallest a window-following screen gets (0: as tall as the window), from the next
+    /// <see cref="WindowScreenSize"/> on. A screen shorter than the window is shown scaled up, but its underlays (the
+    /// world view) are composited at the window's pixels (<see cref="UnderlayScale"/>): only the UI drawn on the screen
+    /// is coarser.
+    /// </summary>
+    void SetMaxHeight(int height) { _MaxHeight = std::max(height, 0); }
+
+    /// <summary>
+    /// How many window pixels the underlays are composited at per screen pixel down: above 1 when the whole screen is
+    /// shown scaled up (a screen held under the window's height by <see cref="SetMaxHeight"/>), else 1.
+    /// </summary>
+    float UnderlayScale() const;
 
     /// <summary>
     /// The largest size <see cref="WindowScreenSize"/> can return on this machine: the biggest desktop of any display,
@@ -266,6 +286,11 @@ private:
     void EndCycleOver(int first, int count);
     /// <summary>Where the shown view lands in the window, in window pixels.</summary>
     MCViewport ShownViewport() const;
+    /// <summary>
+    /// The size the frame is composited at when the whole screen is shown scaled up (the window's pixels it covers), so
+    /// the underlays keep the window's resolution; false (and nothing set) otherwise.
+    /// </summary>
+    bool ScaledOutput(int& width, int& height) const;
 
     /// <summary>The window; the presenter shares it, so it outlives what draws into it.</summary>
     std::shared_ptr<SDL_Window> _Window;
@@ -286,6 +311,8 @@ private:
     /// <summary>The smallest a window-following screen gets.</summary>
     int _MinWidth = 0;
     int _MinHeight = 0;
+    /// <summary>The tallest a window-following screen gets (0: no limit).</summary>
+    int _MaxHeight = 0;
     bool _FollowWindow = false;
     /// <summary>
     /// The screen's window. Its pixels are shared by the screen ports; they are reallocated only when the screen grows

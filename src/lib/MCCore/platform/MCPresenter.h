@@ -79,6 +79,14 @@ struct MCFrame
     int Height = 0;
     /// <summary>The part of the screen that is shown in the window.</summary>
     SDL_Rect View{};
+    /// <summary>
+    /// The size the frame is composited at, in window pixels, when the view is shown scaled up and its underlays keep
+    /// the window's resolution (<see cref="MCDisplay::SetMaxHeight"/>): the screen's pixels are taken nearest, the
+    /// underlays' at their own resolution (<see cref="MCComposeScaled"/>). 0 composites at the view's size, then
+    /// scales the whole picture.
+    /// </summary>
+    int OutputWidth = 0;
+    int OutputHeight = 0;
     /// <summary>The screen's op plane (one byte a pixel, laid out as the pixels).</summary>
     std::span<const uint8_t> Ops;
     /// <summary>The screen's underlays this frame (only those that lie under the screen and have pixels).</summary>
@@ -101,7 +109,18 @@ struct MCFrame
     /// to 255 (black). The presenter applies it to the finished picture; <see cref="Colors"/> don't include it.
     /// </summary>
     int Fade = 0;
+
+    /// <summary>Whether the frame is composited at <see cref="OutputWidth"/> x <see cref="OutputHeight"/>.</summary>
+    bool ScaledOutput() const { return OutputWidth > 0 && OutputHeight > 0; }
 };
+
+/// <summary>
+/// The frame's view composited at <see cref="MCFrame::OutputWidth"/> x <see cref="MCFrame::OutputHeight"/> into
+/// <paramref name="pixels"/> (palette indices, the output's width a row): each output pixel shows the screen pixel under
+/// its centre; where that is the key over an underlay, the underlay's pixel under the output pixel's centre, mapped
+/// through the screen pixel's op table. At the view's own size this is <see cref="MCRenderer::ComposeUnderlays"/>.
+/// </summary>
+void MCComposeScaled(const MCFrame& frame, std::vector<uint8_t>& pixels);
 
 /// <summary>
 /// Shows frames in the display's window. Every call is made from the thread that created the display.

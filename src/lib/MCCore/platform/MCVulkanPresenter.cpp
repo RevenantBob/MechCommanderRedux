@@ -21,6 +21,7 @@ namespace
     struct CompositeUniforms
     {
         float ScreenSize[4];
+        float ScreenMap[4];
         float Shown[4];
         float WorldSize[4];
         float Mode[4];
@@ -260,6 +261,7 @@ std::expected<void, std::string> MCVulkanPresenter::Prepare(SDL_GPUCommandBuffer
     if (_Renderer != nullptr && MCRenderer::GpuDrawing() != MCGpuDrawing::Off)
     {
         _Renderer->SetColors(frame.PaletteColors, frame.Cycle);
+        PlaceUnderlays(frame);
 
         if (auto executed = _Renderer->Execute(commands, frame.Underlays); !executed)
         {
@@ -277,13 +279,15 @@ std::expected<void, std::string> MCVulkanPresenter::Upload(SDL_GPUCommandBuffer&
 {
     const uint32_t width = static_cast<uint32_t>(frame.Width);
     const uint32_t height = static_cast<uint32_t>(frame.Height);
+    const uint32_t frameWidth = frame.ScaledOutput() ? static_cast<uint32_t>(frame.OutputWidth) : width;
+    const uint32_t frameHeight = frame.ScaledOutput() ? static_cast<uint32_t>(frame.OutputHeight) : height;
     constexpr SDL_GPUTextureFormat R8 = SDL_GPU_TEXTUREFORMAT_R8_UNORM;
     constexpr SDL_GPUTextureFormat Rgba = SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM;
     bool paletteNew = _Palette.Handle == nullptr;
 
-    for (auto made :
-         {Ensure(_Palette, Rgba, SDL_GPU_TEXTUREUSAGE_SAMPLER, 256, 1, true),
-          Ensure(_Frame, Rgba, SDL_GPU_TEXTUREUSAGE_COLOR_TARGET | SDL_GPU_TEXTUREUSAGE_SAMPLER, width, height, true)})
+    for (auto made : {Ensure(_Palette, Rgba, SDL_GPU_TEXTUREUSAGE_SAMPLER, 256, 1, true),
+                      Ensure(_Frame, Rgba, SDL_GPU_TEXTUREUSAGE_COLOR_TARGET | SDL_GPU_TEXTUREUSAGE_SAMPLER, frameWidth,
+                             frameHeight, true)})
     {
         if (!made)
         {
@@ -432,8 +436,16 @@ std::expected<void, std::string> MCVulkanPresenter::Upload(SDL_GPUCommandBuffer&
 
 void MCVulkanPresenter::Composite(SDL_GPUCommandBuffer& commands, const MCFrame& frame, bool gpuSurfaces)
 {
-    const float width = static_cast<float>(frame.Width);
-    const float height = static_cast<float>(frame.Height);
+    // The target: the screen's size, or the window pixels a scaled-up view covers. Screen pixels per target pixel, and
+    // the screen pixel at the target's corner.
+    const bool scaled = frame.ScaledOutput();
+    const float width = static_cast<float>(scaled ? frame.OutputWidth : frame.Width);
+    const float height = static_cast<float>(scaled ? frame.OutputHeight : frame.Height);
+    const float mapX = scaled ? static_cast<float>(frame.View.w) / width : 1.0f;
+    const float mapY = scaled ? static_cast<float>(frame.View.h) / height : 1.0f;
+    const float originX = scaled ? static_cast<float>(frame.View.x) : 0.0f;
+    const float originY = scaled ? static_cast<float>(frame.View.y) : 0.0f;
+    const float screenMap[4] = {originX, originY, mapX, mapY};
 
     // The screen's texture and its allocated size; the GPU's surfaces have no op plane or op tables (the screen is
     // bound in their place, unread).
@@ -451,7 +463,8 @@ void MCVulkanPresenter::Composite(SDL_GPUCommandBuffer& commands, const MCFrame&
     SDL_GPUTexture* ops = gpuSurfaces ? screen : _Ops.Handle.get();
     SDL_GPUTexture* tables = gpuSurfaces ? screen : _Tables.Handle.get();
     const float source = gpuSurfaces ? 1.0f : 0.0f;
-    const float screenSize[4] = {width, height, static_cast<float>(screenWidth), static_cast<float>(screenHeight)};
+    const float screenSize[4] = {static_cast<float>(frame.Width), static_cast<float>(frame.Height),
+                                 static_cast<float>(screenWidth), static_cast<float>(screenHeight)};
     SDL_GPUColorTargetInfo target{};
     target.texture = _Frame.Handle.get();
     // The first quad covers every pixel.
@@ -492,6 +505,7 @@ void MCVulkanPresenter::Composite(SDL_GPUCommandBuffer& commands, const MCFrame&
     // The screen alone, then each underlay's rectangle with its surface.
     draw(0.0f, 0.0f, width, height, *screen,
          CompositeUniforms{{screenSize[0], screenSize[1], screenSize[2], screenSize[3]},
+                           {screenMap[0], screenMap[1], screenMap[2], screenMap[3]},
                            {0.0f, 0.0f, 1.0f, 1.0f},
                            {1.0f, 1.0f, 1.0f, 1.0f},
                            {0.0f, source, 0.0f, 0.0f}});
@@ -551,17 +565,20 @@ void MCVulkanPresenter::Composite(SDL_GPUCommandBuffer& commands, const MCFrame&
             worldSize[1] = worldSize[3] = static_cast<float>(worldHeight);
         }
 
+        // The rectangle and its part on the screen, in target pixels.
         const CompositeUniforms uniforms{
             {screenSize[0], screenSize[1], screenSize[2], screenSize[3]},
-            {static_cast<float>(underlay.Rect.X0), static_cast<float>(underlay.Rect.Y0),
-             static_cast<float>(underlay.Rect.X1 - underlay.Rect.X0 + 1),
-             static_cast<float>(underlay.Rect.Y1 - underlay.Rect.Y0 + 1)},
+            {screenMap[0], screenMap[1], screenMap[2], screenMap[3]},
+            {(static_cast<float>(underlay.Rect.X0) - originX) / mapX,
+             (static_cast<float>(underlay.Rect.Y0) - originY) / mapY,
+             static_cast<float>(underlay.Rect.X1 - underlay.Rect.X0 + 1) / mapX,
+             static_cast<float>(underlay.Rect.Y1 - underlay.Rect.Y0 + 1) / mapY},
             {worldSize[0], worldSize[1], worldSize[2], worldSize[3]},
             {1.0f, source, 0.0f, 0.0f},
         };
 
-        draw(static_cast<float>(x0), static_cast<float>(y0), static_cast<float>(x1 - x0 + 1),
-             static_cast<float>(y1 - y0 + 1), *world, uniforms);
+        draw((static_cast<float>(x0) - originX) / mapX, (static_cast<float>(y0) - originY) / mapY,
+             static_cast<float>(x1 - x0 + 1) / mapX, static_cast<float>(y1 - y0 + 1) / mapY, *world, uniforms);
     }
 
     SDL_EndGPURenderPass(pass);
@@ -612,10 +629,21 @@ std::expected<void, std::string> MCVulkanPresenter::Present(const MCFrame& frame
                                                    frame.View.w, frame.View.h, _Presentation);
         SDL_GPUBlitInfo blit{};
         blit.source.texture = _Frame.Handle.get();
-        blit.source.x = static_cast<uint32_t>(frame.View.x);
-        blit.source.y = static_cast<uint32_t>(frame.View.y);
-        blit.source.w = static_cast<uint32_t>(frame.View.w);
-        blit.source.h = static_cast<uint32_t>(frame.View.h);
+
+        // A frame composited at the output's size is shown whole.
+        if (frame.ScaledOutput())
+        {
+            blit.source.w = static_cast<uint32_t>(frame.OutputWidth);
+            blit.source.h = static_cast<uint32_t>(frame.OutputHeight);
+        }
+        else
+        {
+            blit.source.x = static_cast<uint32_t>(frame.View.x);
+            blit.source.y = static_cast<uint32_t>(frame.View.y);
+            blit.source.w = static_cast<uint32_t>(frame.View.w);
+            blit.source.h = static_cast<uint32_t>(frame.View.h);
+        }
+
         blit.destination.texture = swapchain;
         blit.destination.x = static_cast<uint32_t>(std::lround(std::max(shown.X, 0.0f)));
         blit.destination.y = static_cast<uint32_t>(std::lround(std::max(shown.Y, 0.0f)));
@@ -739,7 +767,21 @@ std::expected<void, std::string> MCVulkanPresenter::Discard(const MCFrame& frame
     }
 
     _Renderer->SetColors(frame.PaletteColors, frame.Cycle);
+    PlaceUnderlays(frame);
     return _Renderer->Flush(frame.Underlays);
+}
+
+void MCVulkanPresenter::PlaceUnderlays(const MCFrame& frame)
+{
+    if (frame.ScaledOutput() && frame.View.w > 0 && frame.View.h > 0)
+    {
+        _Renderer->SetUnderlayScale(static_cast<float>(frame.OutputWidth) / static_cast<float>(frame.View.w),
+                                    static_cast<float>(frame.OutputHeight) / static_cast<float>(frame.View.h));
+    }
+    else
+    {
+        _Renderer->SetUnderlayScale(1.0f, 1.0f);
+    }
 }
 
 MCViewport MCVulkanPresenter::Viewport(int viewWidth, int viewHeight) const

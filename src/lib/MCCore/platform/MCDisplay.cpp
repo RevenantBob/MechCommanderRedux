@@ -157,6 +157,7 @@ std::expected<std::unique_ptr<MCDisplay>, std::string> MCDisplay::Create(const M
         display->_FollowWindow = true;
         display->_MinWidth = options.Width;
         display->_MinHeight = options.Height;
+        display->_MaxHeight = std::max(options.MaxHeight, 0);
         SDL_SetWindowMinimumSize(window, options.Width, options.Height);
         SDL_SyncWindow(window);
         display->WindowScreenSize(display->_Width, display->_Height);
@@ -216,6 +217,14 @@ void MCDisplay::WindowScreenSize(int& width, int& height) const
     if (!SDL_GetWindowSizeInPixels(_Window.get(), &pixelWidth, &pixelHeight) || pixelWidth <= 0 || pixelHeight <= 0)
     {
         return;
+    }
+
+    // A window taller than the most: that many lines, as wide as the window's aspect makes them.
+    if (_MaxHeight > 0 && pixelHeight > _MaxHeight)
+    {
+        pixelWidth = static_cast<int>(
+            std::lround(static_cast<double>(pixelWidth) * _MaxHeight / static_cast<double>(pixelHeight)));
+        pixelHeight = _MaxHeight;
     }
 
     width = std::max(pixelWidth, _MinWidth);
@@ -398,6 +407,34 @@ MCViewport MCDisplay::ShownViewport() const
     return _Presenter->Viewport(_View.w, _View.h);
 }
 
+bool MCDisplay::ScaledOutput(int& width, int& height) const
+{
+    if (!_FollowWindow || _View.x != 0 || _View.y != 0 || _View.w != _Width || _View.h != _Height)
+    {
+        return false;
+    }
+
+    const MCViewport viewport = ShownViewport();
+    const auto shownWidth = static_cast<int>(std::lround(viewport.W));
+    const auto shownHeight = static_cast<int>(std::lround(viewport.H));
+
+    if (shownWidth <= _Width || shownHeight <= _Height)
+    {
+        return false;
+    }
+
+    width = shownWidth;
+    height = shownHeight;
+    return true;
+}
+
+float MCDisplay::UnderlayScale() const
+{
+    int width = 0;
+    int height = 0;
+    return ScaledOutput(width, height) ? static_cast<float>(height) / static_cast<float>(_Height) : 1.0f;
+}
+
 void MCDisplay::PixelScale(float& scaleX, float& scaleY) const
 {
     scaleX = 1.0f;
@@ -421,6 +458,7 @@ MCFrame MCDisplay::BuildFrame(bool allColors)
     frame.Height = _Height;
     frame.View = _View;
     frame.Ops = *_Ops;
+    ScaledOutput(frame.OutputWidth, frame.OutputHeight);
     _FrameUnderlays = ScreenUnderlays();
     frame.Underlays = _FrameUnderlays;
 
@@ -469,7 +507,11 @@ std::expected<void, std::string> MCDisplay::Present()
 
 std::expected<std::vector<SDL_Color>, std::string> MCDisplay::ReadFrame()
 {
-    return _Presenter->ReadFrame(BuildFrame(true));
+    // At the screen's size, as ComposeScreen gives it.
+    MCFrame frame = BuildFrame(true);
+    frame.OutputWidth = 0;
+    frame.OutputHeight = 0;
+    return _Presenter->ReadFrame(frame);
 }
 
 std::vector<uint8_t> MCDisplay::ComposeScreen() const
