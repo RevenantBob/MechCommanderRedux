@@ -326,7 +326,7 @@ auto MCLogistics::Start() -> void
         InitScreen(*PrefScreen, "prefScreen", " No Save Screen FIT File ", " Unable to start save screen ");
         PrefScreen->SetEventRoutine(PrefScreenHandleEvent);
         // Port: the difficulty and renderer choices as drop-downs.
-        AddPreferenceDropDowns(*PrefScreen);
+        AddPreferencesPanel(*PrefScreen);
         SessionScreen->Init(0, 0, 0x280, 0x1e0, {});
     }
 
@@ -1198,7 +1198,7 @@ auto MCLogistics::Transition(MCLogPort& from, MCLogPort& to, int direction) cons
     CurrentScreen()->AddChild(wipe);
     wipe->ShowGuiWindow(true);
     wipe->SetDepth(100);
-    SoundSystem()->PlayDigitalSample(0x36, 1, std::nullopt, false, false);
+    SoundSystem()->PlayInterfaceSample(0x36);
     const int64_t frequency = MCPort::PerformanceFrequency();
     float elapsed = 0.0f;
 

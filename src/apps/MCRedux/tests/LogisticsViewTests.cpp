@@ -23,6 +23,7 @@
 #include "main/MCLogistics.h"
 #include "platform/MCFileSystem.h"
 #include "platform/MCPresenter.h"
+#include "sound/MCSoundSystem.h"
 #include "vfx/MCVfxFunctions.h"
 
 namespace
@@ -137,7 +138,7 @@ TEST_CASE_ISOLATED("game: the logistics chat history draws as the original's pic
 namespace
 {
     /// <summary>
-    /// The preferences screen's drop-downs, as AddPreferenceDropDowns places them: each field 76 wide and 11 tall at
+    /// The preferences screen's drop-downs, as AddPreferencesPanel places them: each field 76 wide and 11 tall at
     /// (512, top), its list's rows 10 tall from top + 11. DIFFICULTY's field is at y 176 (EASY, REGULAR, HARD),
     /// RENDERER's at y 243 (VULKAN, SOFTWARE).
     /// </summary>
@@ -153,22 +154,56 @@ namespace
     constexpr PrefsDropDown DifficultyDropDown{176};
     constexpr PrefsDropDown RendererDropDown{243};
 
-    /// <summary>The preferences screen's drop-down whose field lies at <paramref name="dropDown"/>.</summary>
-    std::shared_ptr<MCLogComboBox> FindDropDown(const PrefsDropDown& dropDown)
+    /// <summary>The drop-down under <paramref name="parent"/> (at any depth) whose field lies at <paramref name="dropDown"/>.</summary>
+    std::shared_ptr<MCLogComboBox> FindDropDownIn(MCGuiObject& parent, const PrefsDropDown& dropDown)
     {
-        const std::shared_ptr<MCLogistics> logistics = GlobalLog();
-        MCGenericScreen& screen = *logistics->PrefScreen;
-
-        for (int32_t i = 0; i < screen.NumberOfChildren(); i++)
+        for (const std::shared_ptr<MCGuiObject>& child : parent.Children())
         {
-            if (auto combo = std::dynamic_pointer_cast<MCLogComboBox>(screen.Child(i));
+            if (auto combo = std::dynamic_pointer_cast<MCLogComboBox>(child);
                 combo != nullptr && combo->GlobalY() == dropDown.Top)
             {
                 return combo;
             }
+
+            if (std::shared_ptr<MCLogComboBox> found = FindDropDownIn(*child, dropDown); found != nullptr)
+            {
+                return found;
+            }
         }
 
         return nullptr;
+    }
+
+    /// <summary>The preferences screen's drop-down whose field lies at <paramref name="dropDown"/>.</summary>
+    std::shared_ptr<MCLogComboBox> FindDropDown(const PrefsDropDown& dropDown)
+    {
+        return FindDropDownIn(*GlobalLog()->PrefScreen, dropDown);
+    }
+
+    /// <summary>
+    /// Whether <paramref name="object"/> draws in front of everything on <paramref name="screen"/>: it, and each of its
+    /// parents below the screen, is the last of its parent's children.
+    /// </summary>
+    bool InFrontOnScreen(MCGuiObject& screen, MCGuiObject& object)
+    {
+        std::shared_ptr<MCGuiObject> child = object.shared_from_this();
+
+        while (const std::shared_ptr<MCGuiObject> parent = child->ParentObject())
+        {
+            if (parent->Child(parent->NumberOfChildren() - 1) != child)
+            {
+                return false;
+            }
+
+            if (parent.get() == &screen)
+            {
+                return true;
+            }
+
+            child = parent;
+        }
+
+        return false;
     }
 }
 
@@ -332,10 +367,10 @@ TEST_CASE_ISOLATED("game: the preferences drop-downs work with a player's mouse 
         CHECK(GuiSystem().GrabbedObject() == nullptr);
     };
 
-    // Open: in front of every other child of the screen, with its list; the look differs from the closed one.
+    // Open: in front of everything on the screen, with its list; the look differs from the closed one.
     MCScreenInput::RealClick(RendererDropDown.FieldX(), RendererDropDown.FieldY());
     REQUIRE(renderer->IsOpen());
-    CHECK(screen.Child(screen.NumberOfChildren() - 1) == renderer);
+    CHECK(InFrontOnScreen(screen, *renderer));
     CHECK_EQ(renderer->Height(), MCLogComboBox::FieldHeight + 2 * MCLogComboBox::RowHeight + 1);
     CHECK_EQ(renderer->Hovered(), 0);
     MCScreenInput::RealMove(RendererDropDown.FieldX(), RendererDropDown.RowY(1));
@@ -345,8 +380,8 @@ TEST_CASE_ISOLATED("game: the preferences drop-downs work with a player's mouse 
     CHECK(openShown != startShown);
 
     // A press outside closes it with no change, and doesn't reach what's there (ACCEPT would leave the screen).
-    constexpr int32_t AcceptX = 546;
-    constexpr int32_t AcceptY = 283;
+    constexpr int32_t AcceptX = 499;
+    constexpr int32_t AcceptY = 401;
     CHECK(std::dynamic_pointer_cast<MCLogButton>(screen.FindObject(AcceptX, AcceptY)) != nullptr);
     MCScreenInput::RealClick(AcceptX, AcceptY);
     CHECK(!renderer->IsOpen());
@@ -449,7 +484,7 @@ TEST_CASE_ISOLATED("game: the preferences drop-downs work with a player's mouse 
             MCTest::Scope scope(std::format("round {}, difficulty {}", round, level));
             MCScreenInput::RealClick(DifficultyDropDown.FieldX(), DifficultyDropDown.FieldY());
             CHECK(difficulty->IsOpen());
-            CHECK(screen.Child(screen.NumberOfChildren() - 1) == difficulty);
+            CHECK(InFrontOnScreen(screen, *difficulty));
             MCScreenInput::RealClick(DifficultyDropDown.FieldX(), DifficultyDropDown.RowY(level));
             CHECK(!difficulty->IsOpen());
             CHECK_EQ(GameDifficulty, level);
@@ -466,6 +501,133 @@ TEST_CASE_ISOLATED("game: the preferences drop-downs work with a player's mouse 
     MCScreenInput::RealMove(320, 400);
     CHECK_EQ(GRendererPreference, static_cast<int32_t>(MCRendererKind::Vulkan));
     CHECK_EQ(GameDifficulty, startDifficulty);
+}
+
+namespace
+{
+    /// <summary>Every slider under <paramref name="parent"/>, at any depth, top to bottom as the tree lists them.</summary>
+    void CollectSliders(MCGuiObject& parent, std::vector<std::shared_ptr<MCLogSlider>>& sliders)
+    {
+        for (const std::shared_ptr<MCGuiObject>& child : parent.Children())
+        {
+            if (auto slider = std::dynamic_pointer_cast<MCLogSlider>(child); slider != nullptr)
+            {
+                sliders.push_back(slider);
+            }
+
+            CollectSliders(*child, sliders);
+        }
+    }
+}
+
+/// <summary>
+/// The preferences panel: five sliders (brightness, music, radio, effects, interface), each drawing its own track,
+/// whose thumbs sit on the pixels the fit's sliders put them on (x 365 plus the value's share of 91, at y 175, 222,
+/// 248 and 275), INTERFACE VOLUME's a row under the effects'; a press reads the same value at the same place. A
+/// click on the panel art around the panel, or on the panel between its boxes, changes nothing on the screen.
+/// </summary>
+TEST_CASE_ISOLATED("game: the preferences panel keeps the sliders where they were and adds INTERFACE VOLUME")
+{
+    if (!MCTestGame::Available())
+    {
+        return;
+    }
+
+    REQUIRE(MCTestGame::StartLogistics());
+    MCGenericScreen& screen = *GlobalLog()->PrefScreen;
+    ShowPreferences();
+    MCScreenInput::RealMove(320, 400);
+
+    std::vector<std::shared_ptr<MCLogSlider>> sliders;
+    CollectSliders(screen, sliders);
+    REQUIRE_EQ(sliders.size(), size_t{5});
+
+    // The fit's sliders 3..6, then INTERFACE VOLUME.
+    for (int32_t i = 0; i < 4; i++)
+    {
+        CHECK(sliders[static_cast<size_t>(i)] == screen.Element<MCLogSlider>(3 + i));
+    }
+
+    constexpr std::array<int32_t, 5> Tops = {175, 222, 248, 275, 301};
+    constexpr int32_t OldLeft = 365;
+    constexpr int32_t OldTravel = 91;
+
+    for (size_t i = 0; i < sliders.size(); i++)
+    {
+        MCTest::Scope scope(std::format("slider {}", i));
+        MCLogSlider& slider = *sliders[i];
+        CHECK(slider.TrackPort != nullptr);
+        CHECK_EQ(slider.GlobalY(), Tops[i]);
+        const int32_t saved = slider.CurrentValue;
+
+        for (int32_t value : {0, 1, slider.MaxValue / 2, slider.MaxValue - 1, slider.MaxValue})
+        {
+            MCTest::Scope valueScope(std::format("value {}", value));
+            slider.SetCurrentValue(value);
+            const auto share =
+                static_cast<int32_t>(static_cast<double>(OldTravel) * (static_cast<double>(value - slider.MinValue) /
+                                                                       (slider.MaxValue - slider.MinValue)));
+            CHECK_EQ(slider.GlobalX() + slider.ThumbX(), OldLeft + share);
+        }
+
+        CHECK_EQ(slider.ValueAt(OldLeft), slider.MinValue);
+        CHECK_EQ(slider.ValueAt(OldLeft + OldTravel), slider.MaxValue);
+        slider.SetCurrentValue(saved);
+    }
+
+    MCTestGame::RunFrame(1.0f / 15.0f);
+    const uint32_t shown = MCScreenInput::ScreenHash();
+    MCScreenInput::SaveShot("prefs panel", shown);
+
+    // The PREFERENCES title (the art), the art's frame below the panel, and the panel between its boxes.
+    for (const auto [x, y] : {std::pair{400, 105}, std::pair{480, 425}, std::pair{380, 400}, std::pair{470, 300}})
+    {
+        MCTest::Scope scope(std::format("click at {}, {}", x, y));
+        MCScreenInput::RealClick(x, y);
+        MCScreenInput::RealMove(320, 400);
+        CHECK(screen.IsShowing() != 0);
+        CHECK_EQ(MCScreenInput::ScreenHash(), shown);
+    }
+}
+
+/// <summary>
+/// INTERFACE VOLUME shows the interface level when the screen opens; a click on its track sets the level (and only
+/// it: the effects volume stays), and CANCEL puts the level back.
+/// </summary>
+TEST_CASE_ISOLATED("game: INTERFACE VOLUME sets the interface level, and CANCEL puts it back")
+{
+    if (!MCTestGame::Available())
+    {
+        return;
+    }
+
+    REQUIRE(MCTestGame::StartLogistics());
+    MCGenericScreen& screen = *GlobalLog()->PrefScreen;
+    MCSoundSystem& sound = *SoundSystem();
+    sound.InterfaceLevel = 90;
+    sound.DigitalMasterVolume = 40;
+    ShowPreferences();
+    MCScreenInput::RealMove(320, 400);
+
+    std::vector<std::shared_ptr<MCLogSlider>> sliders;
+    CollectSliders(screen, sliders);
+    REQUIRE_EQ(sliders.size(), size_t{5});
+    MCLogSlider& slider = *sliders[4];
+    CHECK_EQ(slider.CurrentValue, 90);
+    CHECK_EQ(screen.Element<MCLogSlider>(6)->CurrentValue, 40);
+
+    // The track's ends (the thumb's travel: x 365..456): silence, then full.
+    const int32_t middleY = slider.GlobalY() + slider.Height() / 2;
+    MCScreenInput::RealClick(365, middleY);
+    CHECK_EQ(slider.CurrentValue, 0);
+    CHECK_EQ(sound.InterfaceLevel, 0);
+    MCScreenInput::RealClick(365 + 91, middleY);
+    CHECK_EQ(sound.InterfaceLevel, 127);
+    CHECK_EQ(sound.DigitalMasterVolume, 40);
+
+    CancelPrefs();
+    CHECK_EQ(sound.InterfaceLevel, 90);
+    CHECK_EQ(sound.DigitalMasterVolume, 40);
 }
 
 /// <summary>

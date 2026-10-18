@@ -241,6 +241,8 @@ void ReadPreferences(MCFitIniFile& file)
     MusicVolume = file.Read<int32_t>("MusicVolume").value_or(0x40);
     RadioVolume = file.Read<int32_t>("RadioVolume").value_or(0x40);
     SfxVolume = file.Read<int32_t>("SFXVolume").value_or(0x60);
+    // Port: the interface sounds' own volume; a PREFS.CFG without it plays them at the effects volume, as before.
+    InterfaceVolume = file.Read<int32_t>("InterfaceVolume").value_or(SfxVolume);
 }
 
 void SystemInit()

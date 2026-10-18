@@ -280,7 +280,7 @@ auto MCMechBar::PlaceButtons(bool animate) -> void
         _DanceCallback = std::make_shared<MCGuiCallback>();
         _DanceCallback->SetExec([] { TacticalInterface()->MechBar->Dance(); });
         GuiSystem().AddCallback(_DanceCallback);
-        SoundSystem()->PlayDigitalSample(0x42, 1, std::nullopt, false, false);
+        SoundSystem()->PlayInterfaceSample(0x42);
     }
 }
 
@@ -399,7 +399,7 @@ auto MCMechBar::Dance() -> void
             Dancing = false;
             GuiSystem().RemoveCallback(*_DanceCallback);
             Draw();
-            SoundSystem()->PlayDigitalSample(0x43, 1, std::nullopt, false, false);
+            SoundSystem()->PlayInterfaceSample(0x43);
             _DanceFrames++;
             // The callback running this goes last (aCallback's run allows it, OB-109).
             _DanceCallback.reset();

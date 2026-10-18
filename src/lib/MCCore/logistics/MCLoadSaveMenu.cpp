@@ -338,7 +338,7 @@ void LoadSaveScreenHandleEvent(MCGuiObject& object, MCGuiEvent& event)
     else if (message == 5 && &object == GlobalLog()->SaveScreen.get())
     {
         // Enter in the name entry: save.
-        SoundSystem()->PlayDigitalSample(screen.LoadSaveButton->PressSound, 1, std::nullopt, false, false);
+        SoundSystem()->PlayInterfaceSample(screen.LoadSaveButton->PressSound);
         SaveGame();
     }
 }

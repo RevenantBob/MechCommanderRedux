@@ -10,7 +10,7 @@ auto PlayLogSound(uint32_t sampleId) -> void
     // A test may run the controls without a sound system.
     if (const std::shared_ptr<MCSoundSystem> sound = SoundSystem(); sound != nullptr)
     {
-        sound->PlayDigitalSample(sampleId, 1, std::nullopt, false, false);
+        sound->PlayInterfaceSample(sampleId);
     }
 }
 

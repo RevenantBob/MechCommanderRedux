@@ -217,7 +217,7 @@ auto MCGuiStartupWindow::Step() -> void
             break;
         case 0x3b:
         {
-            sounds->PlayDigitalSample(0x20, 1, std::nullopt, false, false);
+            sounds->PlayInterfaceSample(0x20);
             sounds->Update();
             DoStatic();
             return;
@@ -243,7 +243,7 @@ auto MCGuiStartupWindow::Step() -> void
         {
             EndStatic();
             drawUplink();
-            sounds->PlayDigitalSample(0x10, 1, std::nullopt, false, false);
+            sounds->PlayInterfaceSample(0x10);
             sounds->Update();
             AGEllipseFill(StaticPane(), pointX, pointY, 2, 2, 0xfc);
             return;
@@ -305,7 +305,7 @@ auto MCGuiStartupWindow::Step() -> void
             break;
         case 0x63:
         {
-            sounds->PlayDigitalSample(0x10, 1, std::nullopt, false, false);
+            sounds->PlayInterfaceSample(0x10);
             sounds->Update();
             return;
         }
@@ -394,7 +394,7 @@ auto MCGuiStartupWindow::Step() -> void
         }
         case 0xa9:
         {
-            NoiseSample = sounds->PlayDigitalSample(0x21, 0, std::nullopt, false, false);
+            NoiseSample = sounds->PlayInterfaceSample(0x21);
             sounds->Update();
             DoStatic();
             AGShapeDraw(StaticPane(), StaticImages[2], 0, 0x140, 0xf0);
@@ -404,7 +404,7 @@ auto MCGuiStartupWindow::Step() -> void
             return;
     }
 
-    sounds->PlayDigitalSample(sample, 1, std::nullopt, false, false);
+    sounds->PlayInterfaceSample(sample);
     sounds->Update();
 }
 

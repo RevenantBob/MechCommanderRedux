@@ -57,8 +57,8 @@ namespace
             std::tie(UseSound, UseMusic, DebugGameSystem, AblDebuggerEnabled, GNoSound) = _Switches;
             std::tie(Use90PixelSprite, Only45Pixel, Force16MB, Force32MB, GFullScreen, GStretchToFit, GSoftwareCursor,
                      GShowFps, GShowFpsPreference, GRenderer, GRendererPreference) = _Display;
-            std::tie(DisplayWidth, DisplayHeight, LanguageOffset, GameDifficulty, MusicVolume, RadioVolume, SfxVolume) =
-                _Numbers;
+            std::tie(DisplayWidth, DisplayHeight, LanguageOffset, GameDifficulty, MusicVolume, RadioVolume, SfxVolume,
+                     InterfaceVolume) = _Numbers;
         }
 
         SavedSettings(const SavedSettings&) = delete;
@@ -71,8 +71,9 @@ namespace
         std::tuple<int, bool, bool, bool, int, int, int, int, int, int, int> _Display{
             Use90PixelSprite, Only45Pixel, Force16MB,          Force32MB, GFullScreen,        GStretchToFit,
             GSoftwareCursor,  GShowFps,    GShowFpsPreference, GRenderer, GRendererPreference};
-        std::tuple<int32_t, int32_t, int32_t, int32_t, int32_t, int32_t, int32_t> _Numbers{
-            DisplayWidth, DisplayHeight, LanguageOffset, GameDifficulty, MusicVolume, RadioVolume, SfxVolume};
+        std::tuple<int32_t, int32_t, int32_t, int32_t, int32_t, int32_t, int32_t, int32_t> _Numbers{
+            DisplayWidth, DisplayHeight, LanguageOffset, GameDifficulty,
+            MusicVolume,  RadioVolume,   SfxVolume,      InterfaceVolume};
     };
 
     /// <summary>SYSTEM.CFG as the retail game ships it, with <paramref name="extraBlocks"/> before the ABL block.</summary>
@@ -220,6 +221,8 @@ TEST_CASE("system config: PREFS.CFG gives the display, difficulty and volumes, w
     CHECK_EQ(MusicVolume, 0);
     CHECK_EQ(RadioVolume, 27);
     CHECK_EQ(SfxVolume, 27);
+    // No InterfaceVolume (a retail file): the interface plays at the effects volume.
+    CHECK_EQ(InterfaceVolume, 27);
     CHECK_EQ(DisplayWidth, 1024);
     CHECK_EQ(DisplayHeight, 768);
     CHECK_EQ(GRenderer, static_cast<int>(MCRendererKind::Software));
@@ -235,6 +238,12 @@ TEST_CASE("system config: PREFS.CFG gives the display, difficulty and volumes, w
     CHECK_EQ(MusicVolume, 0x40);
     CHECK_EQ(RadioVolume, 0x40);
     CHECK_EQ(SfxVolume, 0x60);
+    CHECK_EQ(InterfaceVolume, 0x60);
+
+    // The port's key, when there.
+    ReadPrefsText("FITini\r\n[MechCommander]\r\nl SFXVolume=100\r\nl InterfaceVolume=12\r\nFITend\r\n");
+    CHECK_EQ(SfxVolume, 100);
+    CHECK_EQ(InterfaceVolume, 12);
 }
 
 /// <summary>OB-168, kept: Brightness and Gamma fill the same gamma level, Brightness last.</summary>

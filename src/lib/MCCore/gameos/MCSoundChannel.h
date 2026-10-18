@@ -48,6 +48,12 @@ public:
     /// <summary>Whether the buffer plays (or a stream runs).</summary>
     bool IsPlaying() const;
 
+    /// <summary>
+    /// The buffer volume (hundredths of a dB) a channel volume (0..1) gives: the gain is the volume squared, and 0 is
+    /// silence.
+    /// </summary>
+    static int32_t BufferVolume(float volume);
+
     /// <summary>0..1.</summary>
     float Volume = 1.0f;
     /// <summary>-1..1.</summary>

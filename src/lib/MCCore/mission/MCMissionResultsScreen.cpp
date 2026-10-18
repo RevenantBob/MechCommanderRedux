@@ -526,7 +526,7 @@ auto MCMissionResultsScreen::StepResourcePoints() -> void
 
         if (!_SkipAnimation)
         {
-            SoundSystem()->PlayDigitalSample(0x43, 1, std::nullopt, false, false);
+            SoundSystem()->PlayInterfaceSample(0x43);
         }
     }
     else
@@ -536,7 +536,7 @@ auto MCMissionResultsScreen::StepResourcePoints() -> void
 
         if (!_SkipAnimation)
         {
-            SoundSystem()->PlayDigitalSample(0x42, 1, std::nullopt, false, false);
+            SoundSystem()->PlayInterfaceSample(0x42);
         }
 
         _StepIndex++;
@@ -559,7 +559,7 @@ auto MCMissionResultsScreen::StepStatistics() -> void
 
     if (!_SkipAnimation)
     {
-        SoundSystem()->PlayDigitalSample(0x47, 1, std::nullopt, false, false);
+        SoundSystem()->PlayInterfaceSample(0x47);
     }
 }
 
@@ -599,7 +599,7 @@ auto MCMissionResultsScreen::StepObjectives() -> void
     {
         if (!_SkipAnimation)
         {
-            SoundSystem()->PlayDigitalSample(0x47, 1, std::nullopt, false, false);
+            SoundSystem()->PlayInterfaceSample(0x47);
         }
 
         _NextDrawTime = ResultsStepTicks + MouseTicks;
@@ -626,7 +626,7 @@ auto MCMissionResultsScreen::StepPilots() -> void
 
     if (!_SkipAnimation)
     {
-        SoundSystem()->PlayDigitalSample(0x10, 1, std::nullopt, false, false);
+        SoundSystem()->PlayInterfaceSample(0x10);
     }
 }
 
@@ -648,7 +648,7 @@ auto MCMissionResultsScreen::StepDebriefing() -> void
 
     if (!_SkipAnimation)
     {
-        SoundSystem()->PlayDigitalSample(0x32, 1, std::nullopt, false, false);
+        SoundSystem()->PlayInterfaceSample(0x32);
     }
 }
 

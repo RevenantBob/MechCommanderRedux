@@ -210,7 +210,7 @@ namespace
 
         if (map.Zoom < 9)
         {
-            SoundSystem()->PlayDigitalSample(0x44, 1, std::nullopt, false, false);
+            SoundSystem()->PlayInterfaceSample(0x44);
             map.ZoomOffset += (map.MapVertexSide >> 1) / map.Zoom;
         }
         else
@@ -249,7 +249,7 @@ namespace
         }
         else
         {
-            SoundSystem()->PlayDigitalSample(0x45, 1, std::nullopt, false, false);
+            SoundSystem()->PlayInterfaceSample(0x45);
         }
 
         if (map.Zoom == 1)
@@ -381,7 +381,7 @@ namespace
 
         if (action == ActionToggleZoom)
         {
-            SoundSystem()->PlayDigitalSample(0x2f, 1, std::nullopt, false, false);
+            SoundSystem()->PlayInterfaceSample(0x2f);
             ToggleZoom();
             return;
         }
@@ -389,7 +389,7 @@ namespace
         if (button.Pushed != 0)
         {
             // One mode at a time.
-            SoundSystem()->PlayDigitalSample(0x35, 1, std::nullopt, false, false);
+            SoundSystem()->PlayInterfaceSample(0x35);
 
             for (size_t i = 0; i < NumModeButtons; i++)
             {
@@ -406,7 +406,7 @@ namespace
             return;
         }
 
-        SoundSystem()->PlayDigitalSample(0x34, 1, std::nullopt, false, false);
+        SoundSystem()->PlayInterfaceSample(0x34);
         TacticalInterface()->SetMode(MCInterfaceMode::None);
     }
 
@@ -447,7 +447,7 @@ namespace
                 }
 
                 SwitchPage(page);
-                SoundSystem()->PlayDigitalSample(0x36, 1, std::nullopt, false, false);
+                SoundSystem()->PlayInterfaceSample(0x36);
                 return;
             }
 
@@ -484,7 +484,7 @@ namespace
         {
             if (TacticalMap()->DisplayType != MCTacmapPage::Salvage)
             {
-                SoundSystem()->PlayDigitalSample(0x36, 1, std::nullopt, false, false);
+                SoundSystem()->PlayInterfaceSample(0x36);
                 SwitchPage(MCTacmapPage::Salvage);
             }
         }
@@ -569,7 +569,7 @@ auto MCTacticalMap::TogglePalette() -> void
 
     if (PaletteFrame->IsShowing() == 0)
     {
-        SoundSystem()->PlayDigitalSample(0x41, 1, std::nullopt, false, false);
+        SoundSystem()->PlayInterfaceSample(0x41);
     }
     else
     {
@@ -583,7 +583,7 @@ auto MCTacticalMap::TogglePalette() -> void
             }
         }
 
-        SoundSystem()->PlayDigitalSample(0x40, 1, std::nullopt, false, false);
+        SoundSystem()->PlayInterfaceSample(0x40);
     }
 
     PaletteButton->Pushed = PaletteFrame->IsShowing();
@@ -1574,7 +1574,7 @@ auto MCTacticalMap::HideMe(bool hide) -> void
 
     if (Turn > 1)
     {
-        SoundSystem()->PlayDigitalSample(0x3b, 1, std::nullopt, false, false);
+        SoundSystem()->PlayInterfaceSample(0x3b);
     }
 
     if (hide != 0)
@@ -2107,7 +2107,7 @@ auto MCTacticalMap::SetDataDisplayMode(char mode, int silent) -> void
 
     if (silent == 0)
     {
-        SoundSystem()->PlayDigitalSample(0x47, 1, std::nullopt, false, false);
+        SoundSystem()->PlayInterfaceSample(0x47);
     }
 }
 
@@ -2137,7 +2137,7 @@ auto MCTacticalMap::HandleChatMessage(uint32_t fromID, std::span<const uint8_t> 
 
     if (SoundSystem() != nullptr)
     {
-        SoundSystem()->PlayDigitalSample(0x11, 1, std::nullopt, false, false);
+        SoundSystem()->PlayInterfaceSample(0x11);
     }
 }
 

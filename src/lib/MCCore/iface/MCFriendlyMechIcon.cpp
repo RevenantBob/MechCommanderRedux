@@ -573,7 +573,7 @@ auto MechIconHandleEvent(MCGuiObject& icon, MCGuiEvent& event) -> void
             }
 
             iface->CommandParser->AddSubject(iconPartId);
-            SoundSystem()->PlayDigitalSample(0x10, 1, std::nullopt, false, false);
+            SoundSystem()->PlayInterfaceSample(0x10);
             break;
         }
 

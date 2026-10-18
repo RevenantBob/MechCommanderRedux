@@ -188,7 +188,7 @@ auto MCTacticalInterface::HandleMouse(MCGuiEvent& event) -> void
 
             if (ForcedOrder == MCForcedOrder::None)
             {
-                SoundSystem()->PlayDigitalSample(0x46, 1, std::nullopt, false, false);
+                SoundSystem()->PlayInterfaceSample(0x46);
                 return;
             }
 
@@ -769,7 +769,7 @@ auto MCTacticalInterface::HandleClick(MCGuiEvent& event) -> void
             }
 
             CommandParser->AddSubject(clickedPartId);
-            SoundSystem()->PlayDigitalSample(0x10, 1, std::nullopt, false, false);
+            SoundSystem()->PlayInterfaceSample(0x10);
             finish();
             return;
         }

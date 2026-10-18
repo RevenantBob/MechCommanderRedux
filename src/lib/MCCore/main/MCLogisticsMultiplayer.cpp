@@ -374,7 +374,7 @@ auto MCLogistics::HandleChatMessage(uint32_t playerID, std::span<const uint8_t> 
         }
 
         briefing.ChatBlinking = true;
-        SoundSystem()->PlayDigitalSample(0x14, 1, std::nullopt, false, false);
+        SoundSystem()->PlayInterfaceSample(0x14);
     }
 
     ChatWindow->HandleNetworkMessage(playerID, message);
@@ -461,7 +461,7 @@ auto MCLogistics::HandleLostPlayer(uint32_t playerID, int) const -> void
 
 auto MCLogistics::HandlePrepareScenarioMessage() const -> void
 {
-    SoundSystem()->PlayDigitalSample(0x3a, 1, std::nullopt, false, false);
+    SoundSystem()->PlayInterfaceSample(0x3a);
     Mission()->RequestScenario(MpMissionName);
 }
 
