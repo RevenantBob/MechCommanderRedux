@@ -189,26 +189,36 @@ bool MCMemoryFileSource::RemoveDirectory(std::string_view gamePath)
 
 std::vector<std::string> MCMemoryFileSource::FindFiles(std::string_view gamePattern)
 {
+    std::vector<std::string> names;
+
+    for (MCFoundFile& file : FindFileSources(gamePattern))
+    {
+        names.push_back(std::move(file.Name));
+    }
+
+    return names;
+}
+
+std::vector<MCFoundFile> MCMemoryFileSource::FindFileSources(std::string_view gamePattern)
+{
     const std::string key = Key(gamePattern);
     const size_t slash = key.find_last_of('\\');
     const std::string folder = slash == std::string::npos ? std::string() : key.substr(0, slash + 1);
     const std::string pattern = slash == std::string::npos ? key : key.substr(slash + 1);
-    std::vector<std::string> names;
+    std::vector<MCFoundFile> files;
 
-    const auto add = [&](const std::string& name)
+    // The scratch folder and the user layer are the user folder; the install layer is the game's folder.
+    const auto add = [&](const std::string& name, bool userFolder)
     {
         if (!MCFileSystem::WildcardMatch(pattern, name))
         {
             return;
         }
 
-        const bool listed =
-            std::ranges::any_of(names, [&](const std::string& other) { return MCPort::StrICmp(other, name) == 0; });
-
-        if (!listed)
-        {
-            names.push_back(name);
-        }
+        const auto listed = std::ranges::find_if(files, [&](const MCFoundFile& other)
+                                                 { return MCPort::StrICmp(other.Name, name) == 0; });
+        MCFoundFile& file = listed != files.end() ? *listed : files.emplace_back(MCFoundFile{.Name = name});
+        (userFolder ? file.InUserFolder : file.InGameFolder) = true;
     };
 
     std::error_code error;
@@ -220,23 +230,25 @@ std::vector<std::string> MCMemoryFileSource::FindFiles(std::string_view gamePatt
         {
             if (entry.is_regular_file(error))
             {
-                add(entry.path().filename().string());
+                add(entry.path().filename().string(), true);
             }
         }
     }
 
-    for (const std::map<std::string, Entry>& layer : {std::cref(_User), std::cref(_Install)})
+    const auto addLayer = [&](const std::map<std::string, Entry>& layer, bool userFolder)
     {
         for (const auto& [fileKey, entry] : layer)
         {
             if (fileKey.starts_with(folder) && fileKey.find('\\', folder.size()) == std::string::npos)
             {
-                add(entry.Name);
+                add(entry.Name, userFolder);
             }
         }
-    }
+    };
 
-    return names;
+    addLayer(_User, true);
+    addLayer(_Install, false);
+    return files;
 }
 
 bool MCMemoryFileSource::Exists(std::string_view gamePath)
@@ -251,6 +263,13 @@ bool MCMemoryFileSource::RemoveFile(std::string_view gamePath)
     const bool removedScratch = std::filesystem::remove(ScratchPath(gamePath), error);
     const bool removedUser = _User.erase(Key(gamePath)) != 0;
     return removedScratch || removedUser;
+}
+
+bool MCMemoryFileSource::RemoveSave(std::string_view gamePath)
+{
+    RemoveFile(gamePath);
+    _Install.erase(Key(gamePath));
+    return !Exists(gamePath);
 }
 
 bool MCMemoryFileSource::RenameFile(std::string_view fromGamePath, std::string_view toGamePath)

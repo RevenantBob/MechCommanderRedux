@@ -426,6 +426,56 @@ TEST_CASE("file: writes go to the user folder and never touch the install")
 }
 
 /// <summary>
+/// Saves are the player's files: deleting one removes it wherever it is, the install's save folder included (the
+/// retail game ships saves there), and the user folder's copy with it. Other files of the install stay.
+/// </summary>
+TEST_CASE("file: deleting a save removes the install's copy too")
+{
+    ScratchFolder folder("delete-save");
+    std::filesystem::create_directories(folder / "install\\data\\savegame");
+    std::filesystem::create_directories(folder / "user\\data\\savegame");
+    WriteFile(folder / "install\\data\\savegame\\shipped.sav", Bytes("install"));
+    WriteFile(folder / "install\\data\\savegame\\both.sav", Bytes("install"));
+    WriteFile(folder / "user\\data\\savegame\\both.sav", Bytes("user"));
+    WriteFile(folder / "install\\data\\savegame\\other.sav", Bytes("install"));
+
+    MCTestContextScope scope;
+    scope.Context().SetFiles(std::make_unique<MCDiskFileSource>());
+    MCFileSystem::SetGameRoot(folder / "install");
+    MCFileSystem::SetUserRoot(folder / "user");
+
+    // The listing tells which folders have each save.
+    const std::vector<MCFoundFile> listed = MCFileSystem::FindFileSources("data\\savegame\\*.sav");
+    REQUIRE_EQ(listed.size(), size_t{3});
+
+    const auto sources = [&](std::string_view name)
+    {
+        const auto file =
+            std::ranges::find_if(listed, [&](const MCFoundFile& f) { return MCPort::StrICmp(f.Name, name) == 0; });
+        return file == listed.end() ? std::pair(false, false) : std::pair(file->InUserFolder, file->InGameFolder);
+    };
+
+    CHECK(sources("shipped.sav") == std::pair(false, true));
+    CHECK(sources("both.sav") == std::pair(true, true));
+    CHECK(sources("other.sav") == std::pair(false, true));
+
+    // The plain delete leaves the install alone.
+    CHECK(!MCFileSystem::RemoveFile("data\\savegame\\shipped.sav"));
+    CHECK(MCFileSystem::Exists("data\\savegame\\shipped.sav"));
+
+    CHECK(MCFileSystem::RemoveSave("DATA\\SAVEGAME\\SHIPPED.SAV"));
+    CHECK(!std::filesystem::exists(folder / "install\\data\\savegame\\shipped.sav"));
+    CHECK(MCFileSystem::RemoveSave("data\\savegame\\both.sav"));
+    CHECK(!std::filesystem::exists(folder / "install\\data\\savegame\\both.sav"));
+    CHECK(!std::filesystem::exists(folder / "user\\data\\savegame\\both.sav"));
+    CHECK(MCFileSystem::RemoveSave("data\\savegame\\missing.sav"));
+
+    const std::vector<std::string> left = MCFileSystem::FindFiles("data\\savegame\\*.sav");
+    REQUIRE_EQ(left.size(), size_t{1});
+    CHECK_EQ(left[0], std::string("other.sav"));
+}
+
+/// <summary>
 /// The packet file format: a magic (or checksum) word, the offset of the first packet (so the packet count is
 /// offset / 4 - 2), a table of offsets whose top 3 bits are the storage, then the packets; an LZ packet starts with
 /// its unpacked size. A packet never written reads as an empty NUL packet.

@@ -119,7 +119,12 @@ namespace
         return result;
     }
 
-    void AddMatches(const std::filesystem::path& folder, const std::string& pattern, std::vector<std::string>& names)
+    /// <summary>
+    /// Adds the files in <paramref name="folder"/> that match <paramref name="pattern"/> to <paramref name="files"/>
+    /// (once each, case ignored), marked as found in the user folder or the install by <paramref name="userFolder"/>.
+    /// </summary>
+    void AddMatches(const std::filesystem::path& folder, const std::string& pattern, std::vector<MCFoundFile>& files,
+                    bool userFolder)
     {
         std::error_code error;
 
@@ -142,13 +147,10 @@ namespace
                 continue;
             }
 
-            const bool listed =
-                std::ranges::any_of(names, [&](const std::string& other) { return MCPort::StrICmp(other, name) == 0; });
-
-            if (!listed)
-            {
-                names.push_back(name);
-            }
+            const auto listed = std::ranges::find_if(files, [&](const MCFoundFile& other)
+                                                     { return MCPort::StrICmp(other.Name, name) == 0; });
+            MCFoundFile& file = listed != files.end() ? *listed : files.emplace_back(MCFoundFile{.Name = name});
+            (userFolder ? file.InUserFolder : file.InGameFolder) = true;
         }
     }
 }
@@ -251,6 +253,18 @@ bool MCDiskFileSource::RemoveDirectory(std::string_view gamePath)
 
 std::vector<std::string> MCDiskFileSource::FindFiles(std::string_view gamePattern)
 {
+    std::vector<std::string> names;
+
+    for (MCFoundFile& file : FindFileSources(gamePattern))
+    {
+        names.push_back(std::move(file.Name));
+    }
+
+    return names;
+}
+
+std::vector<MCFoundFile> MCDiskFileSource::FindFileSources(std::string_view gamePattern)
+{
     std::string folder(gamePattern);
     std::string pattern = folder;
     const size_t slash = folder.find_last_of("\\/");
@@ -265,15 +279,15 @@ std::vector<std::string> MCDiskFileSource::FindFiles(std::string_view gamePatter
         folder.resize(slash);
     }
 
-    std::vector<std::string> names;
+    std::vector<MCFoundFile> files;
 
     if (HasOverlay(gamePattern))
     {
-        AddMatches(ResolveFrom(_UserRoot, folder), pattern, names);
+        AddMatches(ResolveFrom(_UserRoot, folder), pattern, files, true);
     }
 
-    AddMatches(ResolveFrom(_Root, folder), pattern, names);
-    return names;
+    AddMatches(ResolveFrom(_Root, folder), pattern, files, false);
+    return files;
 }
 
 bool MCDiskFileSource::Exists(std::string_view gamePath)
@@ -286,6 +300,19 @@ bool MCDiskFileSource::RemoveFile(std::string_view gamePath)
 {
     std::error_code error;
     return std::filesystem::remove(ResolveWrite(gamePath, false), error);
+}
+
+bool MCDiskFileSource::RemoveSave(std::string_view gamePath)
+{
+    std::error_code error;
+
+    if (HasOverlay(gamePath))
+    {
+        std::filesystem::remove(ResolveFrom(_UserRoot, gamePath), error);
+    }
+
+    std::filesystem::remove(ResolveFrom(_Root, gamePath), error);
+    return !Exists(gamePath);
 }
 
 bool MCDiskFileSource::RenameFile(std::string_view fromGamePath, std::string_view toGamePath)
@@ -395,6 +422,11 @@ namespace MCFileSystem
         return Files().FindFiles(gamePattern);
     }
 
+    std::vector<MCFoundFile> FindFileSources(std::string_view gamePattern)
+    {
+        return Files().FindFileSources(gamePattern);
+    }
+
     std::optional<std::span<const uint8_t>> FindImage(std::string_view gamePath)
     {
         return Files().FindImage(gamePath);
@@ -408,6 +440,11 @@ namespace MCFileSystem
     bool RemoveFile(std::string_view gamePath)
     {
         return Files().RemoveFile(gamePath);
+    }
+
+    bool RemoveSave(std::string_view gamePath)
+    {
+        return Files().RemoveSave(gamePath);
     }
 
     bool RenameFile(std::string_view fromGamePath, std::string_view toGamePath)

@@ -1,5 +1,7 @@
 #pragma once
 
+#include "platform/MCServices.h"
+
 /// <summary>
 /// Where the game's files are, and how its paths map onto the disk. The original ran from its install folder and
 /// opened files by relative DOS paths (<c>data\art\ACCESS00.tga</c>, any case). The port runs from anywhere: every
@@ -8,7 +10,8 @@
 ///
 /// The install is never written to. When a user folder is set (<see cref="SetUserRoot"/>), it overlays the install:
 /// a relative path is looked up there first, and everything the game creates, renames or deletes happens there
-/// (saves, PREFS.CFG, the temp FITs). Without one (the tests), both roots are the install.
+/// (saves, PREFS.CFG, the temp FITs). The one exception is deleting a save (<see cref="RemoveSave"/>), which also
+/// removes the install's copy. Without one (the tests), both roots are the install.
 ///
 /// Every function forwards to the current context's <see cref="MCFileSource"/> (platform/MCServices.h): the disk
 /// (<see cref="MCDiskFileSource"/>) in the game, maybe files in memory in a test.
@@ -60,6 +63,12 @@ namespace MCFileSystem
     std::vector<std::string> FindFiles(std::string_view gamePattern);
 
     /// <summary>
+    /// The same files as <see cref="FindFiles"/>, each with the folders that have it: the user folder, the install or
+    /// both. Without a user folder, every file is the install's.
+    /// </summary>
+    std::vector<MCFoundFile> FindFileSources(std::string_view gamePattern);
+
+    /// <summary>
     /// The contents of <paramref name="gamePath"/> when the file source holds it in memory (a test's
     /// <c>MCMemoryFileSource</c>); the disk holds none.
     /// </summary>
@@ -71,6 +80,14 @@ namespace MCFileSystem
     /// <summary>Deletes a loose file (the CRT's <c>remove</c>). Files in the install are left alone.</summary>
     /// <returns>Whether a file was deleted.</returns>
     bool RemoveFile(std::string_view gamePath);
+
+    /// <summary>
+    /// Deletes a save game (<c>.sav</c>, <c>.sol</c>) wherever it is: the user folder's copy and the install's. Saves
+    /// are the player's files, not the game's; the original kept them in its own folder, and the install may still
+    /// hold some (the retail game ships a few).
+    /// </summary>
+    /// <returns>Whether no copy is left.</returns>
+    bool RemoveSave(std::string_view gamePath);
 
     /// <summary>
     /// Renames a loose file (the CRT's <c>rename</c>). Unlike the CRT's, an existing target is replaced; the original

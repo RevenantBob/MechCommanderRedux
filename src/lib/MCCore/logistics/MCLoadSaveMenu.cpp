@@ -209,7 +209,7 @@ void ClearForSaveGameCallback()
     const MCGuiOwned<MCFileScrollPane> pane = GlobalLog()->SaveScreen->FilePane;
 
     // The original cleared the file's read-only attribute first.
-    if (MCFileSystem::RemoveFile(GamePath(pane->StartDirectory, pane->Files[pane->SelectedFile].Name, ".sav")))
+    if (MCFileSystem::RemoveSave(GamePath(pane->StartDirectory, pane->Files[pane->SelectedFile].Name, ".sav")))
     {
         SaveGameCallback();
     }
@@ -274,7 +274,7 @@ void DeleteCallbackTrue()
     }
 
     // The original cleared the file's read-only attribute first.
-    MCFileSystem::RemoveFile(
+    MCFileSystem::RemoveSave(
         GamePath(pane->StartDirectory, pane->Files[pane->SelectedFile].Name, LoadingSolo ? ".sol" : ".sav"));
     pane->SetSelectedFile(-1);
 

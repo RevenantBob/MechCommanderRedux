@@ -93,6 +93,8 @@ Bugs that have an impact on how the game *plays* may remain in the game, and are
 - The game reads its data from your MechCommander Gold folder and never writes to it. See the
   [README](README.md#running-the-game) for how the folder is found.
 - Saves, preferences and temporary files go to `%APPDATA%\MechCommander Redux\`, or to the folder given with `--user`.
+  Saves left in the MechCommander Gold folder still show up, and deleting or overwriting one in the game removes it
+  from there.
 - Data files saved with Unix line endings load correctly, so edited files work.
 
 ### Mission Editor
