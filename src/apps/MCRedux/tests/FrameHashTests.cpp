@@ -455,6 +455,34 @@ namespace
     }
 
     /// <summary>
+    /// The settings the logistics steps were recorded with, as prefs.cfg in the tests' user folder (over the install's,
+    /// which a player's game changes) while it lives: the preferences screen shows them. Difficulty regular,
+    /// brightness 1, music 0, radio and effects 27 (the retail PREFS.CFG's).
+    /// </summary>
+    class MCRecordedPrefs
+    {
+    public:
+        MCRecordedPrefs() : _Path(std::filesystem::temp_directory_path() / "mc_tests_user" / "prefs.cfg")
+        {
+            std::filesystem::create_directories(_Path.parent_path());
+            std::ofstream file(_Path, std::ios::binary);
+            file << "FITini \r\n\r\n[MechCommander]\r\nb PaletteCycle=TRUE\r\nb DirectDraw=TRUE\r\n"
+                    "b Use90Pixel=TRUE\r\nb Force45Pixel=FALSE\r\nb Force16Mb=FALSE\r\nb Force32Mb=FALSE\r\n"
+                    "l Difficulty=1\r\nl Brightness=1\r\nl MusicVolume=0\r\nl RadioVolume=27\r\nl SFXVolume=27\r\n"
+                    "FITend \r\n";
+        }
+
+        ~MCRecordedPrefs() { std::filesystem::remove(_Path); }
+
+        MCRecordedPrefs(const MCRecordedPrefs&) = delete;
+        MCRecordedPrefs& operator=(const MCRecordedPrefs&) = delete;
+
+    private:
+        /// <summary>The file.</summary>
+        std::filesystem::path _Path;
+    };
+
+    /// <summary>
     /// The logistics screens' steps (see the test).
     /// </summary>
     /// <remarks>
@@ -471,10 +499,14 @@ namespace
     /// The control audit (2026-10-04: everything drawn from its state, the original's stale paint gone, OB-131..134)
     /// changed the steps where units move between drop slots (an emptied slot keeps its border; no leftover picture)
     /// and the repair rows (a mech without a pilot shows its status bar), and the folds to 0x19ceb4be and 0x90a481ca
-    /// (GPU 0x5cdc376e and 0x14d82a5d): presses end at the release, the screen chrome shows at once.
+    /// (GPU 0x5cdc376e and 0x14d82a5d): presses end at the release, the screen chrome shows at once. The preferences
+    /// panel (2026-10-17: a panel over the art, a box per group, INTERFACE VOLUME, ACCEPT and CANCEL at the bottom
+    /// right) took the preferences step to 0x6ea95138 and the folds to 0x097f849e and 0x92debaca (GPU 0x3b586e8e and
+    /// 0x9297295d), only there; the run now pins the settings it shows (<see cref="MCRecordedPrefs"/>).
     /// </remarks>
     void LogisticsFrames(bool gpu)
     {
+        const MCRecordedPrefs prefs;
         RequestDrawing(gpu);
         REQUIRE(MCTestGame::StartLogistics());
 
@@ -552,7 +584,7 @@ namespace
 
         const Step steps[] = {
             {"main menu", [] {}, 0x59acc997u},
-            {"preferences", [] { ShowPreferences(); }, 0x686720c8u},
+            {"preferences", [] { ShowPreferences(); }, 0x6ea95138u},
             {"main menu after preferences", [] { CancelPrefs(); }, 0x59acc997u},
             {"load screen", [] { LoadScreen(); }, 0xb773197eu},
             {"main menu after load", [] { Cancel(); }, 0x59acc997u},
@@ -674,8 +706,8 @@ namespace
 
         MCTestGame::OnPresent = nullptr;
         SaveShot("logistics every frame", frames);
-        CHECK_EQ(frames, gpu ? 0x5cdc376eu : 0x19ceb4beu);
-        CHECK_EQ(presents, gpu ? 0x14d82a5du : 0x90a481cau);
+        CHECK_EQ(frames, gpu ? 0x3b586e8eu : 0x097f849eu);
+        CHECK_EQ(presents, gpu ? 0x9297295du : 0x92debacau);
         CheckGpuAlone(gpu);
     }
 }

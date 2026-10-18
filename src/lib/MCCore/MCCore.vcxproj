@@ -184,7 +184,9 @@
     <ClCompile Include="logistics\MCLogComboBox.cpp" />
     <ClCompile Include="logistics\MCLogDialogBox.cpp" />
     <ClCompile Include="logistics\MCLogDialogButton.cpp" />
+    <ClCompile Include="logistics\MCLogGroupBox.cpp" />
     <ClCompile Include="logistics\MCLogInvScreen.cpp" />
+    <ClCompile Include="logistics\MCLogLabel.cpp" />
     <ClCompile Include="logistics\MCLogMenus.cpp" />
     <ClCompile Include="logistics\MCLogObject.cpp" />
     <ClCompile Include="logistics\MCLogPort.cpp" />
@@ -578,7 +580,9 @@
     <ClInclude Include="logistics\MCLogComboBox.h" />
     <ClInclude Include="logistics\MCLogDialogBox.h" />
     <ClInclude Include="logistics\MCLogDialogButton.h" />
+    <ClInclude Include="logistics\MCLogGroupBox.h" />
     <ClInclude Include="logistics\MCLogInvScreen.h" />
+    <ClInclude Include="logistics\MCLogLabel.h" />
     <ClInclude Include="logistics\MCLogMenus.h" />
     <ClInclude Include="logistics\MCLogObject.h" />
     <ClInclude Include="logistics\MCLogPort.h" />

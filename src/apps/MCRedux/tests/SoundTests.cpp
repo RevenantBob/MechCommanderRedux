@@ -2,8 +2,10 @@
 #include "MCMock.h"
 #include "MCTest.h"
 #include "fakes/MCNullAudioDevice.h"
+#include "gameos/MCSoundChannel.h"
 #include "gameos/MCSoundRenderer.h"
 #include "main/MCGameContext.h"
+#include "platform/MCAudio.h"
 #include "object/MCMechWarrior.h"
 #include "sound/MCRadio.h"
 #include "sound/MCRadioMessage.h"
@@ -180,6 +182,60 @@ TEST_CASE("sound: a stopped effect fades out over updates and frees its channel"
     CHECK(renderer.ChannelResource(1) == nullptr);
     CHECK(!sound.SampleChannels[1].FadeDown);
     CHECK_EQ(sound.PlayDigitalSample(5, 1, std::nullopt, false, false), 1);
+}
+
+/// <summary>
+/// An interface sound plays as an effect without a source does (the first free channel of 1..9), at the interface
+/// volume instead of the effects volume: at 0 it is silent while the effects still play.
+/// </summary>
+TEST_CASE("sound: an interface sound plays at the interface volume, an effect at the effects volume")
+{
+    MCSoundFixture fixture;
+    MCSoundSystem& sound = *fixture.sound;
+    MCSoundRenderer& renderer = *fixture.renderer;
+    sound.DigitalMasterVolume = 64;
+    sound.InterfaceLevel = 32;
+    sound.Sounds[1].Volume = 0.5f;
+    REQUIRE_EQ(sound.PlayInterfaceSample(0), 1);
+    CHECK_EQ(renderer.ChannelVolume(1), 0.25f);
+    REQUIRE_EQ(sound.PlayDigitalSample(2, 1, std::nullopt, false, false), 2);
+    CHECK_EQ(renderer.ChannelVolume(2), 0.5f);
+    // The bite's own volume still scales it.
+    REQUIRE_EQ(sound.PlayInterfaceSample(1), 3);
+    CHECK_EQ(renderer.ChannelVolume(3), 0.125f);
+    // Already playing: refused, as an effect is.
+    CHECK_EQ(sound.PlayInterfaceSample(2), -1);
+
+    sound.InterfaceLevel = 0;
+    REQUIRE_EQ(sound.PlayInterfaceSample(3), 4);
+    CHECK_EQ(renderer.ChannelVolume(4), 0.0f);
+    REQUIRE_EQ(sound.PlayDigitalSample(4, 1, std::nullopt, false, false), 5);
+    CHECK_EQ(renderer.ChannelVolume(5), 0.5f);
+}
+
+/// <summary>
+/// A channel volume becomes a fader taper (the gain is the volume squared): full volume is 0 dB, half is -12 dB, a
+/// slider's first step (1 of 127) is nearly silent and 0 is silence (OB-176; the original stopped at -20 dB).
+/// </summary>
+TEST_CASE("sound: the channel volume tapers to silence at 0 (OB-176)")
+{
+    CHECK_EQ(MCSoundChannel::BufferVolume(1.0f), MCSoundBuffer::VolumeMax);
+    CHECK_EQ(MCSoundChannel::BufferVolume(0.5f), -1204);
+    CHECK_EQ(MCSoundChannel::BufferVolume(0.1f), -4000);
+    CHECK_EQ(MCSoundChannel::BufferVolume(1.0f / 127.0f), -8415);
+    CHECK_EQ(MCSoundChannel::BufferVolume(0.0f), MCSoundBuffer::VolumeMin);
+    CHECK_EQ(MCAudio::GainFromHundredthsDb(MCSoundChannel::BufferVolume(0.0f)), 0.0f);
+    // Out of range: a fade's overshoot.
+    CHECK_EQ(MCSoundChannel::BufferVolume(-0.5f), MCSoundBuffer::VolumeMin);
+    CHECK_EQ(MCSoundChannel::BufferVolume(1.5f), MCSoundBuffer::VolumeMax);
+    CHECK_EQ(MCSoundChannel::BufferVolume(1.0e-4f), MCSoundBuffer::VolumeMin);
+
+    // Every slider step is quieter than the one above it.
+    for (int32_t step = 1; step <= 127; step++)
+    {
+        MCTest::Scope entry(std::format("step {}", step));
+        CHECK(MCSoundChannel::BufferVolume((step - 1) / 128.0f) < MCSoundChannel::BufferVolume(step / 128.0f));
+    }
 }
 
 /// <summary>

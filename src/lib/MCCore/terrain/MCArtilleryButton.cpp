@@ -103,7 +103,7 @@ auto MCArtilleryButton::HandleEvent(MCGuiEvent& event) -> void
 
         if (event.Type == EventLeftDown)
         {
-            SoundSystem()->PlayDigitalSample(0x46, 1, std::nullopt, false, false);
+            SoundSystem()->PlayInterfaceSample(0x46);
         }
 
         return;

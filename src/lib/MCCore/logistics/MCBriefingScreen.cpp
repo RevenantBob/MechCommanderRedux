@@ -788,7 +788,7 @@ auto MCBriefingScreen::HandleClick(int32_t xPos, int32_t yPos) -> void
         if (MultiPlayer() == nullptr)
         {
             StopSmackerMovies();
-            SoundSystem()->PlayDigitalSample(0x36, 1, std::nullopt, false, false);
+            SoundSystem()->PlayInterfaceSample(0x36);
             GlobalLog()->SetUpMainScreen(false);
             return;
         }
@@ -800,14 +800,14 @@ auto MCBriefingScreen::HandleClick(int32_t xPos, int32_t yPos) -> void
     // The tabs.
     if (Inside(point, 0xc2, 0x67, 0xd1, 0xde))
     {
-        SoundSystem()->PlayDigitalSample(0x36, 1, std::nullopt, false, false);
+        SoundSystem()->PlayInterfaceSample(0x36);
         SetUpOperation();
         return;
     }
 
     if (Inside(point, 0xc2, 0xdf, 0xd1, 0x14a))
     {
-        SoundSystem()->PlayDigitalSample(0x36, 1, std::nullopt, false, false);
+        SoundSystem()->PlayInterfaceSample(0x36);
         SetUpMission();
         return;
     }
@@ -839,12 +839,12 @@ auto MCBriefingScreen::Launch() -> void
 
         if (units <= MaxOwnedUnits)
         {
-            SoundSystem()->PlayDigitalSample(0x3a, 1, std::nullopt, false, false);
+            SoundSystem()->PlayInterfaceSample(0x3a);
             Mission()->RequestScenario(Mission()->Scenarios[Mission()->CurrentScenario]);
             return;
         }
 
-        SoundSystem()->PlayDigitalSample(0x33, 1, std::nullopt, false, false);
+        SoundSystem()->PlayInterfaceSample(0x33);
         ShowLogMessage(
             MCFormatPrintf(LoadGameString(0x373, 0xfe).c_str(), units, MaxOwnedUnits, units - MaxOwnedUnits));
         return;

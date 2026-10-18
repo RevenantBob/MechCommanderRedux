@@ -28,12 +28,14 @@ void CancelPrefs();
 void WritePrefs();
 
 /// <summary>
-/// Port-only: turns the preferences screen <paramref name="screen"/>'s DIFFICULTY checks into a drop-down (EASY,
-/// REGULAR, HARD; <see cref="GameDifficulty"/>) and adds a RENDERER box under it with a drop-down of its own (VULKAN,
-/// SOFTWARE; PREFS "Renderer"). The renderer takes effect at the next start, which the message dialog says when the
-/// drop-down picks another renderer than the running one.
+/// Port-only: lays the preferences screen <paramref name="screen"/> out on a panel over its art, with room for more
+/// settings: the brightness slider; the music, radio, sound effects and interface volume sliders; DIFFICULTY as a
+/// drop-down (EASY, REGULAR, HARD; <see cref="GameDifficulty"/>) in place of the original's checks; a RENDERER
+/// drop-down (VULKAN, SOFTWARE; PREFS "Renderer"); and ACCEPT and CANCEL side by side at the bottom right. The
+/// renderer takes effect at the next start, which the message dialog says when the drop-down picks another renderer
+/// than the running one.
 /// </summary>
-void AddPreferenceDropDowns(MCGenericScreen& screen);
+void AddPreferencesPanel(MCGenericScreen& screen);
 
 /// <summary>The preferences screen's routine (it does nothing).</summary>
 void PrefScreenHandleEvent(MCGuiObject& object, MCGuiEvent& event);
@@ -49,6 +51,8 @@ void SlideRadioVolume(MCGuiObject& object, MCGuiEvent& event);
 
 /// <summary>The sound effects volume slider: on release, the new volume and a sample to hear it.</summary>
 void SlideFXVolume(MCGuiObject& object, MCGuiEvent& event);
+/// <summary>The interface volume slider (the port's): on release, the new volume and a click to hear it.</summary>
+void SlideInterfaceVolume(MCGuiObject& object, MCGuiEvent& event);
 
 /// <summary>Difficulty: easy.</summary>
 void EasyToggle();

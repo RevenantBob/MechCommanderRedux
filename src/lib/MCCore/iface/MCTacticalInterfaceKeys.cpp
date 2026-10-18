@@ -427,7 +427,7 @@ auto MCTacticalInterface::HandleKeyDown(MCGuiEvent& event) -> void
                     ClearMechSelection();
                     SelectLance(lance);
                     CommandParser->AddSubject(lance);
-                    SoundSystem()->PlayDigitalSample(0x30, 1, std::nullopt, false, false);
+                    SoundSystem()->PlayInterfaceSample(0x30);
                 }
             }
             else if (lanceToAdd >= 0)
@@ -438,7 +438,7 @@ auto MCTacticalInterface::HandleKeyDown(MCGuiEvent& event) -> void
                 {
                     SelectLance(lance);
                     CommandParser->AddSubject(lance);
-                    SoundSystem()->PlayDigitalSample(0x30, 1, std::nullopt, false, false);
+                    SoundSystem()->PlayInterfaceSample(0x30);
                 }
             }
             else if (is(MCKeyCommand::CameraFollow))

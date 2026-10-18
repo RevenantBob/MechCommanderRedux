@@ -9,11 +9,11 @@ namespace
     /// <summary>The stream buffer's length in ms.</summary>
     constexpr uint32_t STREAM_BUFFER_MS = 4000;
 
-    /// <summary>The DirectSound volume a channel volume gives: -2000 - ftol(volume * -2000).</summary>
-    int32_t BufferVolume(float volume)
-    {
-        return -2000 - static_cast<int32_t>(volume * -2000.0f);
-    }
+    /// <summary>
+    /// Hundredths of a decibel per decade of channel volume: 4000 makes the gain the volume squared (2000 per decade
+    /// of gain), the usual even-sounding fader taper.
+    /// </summary>
+    constexpr float VOLUME_TAPER_HUNDREDTHS_DB = 4000.0f;
 
     /// <summary>The DirectSound pan a channel pan gives: ftol(pan) * 10000, so only -1, 0 and 1 are heard (OB-059).
     /// </summary>
@@ -43,6 +43,23 @@ namespace
 
 MCSoundChannel::MCSoundChannel(MCAudio& mixer) : _Mixer(mixer)
 {
+}
+
+int32_t MCSoundChannel::BufferVolume(float volume)
+{
+    // OB-176 fixed: the original's -2000 - ftol(volume * -2000) never went below -20 dB.
+    if (volume <= 0.0f)
+    {
+        return MCSoundBuffer::VolumeMin;
+    }
+
+    if (volume >= 1.0f)
+    {
+        return MCSoundBuffer::VolumeMax;
+    }
+
+    const auto hundredthsDb = std::lround(VOLUME_TAPER_HUNDREDTHS_DB * std::log10(volume));
+    return static_cast<int32_t>(std::max<long>(hundredthsDb, MCSoundBuffer::VolumeMin));
 }
 
 MCSoundChannel::~MCSoundChannel() = default;

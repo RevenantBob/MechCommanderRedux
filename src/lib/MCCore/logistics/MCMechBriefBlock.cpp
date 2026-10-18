@@ -253,7 +253,7 @@ auto MCMechBriefBlock::PlaceInEmptySlot(int32_t lance, int32_t slot) const -> bo
         }
 
         GlobalLog()->SendAddMechMessage(*mech, lance, slot);
-        SoundSystem()->PlayDigitalSample(PlacedSound, 1, std::nullopt, false, false);
+        SoundSystem()->PlayInterfaceSample(PlacedSound);
         deploy.Unit = GlobalLog()->ForceMechList->GetMechIndex(mech);
         CurDeployTonnage = DeployTonnageWith(*mech, 1.0f);
         mech->Deployed = true;
@@ -267,7 +267,7 @@ auto MCMechBriefBlock::PlaceInEmptySlot(int32_t lance, int32_t slot) const -> bo
     }
 
     GlobalLog()->SendAddVehicleMessage(*vehicle, lance, slot);
-    SoundSystem()->PlayDigitalSample(PlacedSound, 1, std::nullopt, false, false);
+    SoundSystem()->PlayInterfaceSample(PlacedSound);
     deploy.Vehicle = GlobalLog()->ForceVehicleList->GetVehicleIndex(vehicle);
     CurDeployTonnage = DeployTonnageWith(*vehicle, 1.0f);
     vehicle->Deployed = true;
@@ -380,7 +380,7 @@ auto MCMechBriefBlock::DropInSlotAt(POINT point, int32_t firstLance) -> bool
                     if (fits)
                     {
                         GlobalLog()->SendAddMechMessage(*Mech(), lance, slot);
-                        SoundSystem()->PlayDigitalSample(PlacedSound, 1, std::nullopt, false, false);
+                        SoundSystem()->PlayInterfaceSample(PlacedSound);
                         deploy.Unit = GlobalLog()->ForceMechList->GetMechIndex(Mech());
                         CurDeployTonnage = DeployTonnageWith(*Mech(), 1.0f);
                         Mech()->Deployed = true;
@@ -393,7 +393,7 @@ auto MCMechBriefBlock::DropInSlotAt(POINT point, int32_t firstLance) -> bool
                     if (fits)
                     {
                         GlobalLog()->SendAddVehicleMessage(*Vehicle(), lance, slot);
-                        SoundSystem()->PlayDigitalSample(PlacedSound, 1, std::nullopt, false, false);
+                        SoundSystem()->PlayInterfaceSample(PlacedSound);
                         deploy.Unit = -1;
                         deploy.Vehicle = GlobalLog()->ForceVehicleList->GetVehicleIndex(Vehicle());
                         CurDeployTonnage = DeployTonnageWith(*Vehicle(), 1.0f);
@@ -418,7 +418,7 @@ auto MCMechBriefBlock::DropInSlotAt(POINT point, int32_t firstLance) -> bool
                     if (fits)
                     {
                         GlobalLog()->SendAddMechMessage(*Mech(), lance, slot);
-                        SoundSystem()->PlayDigitalSample(PlacedSound, 1, std::nullopt, false, false);
+                        SoundSystem()->PlayInterfaceSample(PlacedSound);
                         deploy.Vehicle = -1;
                         deploy.Unit = GlobalLog()->ForceMechList->GetMechIndex(Mech());
                         CurDeployTonnage = DeployTonnageWith(*Mech(), 1.0f);
@@ -433,7 +433,7 @@ auto MCMechBriefBlock::DropInSlotAt(POINT point, int32_t firstLance) -> bool
                     if (fits)
                     {
                         GlobalLog()->SendAddVehicleMessage(*Vehicle(), lance, slot);
-                        SoundSystem()->PlayDigitalSample(PlacedSound, 1, std::nullopt, false, false);
+                        SoundSystem()->PlayInterfaceSample(PlacedSound);
                         deploy.Vehicle = GlobalLog()->ForceVehicleList->GetVehicleIndex(Vehicle());
                         CurDeployTonnage = DeployTonnageWith(*Vehicle(), 1.0f);
                         Vehicle()->Deployed = true;
@@ -504,7 +504,7 @@ auto MCMechBriefBlock::Drop(MCGuiEvent& event) -> void
         }
     }
 
-    SoundSystem()->PlayDigitalSample(sound, 1, std::nullopt, false, false);
+    SoundSystem()->PlayInterfaceSample(sound);
 
     if (mech != nullptr)
     {
@@ -552,7 +552,7 @@ auto MCMechBriefBlock::PickUp(MCGuiEvent& event) -> void
 
     const bool fromSlot = owner.get() == &screen;
     Drag.FromSlot = fromSlot;
-    SoundSystem()->PlayDigitalSample(PickedUpSound, 1, std::nullopt, false, false);
+    SoundSystem()->PlayInterfaceSample(PickedUpSound);
     GuiSystem().Grab(weak_from_this());
 
     if (event.Type == 1)

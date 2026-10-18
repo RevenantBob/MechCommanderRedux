@@ -489,7 +489,13 @@
     <ClCompile Include="logistics\MCLogDialogButton.cpp">
       <Filter>logistics</Filter>
     </ClCompile>
+    <ClCompile Include="logistics\MCLogGroupBox.cpp">
+      <Filter>logistics</Filter>
+    </ClCompile>
     <ClCompile Include="logistics\MCLogInvScreen.cpp">
+      <Filter>logistics</Filter>
+    </ClCompile>
+    <ClCompile Include="logistics\MCLogLabel.cpp">
       <Filter>logistics</Filter>
     </ClCompile>
     <ClCompile Include="logistics\MCLogMenus.cpp">
@@ -1651,7 +1657,13 @@
     <ClInclude Include="logistics\MCLogDialogButton.h">
       <Filter>logistics</Filter>
     </ClInclude>
+    <ClInclude Include="logistics\MCLogGroupBox.h">
+      <Filter>logistics</Filter>
+    </ClInclude>
     <ClInclude Include="logistics\MCLogInvScreen.h">
+      <Filter>logistics</Filter>
+    </ClInclude>
+    <ClInclude Include="logistics\MCLogLabel.h">
       <Filter>logistics</Filter>
     </ClInclude>
     <ClInclude Include="logistics\MCLogMenus.h">

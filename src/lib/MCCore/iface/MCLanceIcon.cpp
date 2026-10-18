@@ -134,7 +134,7 @@ auto MCLanceIcon::HandleEvent(MCGuiEvent& event) -> void
         iface->DeselectEnemy();
         iface->ClearMechSelection();
         iface->CommandParser->ClearSubjects();
-        SoundSystem()->PlayDigitalSample(0x30, 1, std::nullopt, false, false);
+        SoundSystem()->PlayInterfaceSample(0x30);
         iface->SelectLance(Group);
         iface->CommandParser->AddSubject(Group);
         iface->UpdateInterface();
@@ -150,7 +150,7 @@ auto MCLanceIcon::HandleEvent(MCGuiEvent& event) -> void
     }
 
     iface->DeselectEnemy();
-    SoundSystem()->PlayDigitalSample(0x30, 1, std::nullopt, false, false);
+    SoundSystem()->PlayInterfaceSample(0x30);
     iface->SelectLance(Group);
     iface->CommandParser->AddSubject(Group);
     iface->UpdateInterface();

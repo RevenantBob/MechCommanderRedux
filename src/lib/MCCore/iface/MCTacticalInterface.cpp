@@ -332,7 +332,7 @@ auto MCTacticalInterface::ZoomIn(float factor, bool sound) -> void
     {
         if (sound)
         {
-            SoundSystem()->PlayDigitalSample(0x44, 1, std::nullopt, false, false);
+            SoundSystem()->PlayInterfaceSample(0x44);
         }
 
         Eye()->ForceUpdate = true;
@@ -353,7 +353,7 @@ auto MCTacticalInterface::ZoomOut(float factor, bool sound) -> void
     {
         if (sound)
         {
-            SoundSystem()->PlayDigitalSample(0x45, 1, std::nullopt, false, false);
+            SoundSystem()->PlayInterfaceSample(0x45);
         }
 
         Eye()->ForceUpdate = true;
@@ -566,7 +566,7 @@ auto MCTacticalInterface::CallStrike(int32_t strikeType, std::optional<MCVector3
 
     if (needsSight && team->LineOfSight(location) == 0)
     {
-        SoundSystem()->PlayDigitalSample(0x33, 1, std::nullopt, false, false);
+        SoundSystem()->PlayInterfaceSample(0x33);
         return;
     }
 

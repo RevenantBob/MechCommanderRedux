@@ -4,6 +4,7 @@
 #include "gui/MCGuiEvent.h"
 #include "gui/MCGuiFont.h"
 #include "lib/MCFatal.h"
+#include "logistics/MCGenericScreen.h"
 #include "platform/MCRenderer.h"
 #include "vfx/MCVfxFunctions.h"
 
@@ -171,7 +172,7 @@ auto MCLogComboBox::Open() -> void
     _FirstRow = 0;
     Hover(std::max(Selected(), 0));
     Resize(Width(), FieldHeight + VisibleRows() * RowHeight + 1);
-    RaiseAmongSiblings();
+    RaiseOnScreen();
     GuiSystem().Grab(weak_from_this());
     PlayLogSound(ComboClickSound);
 }
@@ -264,32 +265,40 @@ auto MCLogComboBox::RowAt(int32_t xPos, int32_t yPos) -> int32_t
     return row < VisibleRows() ? _FirstRow + row : -1;
 }
 
-auto MCLogComboBox::RaiseAmongSiblings() -> void
+auto MCLogComboBox::RaiseOnScreen() -> void
 {
-    if (Parent.expired())
+    // The list may reach over the boxes beside the one the drop-down is on: each object from the drop-down up to its
+    // screen goes in front of its siblings.
+    std::shared_ptr<MCGuiObject> object = shared_from_this();
+
+    while (const std::shared_ptr<MCGuiObject> parent = object->ParentObject())
     {
-        return;
+        std::vector<std::weak_ptr<MCGuiObject>>& siblings = parent->ChildList;
+        const auto last = siblings.end();
+        const auto at = std::ranges::find_if(siblings, [&](const std::weak_ptr<MCGuiObject>& sibling)
+                                             { return MCRefersTo(sibling, *object); });
+
+        if (at != last)
+        {
+            // The children are sorted by depth, front-most last: the object goes after the others of its depth.
+            const int32_t depth = object->Depth();
+            auto end = at + 1;
+
+            while (end != last && end->lock() != nullptr && end->lock()->Depth() <= depth)
+            {
+                ++end;
+            }
+
+            std::rotate(at, at + 1, end);
+        }
+
+        if (dynamic_cast<MCGenericScreen*>(parent.get()) != nullptr)
+        {
+            return;
+        }
+
+        object = parent;
     }
-
-    std::vector<std::weak_ptr<MCGuiObject>>& siblings = ParentObject()->ChildList;
-    const auto last = siblings.end();
-    const auto at = std::ranges::find_if(siblings, [this](const std::weak_ptr<MCGuiObject>& sibling)
-                                         { return MCRefersTo(sibling, *this); });
-
-    if (at == last)
-    {
-        return;
-    }
-
-    // The children are sorted by depth, front-most last: this one goes after the others of its depth.
-    auto end = at + 1;
-
-    while (end != last && end->lock() != nullptr && end->lock()->Depth() <= WinDepth)
-    {
-        ++end;
-    }
-
-    std::rotate(at, at + 1, end);
 }
 
 auto MCLogComboBox::HandleEvent(MCGuiEvent& event) -> void

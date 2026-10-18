@@ -102,8 +102,11 @@ private:
     /// <summary>Whether the screen point lies on the field.</summary>
     bool InField(int32_t xPos, int32_t yPos);
 
-    /// <summary>Puts this object last among its parent's children of its depth, so it draws over them.</summary>
-    void RaiseAmongSiblings();
+    /// <summary>
+    /// Puts this object, and each of its parents below its screen, last among its siblings of its depth, so the list
+    /// draws over everything on the screen.
+    /// </summary>
+    void RaiseOnScreen();
 
     /// <summary>Writes <paramref name="text"/> at (<paramref name="xPos"/>, <paramref name="yPos"/>) in the label colour.</summary>
     void WriteLabel(int32_t xPos, int32_t yPos, const std::string& text);

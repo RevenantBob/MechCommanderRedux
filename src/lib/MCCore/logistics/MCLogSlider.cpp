@@ -25,20 +25,39 @@ auto MCLogSlider::Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height
 auto MCLogSlider::Destroy() -> void
 {
     ThumbPort.reset();
+    TrackPort.reset();
     MCLogObject::Destroy();
+}
+
+auto MCLogSlider::SetTrack(std::shared_ptr<MCLogPort> track, int32_t thumbInset) -> void
+{
+    TrackPort = std::move(track);
+    ThumbInset = thumbInset;
+}
+
+auto MCLogSlider::Travel() -> int32_t
+{
+    return Width() - 2 * ThumbInset - ThumbPort->Width();
 }
 
 auto MCLogSlider::ThumbX() -> int32_t
 {
     // The value's share of the travel (x87).
-    const int32_t travel = Width() - ThumbPort->Width();
-    return static_cast<int32_t>(static_cast<double>(travel) *
-                                (static_cast<double>(CurrentValue - MinValue) / (MaxValue - MinValue)));
+    return ThumbInset + static_cast<int32_t>(static_cast<double>(Travel()) *
+                                             (static_cast<double>(CurrentValue - MinValue) / (MaxValue - MinValue)));
 }
 
 auto MCLogSlider::Draw() -> void
 {
-    VfxPaneWipe(Lport()->Frame(), 0xff);
+    if (TrackPort != nullptr)
+    {
+        TrackPort->CopyTo(Lport()->Frame(), 0, 0, false);
+    }
+    else
+    {
+        VfxPaneWipe(Lport()->Frame(), 0xff);
+    }
+
     ThumbPort->CopyTo(Lport()->Frame(), ThumbX(), 0, false);
 }
 
@@ -50,10 +69,10 @@ auto MCLogSlider::SetCurrentValue(int32_t value) -> void
 
 auto MCLogSlider::ValueAt(int32_t mouseX) -> int32_t
 {
-    // The offset (as a float) over the travel, times the range.
-    const auto offset = static_cast<float>(mouseX - X());
-    const int32_t travel = Width() - ThumbPort->Width();
-    return static_cast<int32_t>(static_cast<double>(offset) / travel * (MaxValue - MinValue)) + MinValue;
+    // The offset (as a float) over the travel, times the range. (The original took the slider's own x: its sliders
+    // were the screen's children, at the screen's origin.)
+    const auto offset = static_cast<float>(mouseX - GlobalX() - ThumbInset);
+    return static_cast<int32_t>(static_cast<double>(offset) / Travel() * (MaxValue - MinValue)) + MinValue;
 }
 
 auto MCLogSlider::HandleEvent(MCGuiEvent& event) -> void

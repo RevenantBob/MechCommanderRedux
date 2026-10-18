@@ -99,6 +99,8 @@ extern int32_t MusicVolume;
 extern int32_t RadioVolume;
 /// <summary>Effects volume, 0..127.</summary>
 extern int32_t SfxVolume;
+/// <summary>Interface volume, 0..127 (the port's: clicks and the like apart from the effects).</summary>
+extern int32_t InterfaceVolume;
 /// <summary>Music state: the player's forces are fighting.</summary>
 extern int32_t InCombat;
 /// <summary>Music state: the home team has an enemy contact (the team updates it, MCTeam.cpp).</summary>
@@ -174,6 +176,13 @@ public:
     /// <returns>The channel, or -1.</returns>
     int32_t PlayDigitalSample(uint32_t sampleId, uint32_t channelType, MCOptionalRef<MCGameObject> source,
                               bool atCamera, bool farRange);
+    /// <summary>
+    /// Plays an interface sound (a click, a drop, a confirmation): sound bite <paramref name="sampleId"/> as
+    /// <see cref="PlayDigitalSample"/> plays one without a source, at <see cref="InterfaceLevel"/> instead of the
+    /// effects volume.
+    /// </summary>
+    /// <returns>The channel, or -1.</returns>
+    int32_t PlayInterfaceSample(uint32_t sampleId);
     /// <summary>Fades the channel out (update stops it).</summary>
     void StopDigitalSample(int32_t channel);
     void StopDigitalMusic();
@@ -228,6 +237,8 @@ public:
     bool WholeMsgDone = false;
     /// <summary>Effects volume (SFXVolume), 0..127.</summary>
     uint8_t DigitalMasterVolume = 127;
+    /// <summary>Interface volume (InterfaceVolume), 0..127.</summary>
+    uint8_t InterfaceLevel = 127;
     /// <summary>Radio volume (RadioVolume).</summary>
     uint8_t RadioLevel = 127;
     /// <summary>Music volume (MusicVolume).</summary>
@@ -258,6 +269,10 @@ private:
     std::span<const uint8_t> LoadBettySample(int32_t bettyId);
     /// <summary>Reads the .snd file and opens the sound and Betty packet files.</summary>
     void Load(std::string_view soundFileName);
+    /// <summary>PlayDigitalSample's work, with the channel at <paramref name="level"/> (0..127) times the bite's
+    /// volume.</summary>
+    int32_t PlaySample(uint32_t sampleId, MCOptionalRef<MCGameObject> source, bool atCamera, bool farRange,
+                       uint8_t level);
     /// <summary>Clears the music state and, when given, sets <paramref name="state"/>.</summary>
     void SetMusicState(std::optional<MCMusicState> state);
     /// <summary>Whether the music state holds <paramref name="state"/>.</summary>

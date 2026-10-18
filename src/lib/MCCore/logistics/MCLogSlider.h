@@ -16,8 +16,14 @@ public:
     /// <summary>Frees the thumb picture.</summary>
     void Destroy() override;
 
-    /// <summary>Draws the thumb at the current value.</summary>
+    /// <summary>Draws the track, when it has one, and the thumb at the current value.</summary>
     void Draw() override;
+
+    /// <summary>
+    /// Port: gives the slider a track picture of its own size to draw under the thumb (the original's tracks were the
+    /// screen's art), with the thumb's travel <paramref name="thumbInset"/> pixels in from each end.
+    /// </summary>
+    void SetTrack(std::shared_ptr<MCLogPort> track, int32_t thumbInset);
 
     /// <summary>Port: the slider draws itself each frame.</summary>
     bool DrawsLive() override { return true; }
@@ -39,4 +45,12 @@ public:
     int32_t CurrentValue = 0;
     /// <summary>The thumb picture.</summary>
     std::shared_ptr<MCLogPort> ThumbPort;
+    /// <summary>Port: the track picture (null: none, the screen's art shows through).</summary>
+    std::shared_ptr<MCLogPort> TrackPort;
+    /// <summary>Port: how far in from each end the thumb's travel starts and stops.</summary>
+    int32_t ThumbInset = 0;
+
+private:
+    /// <summary>How far the thumb travels: the width less the insets and the thumb.</summary>
+    int32_t Travel();
 };

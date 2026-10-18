@@ -53,10 +53,16 @@ public:
     int32_t NumElements() const { return static_cast<int32_t>(Elements.size()); }
 
     /// <summary>Port: adds <paramref name="child"/> to the screen, which owns it (the preferences' drop-downs and boxes).</summary>
-    template <typename T> T& AdoptChild(MCGuiOwned<T> child)
+    template <typename T> T& AdoptChild(MCGuiOwned<T> child) { return AdoptChildOf(*this, std::move(child)); }
+
+    /// <summary>
+    /// Port: adds <paramref name="child"/> to <paramref name="parent"/> (the screen or one of its objects); the screen
+    /// owns it (the preferences' panel and what is on it).
+    /// </summary>
+    template <typename T> T& AdoptChildOf(MCGuiObject& parent, MCGuiOwned<T> child)
     {
         T& adopted = *child;
-        AddChild(child);
+        parent.AddChild(child);
         _Adopted.push_back(std::move(child));
         return adopted;
     }

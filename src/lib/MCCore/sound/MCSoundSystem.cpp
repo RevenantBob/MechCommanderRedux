@@ -27,6 +27,7 @@ int32_t UseMusic = 1;
 int32_t MusicVolume = 64;
 int32_t RadioVolume = 64;
 int32_t SfxVolume = 64;
+int32_t InterfaceVolume = 64;
 int32_t InCombat = 0;
 
 namespace
@@ -188,6 +189,7 @@ void MCSoundSystem::Load(std::string_view soundFileName)
     MusicLevel = static_cast<uint8_t>(MusicVolume);
     RadioLevel = static_cast<uint8_t>(RadioVolume);
     DigitalMasterVolume = static_cast<uint8_t>(SfxVolume);
+    InterfaceLevel = static_cast<uint8_t>(InterfaceVolume);
     ReadSetting(soundFile, "MaxSoundDistance", MaxSoundDistance, " Couldn't find maxSoundDistance in .SND file ");
     ReadSetting(soundFile, "wcSampleRate", ignored, " Couldn't find a variable in .SND file ");
     ReadSetting(soundFile, "wcBitDepth", ignored, " Couldn't find a variable in .SND file ");
@@ -916,8 +918,19 @@ bool MCSoundSystem::IsChannelPlaying(int32_t channel) const
     return _Renderer.IsPlaying(channel);
 }
 
-int32_t MCSoundSystem::PlayDigitalSample(uint32_t sampleId, uint32_t channelType, MCOptionalRef<MCGameObject> source,
-                                         bool atCamera, bool farRange)
+int32_t MCSoundSystem::PlayDigitalSample(uint32_t sampleId, uint32_t, MCOptionalRef<MCGameObject> source, bool atCamera,
+                                         bool farRange)
+{
+    return PlaySample(sampleId, source, atCamera, farRange, DigitalMasterVolume);
+}
+
+int32_t MCSoundSystem::PlayInterfaceSample(uint32_t sampleId)
+{
+    return PlaySample(sampleId, std::nullopt, false, false, InterfaceLevel);
+}
+
+int32_t MCSoundSystem::PlaySample(uint32_t sampleId, MCOptionalRef<MCGameObject> source, bool atCamera, bool farRange,
+                                  uint8_t level)
 {
     if (UseSound == 0 || IsSamplePlaying(static_cast<int32_t>(sampleId)) || sampleId >= Sounds.size())
     {
@@ -1011,7 +1024,7 @@ int32_t MCSoundSystem::PlayDigitalSample(uint32_t sampleId, uint32_t channelType
     }
 
     _Renderer.SetChannelPanning(channel, (static_cast<float>(pan) - 64.0f) * (1.0f / 128.0f));
-    _Renderer.SetChannelVolume(channel, static_cast<float>(DigitalMasterVolume) * (1.0f / 128.0f) * bite.Volume);
+    _Renderer.SetChannelVolume(channel, static_cast<float>(level) * (1.0f / 128.0f) * bite.Volume);
     state.SampleId = static_cast<int32_t>(sampleId);
 
     // The original kept the destroyed resource's pointer when the bite isn't a wave; the port forgets it.
