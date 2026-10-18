@@ -6,6 +6,7 @@
 #include "color/MCPalette.h"
 #include "color/MCWaterCycle.h"
 #include "gui/MCGuiPort.h"
+#include "gui/MCGuiScrollTextObject.h"
 #include "gui/MCGuiSystem.h"
 #include "iface/MCMechBar.h"
 #include "iface/MCTacticalInterface.h"
@@ -300,7 +301,7 @@ TEST_CASE_ISOLATED("game: the tactical map draws every page")
     std::shared_ptr<MCFriendlyMechIcon> icon = TacticalInterface()->MechBar->GetButton(0);
     REQUIRE(icon != nullptr);
 
-    // Each page shown for 10 frames (two thirds of a second: the info and mission pages refresh every half second).
+    // Each page shown for 10 frames.
     auto show = [map](std::string_view name, auto choose)
     {
         choose();
@@ -341,6 +342,45 @@ TEST_CASE_ISOLATED("game: the tactical map draws every page")
 
     // The lance stands still in mission 1, so the map page looks as it did.
     CHECK_EQ(mapAgain, mapPage);
+}
+
+/// <summary>
+/// The info page's front, rear and payload buttons switch the view on the next frame: the payload's weapon list shows
+/// at once, and goes again at once for an armor view (OB-177; the port once waited for its half-second refresh).
+/// </summary>
+TEST_CASE_ISOLATED("game: the info page's views switch on the next frame")
+{
+    if (!MCTestGame::Available())
+    {
+        return;
+    }
+
+    REQUIRE(MCTestGame::StartMission(1));
+    const std::shared_ptr<MCTacticalMap> map = TacticalMap();
+    REQUIRE(map != nullptr);
+    std::shared_ptr<MCFriendlyMechIcon> icon = TacticalInterface()->MechBar->GetButton(0);
+    REQUIRE(icon != nullptr);
+    map->SetDisplayType(MCTacmapPage::Info);
+    map->SetID(icon->PartId);
+    MCTestGame::RunFrame(1.0f / 15.0f);
+    CHECK(!map->InfoText->IsShowing());
+
+    map->SetDataDisplayMode(2, -1);
+    MCTestGame::RunFrame(1.0f / 15.0f);
+    CHECK(map->InfoText->IsShowing());
+    CHECK(map->InfoText->NumLines > 0);
+
+    map->SetDataDisplayMode(1, -1);
+    MCTestGame::RunFrame(1.0f / 15.0f);
+    CHECK(!map->InfoText->IsShowing());
+
+    map->SetDataDisplayMode(2, -1);
+    MCTestGame::RunFrame(1.0f / 15.0f);
+    CHECK(map->InfoText->IsShowing());
+
+    map->SetDataDisplayMode(0, -1);
+    MCTestGame::RunFrame(1.0f / 15.0f);
+    CHECK(!map->InfoText->IsShowing());
 }
 
 /// <summary>
