@@ -9,8 +9,8 @@
 #include "iface/MCMechBar.h"
 #include "mission/MCScenario.h"
 #include "network/MCMultiPlayer.h"
-#include "object/MCBattleMech.h"
 #include "object/MCForces.h"
+#include "object/MCGroundVehicle.h"
 #include "object/MCMover.h"
 #include "object/MCMoverGroup.h"
 #include "object/MCObjectQueue.h"
@@ -460,14 +460,14 @@ auto MCTacticalInterface::HandleKeyDown(MCGuiEvent& event) -> void
                     TogglePalette();
                 }
 
-                // Laying mines: one selected mech that can.
+                // Laying mines: one selected mine layer with mines left.
                 if ((is(MCKeyCommand::LayMines) || is(MCKeyCommand::LayMinesAlternate)) && SelectedMovers.size() == 1)
                 {
                     std::shared_ptr<MCBaseObject> selected = ObjectList()->FindObjectFromPart(SelectedMovers[0]);
 
-                    if (selected == nullptr || selected->ObjectClass != MCObjectClass::BattleMech ||
-                        !static_cast<MCBattleMech&>(*selected).SecondStepPrinted ||
-                        !static_cast<MCBattleMech&>(*selected).FirstStepPrinted)
+                    if (selected == nullptr || selected->ObjectClass != MCObjectClass::GroundVehicle ||
+                        !static_cast<MCGroundVehicle&>(*selected).MineLayer ||
+                        static_cast<MCGroundVehicle&>(*selected).MinesToLay < 1)
                     {
                         return;
                     }
