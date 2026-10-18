@@ -32,6 +32,12 @@ namespace
     constexpr int32_t FirstGameColor = 10;
     constexpr int32_t EndGameColor = 0xf6;
 
+    /// <summary>The tallest the screen gets: PREFS "UIResolution", native (0) and every choice no taller than 1080.</summary>
+    int MaxScreenHeight()
+    {
+        return GUiResolution > 0 ? std::min(GUiResolution, MaxUiResolution) : MaxUiResolution;
+    }
+
     /// <summary>One gamma step over <paramref name="color"/>.</summary>
     MCVfxRgb Brighten(MCVfxRgb color)
     {
@@ -68,12 +74,14 @@ auto MCGuiSystem::OpenDisplay() -> void
     // window, a GDI palette and an 8-bit DIB section. The port opens the SDL display, whose 8-bit buffer the game
     // draws into. The screen is the window's size in pixels (at least 640x480), not the mode PREFS "Resolution" asks
     // for; a scenario draws on all of it and follows the window (FollowWindowSize), the 640x480 screens use its
-    // top-left corner.
+    // top-left corner. A window taller than PREFS "UIResolution" (1080 at most) gets a screen that many lines tall at
+    // its aspect, shown scaled up, with the world view composited at the window's pixels.
     MCDisplayOptions options;
     options.Title = AppName;
     options.Width = 640;
     options.Height = 480;
     options.FollowWindow = true;
+    options.MaxHeight = MaxScreenHeight();
     options.Fullscreen = GFullScreen != 0;
     options.Stretch = GStretchToFit != 0;
     options.Hidden = GHiddenWindow;
@@ -145,6 +153,7 @@ auto MCGuiSystem::FollowWindowSize() -> bool
 
     int32_t width = 0;
     int32_t height = 0;
+    _Display->SetMaxHeight(MaxScreenHeight());
     _Display->WindowScreenSize(width, height);
 
     if (width == _Display->Width() && height == _Display->Height())

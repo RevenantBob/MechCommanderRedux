@@ -57,10 +57,11 @@ public:
     void ResetDisplay(int32_t width, int32_t height, int32_t bitDepth);
     void CloseDisplay();
     /// <summary>
-    /// Port-only: makes the screen the window's size in pixels (at least 640x480) when the window has changed: the
-    /// display's buffer, <see cref="GWidth"/>/<see cref="DisplayWidth"/>/<see cref="ScreenWidth"/>, the screen window,
-    /// then the original's screen-resized broadcast so the in-mission windows follow. Called when a scenario starts and
-    /// every frame of one; the 640x480 screens draw only parts of the buffer, so they never resize it.
+    /// Port-only: makes the screen the window's size in pixels (at least 640x480; no taller than PREFS "UIResolution",
+    /// <see cref="GUiResolution"/>, at the window's aspect) when the window or the setting has changed: the display's
+    /// buffer, <see cref="GWidth"/>/<see cref="DisplayWidth"/>/<see cref="ScreenWidth"/>, the screen window, then the
+    /// original's screen-resized broadcast so the in-mission windows follow. Called when a scenario starts and every
+    /// frame of one; the 640x480 screens draw only parts of the buffer, so they never resize it.
     /// </summary>
     /// <returns>Whether the screen changed size.</returns>
     bool FollowWindowSize();

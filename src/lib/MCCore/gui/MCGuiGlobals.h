@@ -75,6 +75,17 @@ extern int GRenderer;
 /// <summary>Port-only: the renderer PREFS "Renderer" asks for (the preferences screen's choice, written back by
 /// WritePrefs; it takes effect at the next start). <see cref="GRenderer"/> is what this run uses.</summary>
 extern int GRendererPreference;
+/// <summary>
+/// Port-only: the most lines the in-mission UI is drawn at (PREFS "UIResolution", the preferences screen's UI
+/// RESOLUTION box): 480, 600, 720, 900 or 1080, or 0 for native (the window's height). The screen is never taller than
+/// the window nor than <see cref="MaxUiResolution"/>, and is as wide as the window's aspect makes it; the world view is
+/// still drawn at the window's pixels (<see cref="MCGuiSystem::FollowWindowSize"/>).
+/// </summary>
+extern int GUiResolution;
+/// <summary>Port-only: the tallest the in-mission UI is drawn, native included.</summary>
+inline constexpr int MaxUiResolution = 1080;
+/// <summary>Port-only: the choices of <see cref="GUiResolution"/> other than native.</summary>
+inline constexpr std::array<int, 5> UiResolutions = {480, 600, 720, 900, 1080};
 /// <summary>Port-only: draw the frame counter in the top-right corner (PREFS "ShowFps", read by systemInit, or the
 /// command line's <c>-fps</c>).</summary>
 extern int GShowFps;
