@@ -1429,11 +1429,8 @@ auto MCTacticalMap::Display() -> void
             case MCTacmapPage::Info:
             case MCTacmapPage::Mission:
             {
-                if (MCPort::Milliseconds() > LastRefreshTime + 500)
-                {
-                    LastRefreshTime = MCPort::Milliseconds();
-                    RefreshPage();
-                }
+                // OB-177: every frame, where the original rebuilt the page every 500 ms and on each click.
+                RefreshPage();
                 break;
             }
             case MCTacmapPage::Salvage:

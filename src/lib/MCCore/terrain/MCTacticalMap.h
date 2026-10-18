@@ -121,7 +121,7 @@ public:
 
     /// <summary>
     /// Port: what the original's draw did besides drawing: the info page's colours, weapon list and text, the
-    /// mission page's objectives. Run where the original drew the MFD (page and unit changes, and every 500 ms).
+    /// mission page's objectives. Run on page and unit changes, and every frame while the MFD shows (OB-177).
     /// </summary>
     void RefreshPage();
 
@@ -333,7 +333,7 @@ public:
     std::array<uint8_t, 11> ArmorColors{};
     /// <summary>The part diagram's colour of each internal structure (body) location (GetColors).</summary>
     std::array<uint8_t, 13> BodyColors{};
-    /// <summary>MCPort::Milliseconds of the last page refresh.</summary>
+    /// <summary>MCPort::Milliseconds of the last salvage page update.</summary>
     uint32_t LastRefreshTime = 0;
     /// <summary>Time of the last timer update (-999 initially).</summary>
     float LastMapTime = -999.0f;
