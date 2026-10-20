@@ -784,7 +784,7 @@ void ReadyRoomPlayerListHandleEvent(MCGuiObject& object, MCGuiEvent& event)
         return;
     }
 
-    if (manager->IsHost == 0 && LaunchedFromLobby == 0)
+    if (manager->IsHost == 0)
     {
         manager->SendPing();
     }
@@ -792,10 +792,10 @@ void ReadyRoomPlayerListHandleEvent(MCGuiObject& object, MCGuiEvent& event)
     list.Clear();
     const auto& players = manager->GetPlayers(session);
 
-    // Each player, with the ping outside a lobby launch.
+    // Each player, with ping if available.
     for (const auto& player : players)
     {
-        if (LaunchedFromLobby == 0)
+        if (player->LastLatency > 0)
         {
             list.Print(std::format("{} - {:04} ms", player->Name, player->LastLatency), 0x1f);
         }

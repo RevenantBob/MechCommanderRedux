@@ -250,6 +250,19 @@ int32_t MCMultiPlayer::SetupLobbyGame()
         IsServer = SessionManager->IsHost;
         IsHost = IsServer;
 
+        if (SessionManager->MyPlayer() != nullptr)
+        {
+            if (IsServer)
+            {
+                ServerID = SessionManager->MyPlayer()->Id;
+                HostID = ServerID;
+            }
+            else
+            {
+                ServerID = SessionManager->ServerID;
+            }
+        }
+
         if (SessionManager->CurrentConnection != MCNetProtocol::Lobby)
         {
             NumLanPlayers = static_cast<int32_t>(SessionManager->GetPlayers(nullptr).size());
@@ -260,6 +273,26 @@ int32_t MCMultiPlayer::SetupLobbyGame()
             SessionManager->CreateGroup(AllPlayerGroupID, AllPlayerGroupName, {}, 0);
             SessionManager->CreateGroup(InnerSphereGroupID, InnerSphereGroupName, {}, 0);
             SessionManager->CreateGroup(ClanGroupID, ClanGroupName, {}, 0);
+
+            if (HomeTeam == 0)
+            {
+                SessionManager->AddPlayerToGroup(InnerSphereGroupID, 0);
+                HomeTeamGroupID = InnerSphereGroupID;
+                EnemyTeamGroupID = ClanGroupID;
+            }
+            else if (HomeTeam == 1)
+            {
+                SessionManager->AddPlayerToGroup(ClanGroupID, 0);
+                HomeTeamGroupID = ClanGroupID;
+                EnemyTeamGroupID = InnerSphereGroupID;
+            }
+
+            if (CheckInId == -1)
+            {
+                CheckInId = 0;
+            }
+
+            InitUpdateFrequencies();
             HandleOwnMessages = true;
             SendPlayerSetup(0, InnerSphereGroupID, ClanGroupID);
             HandleOwnMessages = false;

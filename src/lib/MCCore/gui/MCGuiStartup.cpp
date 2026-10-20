@@ -152,20 +152,63 @@ namespace
 
 auto ParseCommandLine(std::string_view commandLine) -> void
 {
-    // The words, split at runs of spaces (a leading space makes an empty first word, as the original's).
-    std::vector<std::string_view> words;
+    // The words, split at runs of spaces, respecting quoted arguments.
+    std::vector<std::string> words;
     size_t pos = 0;
 
     while (pos < commandLine.size())
     {
-        const size_t end = std::min(commandLine.find(' ', pos), commandLine.size());
-        words.push_back(commandLine.substr(pos, end - pos));
-        pos = commandLine.find_first_not_of(' ', end);
+        while (pos < commandLine.size() && (commandLine[pos] == ' ' || commandLine[pos] == '\t'))
+        {
+            pos++;
+        }
 
-        if (pos == std::string_view::npos)
+        if (pos >= commandLine.size())
         {
             break;
         }
+
+        std::string token;
+        bool inQuote = false;
+        char quoteChar = 0;
+
+        while (pos < commandLine.size())
+        {
+            const char c = commandLine[pos];
+            if (inQuote)
+            {
+                if (c == quoteChar)
+                {
+                    inQuote = false;
+                    pos++;
+                }
+                else
+                {
+                    token += c;
+                    pos++;
+                }
+            }
+            else
+            {
+                if (c == '"' || c == '\'')
+                {
+                    inQuote = true;
+                    quoteChar = c;
+                    pos++;
+                }
+                else if (c == ' ' || c == '\t')
+                {
+                    break;
+                }
+                else
+                {
+                    token += c;
+                    pos++;
+                }
+            }
+        }
+
+        words.push_back(std::move(token));
     }
 
     std::optional<std::string_view> networkFile;
@@ -176,7 +219,72 @@ auto ParseCommandLine(std::string_view commandLine) -> void
         const std::string_view word = words[i];
         const bool hasArgument = i + 1 < words.size();
 
-        if (MCIEquals(word, "-mission"))
+        if (MCIEquals(word, "-host") || MCIEquals(word, "--host"))
+        {
+            LobbyLaunchArgs.Active = true;
+            LobbyLaunchArgs.IsHost = true;
+
+            if (hasArgument && !words[i + 1].empty() && words[i + 1][0] != '-')
+            {
+                const std::string& next = words[++i];
+                const int port = std::atoi(next.c_str());
+                if (port > 0 && port < 65536)
+                {
+                    LobbyLaunchArgs.Address = ":" + next;
+                }
+                else
+                {
+                    LobbyLaunchArgs.SessionName = next;
+                }
+            }
+        }
+        else if (MCIEquals(word, "-join") || MCIEquals(word, "--join"))
+        {
+            LobbyLaunchArgs.Active = true;
+            LobbyLaunchArgs.IsHost = false;
+
+            if (hasArgument && !words[i + 1].empty() && words[i + 1][0] != '-')
+            {
+                LobbyLaunchArgs.Address = words[++i];
+            }
+        }
+        else if (MCIEquals(word, "-player") || MCIEquals(word, "--player"))
+        {
+            if (hasArgument)
+            {
+                LobbyLaunchArgs.PlayerName = words[++i];
+            }
+        }
+        else if (MCIEquals(word, "-session") || MCIEquals(word, "--session"))
+        {
+            if (hasArgument)
+            {
+                LobbyLaunchArgs.SessionName = words[++i];
+            }
+        }
+        else if (MCIEquals(word, "-maxplayers") || MCIEquals(word, "--maxplayers"))
+        {
+            if (hasArgument)
+            {
+                LobbyLaunchArgs.MaxPlayers = std::atoi(words[++i].c_str());
+            }
+        }
+        else if (MCIEquals(word, "-port") || MCIEquals(word, "--port"))
+        {
+            if (hasArgument)
+            {
+                const std::string p = words[++i];
+                if (LobbyLaunchArgs.IsHost)
+                {
+                    LobbyLaunchArgs.Address = ":" + p;
+                }
+                else if (!LobbyLaunchArgs.Address.empty() && LobbyLaunchArgs.Address.find(':') == std::string::npos)
+                {
+                    LobbyLaunchArgs.Address += ":" + p;
+                }
+            }
+        }
+        else if (MCIEquals(word, "-mission"))
         {
             if (hasArgument)
             {
@@ -272,6 +380,11 @@ auto ParseCommandLine(std::string_view commandLine) -> void
 
             i++;
         }
+    }
+
+    if (LobbyLaunchArgs.Active)
+    {
+        LaunchedFromLobby = true;
     }
 
     if (networkFile)

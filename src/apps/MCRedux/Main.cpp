@@ -26,7 +26,13 @@ namespace
         "  --user         - Where saves, prefs and temp files go (default: the SDL pref path)\n"
         "                   game options, as MCX.EXE takes them.\n"
         "  -mission <n>   - Start game segment n of SYSTEM.CFG's missionName (skips logistics)\n"
-        "  -load <file>   - Load a saved game\n";
+        "  -load <file>   - Load a saved game\n"
+        "  -host [port]   - Host a multiplayer game (default port 28800)\n"
+        "  -join <addr>   - Join a multiplayer game at host[:port]\n"
+        "  -player <name> - Player callsign / name\n"
+        "  -session <name>- Session / room name\n"
+        "  -maxplayers <n>- Maximum players for host (2..6)\n"
+        "  -port <port>   - Network port (default 28800)\n";
 
     /// <summary>
     /// Shows <paramref name="text"/> to the player: on the terminal MCRedux was started from, else in a message box.
@@ -119,7 +125,16 @@ namespace
                     options.GameCommandLine += ' ';
                 }
 
+                const bool hasSpace = arg.find(' ') != std::string_view::npos;
+                if (hasSpace)
+                {
+                    options.GameCommandLine += '"';
+                }
                 options.GameCommandLine += arg;
+                if (hasSpace)
+                {
+                    options.GameCommandLine += '"';
+                }
             }
         }
 

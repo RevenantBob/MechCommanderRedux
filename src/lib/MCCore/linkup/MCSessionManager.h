@@ -28,6 +28,21 @@ class MCFileTransferInfo;
 extern bool LaunchedFromLobby;
 
 /// <summary>
+/// Command-line lobby launch arguments for hosting or joining a multiplayer session directly.
+/// </summary>
+struct MCLobbyLaunchArgs
+{
+    bool Active = false;
+    bool IsHost = false;
+    std::string Address;
+    std::string PlayerName;
+    std::string SessionName;
+    int32_t MaxPlayers = 6;
+};
+
+extern MCLobbyLaunchArgs LobbyLaunchArgs;
+
+/// <summary>
 /// The game's DirectPlay session. The MultiPlayer object owns it; the ABL debugger's console can make one of its own.
 /// </summary>
 class MCSessionManager
