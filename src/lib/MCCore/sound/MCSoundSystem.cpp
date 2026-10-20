@@ -250,7 +250,8 @@ bool MCSoundSystem::PreloadSoundBite(int32_t biteId)
 {
     MCPacketFile& file = *_SoundDataFile;
 
-    if (file.SeekPacket(biteId) != 0)
+    // Issue #25: a bite the sound file doesn't list ("numBites") has no slot to load into.
+    if (biteId < 0 || static_cast<size_t>(biteId) >= Sounds.size() || file.SeekPacket(biteId) != 0)
     {
         return false;
     }
@@ -725,7 +726,8 @@ void MCSoundSystem::Update()
 
         if (!_Renderer.IsPlaying(NOISE_CHANNEL))
         {
-            if (Sounds[FIRE_BITE].BiteData.empty() && !PreloadSoundBite(FIRE_BITE))
+            if (static_cast<size_t>(FIRE_BITE) >= Sounds.size() ||
+                (Sounds[FIRE_BITE].BiteData.empty() && !PreloadSoundBite(FIRE_BITE)))
             {
                 return;
             }

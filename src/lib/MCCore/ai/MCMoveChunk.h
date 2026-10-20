@@ -37,6 +37,9 @@ public:
     /// <summary>Unpacks <see cref="Data"/>.</summary>
     /// <returns>Whether the chunk was good (a step count of 1..4, and directions 0..7).</returns>
     bool Unpack(MCMover& mover);
+    /// <summary>Whether every unpacked step is on the game map.</summary>
+    /// <remarks>Issue #25: a chunk from the server can name any cell its ten bits hold.</remarks>
+    bool OnMap() const;
     /// <summary>Whether two chunks hold the same steps (else dumps both to mvchunk.dbg).</summary>
     bool EqualTo(MCMover& mover, const MCMoveChunk& chunk) const;
 

@@ -4,44 +4,44 @@
 #include "linkup/MCFidpMessage.h"
 #include "linkup/MCFidpPlayer.h"
 #include "linkup/MCFidpSession.h"
-#include "linkup/MCFileTransferInfo.h"
 #include "lib/MCFatal.h"
 #include "platform/MCDirectPlay.h"
 
 // Players and groups coming and going (DirectPlay's system messages), the numbering the server hands out, and the
 // linkup layer's own application messages.
 
-namespace
-{
-    /// <summary>
-    /// Splits a begin-transfer message's "name\directory" as the original's strtok did: leading backslashes are
-    /// skipped, and an empty rest is no directory.
-    /// </summary>
-    std::pair<std::string, std::optional<std::string>> SplitTransferName(std::string_view text)
-    {
-        const size_t start = text.find_first_not_of('\\');
-
-        if (start == std::string_view::npos)
-        {
-            return {};
-        }
-
-        const size_t end = text.find('\\', start);
-
-        if (end == std::string_view::npos)
-        {
-            return {std::string(text.substr(start)), std::nullopt};
-        }
-
-        const std::string_view rest = text.substr(end + 1);
-        return {std::string(text.substr(start, end - start)),
-                rest.empty() ? std::nullopt : std::optional<std::string>(rest)};
-    }
-}
-
 bool MCSessionManager::ReadyToChooseServer() const
 {
     return MyPlayer() != nullptr && _LatencyReportsIn;
+}
+
+bool MCSessionManager::SpeaksForSession(uint32_t fromID) const
+{
+    return fromID != 0 && (fromID == ServerID || (DirectPlay != nullptr && DirectPlay->IsSessionHostPlayer(fromID)));
+}
+
+bool MCSessionManager::MaySend(MCLinkupMessageType type, uint32_t fromID) const
+{
+    switch (type)
+    {
+        case MCLinkupMessageType::NewServer:
+        {
+            return fromID == ServerID;
+        }
+
+        case MCLinkupMessageType::PlayerNumbers:
+        case MCLinkupMessageType::PlayersInGroup:
+        case MCLinkupMessageType::GameStarted:
+        case MCLinkupMessageType::PlayerRemoved:
+        {
+            return SpeaksForSession(fromID);
+        }
+
+        default:
+        {
+            return true;
+        }
+    }
 }
 
 void MCSessionManager::ProcessSystemInfoMessage(const MCFISystemInfoMessage& msg, uint32_t fromID)
@@ -352,34 +352,21 @@ void MCSessionManager::ApplyLobbyPlayerNumbers(const MCFIPlayerNumbersMessage& n
     }
 }
 
-void MCSessionManager::HandleFileData(const MCFidpMessage& msg)
-{
-    const std::span<const uint8_t> piece = msg.Bytes();
-    const uint8_t fileID =
-        piece.size() > sizeof(MCFIGuaranteedMessageHeader) ? piece[sizeof(MCFIGuaranteedMessageHeader)] : 0;
-    const auto found = std::ranges::find_if(IncomingFiles, [&](const auto& transfer)
-                                            { return static_cast<uint32_t>(transfer->FileID) == fileID; });
-
-    if (found == IncomingFiles.end() || !(*found)->AddBytes(piece))
-    {
-        return;
-    }
-
-    std::unique_ptr<MCFileTransferInfo> done = std::move(*found);
-    IncomingFiles.erase(found);
-
-    if (FileReceivedCallback)
-    {
-        FileReceivedCallback(done->FileName);
-    }
-}
-
 void MCSessionManager::HandleApplicationMessage(std::shared_ptr<MCFidpMessage> msg)
 {
     bool passOn = true;
     const std::span<const uint8_t> bytes = msg->Bytes();
+    const auto type = static_cast<MCLinkupMessageType>(msg->Type());
 
-    switch (static_cast<MCLinkupMessageType>(msg->Type()))
+    // A refused message was still acknowledged, so its sender doesn't resend it.
+    if (!MaySend(type, msg->FromID))
+    {
+        SDL_Log("MCSessionManager: dropped linkup message %u from player %u", static_cast<uint32_t>(type), msg->FromID);
+        AddMessageToEmptyQueue(std::move(msg));
+        return;
+    }
+
+    switch (type)
     {
         case MCLinkupMessageType::PlayerNumbers:
         {
@@ -426,29 +413,10 @@ void MCSessionManager::HandleApplicationMessage(std::shared_ptr<MCFidpMessage> m
         }
 
         case MCLinkupMessageType::BeginFileTransfer:
-        {
-            const auto begin = ReadLinkupMessage<MCFIBeginFileTransferMessage>(bytes);
-            constexpr size_t nameOffset = sizeof(MCFIBeginFileTransferMessage);
-            const std::string_view text =
-                bytes.size() > nameOffset
-                    ? std::string_view(
-                          reinterpret_cast<const char*>(bytes.data()) + nameOffset,
-                          strnlen(reinterpret_cast<const char*>(bytes.data()) + nameOffset, bytes.size() - nameOffset))
-                    : std::string_view();
-            const auto [fileName, directory] = SplitTransferName(text);
-            auto transfer = std::make_unique<MCFileTransferInfo>(
-                _HomeDirectory, msg->FromID, MyPlayerID, fileName,
-                directory.has_value() ? std::optional<std::string_view>(*directory) : std::nullopt, begin.FileSize,
-                MCFileTransferDirection::Receive);
-            transfer->FileID = begin.FileID;
-            IncomingFiles.push_back(std::move(transfer));
-            passOn = false;
-            break;
-        }
-
         case MCLinkupMessageType::FileData:
         {
-            HandleFileData(*msg);
+            // The game never sends files (nothing in MCX.EXE called MultiPlayer::sendFile), and receiving them let any
+            // peer write files on this machine: file transfers are dropped.
             passOn = false;
             break;
         }

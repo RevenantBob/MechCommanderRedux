@@ -162,7 +162,6 @@
     <ClCompile Include="linkup\MCFidpNetworkProtocol.cpp" />
     <ClCompile Include="linkup\MCFidpPlayer.cpp" />
     <ClCompile Include="linkup\MCFidpSession.cpp" />
-    <ClCompile Include="linkup\MCFileTransferInfo.cpp" />
     <ClCompile Include="linkup\MCSessionManager.cpp" />
     <ClCompile Include="linkup\MCSessionManagerPlayers.cpp" />
     <ClCompile Include="linkup\MCSessionManagerReceive.cpp" />
@@ -560,7 +559,6 @@
     <ClInclude Include="linkup\MCFidpNetworkProtocol.h" />
     <ClInclude Include="linkup\MCFidpPlayer.h" />
     <ClInclude Include="linkup\MCFidpSession.h" />
-    <ClInclude Include="linkup\MCFileTransferInfo.h" />
     <ClInclude Include="linkup\MCLinkupMessages.h" />
     <ClInclude Include="linkup\MCSessionManager.h" />
     <ClInclude Include="logistics\MCBriefingBox.h" />

@@ -66,9 +66,13 @@ auto PackDeployForce(const MCDeployForce& force) -> std::vector<uint8_t>
     return bytes;
 }
 
-auto UnpackDeployForce(std::span<const uint8_t> message) -> MCDeployForce
+auto UnpackDeployForce(std::span<const uint8_t> message) -> std::optional<MCDeployForce>
 {
-    SDL_assert(message.size() >= sizeof(MCDeployForceMessage));
+    if (message.size() < sizeof(MCDeployForceMessage))
+    {
+        return std::nullopt;
+    }
+
     MCDeployForceMessage header;
     std::memcpy(&header, message.data(), sizeof(header));
     MCDeployForce force;
@@ -79,6 +83,11 @@ auto UnpackDeployForce(std::span<const uint8_t> message) -> MCDeployForce
     force.Slot = static_cast<uint8_t>(header.Flags >> 6);
     force.NameIndex = header.NameIndex;
     force.PilotNameIndex = header.PilotNameIndex;
+
+    if (message.size() < sizeof(MCDeployForceMessage) + header.NumItems * 2u)
+    {
+        return std::nullopt;
+    }
 
     for (size_t index = 0; index < header.NumItems; index++)
     {
@@ -99,9 +108,13 @@ auto PackRemoveForce(uint8_t lance, uint8_t slot) -> std::vector<uint8_t>
     return bytes;
 }
 
-auto UnpackRemoveForce(std::span<const uint8_t> message) -> int32_t
+auto UnpackRemoveForce(std::span<const uint8_t> message) -> std::optional<int32_t>
 {
-    SDL_assert(message.size() >= sizeof(MCRemoveForceMessage));
+    if (message.size() < sizeof(MCRemoveForceMessage))
+    {
+        return std::nullopt;
+    }
+
     MCRemoveForceMessage remove;
     std::memcpy(&remove, message.data(), sizeof(remove));
     return remove.Slot + remove.Lance * 4;

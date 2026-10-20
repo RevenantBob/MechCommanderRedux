@@ -271,12 +271,27 @@ auto MCLogistics::LoadCampaign(std::string_view saveName, std::string_view exten
         lance.fill({-1, -1});
     }
 
+    // A save that can't be opened is refused (issue #25: the original went on reading it); the caller stays where it
+    // is, and the next load fills the lists again.
     int32_t result = packetFile.Open(GamePath(SavePath, saveName, extension));
     Assert(result == 0, 0, " campaign file NOT Valid! ");
-    result = packetFile.SeekPacket(0);
-    Assert(result == 0, 0, " could not find initial campaign file ");
-    result = file.Open(packetFile, packetFile.GetPacketSize());
-    Assert(result == 0, 0, " could not open initial campaign file ");
+
+    if (result == 0)
+    {
+        result = packetFile.SeekPacket(0);
+        Assert(result == 0, 0, " could not find initial campaign file ");
+    }
+
+    if (result == 0)
+    {
+        result = file.Open(packetFile, packetFile.GetPacketSize());
+        Assert(result == 0, 0, " could not open initial campaign file ");
+    }
+
+    if (result != 0)
+    {
+        return result;
+    }
 
     if (!newCampaign)
     {
@@ -333,6 +348,15 @@ auto MCLogistics::LoadCampaign(std::string_view saveName, std::string_view exten
     {
         if (const MCFitResult<int32_t> number = file.Read<int32_t>("MissionNumber"); number.has_value())
         {
+            // Issue #25: the number picks the campaign's scenario (or, one past the last, its end); one the campaign
+            // doesn't have refuses the save.
+            if (*number < 0 || static_cast<size_t>(*number) > Mission()->Scenarios.size())
+            {
+                SDL_Log("MCLogistics: %.*s names mission %d of %zu", static_cast<int>(saveName.size()), saveName.data(),
+                        *number, Mission()->Scenarios.size());
+                return READ_ERR;
+            }
+
             savedMission = *number;
             CurrentMission = savedMission;
         }
@@ -534,6 +558,14 @@ auto MCLogistics::LoadCampaign(std::string_view saveName, std::string_view exten
 
     if (CurrentMission == savedMission || newCampaign || MultiPlayer() != nullptr)
     {
+        // The current scenario names a scenario of the campaign, which the briefing and the mission start read.
+        if (MultiPlayer() == nullptr &&
+            (CurrentMission < 0 || static_cast<size_t>(CurrentMission) >= Mission()->Scenarios.size()))
+        {
+            SDL_Log("MCLogistics: mission %d is past the campaign's %zu", CurrentMission, Mission()->Scenarios.size());
+            return READ_ERR;
+        }
+
         Mission()->CurrentScenario = CurrentMission;
         Mission()->CurrentMovie = CurrentMission + 1;
         GetCurrentMission();

@@ -2,8 +2,11 @@
 #include "MCTest.h"
 #include "TestGame.h"
 #include "ai/MCMoveSystem.h"
+#include "lib/MCFastFile.h"
+#include "lib/MCFastFileSet.h"
 #include "lib/MCFile.h"
 #include "lib/MCFitIniFile.h"
+#include "platform/MCFileSystem.h"
 #include "main/MCGameContext.h"
 #include "main/MCMissionGlobals.h"
 #include "object/MCBigGameObject.h"
@@ -177,7 +180,15 @@ namespace
                 return "m0101.gmm not found";
             }
 
-            System = MCMoveSystem::Load(mapFile, globalFile, SimpleMovePathRange * 2 + 1);
+            std::expected<std::unique_ptr<MCMoveSystem>, std::string> loaded =
+                MCMoveSystem::Load(mapFile, globalFile, SimpleMovePathRange * 2 + 1);
+
+            if (!loaded)
+            {
+                return loaded.error();
+            }
+
+            System = std::move(*loaded);
 
             // The mover the path finders ask about (class, alignment): a Clan mech, with no type.
             Search.MovingObject = std::make_shared<MCGameObject>();
@@ -546,8 +557,10 @@ TEST_CASE("game: pathfinding a global map written back matches the editor's file
         std::make_shared<MCPriorityQueue>(MCMoveSystem::OpenListItems, MCMoveSystem::OpenListKeyMinimum);
     MCFile in;
     REQUIRE_EQ(in.Open("data\\terrain\\m0101.gmm"), 0);
-    MCGlobalMap map(in, openList);
+    std::expected<std::unique_ptr<MCGlobalMap>, std::string> read = MCGlobalMap::Read(in, openList);
     in.Close();
+    REQUIRE(read.has_value());
+    MCGlobalMap& map = **read;
 
     const std::string path = (std::filesystem::temp_directory_path() / "mc_pathfinding_m0101.gmm").string();
     {
@@ -604,4 +617,68 @@ TEST_CASE("game: pathfinding a global map written back matches the editor's file
     }
 
     CHECK_EQ(differences, 0);
+}
+
+/// <summary>
+/// Every retail terrain's movement map (.dat) and global map (.gmm) passes the readers' checks (issue #25: sizes the file
+/// holds, areas, doors and links that name ones the map has), so the checks refuse only damaged maps.
+/// </summary>
+TEST_CASE("game: every retail terrain's movement and global maps read")
+{
+    if (!MCTestGame::Available())
+    {
+        return;
+    }
+
+    MCTestGame::OpenFastFiles();
+    std::set<std::string> names;
+
+    for (const auto& fastFile : MCGameContext::Current().FastFiles().Files())
+    {
+        for (int32_t i = 0; i < fastFile->GetNumFiles(); i++)
+        {
+            std::string name(fastFile->GetEntries()[static_cast<size_t>(i)].GetName());
+            std::ranges::transform(name, name.begin(), [](char ch) { return static_cast<char>(std::tolower(ch)); });
+
+            if (name.starts_with("data\\terrain\\") && name.ends_with(".gmm"))
+            {
+                names.insert(name.substr(0, name.size() - 4));
+            }
+        }
+    }
+
+    for (std::string name : MCFileSystem::FindFiles("data\\terrain\\*.gmm"))
+    {
+        std::ranges::transform(name, name.begin(), [](char ch) { return static_cast<char>(std::tolower(ch)); });
+        names.insert("data\\terrain\\" + name.substr(0, name.size() - 4));
+    }
+
+    REQUIRE(!names.empty());
+    const auto openList =
+        std::make_shared<MCPriorityQueue>(MCMoveSystem::OpenListItems, MCMoveSystem::OpenListKeyMinimum);
+
+    for (const std::string& name : names)
+    {
+        MCTest::Scope scope(name);
+        MCFile global;
+        REQUIRE_EQ(global.Open(name + ".gmm"), 0);
+        const std::expected<std::unique_ptr<MCGlobalMap>, std::string> read = MCGlobalMap::Read(global, openList);
+
+        // m0506.gmm (mission MIS0506, in neither campaign) is an older file without the version word; MCX.EXE refused
+        // it as well.
+        if (name == "data\\terrain\\m0506")
+        {
+            CHECK(!read.has_value() && read.error().starts_with("version 0x0"));
+            continue;
+        }
+
+        CHECK_EQ(read.has_value() ? std::string() : name + ".gmm: " + read.error(), std::string());
+        MCFile movement;
+
+        if (movement.Open(name + ".dat") == 0)
+        {
+            const std::expected<std::unique_ptr<MCScenarioMap>, std::string> map = MCScenarioMap::Read(movement);
+            CHECK_EQ(map.has_value() ? std::string() : name + ".dat: " + map.error(), std::string());
+        }
+    }
 }

@@ -947,9 +947,11 @@ auto MCMover::AddWeaponFireChunk(int32_t which, MCWeaponFireChunk& chunk) -> int
 
 auto MCMover::AddWeaponFireChunks(int32_t which, std::span<const uint32_t> packedChunks) -> int32_t
 {
+    // The chunks come from the server; those that don't fit are dropped (the original was fatal).
     if (NumWeaponFireChunks[which] + std::ssize(packedChunks) > MaxWeaponFireChunks - 1)
     {
-        Fatal(0, " Mover::addWeaponFireChunks--Too many weaponfire chunks ");
+        packedChunks =
+            packedChunks.first(static_cast<size_t>(std::max(MaxWeaponFireChunks - 1 - NumWeaponFireChunks[which], 0)));
     }
 
     for (const uint32_t packed : packedChunks)
@@ -1006,7 +1008,7 @@ auto MCMover::UpdateWeaponFireChunks(int32_t which) -> int32_t
 
                 if (chunk.TargetType == 0)
                 {
-                    target = LockObject(MultiPlayer()->MoverRoster[chunk.TargetId]);
+                    target = MultiPlayer()->RosterMover(chunk.TargetId);
                     missing = " Mover.updateWeaponFireChunks: NULL Mover Target (save wfchunk.dbg file) ";
                 }
                 else
@@ -1023,9 +1025,20 @@ auto MCMover::UpdateWeaponFireChunks(int32_t which) -> int32_t
                     Assert(false, 0, missing);
                 }
 
-                HandleWeaponFire(weaponIndex, std::static_pointer_cast<MCGameObject>(target), std::nullopt, chunk.Hit,
-                                 EntryAngleTable[chunk.EntryAngle], chunk.NumMissiles, chunk.NumMissilesPastAms,
-                                 chunk.NumAntiMissileShots, chunk.HitLocation);
+                // The chunk came from the server, so a target that isn't there, or a hit on an armor location the
+                // target doesn't have, is skipped (the original went on with them).
+                const auto gameTarget = std::dynamic_pointer_cast<MCGameObject>(target);
+                const auto moverTarget = std::dynamic_pointer_cast<MCMover>(target);
+
+                if (gameTarget == nullptr ||
+                    (chunk.Hit != 0 && moverTarget != nullptr && !moverTarget->IsHitLocation(chunk.HitLocation)))
+                {
+                    continue;
+                }
+
+                HandleWeaponFire(weaponIndex, gameTarget, std::nullopt, chunk.Hit, EntryAngleTable[chunk.EntryAngle],
+                                 chunk.NumMissiles, chunk.NumMissilesPastAms, chunk.NumAntiMissileShots,
+                                 chunk.HitLocation);
                 break;
             }
 
@@ -1047,7 +1060,9 @@ auto MCMover::UpdateWeaponFireChunks(int32_t which) -> int32_t
             }
 
             default:
-                Fatal(0, " Mover.updateWeaponFireChunks: bad targetType ");
+            {
+                break;
+            }
         }
     }
 
@@ -1076,9 +1091,11 @@ auto MCMover::AddCriticalHitChunk(int32_t which, int32_t bodyLocation, int32_t c
 
 auto MCMover::AddCriticalHitChunks(int32_t which, std::span<const uint8_t> packedChunks) -> int32_t
 {
+    // The chunks come from the server; those that don't fit are dropped (the original was fatal).
     if (NumCriticalHitChunks[which] + std::ssize(packedChunks) > MaxWeaponFireChunks - 1)
     {
-        Fatal(0, " Mover::addCriticalHitChunks--Too many criticalhit chunks ");
+        packedChunks =
+            packedChunks.first(static_cast<size_t>(std::max(MaxWeaponFireChunks - 1 - NumCriticalHitChunks[which], 0)));
     }
 
     std::ranges::copy(packedChunks, CriticalHitChunks[which].begin() + NumCriticalHitChunks[which]);

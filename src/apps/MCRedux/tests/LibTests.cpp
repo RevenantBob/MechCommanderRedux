@@ -476,6 +476,51 @@ TEST_CASE("file: deleting a save removes the install's copy too")
 }
 
 /// <summary>
+/// A relative game path stays inside its root (issue #25): ".." at the root goes nowhere, as at a drive's root, and a
+/// part naming a drive is skipped, so a name from a save, a mission or the network can't reach other files. ".." below
+/// the root still climbs.
+/// </summary>
+TEST_CASE("file: a relative path never leaves the user or game folder")
+{
+    ScratchFolder folder("contain");
+    std::filesystem::create_directories(folder / "install\\data");
+    WriteFile(folder / "install\\data\\shared.cfg", Bytes("install"));
+    WriteFile(folder / "secret.txt", Bytes("outside"));
+
+    MCTestContextScope scope;
+    scope.Context().SetFiles(std::make_unique<MCDiskFileSource>());
+    MCFileSystem::SetGameRoot(folder / "install");
+    MCFileSystem::SetUserRoot(folder / "user");
+
+    CHECK(MCFileSystem::ResolveWrite("..\\..\\evil.txt") == MCFileSystem::ResolveWrite("evil.txt"));
+    CHECK(MCFileSystem::ResolveWrite("data\\..\\..\\evil.txt") == MCFileSystem::ResolveWrite("evil.txt"));
+    CHECK(MCFileSystem::ResolveWrite("data\\..\\evil.txt") == MCFileSystem::ResolveWrite("evil.txt"));
+    CHECK(MCFileSystem::ResolveWrite("data/C:/Windows/evil.txt") ==
+          MCFileSystem::ResolveWrite("data\\Windows\\evil.txt"));
+    CHECK(!MCFileSystem::Exists("..\\secret.txt"));
+    CHECK(MCFileSystem::Exists("data\\..\\data\\shared.cfg"));
+
+    // A name from another machine is checked before anything opens it: relative, no "..", drive or stream.
+    CHECK(MCFileSystem::IsContainedPath("data\\savegame\\duel.mpk"));
+    CHECK(MCFileSystem::IsContainedPath("duel.mpk"));
+    CHECK(MCFileSystem::IsContainedPath("data/..duel../x.mpk"));
+    CHECK(!MCFileSystem::IsContainedPath(""));
+    CHECK(!MCFileSystem::IsContainedPath("..\\duel.mpk"));
+    CHECK(!MCFileSystem::IsContainedPath("data\\..\\..\\duel.mpk"));
+    CHECK(!MCFileSystem::IsContainedPath("data/../duel.mpk"));
+    CHECK(!MCFileSystem::IsContainedPath("C:\\Windows\\win.ini"));
+    CHECK(!MCFileSystem::IsContainedPath("data\\C:duel.mpk"));
+    CHECK(!MCFileSystem::IsContainedPath("\\\\server\\share\\duel.mpk"));
+    CHECK(!MCFileSystem::IsContainedPath("/etc/passwd"));
+    CHECK(!MCFileSystem::IsContainedPath("duel.mpk:stream"));
+
+    // A write that tries to climb out of the user folder lands inside it; the install and the folder above stay.
+    REQUIRE(MCFileSystem::CopyFile("data\\shared.cfg", "..\\..\\secret.txt"));
+    CHECK(ReadFile(folder / "secret.txt") == Bytes("outside"));
+    CHECK(ReadFile(folder / "user\\secret.txt") == Bytes("install"));
+}
+
+/// <summary>
 /// The packet file format: a magic (or checksum) word, the offset of the first packet (so the packet count is
 /// offset / 4 - 2), a table of offsets whose top 3 bits are the storage, then the packets; an LZ packet starts with
 /// its unpacked size. A packet never written reads as an empty NUL packet.

@@ -59,12 +59,14 @@ public:
 
 private:
     /// <summary>Reads every block packet and makes its object lists.</summary>
-    void LoadBlocks();
+    /// <returns>Nothing, or the first block's reason it couldn't be placed.</returns>
+    std::expected<void, std::string> LoadBlocks();
     /// <summary>
     /// Makes the TBlk and RBlk lists of block <paramref name="blockNumber"/> and fills them from its packet
     /// (<paramref name="packet"/>): trees in TBlk, other objects in RBlk, turrets and gates in the first object list.
     /// </summary>
-    void SetupObjectQueue(uint32_t blockNumber, std::span<const uint8_t> packet);
+    /// <returns>Nothing, or why an object can't be placed: a vertex off the map or a type that doesn't exist.</returns>
+    std::expected<void, std::string> SetupObjectQueue(uint32_t blockNumber, std::span<const uint8_t> packet);
     /// <summary>Places the misc terrain objects of the <c>.bdg</c> file, 16-byte records of block, vertex, kind and
     /// whether it starts destroyed.</summary>
     void LoadMiscTerrainObjects(std::span<const uint8_t> records);

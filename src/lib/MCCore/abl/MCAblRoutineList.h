@@ -26,6 +26,21 @@ template <typename T> std::span<T> ArrayArgument(std::span<T> elements, size_t c
     return elements.first(std::min(count, elements.size()));
 }
 
+/// <summary>
+/// Writes <paramref name="values"/> into an array argument from its start, as many as the script's variable holds
+/// (issue #25: the original wrote all of them, past a smaller array or a single value).
+/// </summary>
+template <typename T> void PutArrayArgument(std::span<T> elements, std::initializer_list<T> values)
+{
+    std::ranges::copy(values | std::views::take(elements.size()), elements.begin());
+}
+
+/// <summary>Element <paramref name="index"/> of an array argument, or 0 when the script's variable is shorter.</summary>
+template <typename T> T ArrayArgumentAt(std::span<const T> elements, size_t index)
+{
+    return index < elements.size() ? elements[index] : T{};
+}
+
 /// <summary>The slots of the script's global values (getglobalvalue / setglobalvalue).</summary>
 inline constexpr int32_t AblGlobalValueCount = 50;
 

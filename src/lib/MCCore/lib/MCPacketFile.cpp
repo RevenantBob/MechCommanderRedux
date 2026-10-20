@@ -100,6 +100,13 @@ int32_t MCPacketFile::AfterOpen()
         }
 
         const uint32_t firstPacket = static_cast<uint32_t>(ReadLong());
+
+        // Issue #25: the table must lie in the file (the original allocated whatever the word said).
+        if (firstPacket > GetLength())
+        {
+            return BadPacketVersion;
+        }
+
         _NumPackets = static_cast<int32_t>(firstPacket / 4) - 2;
     }
 
@@ -243,6 +250,23 @@ int32_t MCPacketFile::SeekPacket(int32_t packet)
             break;
         default:
             return PacketWrongStorage;
+    }
+
+    // Issue #25: a read file's table and sizes come from the file. A packet outside the file, or one that claims to
+    // unpack to more than its LZ data can (each 12-bit code gives at most a 4096-byte string), is refused before
+    // anyone allocates its size.
+    if (_FileMode == MCFileMode::Read)
+    {
+        const auto length = static_cast<int64_t>(GetLength());
+        const int64_t maxUnpacked = std::max<int64_t>(_PacketSize - 4, 0) * 4096;
+
+        if (offset < 0 || next < offset || next > length ||
+            (_PacketType == MCPacketStorage::Lzd && (_PacketUnpackedSize < 0 || _PacketUnpackedSize > maxUnpacked)))
+        {
+            _PacketSize = 0;
+            _PacketUnpackedSize = 0;
+            return PacketOutOfRange;
+        }
     }
 
     return offset > 0 ? NO_ERR : PacketOutOfRange;

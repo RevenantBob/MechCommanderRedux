@@ -33,6 +33,32 @@ namespace
     /// <summary>Size of one .bdg record: block, vertex, kind and destroyed, four 32-bit values.</summary>
     constexpr size_t MiscTerrainRecordSize = 16;
 
+    /// <summary>Whether <paramref name="block"/> and <paramref name="vertex"/> (from a map file) name a vertex of the map.</summary>
+    bool IsMapVertex(int64_t block, int64_t vertex)
+    {
+        const int64_t blocks = static_cast<int64_t>(MCTerrain::BlocksMapSide) * MCTerrain::BlocksMapSide;
+        const int64_t vertices = static_cast<int64_t>(MCTerrain::VerticesBlockSide) * MCTerrain::VerticesBlockSide;
+        return block >= 0 && block < blocks && vertex >= 0 && vertex < vertices;
+    }
+
+    /// <summary>Nothing, or which .bdg record names a block or vertex off the map.</summary>
+    std::expected<void, std::string> CheckMiscTerrainRecords(std::span<const uint8_t> records)
+    {
+        for (size_t offset = 0; offset + MiscTerrainRecordSize <= records.size(); offset += MiscTerrainRecordSize)
+        {
+            std::array<int32_t, 2> place{};
+            std::memcpy(place.data(), records.data() + offset, sizeof(place));
+
+            if (!IsMapVertex(place[0], place[1]))
+            {
+                return std::unexpected(std::format("terrain object {} is at block {}, vertex {}, off the map",
+                                                   offset / MiscTerrainRecordSize, place[0], place[1]));
+            }
+        }
+
+        return {};
+    }
+
     /// <summary>A placed-destroyed object's damage: its type's DmgLevel.</summary>
     template <typename T> float DestroyedDamage(MCGameObject& object)
     {
@@ -104,18 +130,40 @@ auto MCObjectBlockManager::Create(std::string_view fileName)
 
     const int32_t mapSide = MCTerrain::BlocksMapSide * MCTerrain::VerticesBlockSide;
     manager->_VertexObjectCount.assign(static_cast<size_t>(mapSide) * static_cast<size_t>(mapSide), 0);
-    manager->LoadBlocks();
+
+    if (std::expected<void, std::string> loaded = manager->LoadBlocks(); !loaded)
+    {
+        return std::unexpected(std::format("{}: {}", objPath, loaded.error()));
+    }
 
     MCFile bdgFile;
 
     if (bdgFile.Open(GamePath(TerrainPath, fileName, ".bdg")) == 0)
     {
+        // Issue #25: the count and each record's block and vertex come from the file; a count the file doesn't hold
+        // (or a negative one) asked for a huge allocation, and a block or vertex off the map wrote past the vertex
+        // counts. Such a file is refused.
         const int32_t numRecords = bdgFile.ReadLong();
+        const uint32_t bdgLength = bdgFile.GetLength();
+
+        if (numRecords < 0 || bdgLength < sizeof(int32_t) ||
+            static_cast<uint64_t>(numRecords) * MiscTerrainRecordSize > bdgLength - sizeof(int32_t))
+        {
+            return std::unexpected(
+                std::format("{}.bdg holds {} bytes, not {} terrain objects", fileName, bdgLength, numRecords));
+        }
+
         std::vector<uint8_t> records(static_cast<size_t>(numRecords) * MiscTerrainRecordSize);
 
         if (!records.empty())
         {
             bdgFile.Read(records);
+
+            if (const std::expected<void, std::string> checked = CheckMiscTerrainRecords(records); !checked)
+            {
+                return std::unexpected(std::format("{}.bdg: {}", fileName, checked.error()));
+            }
+
             manager->LoadMiscTerrainObjects(records);
         }
 
@@ -225,7 +273,8 @@ auto MCObjectBlockManager::LoadMiscTerrainObjects(std::span<const uint8_t> recor
     }
 }
 
-auto MCObjectBlockManager::SetupObjectQueue(uint32_t blockNumber, std::span<const uint8_t> packet) -> void
+auto MCObjectBlockManager::SetupObjectQueue(uint32_t blockNumber, std::span<const uint8_t> packet)
+    -> std::expected<void, std::string>
 {
     // The block's two lists.
     const std::shared_ptr<MCObjectList> treeList = ObjectList()->AddList(
@@ -248,15 +297,24 @@ auto MCObjectBlockManager::SetupObjectQueue(uint32_t blockNumber, std::span<cons
             continue;
         }
 
+        const auto vertexNumber = static_cast<uint16_t>(record.VertexNumber);
+        const auto recordBlock = static_cast<uint16_t>(record.BlockNumber);
+
+        // Issue #25: a vertex off the map wrote past the vertex counts; the original was fatal on a type it doesn't
+        // have. Such a map is refused.
+        if (!IsMapVertex(recordBlock, vertexNumber))
+        {
+            return std::unexpected(std::format("object block {}: an object at block {}, vertex {}, off the map",
+                                               blockNumber, recordBlock, vertexNumber));
+        }
+
         std::shared_ptr<MCGameObject> object = CreateObject(typeId);
 
         if (object == nullptr)
         {
-            Fatal(typeId, " This object number is BAD ");
+            return std::unexpected(std::format("object block {}: object type {} doesn't exist", blockNumber, typeId));
         }
 
-        const auto vertexNumber = static_cast<uint16_t>(record.VertexNumber);
-        const auto recordBlock = static_cast<uint16_t>(record.BlockNumber);
         MCVector2D offsetOnVertex(static_cast<float>(record.PixelOffsetX), static_cast<float>(record.PixelOffsetY));
         MCVector2D numbers(static_cast<float>(vertexNumber), static_cast<float>(recordBlock));
         object->SetPartId(NextPartId(recordBlock, vertexNumber));
@@ -344,13 +402,15 @@ auto MCObjectBlockManager::SetupObjectQueue(uint32_t blockNumber, std::span<cons
             (objectClass == MCObjectClass::Tree ? treeList : restList)->Add(std::move(object));
         }
     }
+
+    return {};
 }
 
-auto MCObjectBlockManager::LoadBlocks() -> void
+auto MCObjectBlockManager::LoadBlocks() -> std::expected<void, std::string>
 {
     if (_ObjectFile == nullptr || _ObjectFile->IsOpen() == 0)
     {
-        return;
+        return {};
     }
 
     const int32_t numPackets = _ObjectFile->GetNumPackets();
@@ -366,8 +426,14 @@ auto MCObjectBlockManager::LoadBlocks() -> void
         // The original read every packet into one 22000-byte buffer.
         std::vector<uint8_t> packet(static_cast<size_t>(_ObjectFile->GetPacketSize()), 0xff);
         _ObjectFile->ReadPacket(block, packet);
-        SetupObjectQueue(static_cast<uint32_t>(block), packet);
+
+        if (std::expected<void, std::string> queued = SetupObjectQueue(static_cast<uint32_t>(block), packet); !queued)
+        {
+            return queued;
+        }
     }
+
+    return {};
 }
 
 auto MCObjectBlockManager::UpdateAllObjects() -> void

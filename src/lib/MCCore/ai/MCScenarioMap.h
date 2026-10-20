@@ -79,7 +79,9 @@ public:
     /// <summary>An empty map of <paramref name="height"/> x <paramref name="width"/> tiles (nothing passable).</summary>
     MCScenarioMap(int32_t width, int32_t height);
     /// <summary>Reads a map file: height, width, base elevation, then the tiles.</summary>
-    explicit MCScenarioMap(MCFile& mapFile);
+    /// <returns>The map, or why the file isn't one: a size the file doesn't hold.</returns>
+    /// <remarks>Issue #25: the original allocated and read whatever size the file named.</remarks>
+    static std::expected<std::unique_ptr<MCScenarioMap>, std::string> Read(MCFile& mapFile);
 
     /// <summary>Writes the map in the format the file constructor reads.</summary>
     void Write(MCFile& mapFile) const;

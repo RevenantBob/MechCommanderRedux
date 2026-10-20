@@ -2,7 +2,6 @@
 #include "linkup/MCSessionManager.h"
 #include "linkup/MCFidpMessage.h"
 #include "linkup/MCFidpPlayer.h"
-#include "linkup/MCFileTransferInfo.h"
 #include "lib/MCFatal.h"
 #include "platform/MCDirectPlay.h"
 
@@ -199,6 +198,17 @@ void MCSessionManager::RTProcessApplicationMessage(std::shared_ptr<MCFidpMessage
 
     const uint16_t header = LinkupHeaderOf(msg->Bytes());
     const auto type = static_cast<MCLinkupMessageType>(header & FIMSG_TYPE_MASK);
+
+    // The "removed" message bypasses the ordering (and stays at the queue's head until it is acted on), and the numbers
+    // come before this machine can order anything: both are checked here, before they are queued.
+    if ((type == MCLinkupMessageType::PlayerRemoved ||
+         (type == MCLinkupMessageType::PlayerNumbers && !HasPlayerNumber)) &&
+        !MaySend(type, msg->FromID))
+    {
+        SDL_Log("MCSessionManager: dropped linkup message %u from player %u", static_cast<uint32_t>(type), msg->FromID);
+        AddMessageToEmptyQueue(std::move(msg));
+        return;
+    }
 
     if (HasPlayerNumber)
     {

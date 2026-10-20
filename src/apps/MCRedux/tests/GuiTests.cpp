@@ -91,7 +91,15 @@ TEST_CASE("gui: a font's data is registered while loaded and freed with it")
 {
     MCTestContextScope scope;
     MCMemoryFileSource& files = scope.Context().SetFiles(std::make_unique<MCMemoryFileSource>());
-    files.AddFile(std::string(FontPath) + "memfont.fnt", std::vector<uint8_t>(64, 0x22));
+    // A font of one character one pixel high (count at +4, height at +8, the glyph table at +0x10, the glyph of width 1
+    // at +0x14); the rest is filler.
+    std::vector<uint8_t> fontBytes(64, 0x22);
+    const auto put = [&fontBytes](size_t offset, uint32_t value) { std::memcpy(fontBytes.data() + offset, &value, 4); };
+    put(4, 1);
+    put(8, 1);
+    put(0x10, 0x14);
+    put(0x14, 1);
+    files.AddFile(std::string(FontPath) + "memfont.fnt", fontBytes);
 
     MCAddressKey data;
     {

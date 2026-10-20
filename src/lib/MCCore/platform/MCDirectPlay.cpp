@@ -51,6 +51,16 @@ namespace
 
     /// <summary>Largest frame a peer may announce (anything bigger means the stream is garbage).</summary>
     constexpr uint32_t MaxFrameSize = 1u << 20;
+    /// <summary>The groups one joiner may create (the game's three are the host's).</summary>
+    constexpr std::ptrdiff_t MaxJoinerGroups = 8;
+    /// <summary>Host: connections accepted but not yet joined at once (more are closed at once).</summary>
+    constexpr std::ptrdiff_t MaxPendingJoiners = 8;
+    /// <summary>Host: how long an accepted connection has to ask to join.</summary>
+    constexpr uint64_t JoinTimeoutMs = 10000;
+    /// <summary>Unsent bytes a connection may pile up before it is dropped (its peer stopped reading).</summary>
+    constexpr size_t MaxUnsentBytes = 8u << 20;
+    /// <summary>Host: session queries answered per second at most (the answers are bigger than the questions).</summary>
+    constexpr uint32_t MaxAnswersPerSecond = 20;
     /// <summary>How long a join or a create waits for the host's answer.</summary>
     constexpr uint64_t ReplyTimeoutMs = 5000;
     /// <summary>How long connecting to a host may take.</summary>
@@ -338,6 +348,8 @@ namespace
         std::vector<uint8_t> Output;
         /// <summary>Host side: the join was accepted.</summary>
         bool Joined = false;
+        /// <summary>Host side: when the connection was accepted (it must join within <see cref="JoinTimeoutMs"/>).</summary>
+        uint64_t AcceptedAt = 0;
         /// <summary>Close once <see cref="Output"/> is written (a refused join).</summary>
         bool CloseWhenFlushed = false;
         bool Dead = false;
@@ -410,6 +422,8 @@ struct MCDirectPlay::Impl
     /// <summary>The host searched for: empty = the LAN.</summary>
     std::string HostName;
     uint16_t Port = DefaultPort;
+    /// <summary>The address <see cref="HostName"/> resolved to when sessions were last asked for.</summary>
+    std::optional<uint32_t> QueriedIp;
 
     Mode State = Mode::None;
     /// <summary>A joiner whose host went away: everything fails until Close.</summary>
@@ -432,6 +446,10 @@ struct MCDirectPlay::Impl
     /// <summary>Sessions that answered queries, by instance GUID.</summary>
     std::vector<FoundSession> Found;
 
+    /// <summary>Host: when the current second of query answers began, and how many went out in it.</summary>
+    uint64_t AnswerWindowStart = 0;
+    uint32_t AnswersInWindow = 0;
+
     /// <summary>Joiner: the answers the host sent to blocking requests (JoinReply, CreateReply) not yet taken.</summary>
     std::deque<std::pair<FrameType, std::vector<uint8_t>>> Replies;
     uint32_t NextToken = 1;
@@ -453,6 +471,12 @@ struct MCDirectPlay::Impl
         link.Output.insert(link.Output.end(), header.Bytes.begin(), header.Bytes.end());
         link.Output.insert(link.Output.end(), payload.Bytes.begin(), payload.Bytes.end());
         Flush(link);
+
+        // A peer that stopped reading would make this grow without end (issue #25): it is dropped instead.
+        if (link.Output.size() > MaxUnsentBytes)
+        {
+            link.Dead = true;
+        }
     }
 
     static void Flush(Link& link)
@@ -647,6 +671,17 @@ struct MCDirectPlay::Impl
     {
         entity.Id = NextId++;
         entity.Owner = origin;
+
+        // Only the host's own players are marked as the host's; a joiner can't claim it (issue #25).
+        if (entity.Type == DPPLAYERTYPE_PLAYER && origin < 0)
+        {
+            entity.Flags |= DPPLAYER_SERVERPLAYER;
+        }
+        else
+        {
+            entity.Flags &= ~static_cast<uint32_t>(DPPLAYER_SERVERPLAYER);
+        }
+
         Writer note;
         entity.Write(note);
         Broadcast(FrameType::Created, note, origin);
@@ -659,6 +694,13 @@ struct MCDirectPlay::Impl
         const uint32_t id = entity.Id;
         Entities[id] = std::move(entity);
         return id;
+    }
+
+    /// <summary>Host: whether <paramref name="id"/> is a player or group (<paramref name="type"/>) of joiner <paramref name="owner"/>.</summary>
+    bool OwnedBy(uint32_t id, uint32_t type, int owner) const
+    {
+        const auto found = Entities.find(id);
+        return found != Entities.end() && found->second.Type == type && found->second.Owner == owner;
     }
 
     /// <summary>Host: changes a membership and tells everyone else.</summary>
@@ -863,6 +905,16 @@ struct MCDirectPlay::Impl
                     result = DPERR_CANTCREATEPLAYER;
                 }
 
+                // The game's groups are the host's; a joiner gets a few, not as many as it asks for (issue #25).
+                if (result == DP_OK && entity.Type == DPPLAYERTYPE_GROUP &&
+                    std::ranges::count_if(
+                        Entities, [&](const auto& item)
+                        { return item.second.Type == DPPLAYERTYPE_GROUP && item.second.Owner == index; }) >=
+                        MaxJoinerGroups)
+                {
+                    result = DPERR_CANTCREATEGROUP;
+                }
+
                 Writer reply;
 
                 if (result == DP_OK)
@@ -883,7 +935,9 @@ struct MCDirectPlay::Impl
                 const uint32_t group = in.U32();
                 const uint32_t player = in.U32();
 
-                if (in.Ok)
+                // A joiner moves only its own players (issue #25: it could take anyone out of a group, or put a group
+                // into one). The host makes the moves the session screen makes for the others itself.
+                if (in.Ok && OwnedBy(player, DPPLAYERTYPE_PLAYER, index))
                 {
                     HostMembership(type == FrameType::AddToGroup, group, player, index);
                 }
@@ -896,7 +950,8 @@ struct MCDirectPlay::Impl
                 const uint32_t group = in.U32();
                 std::vector<uint8_t> data = in.Blob();
 
-                if (in.Ok)
+                // A joiner sets only its own groups' data (issue #25).
+                if (in.Ok && OwnedBy(group, DPPLAYERTYPE_GROUP, index))
                 {
                     HostSetGroupData(group, std::move(data), index);
                 }
@@ -941,9 +996,37 @@ struct MCDirectPlay::Impl
                 break;
             }
 
+            // Issue #25: only a few connections may wait to join at once, so a flood of them is turned away.
+            if (std::ranges::count_if(Joiners, [](const Link& joiner)
+                                      { return joiner.Socket != MCSocket::InvalidHandle && !joiner.Joined; }) >=
+                MaxPendingJoiners)
+            {
+                MCSocket::Close(socket);
+                continue;
+            }
+
             Link link;
             link.Socket = socket;
-            Joiners.push_back(std::move(link));
+            link.AcceptedAt = NowMs();
+
+            // A closed slot nothing in the session still belongs to is reused (owners are slot indexes).
+            const auto reusable = std::ranges::find_if(
+                Joiners,
+                [&](const Link& joiner)
+                {
+                    const auto slot = static_cast<int>(&joiner - Joiners.data());
+                    return joiner.Socket == MCSocket::InvalidHandle &&
+                           std::ranges::none_of(Entities, [&](const auto& item) { return item.second.Owner == slot; });
+                });
+
+            if (reusable != Joiners.end())
+            {
+                *reusable = std::move(link);
+            }
+            else
+            {
+                Joiners.push_back(std::move(link));
+            }
         }
 
         for (size_t i = 0; i < Joiners.size(); i++)
@@ -951,6 +1034,12 @@ struct MCDirectPlay::Impl
             if (Joiners[i].Socket == MCSocket::InvalidHandle)
             {
                 continue;
+            }
+
+            // A connection that hasn't asked to join in time is dropped (issue #25).
+            if (!Joiners[i].Joined && NowMs() - Joiners[i].AcceptedAt > JoinTimeoutMs)
+            {
+                Joiners[i].Dead = true;
             }
 
             Flush(Joiners[i]);
@@ -1008,6 +1097,21 @@ struct MCDirectPlay::Impl
             {
                 continue;
             }
+
+            // The answer is many times the question, and a datagram's sender can be forged: only so many answers go out
+            // each second, so the host can't be used to flood someone else (issue #25).
+            if (const uint64_t now = NowMs(); now - AnswerWindowStart >= 1000)
+            {
+                AnswerWindowStart = now;
+                AnswersInWindow = 0;
+            }
+
+            if (AnswersInWindow >= MaxAnswersPerSecond)
+            {
+                continue;
+            }
+
+            AnswersInWindow++;
 
             Writer reply;
             reply.U32(ProtocolMagic);
@@ -1252,6 +1356,14 @@ struct MCDirectPlay::Impl
 
             FoundSession found;
             found.Address = MCSocket::Address{from.Ip, in.U16()};
+
+            // With a host typed in, only that host's answer counts (issue #25: anyone could list a made-up session in
+            // its place). A LAN search takes any answer; broadcast discovery can't tell them apart.
+            if (!HostName.empty() && (!QueriedIp.has_value() || from.Ip != *QueriedIp || found.Address.Port != Port))
+            {
+                continue;
+            }
+
             found.Info.Read(in);
             const uint32_t count = in.U32();
 
@@ -1439,9 +1551,11 @@ uint32_t MCDirectPlay::EnumSessions(const DPSESSIONDESC2& desc, uint32_t, const 
 
         if (!impl.HostName.empty())
         {
-            if (const std::optional<uint32_t> ip = MCSocket::Resolve(impl.HostName))
+            impl.QueriedIp = MCSocket::Resolve(impl.HostName);
+
+            if (impl.QueriedIp.has_value())
             {
-                MCSocket::SendTo(impl.Udp, {*ip, impl.Port}, query.Bytes);
+                MCSocket::SendTo(impl.Udp, {*impl.QueriedIp, impl.Port}, query.Bytes);
             }
         }
         else
@@ -2204,4 +2318,11 @@ void MCDirectPlay::Pump()
             break;
         }
     }
+}
+
+bool MCDirectPlay::IsSessionHostPlayer(uint32_t playerID) const
+{
+    const auto found = _Impl->Entities.find(playerID);
+    return found != _Impl->Entities.end() && found->second.Type == DPPLAYERTYPE_PLAYER &&
+           (found->second.Flags & DPPLAYER_SERVERPLAYER) != 0;
 }

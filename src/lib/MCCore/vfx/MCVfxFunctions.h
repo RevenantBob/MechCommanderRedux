@@ -186,6 +186,13 @@ void VfxPointTransform(const MCVfxPoint& in, MCVfxPoint& out, const MCVfxPoint& 
 /// <summary>The height of a font's characters in pixels (the header's char_height).</summary>
 int32_t VfxFontHeight(std::span<const uint8_t> font);
 
+/// <summary>
+/// Whether <paramref name="font"/>'s glyph table (its count, header word +4) lies inside the data, and each listed
+/// glyph's width and pixels do: what the glyph routines rely on (characters past the table have none).
+/// </summary>
+/// <remarks>Issue #25: the fonts are data files; the original drew a negative width's glyph as a huge copy.</remarks>
+bool VfxFontFits(std::span<const uint8_t> font);
+
 /// <summary>The width of <paramref name="character"/> in pixels (its glyph's first dword).</summary>
 int32_t VfxCharacterWidth(std::span<const uint8_t> font, int32_t character);
 
@@ -246,17 +253,24 @@ inline constexpr int32_t VfxGifBufferSize = 0x502e;
 /// work buffer, is the routine's own). Interlaced images are drawn in their pass order.
 /// Extension blocks before the image aren't skipped (the game's GIFs have none).
 /// </summary>
-/// <returns>The GIF's background colour index.</returns>
-int32_t VfxGifDraw(const MCPane& pane, std::span<const uint8_t> gif);
+/// <returns>
+/// The GIF's background colour index; or why the file can't be drawn (too short for its header, colour tables or
+/// image descriptor, no pixels, or an LZW code size past 11). Image data that ends early draws what it holds.
+/// </returns>
+std::expected<int32_t, std::string> VfxGifDraw(const MCPane& pane, std::span<const uint8_t> gif);
 
 /// <summary>
 /// Copies a GIF's global colour table and then its first image's local colour table (each if present) into
 /// <paramref name="palette"/>, scaled down to 6 bits.
 /// </summary>
-void VfxGifPalette(std::span<const uint8_t> gif, std::span<MCVfxRgb, 256> palette);
+/// <returns>Nothing, or why the file isn't a GIF the game can draw (see <see cref="VfxGifDraw"/>).</returns>
+std::expected<void, std::string> VfxGifPalette(std::span<const uint8_t> gif, std::span<MCVfxRgb, 256> palette);
 
-/// <summary>A GIF's first image's size: width in the high 16 bits, height in the low ones.</summary>
-int32_t VfxGifResolution(std::span<const uint8_t> gif);
+/// <summary>
+/// A GIF's first image's size: width in the high 16 bits, height in the low ones; or why the file isn't a GIF the
+/// game can draw (see <see cref="VfxGifDraw"/>).
+/// </summary>
+std::expected<int32_t, std::string> VfxGifResolution(std::span<const uint8_t> gif);
 
 /// <summary>
 /// The display palette ("DAC") VFX_window_fade reads and writes, 6-bit entries. Port: the asm went through the
@@ -528,5 +542,15 @@ struct MCTileXlat
 /// Draws a terrain tile (format in vfx/MCVfxTile.cpp) with its hot spot at (x, y) relative to the pane's corner
 /// clipped to the window, clipped to the pane, its pixels written as <paramref name="xlat"/> says.
 /// </summary>
-/// <returns>0, or 0xcdcf0001 when the tile is wholly outside the pane.</returns>
+/// <returns>
+/// 0, 0xcdcf0001 when the tile is wholly outside the pane, or (the port's) 0xcdcf0002 when its data fails
+/// <see cref="VfxTileFits"/> and nothing is drawn.
+/// </returns>
 int32_t VfxNTileDraw(const MCPane& pane, std::span<const uint8_t> tile, int32_t x, int32_t y, const MCTileXlat& xlat);
+
+/// <summary>
+/// Whether <paramref name="tile"/>'s row table lies in its data, its rows run forward through the data, and each
+/// row's span stays inside the tile's width: what every tile reader relies on to stay inside the tile and its rows.
+/// </summary>
+/// <remarks>Issue #25: tiles come from the tile set's files; the original drew whatever the table said.</remarks>
+bool VfxTileFits(std::span<const uint8_t> tile);

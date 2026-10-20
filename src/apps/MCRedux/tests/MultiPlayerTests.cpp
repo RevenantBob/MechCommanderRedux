@@ -1,6 +1,7 @@
 #include "stdafx.h"
 #include "MCTest.h"
 #include "MCMock.h"
+#include "linkup/MCFidpMessage.h"
 #include "main/MCGameContext.h"
 #include "mission/MCScenario.h"
 #include "network/MCMultiPlayer.h"
@@ -606,4 +607,144 @@ TEST_CASE("network: the start-planning and end-scenario messages set the game's 
     PutWord(end, 2);
     HandleAppEndScenario(1, end);
     CHECK_EQ(game.ScenarioResult, 2);
+}
+
+namespace
+{
+    /// <summary>Hands <paramref name="bytes"/> to the game as a message from player <paramref name="fromID"/>.</summary>
+    void Deliver(uint32_t fromID, std::span<const uint8_t> bytes)
+    {
+        MCFidpMessage msg(0, 0x200);
+        msg.FromID = fromID;
+        msg.SetMessageBuffer(bytes);
+        MultiPlayerApplicationCallback(msg);
+    }
+}
+
+/// <summary>
+/// What runs the game (here the planning's start and the scenario's end) is taken only from the server or the session's
+/// host; from any other player it is dropped (issue #25: the original took it from anyone).
+/// </summary>
+TEST_CASE("network: the server's and host's messages are dropped from anyone else")
+{
+    ClientGame client;
+    MCMultiPlayer& game = *client.Game;
+    game.InMission = false;
+    game.ServerID = 7;
+    game.HostID = 8;
+
+    std::vector<uint8_t> end = Message(MCMPMessageType::EndScenario, {0, 0, 0, 0, 0, 0});
+    PutWord(end, 3);
+    Deliver(9, end);
+    CHECK_EQ(game.ScenarioResult, 0);
+    Deliver(7, end);
+    CHECK_EQ(game.ScenarioResult, 3);
+    end[8] = 4;
+    Deliver(8, end);
+    CHECK_EQ(game.ScenarioResult, 4);
+
+    const std::vector<uint8_t> planning = Message(MCMPMessageType::StartPlanning, {0, 0, 0, 0, 0, 0});
+    Deliver(9, planning);
+    CHECK(!game.InLogistics);
+    Deliver(8, planning);
+    CHECK(game.InLogistics);
+}
+
+/// <summary>
+/// The server's updates name movers, turrets and targets by index, and events by type; a client skips any it doesn't
+/// have (issue #25: the original read and wrote past its rosters, or was fatal), and keeps the ones it does.
+/// </summary>
+TEST_CASE("network: a client skips update entries that name movers, turrets or events it doesn't have")
+{
+    ClientGame client;
+    MCMultiPlayer& game = *client.Game;
+    const auto mover = std::make_shared<FakeMover>();
+    game.AddToMoverRoster(mover);
+    const auto turret = std::make_shared<MCTurret>();
+    game.AddToTurretRoster(turret);
+    turret->Target = mover;
+
+    // A turret aimed at roster index 30 (of one) has no target.
+    HandleAppTurretUpdate(1, Message(MCMPMessageType::TurretUpdate, {0, 0, 30}));
+    CHECK(LockObject(turret->Target) == nullptr);
+    HandleAppTurretUpdate(1, Message(MCMPMessageType::TurretUpdate, {1, 0, 0}));
+    CHECK(LockObject(turret->Target) == mover);
+
+    // Weapon fire and critical hits for movers 20 and 21, and turret 40: nobody gets them.
+    std::vector<uint8_t> fire = Message(MCMPMessageType::MoverWeaponFireUpdate, {0, 0, 0, 0, 0, 0, 20, 2, 1, 1});
+    fire.resize(0x22);
+    PutWord(fire, 0x12345678);
+    PutWord(fire, 0x12345678);
+    HandleAppMoverWeaponFireUpdate(1, fire);
+    CHECK_EQ(mover->NumWeaponFireChunks[1], 0);
+    HandleAppTurretWeaponFireUpdate(
+        1, Message(MCMPMessageType::TurretWeaponFireUpdate, {0, 0, 0, 0, 0, 0, 1, 40 << 2 | 1, 0, 0, 0, 0}));
+    CHECK(turret->WeaponFireChunks[1].empty());
+    std::vector<uint8_t> critical = Message(MCMPMessageType::MoverCriticalHitUpdate, {0, 0, 0, 0, 0, 0, 100, 1, 1});
+    critical.resize(0x3b, 0x11);
+    HandleAppMoverCriticalHitUpdate(1, critical);
+    CHECK_EQ(mover->NumCriticalHitChunks[1], 0);
+
+    // Weapon hits on roster mover 31 and of target type 3 hit nothing.
+    std::vector<uint8_t> hits = Message(MCMPMessageType::WeaponHitUpdate, {0, 0, 0, 0, 0, 0, 2});
+    PutWord(hits, 31u << 12 | 4u << 2);
+    PutWord(hits, 3u | 4u << 2);
+    HandleAppWeaponHitUpdate(1, hits);
+    CHECK_EQ(mover->TotalDamageTaken, 0.0f);
+
+    // A world event of a type the game doesn't have, and a kill of kind 7 (the pilot counts six kinds and the
+    // elementals), change nothing.
+    std::vector<uint8_t> world = Message(MCMPMessageType::WorldStateUpdate, {0, 0, 0, 0, 0, 0, 2, 0});
+    PutWord(world, 12);
+    PutWord(world, MCWorldStateChunk::PilotKillStat | 7u << 4);
+    HandleAppWorldStateUpdate(1, world);
+
+    for (const auto& kills : mover->FakePilot->NumKilled)
+    {
+        CHECK_EQ(kills[1], 0);
+    }
+
+    // The mover the server does have still gets its fire.
+    fire[8] = 0;
+    fire[9] = 1;
+    HandleAppMoverWeaponFireUpdate(1, fire);
+    CHECK_EQ(mover->NumWeaponFireChunks[1], 1);
+}
+
+/// <summary>
+/// A critical hit the server sends names a body location and critical space; one on an empty space (item 0xff) or a
+/// location the mech doesn't have is skipped (issue #25: the original hit inventory item -1).
+/// </summary>
+TEST_CASE("network: a critical hit on an empty critical space hits no item")
+{
+    ClientGame client;
+    const auto mech = std::make_shared<FakeMover>();
+    mech->Body.resize(1);
+    mech->Body[0].CriticalSpaces.resize(2);
+    mech->Body[0].CriticalSpaces[0].InventoryID = 0xff;
+    mech->Body[0].CriticalSpaces[1].InventoryID = 3;
+    const std::array<uint8_t, 4> chunks{0x00, 0x01, 0x05, 0x70};
+    mech->AddCriticalHitChunks(1, chunks);
+    CHECK_EQ(mech->NumCriticalHitChunks[1], 4);
+    mech->UpdateCriticalHitChunks(1);
+    CHECK_EQ(mech->NumCriticalHitChunks[1], 0);
+    CHECK(mech->Inventory.empty());
+    CHECK_EQ(mech->Body[0].DamageState, 0);
+}
+
+/// <summary>
+/// A player checks in only for itself: a check-in naming a check-in id the sender doesn't have is dropped (issue #25:
+/// the original wrote any id 0-5, or past the table, into the server's check-in list).
+/// </summary>
+TEST_CASE("network: a check-in for another player is dropped")
+{
+    ClientGame client;
+    MCMultiPlayer& game = *client.Game;
+    game.IsServer = true;
+    game.InMission = false;
+    std::vector<uint8_t> checkIn = Message(MCMPMessageType::PlayerCheckIn, {0, 0, 0, 0, 0, 0, 1, 0});
+    HandleAppPlayerCheckIn(5, checkIn);
+    checkIn[8] = 0x7f;
+    HandleAppPlayerCheckIn(5, checkIn);
+    CHECK(std::ranges::all_of(game.PlayerCheckedIn, [](int32_t id) { return id == 0; }));
 }

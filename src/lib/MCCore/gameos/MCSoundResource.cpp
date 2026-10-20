@@ -16,10 +16,16 @@ namespace
     constexpr uint32_t DATA_ID = 0x61746164;
 
     /// <summary>The little-endian 32-bit value at <paramref name="offset"/> of <paramref name="image"/>.</summary>
+    /// <summary>The 32-bit value at <paramref name="offset"/> of <paramref name="image"/> (0 past its end).</summary>
     uint32_t ReadU32(std::span<const uint8_t> image, size_t offset)
     {
-        uint32_t value;
-        std::memcpy(&value, image.subspan(offset, 4).data(), 4);
+        uint32_t value = 0;
+
+        if (offset <= image.size() && image.size() - offset >= sizeof(value))
+        {
+            std::memcpy(&value, image.data() + offset, sizeof(value));
+        }
+
         return value;
     }
 }
@@ -77,10 +83,12 @@ void MCSoundResource::ReadWaveInfo()
         Fatal(-1, "Unknown Sound File Format!");
     }
 
+    // Issue #25: the chunks are walked only within the file (a RIFF size under 4 wrapped the original's end around),
+    // and a data chunk is cut to the bytes the file holds.
     size_t chunk = 0xc;
-    const size_t end = 0xc + static_cast<size_t>(riffSize) - 4;
+    const size_t end = std::min(image.size(), 0xc + static_cast<size_t>(std::max<uint32_t>(riffSize, 4)) - 4);
 
-    while (chunk < end)
+    while (chunk + 8 <= end)
     {
         const uint32_t chunkId = ReadU32(image, chunk);
         const uint32_t chunkSize = ReadU32(image, chunk + 4);
@@ -101,7 +109,7 @@ void MCSoundResource::ReadWaveInfo()
         else if (chunkId == DATA_ID)
         {
             _WaveOffset = chunkData;
-            WaveSize = chunkSize;
+            WaveSize = static_cast<uint32_t>(std::min<size_t>(chunkSize, image.size() - chunkData));
         }
 
         chunk = chunkData + ((chunkSize + 1) & ~1u);
@@ -222,5 +230,8 @@ void MCSoundResource::OpenStream()
     const uint32_t dataSize = size & ~static_cast<uint32_t>(frameBytes - 1);
     _DataStart = static_cast<int32_t>(file.GetLogicalPosition());
     Rewind();
-    DurationMs = static_cast<uint32_t>(static_cast<int64_t>(dataSize) * 1000 / Format.nAvgBytesPerSec);
+    // A file with no byte rate has no length to tell (issue #25: the original divided by it).
+    DurationMs = Format.nAvgBytesPerSec == 0
+                     ? 0
+                     : static_cast<uint32_t>(static_cast<int64_t>(dataSize) * 1000 / Format.nAvgBytesPerSec);
 }

@@ -1,5 +1,6 @@
 #include "stdafx.h"
 #include "MCTest.h"
+#include "TestGame.h"
 #include "camera/MCCamera.h"
 #include "object/MCGameObject.h"
 #include "engine/MCByteFlag.h"
@@ -8,12 +9,16 @@
 #include "fixtures/MCTinyMap.h"
 #include "lib/MCPacketFile.h"
 #include "main/MCGameContext.h"
+#include "main/MCGamePaths.h"
+#include "object/MCObjectBlockManager.h"
+#include "object/MCObjectSystem.h"
 #include "terrain/MCMapBlockManager.h"
 #include "terrain/MCTacticalMap.h"
 #include "terrain/MCVertex.h"
 #include "terrain/MCTerrain.h"
 #include "terrain/MCTerrainTiles.h"
 #include "terrain/MCTerrainWindow.h"
+#include "vfx/MCVfxFunctions.h"
 
 namespace
 {
@@ -74,6 +79,43 @@ namespace
         std::string savedTilePath;
         std::string savedTile90Path;
     };
+
+    /// <summary>The terrain path global pointed at the memory source's root for the test's lifetime.</summary>
+    struct TerrainPathScope
+    {
+        TerrainPathScope() : savedTerrainPath(std::exchange(TerrainPath, "")) {}
+
+        ~TerrainPathScope() { TerrainPath = savedTerrainPath; }
+
+        std::string savedTerrainPath;
+    };
+
+    /// <summary>A .bdg file: the record count, then each record's block, vertex, kind and destroyed flag.</summary>
+    std::vector<uint8_t> BdgFile(int32_t count, const std::vector<std::array<int32_t, 4>>& records)
+    {
+        std::vector<uint8_t> bytes(sizeof(int32_t) + records.size() * sizeof(std::array<int32_t, 4>));
+        std::memcpy(bytes.data(), &count, sizeof(count));
+
+        if (!records.empty())
+        {
+            std::memcpy(bytes.data() + sizeof(int32_t), records.data(), records.size() * sizeof(records[0]));
+        }
+
+        return bytes;
+    }
+
+    /// <summary>An .obj block packet holding <paramref name="objects"/>.</summary>
+    std::vector<uint8_t> ObjectBlock(const std::vector<MCObjData>& objects)
+    {
+        std::vector<uint8_t> bytes(objects.size() * sizeof(MCObjData));
+
+        if (!objects.empty())
+        {
+            std::memcpy(bytes.data(), objects.data(), bytes.size());
+        }
+
+        return bytes;
+    }
 }
 
 TEST_CASE("terrain: the geometry follows the terrain file's sizes")
@@ -327,6 +369,58 @@ TEST_CASE("terrain: tiles are read from the tile PAKs once, and a missing one st
     CHECK(tiles.Lookup(2, true).empty());
 }
 
+TEST_CASE("terrain: a map's .bdg or .obj placing objects off the map, or counting more than it holds, is refused")
+{
+    MCTestContextScope scope;
+    MCMemoryFileSource& files = scope.Context().SetFiles(std::make_unique<MCMemoryFileSource>());
+    TerrainPathScope paths;
+    // 2 x 2 blocks of 4 x 4 vertices: blocks 0-3, vertices 0-15.
+    MCTerrainGeometryScope geometry(4, 2, 128.0f, 16.0f);
+    scope.Context().SetObjectSystem(std::make_shared<MCObjectSystem>(nullptr));
+    WritePak("tmap.obj", {ObjectBlock({})});
+
+    // Whether the map is refused, and for the reason given.
+    const auto refusedFor = [](std::string_view reason)
+    {
+        const auto made = MCObjectBlockManager::Create("tmap");
+        return !made.has_value() && made.error().contains(reason);
+    };
+
+    files.AddFile("tmap.bdg", BdgFile(0, {}));
+    CHECK(MCObjectBlockManager::Create("tmap").has_value());
+
+    // The count past the records the file holds (once a huge allocation), or negative.
+    for (const int32_t count : {2, 1000000, std::numeric_limits<int32_t>::max(), -1})
+    {
+        MCTest::Scope entry(std::format("count {}", count));
+        files.AddFile("tmap.bdg", BdgFile(count, {{0, 0, 5, 0}}));
+        CHECK(refusedFor("terrain objects"));
+    }
+
+    // A record's block or vertex off the map (once a write past the vertex counts).
+    for (const std::array<int32_t, 4> record :
+         {std::array<int32_t, 4>{4, 0, 5, 0}, {-1, 0, 5, 0}, {0, 16, 5, 0}, {0, -1, 5, 0}})
+    {
+        MCTest::Scope entry(std::format("block {} vertex {}", record[0], record[1]));
+        files.AddFile("tmap.bdg", BdgFile(1, {record}));
+        CHECK(refusedFor("off the map"));
+    }
+
+    // The same for an object in an .obj block.
+    files.AddFile("tmap.bdg", BdgFile(0, {}));
+
+    for (const auto [vertex, block] : {std::pair<int16_t, int16_t>{16, 0}, {0, 4}, {-1, 0}, {0, -1}})
+    {
+        MCTest::Scope entry(std::format("object block {} vertex {}", block, vertex));
+        MCObjData object;
+        object.ObjTypeNum = 1;
+        object.VertexNumber = vertex;
+        object.BlockNumber = block;
+        WritePak("tmap.obj", {ObjectBlock({object})});
+        CHECK(refusedFor("off the map"));
+    }
+}
+
 TEST_CASE("tacmap: world points and map pixels round trip at every zoom and scroll")
 {
     MCTacmapProjection map;
@@ -484,4 +578,49 @@ TEST_CASE("tacmap: the salvage list keeps every object, and drops one only once"
     CHECK_EQ(salvage.Pins().size(), size_t{148});
     salvage.RemoveIf([](const std::shared_ptr<MCGameObject>& obj) { return obj == nullptr; });
     CHECK_EQ(salvage.size(), size_t{147});
+}
+
+/// <summary>
+/// Every retail terrain tile passes the drawer's check (issue #25: its row table and spans inside its data and width),
+/// so the check refuses only damaged tiles. The tile files also hold the overlays, fast shapes tagged "DNAH".
+/// </summary>
+TEST_CASE("game: every retail terrain tile fits its row table")
+{
+    if (!MCTestGame::Available())
+    {
+        return;
+    }
+
+    MCTestGame::OpenFastFiles();
+    constexpr std::array<uint8_t, 4> fastShapeTag = {'D', 'N', 'A', 'H'};
+    int32_t tiles = 0;
+
+    for (const std::string_view name :
+         {"data\\tiles\\tiles.pak", "data\\tiles\\tiles90.pak", "data\\tiles\\gtiles.pak", "data\\tiles\\gtiles90.pak"})
+    {
+        MCTest::Scope scope(name);
+        MCPacketFile file;
+        REQUIRE_EQ(file.Open(name), 0);
+
+        for (int32_t packet = 0; packet < file.GetNumPackets(); packet++)
+        {
+            if (file.SeekPacket(packet) != 0 || file.GetPacketSize() < 4)
+            {
+                continue;
+            }
+
+            std::vector<uint8_t> data(static_cast<size_t>(file.GetPacketSize()));
+            file.ReadPacket(packet, data);
+
+            if (std::ranges::equal(std::span(data).first(4), fastShapeTag))
+            {
+                continue;
+            }
+
+            CHECK_EQ(VfxTileFits(data) ? -1 : packet, -1);
+            tiles++;
+        }
+    }
+
+    CHECK(tiles > 1000);
 }

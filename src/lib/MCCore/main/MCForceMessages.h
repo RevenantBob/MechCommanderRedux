@@ -33,11 +33,17 @@ struct MCDeployForce
 /// </summary>
 std::vector<uint8_t> PackDeployForce(const MCDeployForce& force);
 
-/// <summary>The unit in deploy force message <paramref name="message"/> (as <see cref="PackDeployForce"/> lays it out).</summary>
-MCDeployForce UnpackDeployForce(std::span<const uint8_t> message);
+/// <summary>
+/// The unit in deploy force message <paramref name="message"/> (as <see cref="PackDeployForce"/> lays it out); none
+/// when the message is shorter than its header and items.
+/// </summary>
+std::optional<MCDeployForce> UnpackDeployForce(std::span<const uint8_t> message);
 
 /// <summary>The bytes of a "remove force" message (MCMPMessageType::RemoveForce): drop slot <paramref name="slot"/> of <paramref name="lance"/> emptied.</summary>
 std::vector<uint8_t> PackRemoveForce(uint8_t lance, uint8_t slot);
 
-/// <summary>The drop slot (lance * 4 + slot) a remove force message <paramref name="message"/> empties.</summary>
-int32_t UnpackRemoveForce(std::span<const uint8_t> message);
+/// <summary>
+/// The drop slot (lance * 4 + slot) a remove force message <paramref name="message"/> empties; none when the message is
+/// too short.
+/// </summary>
+std::optional<int32_t> UnpackRemoveForce(std::span<const uint8_t> message);

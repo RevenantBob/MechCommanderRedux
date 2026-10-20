@@ -160,62 +160,90 @@ namespace
     }
 }
 
-MCGlobalMap::MCGlobalMap(MCFile& mapFile, std::shared_ptr<MCPriorityQueue> openList) : _OpenList(std::move(openList))
+MCGlobalMap::MCGlobalMap(Key, std::shared_ptr<MCPriorityQueue> openList) : _OpenList(std::move(openList))
 {
+}
+
+auto MCGlobalMap::Read(MCFile& mapFile, std::shared_ptr<MCPriorityQueue> openList)
+    -> std::expected<std::unique_ptr<MCGlobalMap>, std::string>
+{
+    auto map = std::make_unique<MCGlobalMap>(Key(), std::move(openList));
     const int32_t version = mapFile.ReadLong();
 
     if (version != FileVersion)
     {
-        Fatal(version, " Bad version number in Global Map ");
+        return std::unexpected(std::format("version {:#x}, not {:#x}", version, FileVersion));
     }
 
     // Header words 1 and 2: written by the editor (always 0), read by nothing.
     mapFile.ReadLong();
     mapFile.ReadLong();
-    Height = mapFile.ReadLong();
-    Width = mapFile.ReadLong();
-    SectorDim = mapFile.ReadLong();
-    SectorHeight = mapFile.ReadLong();
-    SectorWidth = mapFile.ReadLong();
-    NumAreas = mapFile.ReadLong();
-    NumDoors = mapFile.ReadLong();
-    NumDoorInfos = mapFile.ReadLong();
-    NumDoorLinks = mapFile.ReadLong();
+    map->Height = mapFile.ReadLong();
+    map->Width = mapFile.ReadLong();
+    map->SectorDim = mapFile.ReadLong();
+    map->SectorHeight = mapFile.ReadLong();
+    map->SectorWidth = mapFile.ReadLong();
+    map->NumAreas = mapFile.ReadLong();
+    map->NumDoors = mapFile.ReadLong();
+    map->NumDoorInfos = mapFile.ReadLong();
+    map->NumDoorLinks = mapFile.ReadLong();
 
-    if (NumAreas < 256)
+    // Every count must be one the file holds before anything is allocated. Areas are numbered in 16 bits.
+    const auto count = [](int32_t value) { return static_cast<uint64_t>(value); };
+    const bool small = map->NumAreas < 256;
+    const int32_t totalDoors = map->NumDoors + 2;
+
+    if (map->Height <= 0 || map->Width <= 0 || map->NumAreas < 0 || map->NumAreas > INT16_MAX || map->NumDoors < 0 ||
+        map->NumDoors > INT16_MAX - 2 || map->NumDoorInfos < 0 || map->NumDoorLinks < 0)
     {
-        SmallAreaMap = ReadRaw<uint8_t>(mapFile, Width * Height);
+        return std::unexpected(std::format("{}x{} tiles, {} areas, {} doors, {} door entries, {} links", map->Height,
+                                           map->Width, map->NumAreas, map->NumDoors, map->NumDoorInfos,
+                                           map->NumDoorLinks));
+    }
+
+    const uint64_t needed = count(map->Width) * count(map->Height) * (small ? 1 : 2) +
+                            count(map->NumDoorInfos) * sizeof(MCDoorInfo) + count(map->NumAreas) * AreaRecordSize +
+                            count(map->NumDoorLinks) * sizeof(MCDoorLink) + count(totalDoors) * DoorRecordSize +
+                            count(map->NumAreas) * count(map->NumAreas);
+    const uint64_t left = mapFile.GetLength() - std::min(mapFile.GetLength(), mapFile.GetLogicalPosition());
+
+    if (needed > left)
+    {
+        return std::unexpected(std::format("its counts need {} bytes, and {} are left", needed, left));
+    }
+
+    if (small)
+    {
+        map->SmallAreaMap = ReadRaw<uint8_t>(mapFile, map->Width * map->Height);
     }
     else
     {
-        AreaMap = ReadRaw<int16_t>(mapFile, Width * Height);
+        map->AreaMap = ReadRaw<int16_t>(mapFile, map->Width * map->Height);
     }
 
-    DoorInfos = ReadRaw<MCDoorInfo>(mapFile, NumDoorInfos);
+    map->DoorInfos = ReadRaw<MCDoorInfo>(mapFile, map->NumDoorInfos);
 
     // Port fix: room for the spare area SetTempArea writes (the original allocated exactly numAreas here).
-    Areas.resize(static_cast<size_t>(NumAreas) + 1);
-    const std::vector<uint8_t> areaRecords = ReadRaw<uint8_t>(mapFile, NumAreas * AreaRecordSize);
+    map->Areas.resize(static_cast<size_t>(map->NumAreas) + 1);
+    const std::vector<uint8_t> areaRecords = ReadRaw<uint8_t>(mapFile, map->NumAreas * AreaRecordSize);
     int32_t infoIndex = 0;
 
-    for (int32_t i = 0; i < NumAreas; i++)
+    for (int32_t i = 0; i < map->NumAreas; i++)
     {
-        MCGlobalMapArea& area = Areas[static_cast<size_t>(i)];
+        MCGlobalMapArea& area = map->Areas[static_cast<size_t>(i)];
         area = DecodeArea(std::span(areaRecords).subspan(static_cast<size_t>(i) * AreaRecordSize, AreaRecordSize));
         area.FirstDoorInfo = infoIndex;
         infoIndex += area.NumDoors;
     }
 
-    DoorLinks = ReadRaw<MCDoorLink>(mapFile, NumDoorLinks);
-
-    const int32_t totalDoors = NumDoors + 2;
-    Doors.resize(static_cast<size_t>(totalDoors));
+    map->DoorLinks = ReadRaw<MCDoorLink>(mapFile, map->NumDoorLinks);
+    map->Doors.resize(static_cast<size_t>(totalDoors));
     const std::vector<uint8_t> doorRecords = ReadRaw<uint8_t>(mapFile, totalDoors * DoorRecordSize);
     int32_t linkIndex = 0;
 
     for (int32_t i = 0; i < totalDoors; i++)
     {
-        MCGlobalMapDoor& door = Doors[static_cast<size_t>(i)];
+        MCGlobalMapDoor& door = map->Doors[static_cast<size_t>(i)];
         door = DecodeDoor(std::span(doorRecords).subspan(static_cast<size_t>(i) * DoorRecordSize, DoorRecordSize));
 
         for (size_t side = 0; side < 2; side++)
@@ -226,7 +254,120 @@ MCGlobalMap::MCGlobalMap(MCFile& mapFile, std::shared_ptr<MCPriorityQueue> openL
         }
     }
 
-    PathCostTable = ReadRaw<uint8_t>(mapFile, NumAreas * NumAreas);
+    map->PathCostTable = ReadRaw<uint8_t>(mapFile, map->NumAreas * map->NumAreas);
+
+    if (std::expected<void, std::string> checked = map->CheckIndexes(); !checked)
+    {
+        return std::unexpected(checked.error());
+    }
+
+    return map;
+}
+
+auto MCGlobalMap::CheckIndexes() const -> std::expected<void, std::string>
+{
+    const int32_t totalDoors = NumDoors + 2;
+
+    // The area of each tile.
+    for (size_t i = 0; i < SmallAreaMap.size(); i++)
+    {
+        if (SmallAreaMap[i] != 0xff && SmallAreaMap[i] >= NumAreas)
+        {
+            return std::unexpected(std::format("tile {} is in area {} of {}", i, SmallAreaMap[i], NumAreas));
+        }
+    }
+
+    for (size_t i = 0; i < AreaMap.size(); i++)
+    {
+        if (AreaMap[i] >= NumAreas)
+        {
+            return std::unexpected(std::format("tile {} is in area {} of {}", i, AreaMap[i], NumAreas));
+        }
+    }
+
+    // Each area's doors, and the most an area has (the temporary doors' room).
+    int32_t maxAreaDoors = 0;
+
+    for (int32_t i = 0; i < NumAreas; i++)
+    {
+        const MCGlobalMapArea& area = Areas[static_cast<size_t>(i)];
+
+        if (area.NumDoors < 0 || area.FirstDoorInfo + area.NumDoors > static_cast<int32_t>(DoorInfos.size()))
+        {
+            return std::unexpected(
+                std::format("area {} lists {} doors past the {} entries", i, area.NumDoors, DoorInfos.size()));
+        }
+
+        maxAreaDoors = std::max(maxAreaDoors, area.NumDoors);
+    }
+
+    const auto badDoorRef = [&](int32_t door, int32_t side)
+    { return door < 0 || door >= totalDoors || side < 0 || side > 1; };
+
+    for (const MCDoorInfo& info : DoorInfos)
+    {
+        if (badDoorRef(info.DoorIndex, info.DoorSide))
+        {
+            return std::unexpected(std::format("an area names door {} side {}", info.DoorIndex, info.DoorSide));
+        }
+    }
+
+    // Each door: its links in the list, each naming a door (the two spare slots after a side's links are the search's
+    // and hold whatever the editor left); a real door's areas, direction and cells on the map; the temporary start
+    // and goal doors' room for the most doors an area has.
+    for (int32_t i = 0; i < totalDoors; i++)
+    {
+        const MCGlobalMapDoor& door = Doors[static_cast<size_t>(i)];
+
+        for (size_t side = 0; side < 2; side++)
+        {
+            if (door.NumLinks[side] < 0 ||
+                door.FirstLink[side] + door.NumLinks[side] + 2 > static_cast<int32_t>(DoorLinks.size()))
+            {
+                return std::unexpected(std::format("door {} side {} has {} links past the {}", i, side,
+                                                   door.NumLinks[side], DoorLinks.size()));
+            }
+
+            // The temporary doors' links are written when they're used.
+            for (int32_t link = 0; link < door.NumLinks[side] && i < NumDoors; link++)
+            {
+                const MCDoorLink& entry = DoorLinks[static_cast<size_t>(door.FirstLink[side] + link)];
+
+                if (badDoorRef(entry.DoorIndex, entry.DoorSide))
+                {
+                    return std::unexpected(std::format("door {} side {} links to door {} side {}", i, side,
+                                                       entry.DoorIndex, entry.DoorSide));
+                }
+            }
+        }
+
+        if (i >= NumDoors)
+        {
+            if (door.NumLinks[0] < maxAreaDoors)
+            {
+                return std::unexpected(
+                    std::format("temporary door {} has room for {} links, not {}", i, door.NumLinks[0], maxAreaDoors));
+            }
+
+            continue;
+        }
+
+        const bool alongRows = door.Direction[0] == 1;
+        const int32_t first = alongRows ? door.Row * MapCellDim + door.CellR : door.Col * MapCellDim + door.CellC;
+        const int32_t cells = (alongRows ? Height : Width) * MapCellDim;
+
+        if (door.Area[0] < 0 || door.Area[0] >= NumAreas || door.Area[1] < 0 || door.Area[1] >= NumAreas ||
+            (door.Direction[0] != 1 && door.Direction[0] != 2) || door.Row < 0 || door.Row >= Height || door.Col < 0 ||
+            door.Col >= Width || door.CellR >= MapCellDim || door.CellC >= MapCellDim || door.Length < 1 ||
+            first + door.Length > cells)
+        {
+            return std::unexpected(
+                std::format("door {} (areas {} and {}, direction {}, at {},{} for {}) is off the map", i, door.Area[0],
+                            door.Area[1], door.Direction[0], door.Row, door.Col, door.Length));
+        }
+    }
+
+    return {};
 }
 
 MCGlobalMap::MCGlobalMap(const MCScenarioMap& map, MCMoveMap& pathFinder, const MCPathSearch& search,

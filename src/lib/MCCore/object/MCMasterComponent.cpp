@@ -8,6 +8,7 @@ const std::array<std::string_view, 20> ComponentFormString = {
     "EnergyWeapon", "BallisticWeapon", "MissileWeapon", "Ammo",     "JumpJet", "Case",     "LifeSupport",
     "Gyroscope",    "PowerAmplifier",  "ECM",           "Probe",    "Jammer",  "Bulk"};
 std::vector<MCMasterComponent> MasterComponentList;
+int32_t MasterComponentRows = 0;
 int32_t MasterArmActuatorID = -1;
 int32_t MasterLegActuatorID = -1;
 int32_t MasterClanAntiMissileSystemID = -1;
@@ -247,7 +248,10 @@ auto MCMasterComponent::InitExcel(std::string_view dataLine, float weaponRangeFa
 auto InitMasterComponentListExcel(std::string_view fileName, int32_t numComponents, float weaponRangeFactor,
                                   float sensorRangeFactor) -> int32_t
 {
-    MasterComponentList.assign(static_cast<size_t>(numComponents), MCMasterComponent{});
+    // Every id a byte can hold has a row (issue #25: the data's ids are bytes, and an id of 255, past the 255 rows,
+    // was read past the table); the rows past numComponents stay empty.
+    MasterComponentRows = std::clamp(numComponents, 0, MaxMasterComponentRows);
+    MasterComponentList.assign(static_cast<size_t>(MaxMasterComponentRows), MCMasterComponent{});
     MasterArmActuatorID = -1;
     MasterLegActuatorID = -1;
     MasterClanAntiMissileSystemID = -1;
@@ -285,7 +289,7 @@ auto InitMasterComponentListExcel(std::string_view fileName, int32_t numComponen
     componentFile.ReadLine(dataLine, 0x1ff);
     readHeaderLine();
 
-    for (MCMasterComponent& component : MasterComponentList)
+    for (MCMasterComponent& component : std::span(MasterComponentList).first(static_cast<size_t>(MasterComponentRows)))
     {
         if (componentFile.ReadLine(dataLine, 0x1ff) == 0)
         {

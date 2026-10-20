@@ -96,7 +96,9 @@ namespace
                     }
                     else
                     {
-                        if (const std::span<const uint8_t> data = tileCache.Lookup(textureData); !data.empty())
+                        // A tile whose data doesn't fit its table (issue #25) is drawn as none, as the 2D drawer does.
+                        if (const std::span<const uint8_t> data = tileCache.Lookup(textureData);
+                            !data.empty() && VfxTileFits(data))
                         {
                             uint32_t size = 0;
                             std::memcpy(&size, data.subspan(4 + static_cast<size_t>(data[2]) * 4, sizeof(size)).data(),

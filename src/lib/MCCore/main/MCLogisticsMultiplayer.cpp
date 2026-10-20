@@ -26,6 +26,7 @@
 #include "mission/MCScenario.h"
 #include "network/MCMultiPlayer.h"
 #include "network/MCMultiPlayerHandlers.h"
+#include "object/MCMasterComponent.h"
 #include "sound/MCSoundSystem.h"
 
 namespace
@@ -90,6 +91,12 @@ namespace
 
         for (size_t index = 0; index < force.Items.size(); index++)
         {
+            // Issue #25: a component the master list doesn't have is left out (the message comes from another machine).
+            if (force.Items[index] >= NumMasterComponents())
+            {
+                continue;
+            }
+
             part.Inventory->AddItem(force.Items[index],
                                     part.Inventory->CreateStat(static_cast<uint8_t>(index), 0, 0, 1, 0xff), false);
         }
@@ -282,7 +289,36 @@ auto MCLogistics::DestroyMultiplayer() -> void
 
 auto MCLogistics::HandleDeployForceMessage(uint32_t playerID, std::span<const uint8_t> message) -> void
 {
-    const MCDeployForce force = UnpackDeployForce(message);
+    const std::optional<MCDeployForce> unpacked = UnpackDeployForce(message);
+    const std::shared_ptr<MCFidpPlayer> sender = MultiPlayer()->SessionManager->GetPlayer(playerID);
+
+    // Issue #25: the message comes from another machine, so everything it indexes is checked first (a lance past the
+    // drop slots, a unit or pilot no list names, a sender already gone, or a list for it not made yet).
+    const auto valid = [&]
+    {
+        if (!unpacked.has_value() || sender == nullptr || unpacked->Lance >= NumLances || unpacked->Slot >= LanceSlots)
+        {
+            return false;
+        }
+
+        const MCDeployForce& force = *unpacked;
+
+        if (force.IsMech)
+        {
+            return static_cast<size_t>(force.NameIndex) * 3 + force.NameVariant < NetMechNames.size() &&
+                   force.PilotNameIndex < NetWarriorNames.size();
+        }
+
+        return force.NameIndex < NetVehicleNames.size();
+    };
+
+    if (!valid())
+    {
+        SDL_Log("MCLogistics: dropped a deploy message from player %u", playerID);
+        return;
+    }
+
+    const MCDeployForce& force = *unpacked;
 
     if (!MultiplayerInitialized)
     {
@@ -298,11 +334,24 @@ auto MCLogistics::HandleDeployForceMessage(uint32_t playerID, std::span<const ui
     const size_t slotIndex = static_cast<size_t>(force.Lance) * LanceSlots + force.Slot;
     MCBriefingScreen& briefing = *BriefingScreen;
     std::shared_ptr<MCLogPart> part;
+    const int32_t commander = sender->PlayerNumber;
+    const MCOptionalRef<MCLogMechList> mechList = FindMPMechList(playerID, teammate);
+    const MCOptionalRef<MCLogVehicleList> vehicleList = FindMPVehicleList(playerID, teammate);
+    MCDropSlot& dropSlot = teammate ? DropSlots[force.Lance][force.Slot] : OpponentDropSlots[force.Lance][force.Slot];
+
+    // Issue #25: a slot holding another player's unit is not taken over, and a player without lists has nowhere to put
+    // the unit.
+    if (const std::shared_ptr<MCLogPart> held = dropSlot.Part.lock();
+        (held != nullptr && held->CommanderID != commander) ||
+        !(force.IsMech ? mechList.has_value() : vehicleList.has_value()))
+    {
+        SDL_Log("MCLogistics: dropped a deploy message from player %u", playerID);
+        return;
+    }
 
     if (!force.IsMech)
     {
-        const std::shared_ptr<MCLogVehicle> vehicle =
-            AddVehicleFromNetworkMessage(FindMPVehicleList(playerID, teammate), force);
+        const std::shared_ptr<MCLogVehicle> vehicle = AddVehicleFromNetworkMessage(*vehicleList, force);
         vehicle->LocalPart = false;
         part = vehicle;
 
@@ -314,7 +363,7 @@ auto MCLogistics::HandleDeployForceMessage(uint32_t playerID, std::span<const ui
     }
     else
     {
-        const std::shared_ptr<MCLogMech> mech = AddMechFromNetworkMessage(FindMPMechList(playerID, teammate), force);
+        const std::shared_ptr<MCLogMech> mech = AddMechFromNetworkMessage(*mechList, force);
         mech->LocalPart = false;
         part = mech;
 
@@ -326,26 +375,44 @@ auto MCLogistics::HandleDeployForceMessage(uint32_t playerID, std::span<const ui
         }
     }
 
-    const int32_t commander = MultiPlayer()->SessionManager->GetPlayer(playerID)->PlayerNumber;
     part->CommanderID = commander;
     Assert(commander != MultiPlayer()->CheckInId, 0, "Wrong commander!");
     part->DropLance = force.Lance;
     part->DropSlot = force.Slot;
+    dropSlot.Part = part;
 
-    if (!teammate)
+    if (teammate)
     {
-        OpponentDropSlots[force.Lance][force.Slot].Part = part;
-        return;
+        briefing.MpCalcTonnages();
     }
-
-    DropSlots[force.Lance][force.Slot].Part = part;
-    briefing.MpCalcTonnages();
 }
 
 auto MCLogistics::HandleRemoveForceMessage(uint32_t playerID, std::span<const uint8_t> message) -> void
 {
     const bool teammate = MultiPlayer()->IsMyTeammate(playerID) != 0;
-    RemoveForceAtDropSlot(UnpackRemoveForce(message), playerID, teammate);
+    const std::optional<int32_t> slotIndex = UnpackRemoveForce(message);
+    const std::shared_ptr<MCFidpPlayer> sender = MultiPlayer()->SessionManager->GetPlayer(playerID);
+
+    // Issue #25: only a drop slot that exists, and only the sender's own unit in it.
+    if (!slotIndex.has_value() || *slotIndex < 0 || *slotIndex >= static_cast<int32_t>(NumLances * LanceSlots) ||
+        sender == nullptr)
+    {
+        SDL_Log("MCLogistics: dropped a remove message from player %u", playerID);
+        return;
+    }
+
+    const MCDropSlot& dropSlot =
+        (teammate ? DropSlots : OpponentDropSlots)[static_cast<size_t>(*slotIndex) / LanceSlots]
+                                                  [static_cast<size_t>(*slotIndex) % LanceSlots];
+
+    if (const std::shared_ptr<MCLogPart> held = dropSlot.Part.lock();
+        held != nullptr && held->CommanderID != sender->PlayerNumber)
+    {
+        SDL_Log("MCLogistics: dropped a remove message from player %u", playerID);
+        return;
+    }
+
+    RemoveForceAtDropSlot(*slotIndex, playerID, teammate);
 }
 
 auto MCLogistics::HandleChatMessage(uint32_t playerID, std::span<const uint8_t> message) -> void
@@ -782,7 +849,7 @@ auto MCLogistics::PrepareMultiplayerScenario(std::string_view scenarioName, std:
     return 0;
 }
 
-auto MCLogistics::FindMPMechList(uint32_t playerID, bool teammate) -> MCLogMechList&
+auto MCLogistics::FindMPMechList(uint32_t playerID, bool teammate) -> MCOptionalRef<MCLogMechList>
 {
     const auto& lists = MpMechLists[teammate ? 0 : 1];
     const auto found = std::ranges::find_if(lists, [&](const std::unique_ptr<MCLogMechList>& list)
@@ -829,15 +896,28 @@ auto MCLogistics::FindMPMechList(uint32_t playerID, bool teammate) -> MCLogMechL
     }
 
     Assert(found != lists.end(), 0, " Could not find a List to add mech to.  Save nomechlist.log file!!!!!!!!! ");
+
+    // No list is none (the original went on with the end of the table; issue #25).
+    if (found == lists.end())
+    {
+        return std::nullopt;
+    }
+
     return **found;
 }
 
-auto MCLogistics::FindMPVehicleList(uint32_t playerID, bool teammate) -> MCLogVehicleList&
+auto MCLogistics::FindMPVehicleList(uint32_t playerID, bool teammate) -> MCOptionalRef<MCLogVehicleList>
 {
     const auto& lists = MpVehicleLists[teammate ? 0 : 1];
     const auto found = std::ranges::find_if(lists, [&](const std::unique_ptr<MCLogVehicleList>& list)
                                             { return list != nullptr && list->PlayerID == playerID; });
     Assert(found != lists.end(), 0, " Could not find a List to add vehicle to ");
+
+    if (found == lists.end())
+    {
+        return std::nullopt;
+    }
+
     return **found;
 }
 
@@ -895,14 +975,25 @@ auto MCLogistics::RemoveForceAtDropSlot(int32_t slotIndex, uint32_t playerID, bo
 
     if (part->PartType != 1)
     {
-        FindMPVehicleList(playerID, teamTable).RemoveVehicle(static_cast<const MCLogVehicle&>(*part));
+        if (const MCOptionalRef<MCLogVehicleList> list = FindMPVehicleList(playerID, teamTable))
+        {
+            list->get().RemoveVehicle(static_cast<const MCLogVehicle&>(*part));
+        }
     }
     else
     {
         const auto& mech = static_cast<const MCLogMech&>(*part);
+
         // Original behaviour (OB-098): the pilot is removed by its id compared as a byte.
-        MpWarriorList->RemoveWarrior(static_cast<uint8_t>(mech.NetworkPilot.lock()->Id));
-        FindMPMechList(playerID, teamTable).RemoveMech(mech);
+        if (const std::shared_ptr<MCLogWarrior> pilot = mech.NetworkPilot.lock())
+        {
+            MpWarriorList->RemoveWarrior(static_cast<uint8_t>(pilot->Id));
+        }
+
+        if (const MCOptionalRef<MCLogMechList> list = FindMPMechList(playerID, teamTable))
+        {
+            list->get().RemoveMech(mech);
+        }
     }
 
     // (The original painted the covered slot over a teammate's unit here; the screen draws its slots each frame.)

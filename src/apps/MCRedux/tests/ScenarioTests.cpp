@@ -89,8 +89,13 @@ TEST_CASE("scenario: objectives load from the scenario FIT")
     MCFitFixture fit(TwoObjectives);
     REQUIRE_EQ(fit.result, 0);
     MCObjectiveList objectives;
-    objectives.Load(fit.file, 2);
+    REQUIRE(objectives.Load(fit.file, 2).has_value());
     CHECK_EQ(objectives.Count(), 2);
+
+    // More than the nine slots is refused before anything is read (issue #25: they were written past the slots).
+    MCObjectiveList tooMany;
+    CHECK(!tooMany.Load(fit.file, MCObjectiveList::MaxObjectives + 1).has_value());
+    CHECK_EQ(tooMany.Count(), 0);
     CHECK_EQ(objectives[0].Name, std::string("Destroy the base"));
     CHECK_EQ(objectives[0].Type, MCScenarioObjective::Primary);
     CHECK_EQ(objectives[0].TimeLeft, 300.0f);
@@ -118,7 +123,7 @@ TEST_CASE("scenario: objectives succeed and fail by number; a bad number is refu
     MCFitFixture fit(TwoObjectives);
     REQUIRE_EQ(fit.result, 0);
     MCObjectiveList objectives;
-    objectives.Load(fit.file, 2);
+    REQUIRE(objectives.Load(fit.file, 2).has_value());
 
     CHECK_EQ(objectives.Status(0), MCScenarioObjective::Pending);
     CHECK_EQ(objectives.SetStatus(0, MCScenarioObjective::Succeeded), 0);
@@ -171,7 +176,7 @@ TEST_CASE("scenario: the tonnage bonus takes the first unused slot")
     MCFitFixture fit(TwoObjectives);
     REQUIRE_EQ(fit.result, 0);
     MCObjectiveList objectives;
-    objectives.Load(fit.file, 2);
+    REQUIRE(objectives.Load(fit.file, 2).has_value());
     objectives.SetStatus(0, MCScenarioObjective::Succeeded);
 
     // 23 tons unused, 5 tons per unit, 200 points per unit: 4 whole units.

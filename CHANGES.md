@@ -96,6 +96,8 @@ Bugs that have an impact on how the game *plays* may remain in the game, and are
   Saves left in the MechCommander Gold folder still show up, and deleting or overwriting one in the game removes it
   from there.
 - Data files saved with Unix line endings load correctly, so edited files work.
+- A file name the game gets from a save, a mission or another player can't climb out of these folders with `..` or
+  switch drives.
 
 ### Mission Editor
 
@@ -127,6 +129,12 @@ Bugs that have an impact on how the game *plays* may remain in the game, and are
 - A team tracking more than 200 contacts no longer overruns memory.
 - A route longer than the pathfinder allows for no longer overruns memory.
 - More than 100 timers running in the menus no longer overruns memory.
+- Damaged or hand-made game files (missions, maps, tile sets, pictures, fonts, sounds, saves, sprite and archive
+  files) are checked as they load. One the game can do without is skipped, and a save it can't read stays in the list
+  without its details. A mission it can't play ends with a message saying which file is wrong and why. The original
+  read and wrote past such files' data.
+- A mission script asking for more entries than its array holds, or recursing without end, no longer overruns memory
+  or the stack; the script stops with an error.
 
 ### Combat
 
@@ -178,6 +186,18 @@ Bugs that have an impact on how the game *plays* may remain in the game, and are
 - A message from an unknown player no longer crashes the game.
 - Session and player names are always terminated, and unused message bytes are cleared instead of sent as garbage.
 - Message timing no longer breaks every few minutes on modern PCs, whose timers count much faster than 1999's.
+- Other players can no longer write files on your computer. The original's file transfer, which the game never used,
+  is gone, and a mission name another player sends must name a file inside the game's folders.
+- Only the host (and the game's server) can run the game: set up and start the session, change teams, resource
+  points, tech bases or the mission, start or end the scenario, and send the battle's updates. The other players send
+  only their own check-ins, orders, groups, artillery and units, and can't act for someone else.
+- A message that names units, slots, targets, map cells or events the game doesn't have is dropped. In the original it
+  could crash the game or overwrite its memory.
+- Searching for a host by address lists only that host's game. Before, any machine that answered could show up in its
+  place.
+- A message too big for the receive buffer is dropped. In the original it stopped every later message from arriving.
+- The host turns away floods of connections, drops connections that never join, and answers only so many LAN searches
+  each second, so it can't be used to flood another machine.
 
 ### Graphics and Text
 
@@ -202,6 +222,8 @@ Bugs that have an impact on how the game *plays* may remain in the game, and are
 - Saving no longer quits the editor without a word when `Data\Savegame` is missing, or when a file for a distribution
   file can't be opened. It also no longer writes to a path map or tactical map file that didn't open.
 - The multiplayer save no longer overruns memory with a long description.
+- Reading a damaged Access database no longer reads past its pages, and a column name holding a bracket no longer
+  breaks the import.
 - Pressing a tool's key while dragging on the map no longer leaves the view using a deleted tool.
 - Changing a control structure's side no longer crashes when one of its linked buildings was erased.
 - Drawing or saving after the libraries failed to load no longer uses the freed map.

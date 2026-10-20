@@ -404,7 +404,29 @@ auto MCBattleMech::UpdateCriticalHitChunks(int32_t which) -> int32_t
     for (int32_t i = 0; i < NumCriticalHitChunks[which]; i++)
     {
         const uint8_t chunk = CriticalHitChunks[which][i];
-        HandleCriticalHit(chunk >> 4, chunk & 0xf);
+        const int32_t bodyLocation = chunk >> 4;
+        const int32_t criticalSpace = chunk & 0xf;
+
+        // The chunks come from the server; one naming a body location or critical space the mech doesn't have, or a
+        // space holding no item (id -1), is skipped (15 destroys the location).
+        if (bodyLocation >= NumBodyLocations() ||
+            (criticalSpace != 15 && criticalSpace >= std::ssize(BodyAt(bodyLocation).CriticalSpaces)))
+        {
+            continue;
+        }
+
+        if (criticalSpace != 15)
+        {
+            const auto item = static_cast<int8_t>(
+                BodyAt(bodyLocation).CriticalSpaces[static_cast<size_t>(criticalSpace)].InventoryID);
+
+            if (item < 0 || item >= std::ssize(Inventory))
+            {
+                continue;
+            }
+        }
+
+        HandleCriticalHit(bodyLocation, criticalSpace);
     }
 
     NumCriticalHitChunks[which] = 0;
@@ -665,7 +687,8 @@ auto MCBattleMech::HandleMoveChunk(uint32_t chunk) -> int32_t
     MoveChunk.Reset();
     MoveChunk.Data = chunk;
 
-    if (MoveChunk.Unpack(*this))
+    // Steps off the map, from the server's message, are ignored.
+    if (MoveChunk.Unpack(*this) && MoveChunk.OnMap())
     {
         MCMovePath& path = GetPilot()->GetMovePath();
         path.SetMoveChunk(MoveChunk);

@@ -225,7 +225,8 @@ auto MCMechWarrior::Load(MCFitIniFile& warriorFile) -> int32_t
 
 auto MCMechWarrior::RadioMessage(int32_t messageId, int propogateIfMultiplayer) -> void
 {
-    if (messageId >= RadioMessageTypeCount || Radio.lock() == nullptr || Status != 0 || messageId == -1 || Turn <= 0)
+    // Issue #25: any id below 0 is none (a script's playspeech can give one; the original let -2 and below through).
+    if (messageId >= RadioMessageTypeCount || Radio.lock() == nullptr || Status != 0 || messageId < 0 || Turn <= 0)
     {
         return;
     }

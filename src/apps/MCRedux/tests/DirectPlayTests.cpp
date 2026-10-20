@@ -1,7 +1,10 @@
 #include "stdafx.h"
 #include "MCTest.h"
+#include "fakes/MCLoopbackTransport.h"
 #include "lib/MCOptionalRef.h"
+#include "main/MCGameContext.h"
 #include "platform/MCDirectPlay.h"
+#include "platform/MCSocket.h"
 
 // The port's DirectPlay stand-in, driven the way linkup drives DirectPlay 3, with a host and a joiner in one process
 // talking over the loopback. The expected behaviour is DirectPlay's: a session is found by enumerating, joined with
@@ -345,4 +348,63 @@ TEST_CASE("directplay: a locked or full session takes no new players")
     CHECK(Enumerate(joiner, host, DPENUMSESSIONS_AVAILABLE).empty());
     CHECK_EQ(WithHostRunning(host, [&] { return joiner.Open(sessions[0], DPOPEN_JOIN); }),
              uint32_t{DPERR_NONEWPLAYERS});
+}
+
+/// <summary>
+/// With a host typed in, only that host's answer lists a session (issue #25): another session's answer, passed on to
+/// the searcher from the typed address, names its own port and is ignored.
+/// </summary>
+TEST_CASE("directplay: a search for a typed host ignores answers about other sessions")
+{
+    MCTestContextScope scope;
+    scope.Context().SetNet(std::make_unique<MCLoopbackTransport>());
+    constexpr uint16_t typedPort = 28874;
+
+    // The test stands where the typed host would be, and catches the searcher's question.
+    const MCSocket::Handle typed = MCSocket::OpenUdp(typedPort);
+    REQUIRE(typed != MCSocket::InvalidHandle);
+    MCDirectPlay joiner;
+    REQUIRE_EQ(Connect(joiner, std::format("127.0.0.1:{}", typedPort)), DP_OK);
+    DPSESSIONDESC2 desc{};
+    desc.dwSize = sizeof(desc);
+    desc.guidApplication = TestApplication;
+    std::vector<std::string> listed;
+    const auto search = [&]
+    {
+        listed.clear();
+        joiner.EnumSessions(
+            desc, 0,
+            [&](const DPSESSIONDESC2& session, uint32_t flags)
+            {
+                if ((flags & DPESC_TIMEDOUT) == 0)
+                {
+                    listed.push_back(session.SessionName.value_or(""));
+                }
+
+                return (flags & DPESC_TIMEDOUT) == 0;
+            },
+            0);
+    };
+
+    search();
+    std::array<uint8_t, 1500> datagram{};
+    MCSocket::Address searcher;
+    const int questionSize = MCSocket::ReceiveFrom(typed, datagram, searcher);
+    REQUIRE(questionSize > 0);
+    const std::vector<uint8_t> question(datagram.begin(), datagram.begin() + questionSize);
+
+    // A decoy session elsewhere answers the same question; its answer goes to the searcher from the typed address.
+    MCDirectPlay decoy;
+    REQUIRE_EQ(Connect(decoy, "127.0.0.1:28875"), DP_OK);
+    REQUIRE_EQ(Host(decoy, "Decoy", 6), DP_OK);
+    REQUIRE(MCSocket::SendTo(typed, {MCSocket::LoopbackIp, 28875}, question));
+    decoy.Pump();
+    MCSocket::Address decoyAddress;
+    const int answerSize = MCSocket::ReceiveFrom(typed, datagram, decoyAddress);
+    REQUIRE(answerSize > 0);
+    REQUIRE(MCSocket::SendTo(typed, searcher, std::span(datagram).first(static_cast<size_t>(answerSize))));
+
+    search();
+    CHECK(listed.empty());
+    MCSocket::Close(typed);
 }

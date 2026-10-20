@@ -4,7 +4,6 @@
 #include "linkup/MCFidpMessage.h"
 #include "linkup/MCFidpPlayer.h"
 #include "linkup/MCFidpSession.h"
-#include "linkup/MCFileTransferInfo.h"
 #include "lib/MCFatal.h"
 #include "logistics/MCRegistrySettings.h"
 #include "main/MCLogistics.h"
@@ -665,11 +664,6 @@ int32_t MCSessionManager::CreatePlayer(std::string_view playerName)
     EnumeratePlayers(nullptr);
     GetGroups(nullptr);
     return 0;
-}
-
-void MCSessionManager::SetHomeDirectory(std::string_view directory)
-{
-    _HomeDirectory = directory.substr(0, 0x1ff);
 }
 
 void MCSessionManager::NewPlayerEnumeration(uint32_t playerID, const DPNAME& name, uint32_t flags)

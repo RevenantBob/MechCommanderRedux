@@ -304,6 +304,34 @@ public:
     int32_t NumBodyLocations() const { return static_cast<int32_t>(Body.size()); }
     /// <summary>How many armor locations.</summary>
     int32_t NumArmorLocations() const { return static_cast<int32_t>(Armor.size()); }
+
+    /// <summary>
+    /// Whether <paramref name="hitLocation"/>, as a network chunk carries it, is one the mover's weapon-hit handler
+    /// takes: for a mech one of its armor locations or -1 (no location), for a vehicle one of its armor locations;
+    /// anything for the others, which don't look locations up.
+    /// </summary>
+    /// <remarks>Issue #25: the chunks come from another machine and can hold -2 to 13.</remarks>
+    bool IsHitLocation(int32_t hitLocation) const
+    {
+        switch (ObjectClass)
+        {
+            case MCObjectClass::BattleMech:
+            {
+                return hitLocation >= -1 && hitLocation < NumArmorLocations();
+            }
+
+            case MCObjectClass::GroundVehicle:
+            {
+                return hitLocation >= 0 && hitLocation < NumArmorLocations();
+            }
+
+            default:
+            {
+                return true;
+            }
+        }
+    }
+
     /// <summary>How many ammo types.</summary>
     int32_t NumAmmoTypes() const { return static_cast<int32_t>(AmmoTypeTotal.size()); }
 

@@ -717,6 +717,15 @@ auto MCSessionScreen::LayOutUnassigned(uint32_t skipId, size_t names, bool skipE
 auto MCSessionScreen::AssignPlayer(uint32_t playerId, int8_t team, int8_t slot, bool remote) -> void
 {
     std::shared_ptr<MCPlayerNameObject> nameObject = NameOf(playerId);
+    const bool onTeam = team == 1 || team == 2;
+
+    // Issue #25: the host's join-team message names the player and slot; a player the screen doesn't list, or a slot
+    // past the team's, is ignored (the original moved a null name and wrote past the team).
+    if ((onTeam && (slot < 0 || static_cast<size_t>(slot) >= TeamSlots)) ||
+        (nameObject == nullptr && (onTeam || (team == 0 && !remote))))
+    {
+        return;
+    }
 
     if (team == 0)
     {

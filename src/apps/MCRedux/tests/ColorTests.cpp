@@ -80,8 +80,8 @@ TEST_CASE("palette: haze levels pick fade tables, clamped to the levels the FIT 
     CHECK_EQ((*palette.GetHazePalette(2))[17], 1);
 
     // The actors' fade table n follows both haze sets.
-    CHECK_EQ(TableNumber(palette, palette.GetFadeTable(0)), 6);
-    CHECK_EQ(TableNumber(palette, palette.GetFadeTable(3)), 9);
+    CHECK_EQ(TableNumber(palette, *palette.GetFadeTable(0)), 6);
+    CHECK_EQ(TableNumber(palette, *palette.GetFadeTable(3)), 9);
 }
 
 TEST_CASE("palette: tweaks change the colours in place, wrapping at 256")
@@ -187,5 +187,5 @@ TEST_CASE("game: the retail palette has HB.PAL's colours and 16 haze levels of f
     // fade.tbl: two sets of 16 haze tables, then the actors' fade tables (151 tables in all).
     CHECK_EQ((*palette)->FadePalettes.size(), 151u * MCPalette::FadeTableSize);
     CHECK_EQ(TableNumber(**palette, (*palette)->GetHazePalette(-16)), 31);
-    CHECK_EQ(TableNumber(**palette, (*palette)->GetFadeTable(0)), 32);
+    CHECK_EQ(TableNumber(**palette, *(*palette)->GetFadeTable(0)), 32);
 }

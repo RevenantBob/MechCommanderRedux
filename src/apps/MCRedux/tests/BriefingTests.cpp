@@ -518,6 +518,38 @@ TEST_CASE_ISOLATED("game: a saved campaign loads back with its units, pilots, sp
     MCFileSystem::RemoveFile(GamePath(SavePath, "p3roundtrip", ".pur"));
 }
 
+TEST_CASE_ISOLATED("game: a save naming a mission the campaign doesn't have is refused")
+{
+    if (!MCTestGame::Available())
+    {
+        return;
+    }
+
+    REQUIRE(MCTestGame::StartLogistics());
+    Settle();
+    NewCampaign();
+    Settle();
+    std::shared_ptr<MCLogistics> logistics = GlobalLog();
+    const int32_t goodMission = logistics->CurrentMission;
+    const auto scenarios = static_cast<int32_t>(Mission()->Scenarios.size());
+
+    // One past the last scenario is the campaign's end and loads; further on, or below 0, picks no scenario.
+    for (const int32_t mission : {scenarios + 1, scenarios + 1000, -1, std::numeric_limits<int32_t>::min()})
+    {
+        MCTest::Scope entry(std::format("mission {}", mission));
+        logistics->CurrentMission = mission;
+        REQUIRE_EQ(logistics->SaveCampaign("p3badmission"), 0);
+        CHECK(logistics->LoadCampaign("p3badmission", ".sav", false, true) != 0);
+    }
+
+    logistics->CurrentMission = goodMission;
+    REQUIRE_EQ(logistics->SaveCampaign("p3badmission"), 0);
+    CHECK_EQ(logistics->LoadCampaign("p3badmission", ".sav", false, true), 0);
+    CHECK_EQ(logistics->CurrentMission, goodMission);
+    MCFileSystem::RemoveFile(GamePath(SavePath, "p3badmission", ".sav"));
+    MCFileSystem::RemoveFile(GamePath(SavePath, "p3badmission", ".pur"));
+}
+
 TEST_CASE_ISOLATED("game: the mission's start file puts the deployed mech and its pilot at the drop zone")
 {
     if (!MCTestGame::Available())

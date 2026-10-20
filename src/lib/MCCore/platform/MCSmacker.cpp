@@ -541,8 +541,16 @@ std::expected<void, std::string> MCSmacker::ReadHeader()
         _FrameTypes[i] = tables[static_cast<size_t>(_StoredFrames) * 4 + i];
     }
 
-    std::vector<uint8_t> trees(treesSize);
     const uint64_t treesOffset = HeaderSize + tables.size();
+
+    // Issue #25: the trees must lie in the file before their size is allocated.
+    if (treesOffset + treesSize > _FileSize)
+    {
+        return std::unexpected(
+            std::format("the Huffman trees need {} bytes, the file has {}", treesOffset + treesSize, _FileSize));
+    }
+
+    std::vector<uint8_t> trees(treesSize);
 
     if (!ReadAt(treesOffset, trees))
     {

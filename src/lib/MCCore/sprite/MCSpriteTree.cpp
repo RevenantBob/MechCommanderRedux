@@ -211,6 +211,26 @@ auto MCSpriteTree::Load(MCFile& apprFile, uint32_t fileSize) -> MCAppearanceLoad
         data.EndVelocity = fit.Read<float>("EndVelocity");
     }
 
+    // Issue #25: the game asks for its gestures by number (0-27) and follows the transition table's numbers, whatever
+    // the file holds. A tree with fewer gestures gets empty ones (no frames: nothing drawn), and a table naming a
+    // gesture past them refuses the tree.
+    if (!fit.Failed() && Gestures.size() < PacketFinderArray.size())
+    {
+        Gestures.resize(PacketFinderArray.size());
+    }
+
+    if (TransitionArray.has_value())
+    {
+        for (const char next : *TransitionArray)
+        {
+            if (next < -1 || next >= static_cast<int32_t>(Gestures.size()))
+            {
+                return std::unexpected(
+                    std::format("a transition to gesture {} of {}", static_cast<int32_t>(next), Gestures.size()));
+            }
+        }
+    }
+
     return fit.Result();
 }
 
@@ -219,6 +239,12 @@ auto MCSpriteTree::SetGesture(int32_t gesture, int32_t part, float rotation, int
 {
     reverse = 0;
     frameRate = 0.0f;
+
+    if (gesture < 0 || static_cast<size_t>(gesture) >= Gestures.size())
+    {
+        return;
+    }
+
     const MCGestureData& data = Gestures[gesture];
 
     if (data.NumFrames == 0)
@@ -232,6 +258,11 @@ auto MCSpriteTree::SetGesture(int32_t gesture, int32_t part, float rotation, int
 
 auto MCSpriteTree::GesturePacket(int32_t gesture, int32_t part, float rotation) const -> std::optional<MCGesturePacket>
 {
+    if (gesture < 0 || static_cast<size_t>(gesture) >= std::min(Gestures.size(), PacketFinderArray.size()))
+    {
+        return std::nullopt;
+    }
+
     const MCGestureData& data = Gestures[gesture];
 
     if (data.NumFrames == 0 || part < 0 || part >= MechPartCount)
@@ -304,6 +335,13 @@ auto MCSpriteTree::GesturePacket(int32_t gesture, int32_t part, float rotation) 
                                                                 MCMechPart::LeftArm, MCMechPart::RightArm};
     const auto finder = static_cast<int32_t>(PacketFinderArray[gesture]);
     const int32_t rotationsStored = part == 0 ? LegRotationCount : PartRotations(symmetrical);
+
+    // Issue #25: the rotation count is the file's; a facing past the part's stored rotations has no shape.
+    if (index < 0 || index >= rotationsStored)
+    {
+        return std::nullopt;
+    }
+
     const auto packet = static_cast<uint32_t>(finder * rotationsStored + index);
     const MCMechPart file = filePart[part];
     return MCGesturePacket{file, packet, PartShapeStart[file] + packet, reverse};

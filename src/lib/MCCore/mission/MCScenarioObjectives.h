@@ -64,7 +64,8 @@ public:
     /// Reads blocks <c>Objective0</c> .. <c>Objective(count-1)</c> of <paramref name="file"/>; the slots after them are
     /// unused. A missing block or required entry is fatal, as in the original.
     /// </summary>
-    void Load(MCFitIniFile& file, uint32_t count);
+    /// <returns>Nothing, or why the objectives can't be read: more than <see cref="MaxObjectives"/>.</returns>
+    std::expected<void, std::string> Load(MCFitIniFile& file, uint32_t count);
 
     /// <summary>The scenario's own objectives (the bonus isn't counted).</summary>
     int32_t Count() const { return _Count; }

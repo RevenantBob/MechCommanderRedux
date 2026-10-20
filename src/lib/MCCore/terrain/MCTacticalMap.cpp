@@ -626,8 +626,12 @@ auto MCTacticalMap::SetRevealedBitmap(std::string_view fileName) const -> void
     std::vector<uint8_t> gif(size);
     gifFile.Read(gif);
     gifFile.Close();
-    VfxGifResolution(gif);
-    VfxGifDraw(VisibilityPort->Frame(), gif);
+
+    // The mission's picture of the revealed area: one the game can't draw leaves the map unrevealed.
+    if (const std::expected<int32_t, std::string> drawn = VfxGifDraw(VisibilityPort->Frame(), gif); !drawn.has_value())
+    {
+        SDL_Log("MCTacticalMap: %s not drawn: %s", gifName.c_str(), drawn.error().c_str());
+    }
 }
 
 auto MCTacticalMap::Init(int32_t xPos, int32_t yPos) -> int32_t

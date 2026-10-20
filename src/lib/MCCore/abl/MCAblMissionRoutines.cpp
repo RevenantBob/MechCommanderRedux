@@ -403,7 +403,7 @@ auto ExecHbGetMessage(MCAblRuntime& abl) -> MCAblTypeId
     abl.GetCodeToken();
     std::span<int32_t> param = abl.NextReference<int32_t>();
     abl.Pop();
-    param[0] = abl.MissionMessageParam;
+    PutArrayArgument(param, {abl.MissionMessageParam});
     abl.PushInteger(abl.MissionMessageCode);
     abl.GetCodeToken();
     return MCAblTypeId::Integer;

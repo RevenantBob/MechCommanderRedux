@@ -242,11 +242,14 @@ protected:
     /// <summary>Marks which of the 12 drop slots are the local player's.</summary>
     void SetupSlotsForMultiplayer(int32_t playerIndex, int32_t numPlayers);
 
-    /// <summary>The mech list of player <paramref name="playerID"/> (on the local side when <paramref name="teammate"/>).</summary>
-    MCLogMechList& FindMPMechList(uint32_t playerID, bool teammate);
+    /// <summary>
+    /// The mech list of player <paramref name="playerID"/> (on the local side when <paramref name="teammate"/>); none
+    /// when the player has none there.
+    /// </summary>
+    MCOptionalRef<MCLogMechList> FindMPMechList(uint32_t playerID, bool teammate);
 
-    /// <summary>The vehicle list of player <paramref name="playerID"/>.</summary>
-    MCLogVehicleList& FindMPVehicleList(uint32_t playerID, bool teammate);
+    /// <summary>The vehicle list of player <paramref name="playerID"/>; none when the player has none there.</summary>
+    MCOptionalRef<MCLogVehicleList> FindMPVehicleList(uint32_t playerID, bool teammate);
 
     /// <summary>Builds a mech (with its pilot and inventory) from a deploy force message.</summary>
     std::shared_ptr<MCLogMech> AddMechFromNetworkMessage(MCLogMechList& list, const MCDeployForce& force) const;
