@@ -6,14 +6,19 @@
 #include "linkup/MCFidpSession.h"
 #include "linkup/MCFileTransferInfo.h"
 #include "lib/MCFatal.h"
+#include "logistics/MCRegistrySettings.h"
+#include "main/MCLogistics.h"
 #include "platform/MCDirectPlay.h"
+#include "platform/MCInput.h"
 #include "platform/MCSocket.h"
+#include "platform/MCWin32Defs.h"
 
 // The session manager's life, its connections, and the sessions, players and groups DirectPlay lists. The receive
 // pass and guaranteed delivery are in MCSessionManagerReceive.cpp, the sends in MCSessionManagerSend.cpp, the players
 // coming and going and the message handlers in MCSessionManagerPlayers.cpp.
 
 bool LaunchedFromLobby = false;
+MCLobbyLaunchArgs LobbyLaunchArgs;
 
 namespace
 {
@@ -299,23 +304,139 @@ std::optional<std::string> MCSessionManager::GetModemName(int32_t index) const
 
 bool MCSessionManager::WasLaunchedFromLobby()
 {
-    // Port: no DirectPlay lobby launches the game; GetConnectionSettings answered DPERR_NOTLOBBIED.
-    return false;
+    return LobbyLaunchArgs.Active;
 }
 
-uint32_t MCSessionManager::SetupLobbyConnection(const std::function<void()>&, const std::function<void()>&)
+uint32_t MCSessionManager::SetupLobbyConnection(const std::function<void()>& showStatus,
+                                                const std::function<void()>& hideStatus)
 {
-    // Port: the original dropped its DirectPlay object, asked the lobby for the connection it was launched with
-    // (Connect, showing the status while it waited), and joined or hosted that session. Without a lobby
-    // GetConnectionSettings answers DPERR_NOTLOBBIED, and the original then made a new DirectPlay object without
-    // enumerating its connections; so does the port.
+    if (!LobbyLaunchArgs.Active)
+    {
+        if (DirectPlay != nullptr)
+        {
+            DirectPlay->Close();
+        }
+
+        DirectPlay = std::make_unique<MCDirectPlay>();
+        return DPERR_NOTLOBBIED;
+    }
+
     if (DirectPlay != nullptr)
     {
         DirectPlay->Close();
     }
 
     DirectPlay = std::make_unique<MCDirectPlay>();
-    return DPERR_NOTLOBBIED;
+
+    std::string playerName =
+        !LobbyLaunchArgs.PlayerName.empty() ? LobbyLaunchArgs.PlayerName : MyGetUserName().value_or("Player");
+    SaveUserName(playerName);
+
+    if (LobbyLaunchArgs.IsHost)
+    {
+        std::string sessionName =
+            !LobbyLaunchArgs.SessionName.empty() ? LobbyLaunchArgs.SessionName : (playerName + "'s game");
+        ConnectTcp(LobbyLaunchArgs.Address);
+
+        MCFidpSession session(_AppGuid);
+        session.SetName(sessionName);
+        session.SessionDesc.dwMaxPlayers = static_cast<uint32_t>(std::clamp(LobbyLaunchArgs.MaxPlayers, 2, 6));
+
+        const int32_t result = HostSession(session, playerName);
+
+        if (result != 0)
+        {
+            SDL_Log("SetupLobbyConnection: failed to host session (result %d)", result);
+            return DPERR_CANTCREATESESSION;
+        }
+
+        ServerID = MyPlayerID;
+        IsHost = true;
+        SDL_Log("SetupLobbyConnection: hosting \"%s\" as \"%s\"", sessionName.c_str(), playerName.c_str());
+        return DP_OK;
+    }
+    else
+    {
+        std::string targetAddr = !LobbyLaunchArgs.Address.empty() ? LobbyLaunchArgs.Address : "127.0.0.1";
+        ConnectTcp(targetAddr);
+        SDL_Log("SetupLobbyConnection: connecting to %s as \"%s\"...", targetAddr.c_str(), playerName.c_str());
+
+        if (showStatus)
+        {
+            showStatus();
+        }
+
+        std::shared_ptr<MCFidpSession> targetSession;
+        // A press from before the wait doesn't cancel it.
+        MCInput::GetAsyncKeyState(VK_ESCAPE);
+
+        for (int attempt = 0; attempt < 30; ++attempt)
+        {
+            const auto sessions = GetSessions();
+
+            if (sessions.has_value() && !sessions->empty())
+            {
+                if (!LobbyLaunchArgs.SessionName.empty())
+                {
+                    for (const auto& s : *sessions)
+                    {
+                        if (s->Name == LobbyLaunchArgs.SessionName)
+                        {
+                            targetSession = s;
+                            break;
+                        }
+                    }
+                }
+                else
+                {
+                    targetSession = sessions->front();
+                }
+
+                if (targetSession != nullptr)
+                {
+                    // A session that refuses the join (full, or gone) is not tried again.
+                    const int32_t joinResult = JoinSession(targetSession->SessionDesc.guidInstance, playerName);
+
+                    if (hideStatus)
+                    {
+                        hideStatus();
+                    }
+
+                    if (joinResult != 0)
+                    {
+                        SDL_Log("SetupLobbyConnection: could not join \"%s\" (result %d)", targetSession->Name.c_str(),
+                                joinResult);
+                        return DPERR_NOSESSIONS;
+                    }
+
+                    IsHost = false;
+                    SDL_Log("SetupLobbyConnection: joined session \"%s\"", targetSession->Name.c_str());
+                    return DP_OK;
+                }
+            }
+
+            // The window stays responsive while it waits, and Escape (or closing it) gives up.
+            const bool open = MCInput::WaitMessage(500);
+
+            if (!open || (MCInput::GetAsyncKeyState(VK_ESCAPE) & 0x8001) != 0)
+            {
+                if (hideStatus)
+                {
+                    hideStatus();
+                }
+
+                return DPERR_USERCANCEL;
+            }
+        }
+
+        if (hideStatus)
+        {
+            hideStatus();
+        }
+
+        SDL_Log("SetupLobbyConnection: timed out connecting to %s", targetAddr.c_str());
+        return DPERR_NOSESSIONS;
+    }
 }
 
 int32_t MCSessionManager::Dial()
