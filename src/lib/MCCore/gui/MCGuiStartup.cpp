@@ -168,16 +168,17 @@ auto ParseCommandLine(std::string_view commandLine) -> void
             break;
         }
 
+        // Only double quotes group words: an apostrophe is part of a name or path (O'Brien).
         std::string token;
         bool inQuote = false;
-        char quoteChar = 0;
 
         while (pos < commandLine.size())
         {
             const char c = commandLine[pos];
+
             if (inQuote)
             {
-                if (c == quoteChar)
+                if (c == '"')
                 {
                     inQuote = false;
                     pos++;
@@ -190,10 +191,9 @@ auto ParseCommandLine(std::string_view commandLine) -> void
             }
             else
             {
-                if (c == '"' || c == '\'')
+                if (c == '"')
                 {
                     inQuote = true;
-                    quoteChar = c;
                     pos++;
                 }
                 else if (c == ' ' || c == '\t')
@@ -228,6 +228,7 @@ auto ParseCommandLine(std::string_view commandLine) -> void
             {
                 const std::string& next = words[++i];
                 const int port = std::atoi(next.c_str());
+
                 if (port > 0 && port < 65536)
                 {
                     LobbyLaunchArgs.Address = ":" + next;
@@ -274,6 +275,7 @@ auto ParseCommandLine(std::string_view commandLine) -> void
             if (hasArgument)
             {
                 const std::string p = words[++i];
+
                 if (LobbyLaunchArgs.IsHost)
                 {
                     LobbyLaunchArgs.Address = ":" + p;

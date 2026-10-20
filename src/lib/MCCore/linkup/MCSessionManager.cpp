@@ -307,7 +307,8 @@ bool MCSessionManager::WasLaunchedFromLobby()
     return LobbyLaunchArgs.Active;
 }
 
-uint32_t MCSessionManager::SetupLobbyConnection(const std::function<void()>& showStatus, const std::function<void()>& hideStatus)
+uint32_t MCSessionManager::SetupLobbyConnection(const std::function<void()>& showStatus,
+                                                const std::function<void()>& hideStatus)
 {
     if (!LobbyLaunchArgs.Active)
     {
@@ -327,12 +328,14 @@ uint32_t MCSessionManager::SetupLobbyConnection(const std::function<void()>& sho
 
     DirectPlay = std::make_unique<MCDirectPlay>();
 
-    std::string playerName = !LobbyLaunchArgs.PlayerName.empty() ? LobbyLaunchArgs.PlayerName : MyGetUserName().value_or("Player");
+    std::string playerName =
+        !LobbyLaunchArgs.PlayerName.empty() ? LobbyLaunchArgs.PlayerName : MyGetUserName().value_or("Player");
     SaveUserName(playerName);
 
     if (LobbyLaunchArgs.IsHost)
     {
-        std::string sessionName = !LobbyLaunchArgs.SessionName.empty() ? LobbyLaunchArgs.SessionName : (playerName + "'s game");
+        std::string sessionName =
+            !LobbyLaunchArgs.SessionName.empty() ? LobbyLaunchArgs.SessionName : (playerName + "'s game");
         ConnectTcp(LobbyLaunchArgs.Address);
 
         MCFidpSession session(_AppGuid);
@@ -340,6 +343,7 @@ uint32_t MCSessionManager::SetupLobbyConnection(const std::function<void()>& sho
         session.SessionDesc.dwMaxPlayers = static_cast<uint32_t>(std::clamp(LobbyLaunchArgs.MaxPlayers, 2, 6));
 
         const int32_t result = HostSession(session, playerName);
+
         if (result != 0)
         {
             SDL_Log("SetupLobbyConnection: failed to host session (result %d)", result);
@@ -363,18 +367,13 @@ uint32_t MCSessionManager::SetupLobbyConnection(const std::function<void()>& sho
         }
 
         std::shared_ptr<MCFidpSession> targetSession;
+        // A press from before the wait doesn't cancel it.
+        MCInput::GetAsyncKeyState(VK_ESCAPE);
+
         for (int attempt = 0; attempt < 30; ++attempt)
         {
-            if ((MCInput::GetAsyncKeyState(VK_ESCAPE) & 0x8000) != 0)
-            {
-                if (hideStatus)
-                {
-                    hideStatus();
-                }
-                return DPERR_USERCANCEL;
-            }
-
             const auto sessions = GetSessions();
+
             if (sessions.has_value() && !sessions->empty())
             {
                 if (!LobbyLaunchArgs.SessionName.empty())
@@ -395,21 +394,39 @@ uint32_t MCSessionManager::SetupLobbyConnection(const std::function<void()>& sho
 
                 if (targetSession != nullptr)
                 {
+                    // A session that refuses the join (full, or gone) is not tried again.
                     const int32_t joinResult = JoinSession(targetSession->SessionDesc.guidInstance, playerName);
-                    if (joinResult == 0)
+
+                    if (hideStatus)
                     {
-                        IsHost = false;
-                        if (hideStatus)
-                        {
-                            hideStatus();
-                        }
-                        SDL_Log("SetupLobbyConnection: joined session \"%s\"", targetSession->Name.c_str());
-                        return DP_OK;
+                        hideStatus();
                     }
+
+                    if (joinResult != 0)
+                    {
+                        SDL_Log("SetupLobbyConnection: could not join \"%s\" (result %d)", targetSession->Name.c_str(),
+                                joinResult);
+                        return DPERR_NOSESSIONS;
+                    }
+
+                    IsHost = false;
+                    SDL_Log("SetupLobbyConnection: joined session \"%s\"", targetSession->Name.c_str());
+                    return DP_OK;
                 }
             }
 
-            SDL_Delay(500);
+            // The window stays responsive while it waits, and Escape (or closing it) gives up.
+            const bool open = MCInput::WaitMessage(500);
+
+            if (!open || (MCInput::GetAsyncKeyState(VK_ESCAPE) & 0x8001) != 0)
+            {
+                if (hideStatus)
+                {
+                    hideStatus();
+                }
+
+                return DPERR_USERCANCEL;
+            }
         }
 
         if (hideStatus)

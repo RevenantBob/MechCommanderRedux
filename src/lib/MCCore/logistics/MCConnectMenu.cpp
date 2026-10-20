@@ -784,7 +784,11 @@ void ReadyRoomPlayerListHandleEvent(MCGuiObject& object, MCGuiEvent& event)
         return;
     }
 
-    if (manager->IsHost == 0)
+    // A command-line lobby launch (-host/-join) has no lobby measuring the pings, so it shows its own as a LAN game
+    // does; only the original's DirectPlay lobby left them out.
+    const bool showPing = LaunchedFromLobby == 0 || LobbyLaunchArgs.Active;
+
+    if (manager->IsHost == 0 && showPing)
     {
         manager->SendPing();
     }
@@ -792,10 +796,10 @@ void ReadyRoomPlayerListHandleEvent(MCGuiObject& object, MCGuiEvent& event)
     list.Clear();
     const auto& players = manager->GetPlayers(session);
 
-    // Each player, with ping if available.
+    // Each player, with the ping outside a DirectPlay lobby launch.
     for (const auto& player : players)
     {
-        if (player->LastLatency > 0)
+        if (showPing)
         {
             list.Print(std::format("{} - {:04} ms", player->Name, player->LastLatency), 0x1f);
         }

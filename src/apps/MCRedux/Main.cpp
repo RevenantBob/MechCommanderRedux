@@ -126,11 +126,14 @@ namespace
                 }
 
                 const bool hasSpace = arg.find(' ') != std::string_view::npos;
+
                 if (hasSpace)
                 {
                     options.GameCommandLine += '"';
                 }
+
                 options.GameCommandLine += arg;
+
                 if (hasSpace)
                 {
                     options.GameCommandLine += '"';
