@@ -27,8 +27,20 @@ int32_t MCFidpMessage::ReceiveMessage(MCDirectPlay& directPlay)
     FromID = 0;
     uint32_t to = 0;
     uint32_t size = BufferSize();
-    const uint32_t result = directPlay.Receive(FromID, to, DPRECEIVE_ALL, std::span(_Buffer).first(size), size);
-    Assert(result != DPERR_BUFFERTOOSMALL, BufferSize(), " DP Buffer too small ");
+    uint32_t result = directPlay.Receive(FromID, to, DPRECEIVE_ALL, std::span(_Buffer).first(size), size);
+
+    // A message bigger than the buffer (the game's are at most 0x200 bytes, so only another machine sends one) is taken
+    // off the queue and dropped. The original asserted and left it at the head, and nothing behind it was received
+    // again.
+    while (result == DPERR_BUFFERTOOSMALL)
+    {
+        std::vector<uint8_t> discarded(size);
+        directPlay.Receive(FromID, to, DPRECEIVE_ALL, discarded, size);
+        SDL_Log("MCFidpMessage: dropped a %u-byte message from player %u", size, FromID);
+        FromID = 0;
+        size = BufferSize();
+        result = directPlay.Receive(FromID, to, DPRECEIVE_ALL, std::span(_Buffer).first(size), size);
+    }
 
     if (result == DP_OK)
     {

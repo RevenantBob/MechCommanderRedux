@@ -64,8 +64,9 @@ public:
     /// <summary>Packs the fields into <see cref="Data"/>.</summary>
     void Pack();
 
-    /// <summary>Unpacks <see cref="Data"/> into the fields (fatal on a type it doesn't list).</summary>
-    void Unpack();
+    /// <summary>Unpacks <see cref="Data"/> into the fields.</summary>
+    /// <returns>Whether the type is one it lists (else the fields other than the type stay as they were).</returns>
+    bool Unpack();
 
     /// <summary>Whether every unpacked field matches <paramref name="chunk"/>'s.</summary>
     bool EqualTo(const MCWorldStateChunk& chunk) const;

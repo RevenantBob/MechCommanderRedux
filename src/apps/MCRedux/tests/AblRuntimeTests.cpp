@@ -374,6 +374,18 @@ TEST_CASE("abl runtime: subscripts out of range, runaway recursion and sqrt of a
                                                                           locals)));
     CHECK(overflow.Error == MCAblRuntimeError::StackOverflow);
 
+    // With small frames the calls themselves are counted (issue #25): the recursion stops with the same error before
+    // the C++ stack under the interpreter runs out.
+    const MCAblRuntimeFailure deep = FailureOf(abl.TryRun("module shallow : integer;\r\n"
+                                                          "function down (integer n) : integer;\r\n"
+                                                          "code\r\n"
+                                                          "    return(down(n + 1));\r\n"
+                                                          "endfunction;\r\n"
+                                                          "code\r\n"
+                                                          "    return(down(0));\r\n"
+                                                          "endmodule.\r\n"));
+    CHECK(deep.Error == MCAblRuntimeError::StackOverflow);
+
     CHECK(FailureOf(abl.TryRun(Returns("", "", "trunc(sqrt(-1.0))"))).Error ==
           MCAblRuntimeError::InvalidFunctionArgument);
 
@@ -429,6 +441,23 @@ TEST_CASE("abl memory: concat writes only as far as its string's array goes (OB-
                         "ok")),
         2);
     // The local arrays went back with their routine.
+    CHECK_EQ(AblRuntime()->ArrayBlockCount(), 0u);
+}
+
+TEST_CASE("abl routines: a position written into a script's array stops at the array's end")
+{
+    MCAblRuntimeScope abl;
+    // getobjectposition of a group writes x, y and z (all 0); a real[2] or real[1] takes as many as it holds (the
+    // original wrote all three past it). Group 5 needs no world.
+    CHECK_EQ(abl.Run(Returns("var\r\n    real[2] spot;\r\n    real after;\r\n    real unused;\r\n",
+                             "    spot[0] = 7.0;\r\n    spot[1] = 8.0;\r\n    after = 3.0;\r\n"
+                             "    unused = getobjectposition(5, spot);\r\n",
+                             "trunc(spot[0] * 100.0 + spot[1] * 10.0 + after)")),
+             3);
+    CHECK_EQ(abl.Run(Returns("var\r\n    real[1] spot;\r\n    real after;\r\n    real unused;\r\n",
+                             "    spot[0] = 7.0;\r\n    after = 3.0;\r\n    unused = getobjectposition(5, spot);\r\n",
+                             "trunc(spot[0] * 100.0 + after)")),
+             3);
     CHECK_EQ(AblRuntime()->ArrayBlockCount(), 0u);
 }
 

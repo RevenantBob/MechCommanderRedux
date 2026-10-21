@@ -7,10 +7,10 @@
 #include "linkup/MCFidpNetworkProtocol.h"
 #include "linkup/MCFidpPlayer.h"
 #include "linkup/MCFidpSession.h"
-#include "linkup/MCFileTransferInfo.h"
 #include "linkup/MCSessionManager.h"
 #include "main/MCGameContext.h"
 #include "platform/MCDirectPlay.h"
+#include "platform/MCFileSystem.h"
 
 // The linkup layer: guaranteed delivery over DirectPlay (each sender numbers its guaranteed messages per receiver,
 // the receiver acknowledges them by number and hands them on in order), the players, groups and sessions it keeps,
@@ -254,45 +254,6 @@ TEST_CASE("linkup: names end at their first null, as the original's string copie
 }
 
 /// <summary>
-/// A received file is written as its pieces arrive (each piece: the guaranteed header, the transfer id, then the
-/// file's bytes) and is complete at the piece whose last byte is 0; a file to send takes its size from disk.
-/// </summary>
-TEST_CASE("linkup: a received file is written piece by piece and ends at the piece whose last byte is 0")
-{
-    const std::filesystem::path home = std::filesystem::temp_directory_path() / "mc_tests_linkup";
-    std::filesystem::create_directories(home);
-    const std::filesystem::path written = home / "drop.bin";
-    std::filesystem::remove(written);
-
-    {
-        MCFileTransferInfo transfer(home.string(), 5, 6, "drop.bin", std::nullopt, 6, MCFileTransferDirection::Receive);
-        CHECK_EQ(transfer.Directory, std::string("\\"));
-        CHECK_EQ(transfer.FileSize, 6u);
-        CHECK_EQ(transfer.Message->ToID, 6u);
-
-        std::vector<uint8_t> first(sizeof(MCFIGuaranteedMessageHeader) + 1);
-        std::vector<uint8_t> last = first;
-        first.insert(first.end(), {1, 2, 3});
-        last.insert(last.end(), {4, 5, 0});
-        CHECK(!transfer.AddBytes(first));
-        CHECK(transfer.AddBytes(last));
-    }
-
-    std::ifstream file(written, std::ios::binary);
-    const std::vector<uint8_t> bytes{std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>()};
-    file.close();
-    CHECK(bytes == (std::vector<uint8_t>{1, 2, 3, 4, 5, 0}));
-
-    {
-        const MCFileTransferInfo sending(home.string(), 6, 5, "drop.bin", std::nullopt, 0,
-                                         MCFileTransferDirection::Send);
-        CHECK_EQ(sending.FileSize, 6u);
-    }
-
-    std::filesystem::remove(written);
-}
-
-/// <summary>
 /// Before the server numbers this machine, a guaranteed group message and a server message wait in their queues. The
 /// sends set the flags in the caller's own message (a group message is marked so; a server message isn't), and the
 /// queued copy holds the message's bytes and its receiver.
@@ -327,7 +288,7 @@ TEST_CASE("linkup: messages sent before this machine has a number wait in their 
 /// <summary>
 /// Two machines on the in-process network: the host hosts a session and makes a group; the joiner finds the session,
 /// joins it and gets its player number (1, the host being 0) and the group's members from the host; a guaranteed
-/// message reaches the host once and is verified; the host hands the server role to the machine with more memory;
+/// message reaches the host once and is verified; a file transfer is dropped; the host hands the server role to the machine with more memory;
 /// and when the joiner leaves the host drops it.
 /// </summary>
 TEST_CASE("linkup: a joiner joins the host's session, is numbered, verified, made server, and dropped when it leaves")
@@ -411,6 +372,67 @@ TEST_CASE("linkup: a joiner joins the host's session, is numbered, verified, mad
     REQUIRE_EQ(hostReceived.size(), size_t{1});
     CHECK_EQ(ReadLinkupMessage<MCFIValueMessage>(hostReceived[0]).Value, 0x1234u);
     CHECK_EQ(host.GetPlayer(joiner.MyPlayerID)->TotalPhysicalMemory, MCPort::TotalPhysicalMemory());
+
+    // A file transfer (the original's announcement with its "name\directory", then a piece of the file) is dropped:
+    // nothing is written and the game never sees it. The message after it arrives as usual.
+    const std::filesystem::path dropped = MCFileSystem::ResolveWrite("mc_tests_dropped.bin");
+    std::filesystem::remove(dropped);
+    hostReceived.clear();
+    std::array<uint8_t, 0x20> begin{};
+    MCFIGuaranteedMessageHeader beginHeader;
+    beginHeader.Header = LinkupHeader(MCLinkupMessageType::BeginFileTransfer, FIMSG_GUARANTEED);
+    std::memcpy(begin.data(), &beginHeader, sizeof(beginHeader));
+    constexpr std::string_view droppedName = "mc_tests_dropped.bin";
+    std::memcpy(begin.data() + sizeof(beginHeader) + 1, droppedName.data(), droppedName.size());
+    joiner.SendMessageToServerGuaranteed(begin);
+    std::array<uint8_t, sizeof(MCFIGuaranteedMessageHeader) + 4> piece{};
+    MCFIGuaranteedMessageHeader pieceHeader;
+    pieceHeader.Header = LinkupHeader(MCLinkupMessageType::FileData, FIMSG_GUARANTEED);
+    std::memcpy(piece.data(), &pieceHeader, sizeof(pieceHeader));
+    piece[sizeof(pieceHeader) + 1] = 1;
+    joiner.SendMessageToServerGuaranteed(piece);
+    hello.Value = 0x5678;
+    joiner.SendMessageToServerGuaranteed(LinkupBytes(hello));
+    REQUIRE(Exchange(host, joiner, [&] { return !hostReceived.empty(); }));
+    REQUIRE_EQ(hostReceived.size(), size_t{1});
+    CHECK_EQ(ReadLinkupMessage<MCFIValueMessage>(hostReceived[0]).Value, 0x5678u);
+    CHECK(!std::filesystem::exists(dropped));
+
+    // Everyone knows the host's player, as DirectPlay marked the server player; a joiner's never is.
+    CHECK(joiner.DirectPlay->IsSessionHostPlayer(host.MyPlayerID));
+    CHECK(!joiner.DirectPlay->IsSessionHostPlayer(joiner.MyPlayerID));
+    CHECK(host.DirectPlay->IsSessionHostPlayer(host.MyPlayerID));
+    CHECK(!host.DirectPlay->IsSessionHostPlayer(joiner.MyPlayerID));
+    CHECK(host.SpeaksForSession(host.MyPlayerID));
+    CHECK(!host.SpeaksForSession(joiner.MyPlayerID));
+
+    // A joiner that isn't the server can't run the session (issue #25): naming itself the server, removing the host
+    // from the game, taking the host out of its group or sending more than a message holds all come to nothing, and
+    // what it sends after them still arrives.
+    hostReceived.clear();
+    MCFIValueMessage takeOver;
+    takeOver.Header = LinkupHeader(MCLinkupMessageType::NewServer, FIMSG_GUARANTEED);
+    takeOver.Value = joiner.MyPlayerID;
+    joiner.SendMessageToServerGuaranteed(LinkupBytes(takeOver));
+    // (The removal goes straight through DirectPlay: one sent guaranteed takes a number the receiver never orders.)
+    MCFIValueMessage remove;
+    remove.Header = LinkupHeader(MCLinkupMessageType::PlayerRemoved, FIMSG_GUARANTEED);
+    remove.Value = host.MyPlayerID;
+    CHECK_EQ(joiner.DirectPlay->Send(joiner.MyPlayerID, host.MyPlayerID, 0, LinkupBytes(remove)), uint32_t{DP_OK});
+    CHECK_EQ(joiner.DirectPlay->DeletePlayerFromGroup(group, host.MyPlayerID), uint32_t{DP_OK});
+    std::vector<uint8_t> oversized(0x300, 0x55);
+    SetLinkupHeader(oversized, 20);
+    CHECK_EQ(joiner.DirectPlay->Send(joiner.MyPlayerID, host.MyPlayerID, 0, oversized), uint32_t{DP_OK});
+    hello.Value = 0x9abc;
+    joiner.SendMessageToServerGuaranteed(LinkupBytes(hello));
+    REQUIRE(Exchange(host, joiner, [&] { return !hostReceived.empty(); }));
+    REQUIRE_EQ(hostReceived.size(), size_t{1});
+    CHECK_EQ(ReadLinkupMessage<MCFIValueMessage>(hostReceived[0]).Value, 0x9abcu);
+    CHECK(host.IsHost);
+    CHECK_EQ(host.ServerID, host.MyPlayerID);
+    CHECK(host.MyPlayer() != nullptr);
+    CHECK(host.MyPlayer()->IsInGroup(group));
+    CHECK(host.GetGroup(group) != nullptr && std::ranges::contains(host.GetGroup(group)->Players, host.MyPlayerID));
 
     // The server role goes to the player with the most memory (over 100000): the joiner here.
     host.MyPlayer()->TotalPhysicalMemory = 1;

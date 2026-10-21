@@ -22,15 +22,23 @@ MCScenarioMap::MCScenarioMap(int32_t width, int32_t height)
 {
 }
 
-MCScenarioMap::MCScenarioMap(MCFile& mapFile)
+auto MCScenarioMap::Read(MCFile& mapFile) -> std::expected<std::unique_ptr<MCScenarioMap>, std::string>
 {
-    Height = mapFile.ReadLong();
-    Width = mapFile.ReadLong();
-    BaseElevation = mapFile.ReadLong();
-    const size_t numTiles = static_cast<size_t>(Width * Height);
-    Map.resize(numTiles);
-    mapFile.Read(std::span(reinterpret_cast<uint8_t*>(Map.data()), numTiles * sizeof(MCMapTile)));
-    PathMap.resize(numTiles);
+    const int32_t height = mapFile.ReadLong();
+    const int32_t width = mapFile.ReadLong();
+    const int32_t baseElevation = mapFile.ReadLong();
+    const uint64_t left = mapFile.GetLength() - std::min(mapFile.GetLength(), mapFile.GetLogicalPosition());
+
+    if (width <= 0 || height <= 0 ||
+        static_cast<uint64_t>(width) * static_cast<uint64_t>(height) * sizeof(MCMapTile) > left)
+    {
+        return std::unexpected(std::format("a map of {}x{} tiles in {} bytes", width, height, left));
+    }
+
+    auto map = std::make_unique<MCScenarioMap>(width, height);
+    map->BaseElevation = baseElevation;
+    mapFile.Read(std::span(reinterpret_cast<uint8_t*>(map->Map.data()), map->Map.size() * sizeof(MCMapTile)));
+    return map;
 }
 
 auto MCScenarioMap::Write(MCFile& mapFile) const -> void

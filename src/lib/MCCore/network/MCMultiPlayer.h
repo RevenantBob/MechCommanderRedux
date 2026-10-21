@@ -109,6 +109,14 @@ public:
     /// <summary>Adds a turret to the synchronised roster (at most 64); stores its index in the turret.</summary>
     void AddToTurretRoster(std::shared_ptr<MCTurret> turret);
 
+    /// <summary>The mover at <paramref name="index"/> of the synchronised roster; null past <see cref="NumMovers"/>.</summary>
+    /// <remarks>Issue #25: the index comes from another machine's message.</remarks>
+    std::shared_ptr<MCMover> RosterMover(int32_t index) const;
+
+    /// <summary>The turret at <paramref name="index"/> of the synchronised roster; null past <see cref="NumTurrets"/>.</summary>
+    /// <remarks>Issue #25: the index comes from another machine's message.</remarks>
+    std::shared_ptr<MCTurret> RosterTurret(int32_t index) const;
+
     /// <summary>Packs <paramref name="chunk"/> (checking it unpacks the same) and queues it.</summary>
     /// <returns>The number queued.</returns>
     int32_t AddWorldStateChunk(MCWorldStateChunk& chunk);

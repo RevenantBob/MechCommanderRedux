@@ -161,6 +161,12 @@ auto MCAblRuntime::ExecDeclaredRoutineCall(const MCAblSymbol& routineIdPtr) -> M
 {
     const int32_t oldLevel = _Level;
     const int32_t newLevel = routineIdPtr.Level + 1;
+
+    if (_CallDepth >= MaxCallDepth)
+    {
+        RuntimeError(MCAblRuntimeError::StackOverflow);
+    }
+
     _CallDepth++;
 
     // A function of another module (a library's) has no static link and runs in that module.

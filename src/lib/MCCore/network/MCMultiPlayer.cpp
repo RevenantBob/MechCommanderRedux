@@ -122,11 +122,10 @@ int32_t MCMultiPlayer::Start()
         SessionManager = std::make_unique<MCSessionManager>(MultiPlayerAppGuid);
     }
 
-    // Port: the original passed _getcwd. The port's files are relative to the data directory, so "." stands for it.
-    SessionManager->SetHomeDirectory(".");
+    // The original also set the session manager's home directory (_getcwd) and installed empty file-sent and
+    // file-received handlers; the port has no file transfers.
     SessionManager->ApplicationCallback = MultiPlayerApplicationCallback;
     SessionManager->SystemCallback = MultiPlayerSystemCallback;
-    // The original also installed empty file-sent and file-received handlers.
     MsgBuffer.fill(0);
     return 0;
 }
@@ -351,6 +350,16 @@ void MCMultiPlayer::AddToTurretRoster(std::shared_ptr<MCTurret> turret)
     TurretRoster[NumTurrets] = turret;
     turret->NetRosterIndex = NumTurrets;
     NumTurrets++;
+}
+
+std::shared_ptr<MCMover> MCMultiPlayer::RosterMover(int32_t index) const
+{
+    return index >= 0 && index < NumMovers ? LockObject(MoverRoster[static_cast<size_t>(index)]) : nullptr;
+}
+
+std::shared_ptr<MCTurret> MCMultiPlayer::RosterTurret(int32_t index) const
+{
+    return index >= 0 && index < NumTurrets ? LockObject(TurretRoster[static_cast<size_t>(index)]) : nullptr;
 }
 
 // ---- chunk queues --------------------------------------------------------------------------------------------------

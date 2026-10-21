@@ -59,6 +59,28 @@ auto MCMover::WeaponInRange(int32_t weaponIndex, float metersToTarget) -> int32_
     return weapon.WeaponRange[3] < metersToTarget ? 0 : 4;
 }
 
+namespace
+{
+    /// <summary>
+    /// How many entries of <paramref name="list"/> a script's <paramref name="listSize"/> names: no more than the list
+    /// holds (issue #25: the size comes from the script, and the original read and wrote that many whatever the
+    /// array).
+    /// </summary>
+    int32_t ListEntries(std::span<const int32_t> list, int32_t listSize)
+    {
+        return std::clamp<int32_t>(listSize, 0, static_cast<int32_t>(list.size()));
+    }
+
+    /// <summary>Writes <paramref name="value"/> at <paramref name="index"/> of <paramref name="list"/>, if it has it.</summary>
+    void PutEntry(std::span<int32_t> list, int32_t index, int32_t value)
+    {
+        if (index >= 0 && static_cast<size_t>(index) < list.size())
+        {
+            list[static_cast<size_t>(index)] = value;
+        }
+    }
+}
+
 auto MCMover::GetWeaponsReady(std::span<int32_t> list, int32_t listSize) -> int32_t
 {
     int32_t numReady = 0;
@@ -69,28 +91,21 @@ auto MCMover::GetWeaponsReady(std::span<int32_t> list, int32_t listSize) -> int3
         {
             if (IsWeaponReady(i) != 0)
             {
-                if (!list.empty())
-                {
-                    list[numReady] = i;
-                }
-
+                PutEntry(list, numReady, i);
                 numReady++;
             }
         }
     }
     else
     {
-        for (int32_t i = 0; i < listSize; i++)
+        // A listed index that isn't one of the mover's weapons isn't ready (the original read the inventory there).
+        for (int32_t i = 0; i < ListEntries(list, listSize); i++)
         {
-            const int32_t weaponIndex = list[i];
+            const int32_t weaponIndex = list[static_cast<size_t>(i)];
 
-            if (IsWeaponReady(weaponIndex) != 0)
+            if (IsWeaponIndex(weaponIndex) != 0 && IsWeaponReady(weaponIndex) != 0)
             {
-                if (!list.empty())
-                {
-                    list[numReady] = weaponIndex;
-                }
-
+                PutEntry(list, numReady, weaponIndex);
                 numReady++;
             }
         }
@@ -121,21 +136,21 @@ auto MCMover::GetWeaponsLocked(std::span<int32_t> list, int32_t listSize) -> int
 
             if (negFireArc <= facing && facing <= fireArc)
             {
-                list[numLocked] = i;
+                PutEntry(list, numLocked, i);
                 numLocked++;
             }
         }
     }
     else
     {
-        for (int32_t i = 0; i < listSize; i++)
+        for (int32_t i = 0; i < ListEntries(list, listSize); i++)
         {
-            const int32_t weaponIndex = list[i];
+            const int32_t weaponIndex = list[static_cast<size_t>(i)];
             const float facing = WeaponLocked(weaponIndex, targetPosition);
 
             if (negFireArc <= facing && facing <= fireArc)
             {
-                list[numLocked] = weaponIndex;
+                PutEntry(list, numLocked, weaponIndex);
                 numLocked++;
             }
         }
@@ -163,20 +178,21 @@ auto MCMover::GetWeaponsInRange(std::span<int32_t> list, int32_t listSize, float
         {
             if (WeaponInRange(i, metersToTarget) != 0)
             {
-                list[numInRange] = i;
+                PutEntry(list, numInRange, i);
                 numInRange++;
             }
         }
     }
     else
     {
-        for (int32_t i = 0; i < listSize; i++)
+        // A listed index that isn't one of the mover's weapons isn't in range (the original read the inventory there).
+        for (int32_t i = 0; i < ListEntries(list, listSize); i++)
         {
-            const int32_t weaponIndex = list[i];
+            const int32_t weaponIndex = list[static_cast<size_t>(i)];
 
-            if (WeaponInRange(weaponIndex, metersToTarget) != 0)
+            if (IsWeaponIndex(weaponIndex) != 0 && WeaponInRange(weaponIndex, metersToTarget) != 0)
             {
-                list[numInRange] = weaponIndex;
+                PutEntry(list, numInRange, weaponIndex);
                 numInRange++;
             }
         }
@@ -724,6 +740,8 @@ auto MCMover::SortWeapons(std::span<int32_t> weaponList, std::span<int32_t> valu
     }
     else
     {
+        listSize = ListEntries(weaponList, listSize);
+
         for (int32_t i = 0; i < listSize; i++)
         {
             setId(i, weaponList[i]);
@@ -750,7 +768,9 @@ auto MCMover::SortWeapons(std::span<int32_t> weaponList, std::span<int32_t> valu
         sortList.Sort(true);
     }
 
-    for (int32_t i = 0; i < listSize; i++)
+    // Only as many as both lists hold (the value list was the caller's 48 entries; issue #25).
+    for (int32_t i = 0; i < std::min({listSize, ListEntries(weaponList, listSize), ListEntries(valueList, listSize)});
+         i++)
     {
         weaponList[i] = sortList.List[i].Id;
         valueList[i] = static_cast<int32_t>(sortList.List[i].Value);

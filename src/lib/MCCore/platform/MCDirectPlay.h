@@ -223,6 +223,9 @@ enum : uint32_t
     DPPLAYERTYPE_GROUP = 0,
     DPPLAYERTYPE_PLAYER = 1,
 
+    /// <summary>A player of the session's host. The host sets it on its own players and clears it on joiners'.</summary>
+    DPPLAYER_SERVERPLAYER = 0x0001,
+
     DPOPEN_JOIN = 0x01,
     DPOPEN_CREATE = 0x02,
     DPOPEN_RETURNSTATUS = 0x80,
@@ -377,6 +380,12 @@ public:
 
     /// <summary>Does the network work that is due: accepts, reads, routes, answers queries, writes.</summary>
     void Pump();
+
+    /// <summary>
+    /// Whether <paramref name="playerID"/> is a player of the session's host (<see cref="DPPLAYER_SERVERPLAYER"/>).
+    /// The host vouches for the sender of every message it relays, so this tells which messages came from the host.
+    /// </summary>
+    bool IsSessionHostPlayer(uint32_t playerID) const;
 
 private:
     struct Impl;

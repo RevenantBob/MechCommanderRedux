@@ -366,6 +366,9 @@ auto ExecHbGetSalvage(MCAblRuntime& abl) -> void
     std::span<int32_t> itemCounts = abl.NextReference<int32_t>();
     abl.Pop();
 
+    // Issue #25: the size comes from the script; no more entries than both arrays hold are written.
+    listSize = std::clamp<int32_t>(listSize, 0, static_cast<int32_t>(std::min(itemIds.size(), itemCounts.size())));
+
     for (int32_t i = 0; i < listSize; i++)
     {
         itemIds[i] = -1;
@@ -1080,13 +1083,11 @@ auto ExecHbRelPosPoint(MCAblRuntime& abl) -> void
     std::span<float> result = abl.NextReference<float>();
     abl.Pop();
     MCVector3D start;
-    start.X = point[0];
-    start.Y = point[1];
+    start.X = ArrayArgumentAt<float>(point, 0);
+    start.Y = ArrayArgumentAt<float>(point, 1);
     start.Z = 0.0f;
     MCVector3D position = RelativePositionToPoint(start, angle, distance, flags);
-    result[0] = position.X;
-    result[1] = position.Y;
-    result[2] = position.Z;
+    PutArrayArgument(result, {position.X, position.Y, position.Z});
     abl.GetCodeToken();
 }
 
@@ -1108,9 +1109,7 @@ auto ExecHbRelPosObject(MCAblRuntime& abl) -> void
     if (object)
     {
         MCVector3D position = object->RelativePosition(angle, distance, flags);
-        result[0] = position.X;
-        result[1] = position.Y;
-        result[2] = position.Z;
+        PutArrayArgument(result, {position.X, position.Y, position.Z});
     }
 
     abl.GetCodeToken();

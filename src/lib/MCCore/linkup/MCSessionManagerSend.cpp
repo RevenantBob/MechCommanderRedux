@@ -4,7 +4,6 @@
 #include "linkup/MCFidpMessage.h"
 #include "linkup/MCFidpPlayer.h"
 #include "linkup/MCFidpSession.h"
-#include "linkup/MCFileTransferInfo.h"
 #include "lib/MCFatal.h"
 #include "lib/MCMsvcSort.h"
 #include "platform/MCDirectPlay.h"

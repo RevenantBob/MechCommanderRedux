@@ -25,9 +25,9 @@ auto MCGuiFont::Create(std::string_view fileName) -> std::expected<std::unique_p
 {
     auto font = std::make_unique<MCGuiFont>();
 
-    if (font->Load(fileName) != 0)
+    if (const int32_t result = font->Load(fileName); result != 0)
     {
-        return std::unexpected(std::format("font {} is empty", fileName));
+        return std::unexpected(std::format("font {} is {}", fileName, result == -3 ? "damaged" : "empty"));
     }
 
     return font;
@@ -54,6 +54,13 @@ auto MCGuiFont::Load(std::string_view fileName) -> int32_t
     FontData = MCRegisteredBlock(size, MCDataKind::Shapes);
     file.Read(FontData.Bytes());
     file.Close();
+
+    // A font whose glyphs don't fit its data is refused (issue #25).
+    if (!VfxFontFits(FontData.Bytes()))
+    {
+        FontData = {};
+        return -3;
+    }
 
     for (size_t i = 0; i < ColorTable.size(); i++)
     {

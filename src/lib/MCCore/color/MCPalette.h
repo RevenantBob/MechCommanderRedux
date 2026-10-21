@@ -43,8 +43,11 @@ public:
     /// </summary>
     std::optional<MCColorTable> GetHazePalette(int32_t hazeLevel) const;
 
-    /// <summary>The fade table <paramref name="index"/> of the actors' set (after the two haze sets).</summary>
-    MCColorTable GetFadeTable(int32_t index) const;
+    /// <summary>
+    /// The fade table <paramref name="index"/> of the actors' set (after the two haze sets); none for an index past the
+    /// palette's tables.
+    /// </summary>
+    std::optional<MCColorTable> GetFadeTable(int32_t index) const;
 
     /// <summary>Shows the palette (<c>MCGuiSystem::ActivatePalette</c>, all 256 entries).</summary>
     void Activate();

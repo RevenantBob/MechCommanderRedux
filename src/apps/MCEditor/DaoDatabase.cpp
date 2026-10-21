@@ -44,6 +44,28 @@ namespace
         return true;
     }
 
+    /// <summary>
+    /// <paramref name="identifier"/> as an SQL quoted identifier: in double quotes, each one inside doubled (issue #25: the
+    /// .mdb's column names went into brackets as they were, and a ']' in one ended the name).
+    /// </summary>
+    CString quoteIdentifier(const std::string& identifier)
+    {
+        std::string quoted = "\"";
+
+        for (const char c : identifier)
+        {
+            quoted += c;
+
+            if (c == '"')
+            {
+                quoted += '"';
+            }
+        }
+
+        quoted += '"';
+        return CString(quoted.c_str());
+    }
+
     /// <summary>Copies the rows of the Jet table <paramref name="name"/> into the SQLite table of that name.</summary>
     bool importTable(const JetDatabase& jet, sqlite3* db, const char* name, CString& error)
     {
@@ -57,11 +79,11 @@ namespace
         // Each Jet column goes to the SQLite column of its name; there is one for each (the schema is FitAbl.mdb's).
         CString sql;
         CString values;
-        sql.Format("INSERT INTO [%s] (", name);
+        sql = "INSERT INTO " + quoteIdentifier(name) + " (";
 
         for (size_t c = 0; c < table.columns.size(); ++c)
         {
-            sql += (c == 0 ? "[" : ", [") + CString(table.columns[c].name.c_str()) + "]";
+            sql += (c == 0 ? "" : ", ") + quoteIdentifier(table.columns[c].name);
             values += c == 0 ? "?" : ", ?";
         }
 

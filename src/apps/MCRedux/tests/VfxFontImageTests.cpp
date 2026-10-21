@@ -298,9 +298,9 @@ TEST_CASE("vfx gif: plain and interlaced pictures decode to their pixels")
     }
 
     std::vector<uint8_t> gif = MakeGif(width, height, pixels, false);
-    CHECK_EQ(VfxGifResolution(gif), (width << 16) | height);
+    CHECK(VfxGifResolution(gif) == ((width << 16) | height));
     TestSurface surface(5, 10, 0xee);
-    CHECK_EQ(VfxGifDraw(surface.Pane, gif), 3);
+    CHECK(VfxGifDraw(surface.Pane, gif) == 3);
 
     for (int y = 0; y < height; ++y)
     {
@@ -324,7 +324,7 @@ TEST_CASE("vfx gif: plain and interlaced pictures decode to their pixels")
 
     gif = MakeGif(width, height, stored, true);
     TestSurface interlaced(5, 10, 0xee);
-    VfxGifDraw(interlaced.Pane, gif);
+    CHECK(VfxGifDraw(interlaced.Pane, gif).has_value());
 
     for (int y = 0; y < height; ++y)
     {
@@ -335,11 +335,59 @@ TEST_CASE("vfx gif: plain and interlaced pictures decode to their pixels")
     }
 
     MCVfxRgb palette[256] = {};
-    VfxGifPalette(gif, palette);
+    CHECK(VfxGifPalette(gif, palette).has_value());
     CHECK_EQ(palette[1].R, 63);
     CHECK_EQ(palette[2].G, 32);
     CHECK_EQ(palette[3].B, 63);
     CHECK_EQ(palette[4].R, 0);
+}
+
+/// <summary>
+/// A GIF the game can't draw is refused with its reason, before anything is drawn (issue #25: a zero-width image wrote
+/// its pixels past the line, a code size of 12 or more ran over the code tables, and short files were read past).
+/// Image data that ends early draws the pixels it holds.
+/// </summary>
+TEST_CASE("vfx gif: a damaged picture is refused, and a cut-off one draws what it holds")
+{
+    // MakeGif's layout: the image descriptor at 25 (its width at 30, height at 32), the code size at 35.
+    const std::vector<uint8_t> pixels(3 * 8, 1);
+    const std::vector<uint8_t> good = MakeGif(3, 8, pixels, false);
+    const auto refused = [](std::vector<uint8_t> gif)
+    {
+        TestSurface surface(5, 10, 0xee);
+        std::array<MCVfxRgb, 256> palette{};
+        const bool refusedAll = !VfxGifDraw(surface.Pane, gif).has_value() && !VfxGifResolution(gif).has_value() &&
+                                !VfxGifPalette(gif, palette).has_value();
+        return refusedAll && std::ranges::all_of(surface.Pixels(), [](uint8_t p) { return p == 0xee; });
+    };
+
+    std::vector<uint8_t> zeroWidth = good;
+    zeroWidth[30] = 0;
+    CHECK(refused(zeroWidth));
+    std::vector<uint8_t> zeroHeight = good;
+    zeroHeight[32] = 0;
+    CHECK(refused(zeroHeight));
+
+    for (const uint8_t codeSize : {0, 12, 13, 255})
+    {
+        MCTest::Scope scope(std::format("code size {}", codeSize));
+        std::vector<uint8_t> wide = good;
+        wide[35] = codeSize;
+        CHECK(refused(wide));
+    }
+
+    for (const size_t size : {0, 12, 20, 34, 35})
+    {
+        MCTest::Scope scope(std::format("{} bytes", size));
+        CHECK(refused(std::vector<uint8_t>(good.begin(), good.begin() + static_cast<std::ptrdiff_t>(size))));
+    }
+
+    // Cut inside the image data: the rows it holds are drawn, the rest left alone.
+    TestSurface surface(5, 10, 0xee);
+    const std::vector<uint8_t> cut(good.begin(), good.begin() + 40);
+    CHECK(VfxGifDraw(surface.Pane, cut) == 3);
+    CHECK_EQ(surface.At(0, 0), 1);
+    CHECK_EQ(surface.At(0, 7), 0xee);
 }
 
 TEST_CASE("vfx ilbm: PBM pictures decode, raw and ByteRun1")
@@ -434,10 +482,10 @@ TEST_CASE("game: palettex.gif decodes to the reference pixels")
     MCTestGame::OpenFastFiles();
     std::vector<uint8_t> gif = ReadGameFile("data\\palette\\palettex.gif");
     REQUIRE(!gif.empty());
-    CHECK_EQ(VfxGifResolution(gif), (640 << 16) | 400);
+    CHECK(VfxGifResolution(gif) == ((640 << 16) | 400));
 
     TestSurface surface(640, 400, 0);
-    CHECK_EQ(VfxGifDraw(surface.Pane, gif), 16);
+    CHECK(VfxGifDraw(surface.Pane, gif) == 16);
     // FNV-1a of the pixels as an independent decoder (PIL) gives them.
     uint32_t hash = 0x811c9dc5;
 
@@ -450,7 +498,7 @@ TEST_CASE("game: palettex.gif decodes to the reference pixels")
     CHECK_EQ(VfxColorScan(surface.Pane, {}), 155);
 
     MCVfxRgb palette[256];
-    VfxGifPalette(gif, palette);
+    CHECK(VfxGifPalette(gif, palette).has_value());
     CHECK_EQ(palette[0].R, 63);
     CHECK_EQ(palette[0].G, 0);
     CHECK_EQ(palette[0].B, 56);
@@ -477,6 +525,21 @@ TEST_CASE("game: the fonts decode and draw")
         CHECK(height > 4 && height < 32);
         // char_count can exceed 256 (WHITE12.FNT has 280 entries, LBLACK.FNT 770); strings index only the first 256.
         REQUIRE(count > 0 && 0x10 + static_cast<size_t>(count) * 4 <= font.size());
+        CHECK(VfxFontFits(font));
+
+        // A glyph whose width runs past the data, or a table that does, is refused; a character past the table has
+        // no width.
+        CHECK_EQ(VfxCharacterWidth(font, count), 0);
+        std::vector<uint8_t> damaged = font;
+        int32_t firstGlyph = 0;
+        std::memcpy(&firstGlyph, damaged.data() + 0x10, 4);
+        const int32_t hugeWidth = 0x7fffffff;
+        std::memcpy(damaged.data() + firstGlyph, &hugeWidth, 4);
+        CHECK(!VfxFontFits(damaged));
+        const int32_t longTable = static_cast<int32_t>(font.size());
+        damaged = font;
+        std::memcpy(damaged.data() + 4, &longTable, 4);
+        CHECK(!VfxFontFits(damaged));
 
         // Every glyph lies inside the file.
         for (int32_t c = 0; c < count; ++c)

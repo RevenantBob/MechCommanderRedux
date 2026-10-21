@@ -333,15 +333,30 @@ namespace
             }
         }
 
+        /// <summary>Set once a read ran past the file: the image ends there.</summary>
+        bool Ended = false;
+
+        /// <summary>The next byte of the file (0, and <see cref="Ended"/> set, past its end).</summary>
+        uint8_t Next()
+        {
+            if (In >= Data.size())
+            {
+                Ended = true;
+                return 0;
+            }
+
+            return Data[In++];
+        }
+
         /// <summary>GIF_getb: the next data byte, stepping over sub-block lengths.</summary>
         uint32_t GetByte()
         {
             if (State.BlockLeft == 0)
             {
-                State.BlockLeft = Data[In++];
+                State.BlockLeft = Next();
             }
 
-            const uint32_t value = Data[In++];
+            const uint32_t value = Next();
             --State.BlockLeft;
             return value;
         }
@@ -422,48 +437,120 @@ namespace
         }
     };
 
-    /// <summary>The offset of the image descriptor: past the header and the global colour table.</summary>
-    size_t GifImageDescriptor(std::span<const uint8_t> gif)
+    /// <summary>Where the parts of a GIF the routines read lie, checked against the file.</summary>
+    /// <remarks>
+    /// As the original, the image descriptor is taken to follow the global colour table (no extension blocks).
+    /// </remarks>
+    struct MCGifLayout
     {
-        const uint8_t flags = gif[0xa];
-        size_t p = 0xd;
+        uint8_t Background = 0;
+        /// <summary>The global colour table's offset and size in bytes (0 without one).</summary>
+        size_t GlobalPalette = 0;
+        size_t GlobalPaletteSize = 0;
+        int32_t Width = 0;
+        int32_t Height = 0;
+        bool Interlaced = false;
+        /// <summary>The local colour table's offset and size in bytes (0 without one).</summary>
+        size_t LocalPalette = 0;
+        size_t LocalPaletteSize = 0;
+        int32_t MinCodeSize = 0;
+        /// <summary>The first sub-block of the image data.</summary>
+        size_t Data = 0;
+    };
 
-        if (flags & 0x80)
+    /// <summary>
+    /// The layout of <paramref name="gif"/>, or why it can't be drawn: too short for its header, colour tables or
+    /// image descriptor, an image with no pixels, or an LZW code size the 4096-entry tables can't hold.
+    /// </summary>
+    /// <remarks>
+    /// Issue #25: the file comes from the data (a mission's tactical-map picture); the original read past it, wrote
+    /// a zero-width image's pixels past its line, and ran its code tables over with a code size from 12 on.
+    /// </remarks>
+    std::expected<MCGifLayout, std::string> ReadGifLayout(std::span<const uint8_t> gif)
+    {
+        MCGifLayout layout;
+
+        if (gif.size() < 0xd)
         {
-            p += static_cast<size_t>(3 * (1 << ((flags & 7) + 1)));
+            return std::unexpected("shorter than a GIF header");
         }
 
-        return p;
+        const uint8_t flags = gif[0xa];
+        layout.Background = gif[0xb];
+        size_t p = 0xd;
+
+        if ((flags & 0x80) != 0)
+        {
+            layout.GlobalPalette = p;
+            layout.GlobalPaletteSize = static_cast<size_t>(3 * (1 << ((flags & 7) + 1)));
+            p += layout.GlobalPaletteSize;
+        }
+
+        if (gif.size() < p + 0xa)
+        {
+            return std::unexpected("no image descriptor");
+        }
+
+        layout.Width = ReadLE16(gif, p + 5);
+        layout.Height = ReadLE16(gif, p + 7);
+        const uint8_t imageFlags = gif[p + 9];
+        layout.Interlaced = (imageFlags & 0x40) != 0;
+        p += 0xa;
+
+        if (layout.Width == 0 || layout.Height == 0)
+        {
+            return std::unexpected(std::format("an image of {}x{} pixels", layout.Width, layout.Height));
+        }
+
+        if ((imageFlags & 0x80) != 0)
+        {
+            layout.LocalPalette = p;
+            layout.LocalPaletteSize = static_cast<size_t>(3 * (1 << ((imageFlags & 7) + 1)));
+            p += layout.LocalPaletteSize;
+        }
+
+        if (gif.size() < p + 1)
+        {
+            return std::unexpected("no image data");
+        }
+
+        layout.MinCodeSize = gif[p];
+        layout.Data = p + 1;
+
+        // The codes grow to 12 bits at most: the clear code and the end code must leave room in the tables.
+        if (layout.MinCodeSize < 1 || layout.MinCodeSize > 11)
+        {
+            return std::unexpected(std::format("an LZW code size of {}", layout.MinCodeSize));
+        }
+
+        return layout;
     }
 }
 
-int32_t VfxGifDraw(const MCPane& pane, std::span<const uint8_t> gif)
+std::expected<int32_t, std::string> VfxGifDraw(const MCPane& pane, std::span<const uint8_t> gif)
 {
+    const std::expected<MCGifLayout, std::string> layout = ReadGifLayout(gif);
+
+    if (!layout.has_value())
+    {
+        return std::unexpected(layout.error());
+    }
+
     // The work buffer the game passed held this state; it is the routine's own now (zeroed, where the asm cleared
     // its first 0x2e bytes and filled the tables before reading them).
     const auto stateHolder = std::make_unique<MCGifState>();
     MCGifState& state = *stateHolder;
 
     MCGifDecoder decoder{.State = state, .Data = gif, .Pane = pane};
-    const int32_t background = gif[0xb];
-
-    const size_t descriptor = GifImageDescriptor(gif);
-    state.Width = ReadLE16(gif, descriptor + 5);
-    state.Height = ReadLE16(gif, descriptor + 7);
-    const uint8_t imageFlags = gif[descriptor + 9];
-    state.Interlaced = imageFlags & 0x40;
-    size_t in = descriptor + 0xa;
-
-    if (imageFlags & 0x80)
-    {
-        in += static_cast<size_t>(3 * (1 << ((imageFlags & 7) + 1)));
-    }
-
-    decoder.Line.assign(static_cast<size_t>(std::max(state.Width, 1)), 0);
+    const int32_t background = layout->Background;
+    state.Width = layout->Width;
+    state.Height = layout->Height;
+    state.Interlaced = layout->Interlaced ? 0x40 : 0;
+    decoder.Line.assign(static_cast<size_t>(state.Width), 0);
 
     state.BlockLeft = 0;
-    const int32_t minCodeSize = gif[in++];
-    decoder.In = in;
+    const int32_t minCodeSize = layout->MinCodeSize;
+    decoder.In = layout->Data;
     const int32_t clearCode = 1 << minCodeSize;
     const int32_t endCode = clearCode + 1;
     state.CodeSize = minCodeSize + 1;
@@ -475,7 +562,8 @@ int32_t VfxGifDraw(const MCPane& pane, std::span<const uint8_t> gif)
     state.LinePos = 0;
     state.Row = 0;
 
-    while (!done)
+    // A file that ends inside the image draws what it holds.
+    while (!done && !decoder.Ended)
     {
         int32_t code;
 
@@ -503,8 +591,8 @@ int32_t VfxGifDraw(const MCPane& pane, std::span<const uint8_t> gif)
             do
             {
                 decoder.In += static_cast<size_t>(state.BlockLeft);
-                state.BlockLeft = gif[decoder.In++];
-            } while (state.BlockLeft != 0);
+                state.BlockLeft = decoder.Next();
+            } while (state.BlockLeft != 0 && !decoder.Ended);
 
             done = true;
             continue;
@@ -550,41 +638,40 @@ int32_t VfxGifDraw(const MCPane& pane, std::span<const uint8_t> gif)
     return background;
 }
 
-void VfxGifPalette(std::span<const uint8_t> gif, std::span<MCVfxRgb, 256> palette)
+std::expected<void, std::string> VfxGifPalette(std::span<const uint8_t> gif, std::span<MCVfxRgb, 256> palette)
 {
-    size_t p = 0xd;
+    const std::expected<MCGifLayout, std::string> layout = ReadGifLayout(gif);
+
+    if (!layout.has_value())
+    {
+        return std::unexpected(layout.error());
+    }
+
     const std::span<uint8_t> out(reinterpret_cast<uint8_t*>(palette.data()), sizeof(MCVfxRgb) * palette.size());
-    const uint8_t flags = gif[0xa];
 
-    if (flags & 0x80)
+    // The global table, then the local one over it (each at most 256 colours, which the palette holds).
+    for (const auto [offset, size] : {std::pair(layout->GlobalPalette, layout->GlobalPaletteSize),
+                                      std::pair(layout->LocalPalette, layout->LocalPaletteSize)})
     {
-        const int32_t count = 3 * (1 << ((flags & 7) + 1));
-
-        for (int32_t i = 0; i < count; ++i)
+        for (size_t i = 0; i < size; ++i)
         {
-            out[static_cast<size_t>(i)] = static_cast<uint8_t>(gif[p++] >> 2);
+            out[i] = static_cast<uint8_t>(gif[offset + i] >> 2);
         }
     }
 
-    const uint8_t imageFlags = gif[p + 9];
-
-    if (imageFlags & 0x80)
-    {
-        const int32_t count = 3 * (1 << ((imageFlags & 7) + 1));
-        p += 0xa;
-
-        for (int32_t i = 0; i < count; ++i)
-        {
-            out[static_cast<size_t>(i)] = static_cast<uint8_t>(gif[p++] >> 2);
-        }
-    }
+    return {};
 }
 
-int32_t VfxGifResolution(std::span<const uint8_t> gif)
+std::expected<int32_t, std::string> VfxGifResolution(std::span<const uint8_t> gif)
 {
-    const size_t descriptor = GifImageDescriptor(gif);
-    return static_cast<int32_t>((static_cast<uint32_t>(ReadLE16(gif, descriptor + 5)) << 16) |
-                                ReadLE16(gif, descriptor + 7));
+    const std::expected<MCGifLayout, std::string> layout = ReadGifLayout(gif);
+
+    if (!layout.has_value())
+    {
+        return std::unexpected(layout.error());
+    }
+
+    return static_cast<int32_t>((static_cast<uint32_t>(layout->Width) << 16) | static_cast<uint32_t>(layout->Height));
 }
 
 void VfxWindowFade(const MCWindow& window, std::span<const MCVfxRgb, 256> palette, int32_t intervals)

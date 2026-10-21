@@ -389,14 +389,31 @@ auto MCFileScrollPane::GetAllFiles(std::string_view extension, bool sort) -> voi
             continue;
         }
 
+        // Every save in the folder is read as the screen opens. One that can't be read, or names a planet the game
+        // doesn't have, is listed without its operation, mission and points (issue #25: the original went on reading
+        // a file it couldn't open, and indexed the two master files with the save's Setting).
         MCPacketFile saveFile;
         MCFitIniFile saveFit;
         int32_t result = saveFile.Open(GamePath(StartDirectory, file.Name, extension));
         Assert(result == 0, result, " Could not find save game file ");
-        result = saveFile.SeekPacket(0);
-        Assert(result == 0, 0, " could not find packet 0 in save game file ");
-        result = saveFit.Open(saveFile, static_cast<uint32_t>(saveFile.GetPacketSize()));
-        Assert(result == 0, 0, " could not open save game file ");
+
+        if (result == 0)
+        {
+            result = saveFile.SeekPacket(0);
+            Assert(result == 0, 0, " could not find packet 0 in save game file ");
+        }
+
+        if (result == 0)
+        {
+            result = saveFit.Open(saveFile, static_cast<uint32_t>(saveFile.GetPacketSize()));
+            Assert(result == 0, 0, " could not open save game file ");
+        }
+
+        if (result != 0)
+        {
+            continue;
+        }
+
         int32_t planet = 0;
 
         if (saveFit.SeekBlock("Planet") == 0)
@@ -415,6 +432,13 @@ auto MCFileScrollPane::GetAllFiles(std::string_view extension, bool sort) -> voi
         file.ResourcePoints = points.value_or(0);
         saveFit.Close();
         saveFile.Close();
+
+        if (planet < 0 || static_cast<size_t>(planet) >= masterFiles.size())
+        {
+            SDL_Log("MCFileScrollPane: %s names planet %d", file.Name.c_str(), planet);
+            continue;
+        }
+
         ReadOpInfo(masterFiles[static_cast<size_t>(planet)], missionNumber.value_or(0), file);
     }
 

@@ -215,7 +215,13 @@ auto MCWeaponFireChunk::Unpack(MCBigGameObject& attacker) -> void
     if (IsMoverClass(attacker.ObjectClass))
     {
         auto& mover = static_cast<MCMover&>(attacker);
-        missileWeapon = mover.IsWeaponMissile(mover.NumOther + WeaponIndex);
+
+        // A chunk from another machine can name a weapon the mover doesn't have; it is no missile (the original read
+        // past the inventory).
+        if (mover.IsWeaponIndex(mover.NumOther + WeaponIndex) != 0)
+        {
+            missileWeapon = mover.IsWeaponMissile(mover.NumOther + WeaponIndex);
+        }
     }
     else if (attacker.ObjectClass == MCObjectClass::Turret)
     {

@@ -147,7 +147,7 @@ void MCWorldStateChunk::Pack()
     Data |= Type;
 }
 
-void MCWorldStateChunk::Unpack()
+bool MCWorldStateChunk::Unpack()
 {
     const uint32_t packed = Data;
     Type = static_cast<int8_t>(packed & 0xf);
@@ -201,12 +201,15 @@ void MCWorldStateChunk::Unpack()
             }
             else
             {
-                Fatal(0, " WorldStateChunk.unpack: bad type ");
+                // The chunk came from another machine; the caller drops it (the original was fatal).
+                return false;
             }
 
             break;
         }
     }
+
+    return true;
 }
 
 bool MCWorldStateChunk::EqualTo(const MCWorldStateChunk& chunk) const

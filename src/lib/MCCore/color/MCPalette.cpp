@@ -140,11 +140,17 @@ auto MCPalette::GetHazePalette(int32_t hazeLevel) const -> std::optional<MCColor
     return std::span(FadePalettes).subspan(static_cast<size_t>(set + level - 1) * FadeTableSize).first<FadeTableSize>();
 }
 
-auto MCPalette::GetFadeTable(int32_t index) const -> MCColorTable
+auto MCPalette::GetFadeTable(int32_t index) const -> std::optional<MCColorTable>
 {
-    return std::span(FadePalettes)
-        .subspan(static_cast<size_t>(index + NumBitmapHazeLevels * 2) * FadeTableSize)
-        .first<FadeTableSize>();
+    // Issue #25: the index is a paint scheme from the mission or a pilot's file; one past the tables has none.
+    const int64_t table = static_cast<int64_t>(index) + NumBitmapHazeLevels * 2;
+
+    if (table < 0 || (table + 1) * static_cast<int64_t>(FadeTableSize) > static_cast<int64_t>(FadePalettes.size()))
+    {
+        return std::nullopt;
+    }
+
+    return std::span(FadePalettes).subspan(static_cast<size_t>(table) * FadeTableSize).first<FadeTableSize>();
 }
 
 auto MCPalette::Activate() -> void

@@ -723,7 +723,7 @@ auto MCTurret::UpdateWeaponFireChunks(int32_t which) -> int32_t
 
                 if (chunk.TargetType == 0)
                 {
-                    chunkTarget = LockObject(MultiPlayer()->MoverRoster[chunk.TargetId]);
+                    chunkTarget = MultiPlayer()->RosterMover(chunk.TargetId);
                     missing = " Turret.updateWeaponFireChunks: NULL Mover Target (save wfchunk.dbg file) ";
                 }
                 else
@@ -740,9 +740,20 @@ auto MCTurret::UpdateWeaponFireChunks(int32_t which) -> int32_t
                     Assert(false, 0, missing);
                 }
 
-                HandleWeaponFire(0, std::static_pointer_cast<MCGameObject>(chunkTarget), std::nullopt, chunk.Hit,
-                                 ChunkEntryAngles[chunk.EntryAngle], chunk.NumMissiles, chunk.NumMissilesPastAms,
-                                 chunk.NumAntiMissileShots, chunk.HitLocation);
+                // The chunk came from the server, so a target that isn't there, or a hit on an armor location the
+                // target doesn't have, is skipped (the original went on with them).
+                const auto gameTarget = std::dynamic_pointer_cast<MCGameObject>(chunkTarget);
+                const auto moverTarget = std::dynamic_pointer_cast<MCMover>(chunkTarget);
+
+                if (gameTarget == nullptr ||
+                    (chunk.Hit != 0 && moverTarget != nullptr && !moverTarget->IsHitLocation(chunk.HitLocation)))
+                {
+                    continue;
+                }
+
+                HandleWeaponFire(0, gameTarget, std::nullopt, chunk.Hit, ChunkEntryAngles[chunk.EntryAngle],
+                                 chunk.NumMissiles, chunk.NumMissilesPastAms, chunk.NumAntiMissileShots,
+                                 chunk.HitLocation);
                 break;
             }
 
@@ -760,7 +771,9 @@ auto MCTurret::UpdateWeaponFireChunks(int32_t which) -> int32_t
             }
 
             default:
-                Fatal(0, " Mover.updateWeaponFireChunk: bad targetType ");
+            {
+                break;
+            }
         }
     }
 

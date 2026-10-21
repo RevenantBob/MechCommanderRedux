@@ -3,6 +3,8 @@
 #include "ai/MCMoveGeometry.h"
 #include "ai/MCMovePath.h"
 #include "ai/MCObjectMap.h"
+#include "ai/MCMoveSystem.h"
+#include "ai/MCScenarioMap.h"
 #include "lib/MCFatal.h"
 #include "lib/MCFile.h"
 #include "object/MCBattleMech.h"
@@ -270,6 +272,13 @@ auto MCMoveChunk::Unpack(MCMover& /*mover*/) -> bool
     }
 
     return true;
+}
+
+auto MCMoveChunk::OnMap() const -> bool
+{
+    const auto steps = std::span(StepPos).first(static_cast<size_t>(std::clamp(NumSteps, 0, MaxSteps)));
+    return std::ranges::all_of(steps,
+                               [](const std::array<int32_t, 4>& pos) { return GameMap().OnMap(pos[0], pos[1]); });
 }
 
 auto MCMoveChunk::EqualTo(MCMover& mover, const MCMoveChunk& chunk) const -> bool

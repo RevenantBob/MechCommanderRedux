@@ -268,8 +268,9 @@ auto MCAblRuntime::RuntimeError(MCAblRuntimeError error) -> void
 
 auto MCAblRuntime::AllocateBlock(int32_t size, std::string_view what, bool array) -> MCAblAddress
 {
-    // An empty block came back null from the original's heap, which was fatal.
-    if (size <= 0)
+    // An empty block came back null from the original's heap, which was fatal. So is one past the script heap's 16 MB
+    // (issue #25: the size comes from the script's declarations).
+    if (size <= 0 || size > MaxBlockBytes)
     {
         Fatal(0, std::format(" ABL: Unable to AblStackHeap->malloc {} ", what));
     }

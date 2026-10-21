@@ -145,15 +145,24 @@ auto MCGuiPort::Init(int32_t artPacket) -> int32_t
     file.Read(gif);
     file.Close();
 
-    const uint32_t resolution = static_cast<uint32_t>(VfxGifResolution(gif));
-    const int32_t result = Init(static_cast<int32_t>(resolution >> 16), static_cast<int32_t>(resolution & 0xffff));
+    // The game's own art: a picture it can't draw means a damaged install, which it can't run without.
+    const std::expected<int32_t, std::string> resolution = VfxGifResolution(gif);
+
+    if (!resolution.has_value())
+    {
+        Fatal(-2, "Bad picture in art.pak: ", resolution.error());
+    }
+
+    const auto dimensions = static_cast<uint32_t>(*resolution);
+    const int32_t result = Init(static_cast<int32_t>(dimensions >> 16), static_cast<int32_t>(dimensions & 0xffff));
 
     if (result != 0)
     {
         return result;
     }
 
-    VfxGifDraw(*_Pane, gif);
+    // The layout was checked above, so the draw refuses nothing.
+    static_cast<void>(VfxGifDraw(*_Pane, gif));
     return 0;
 }
 

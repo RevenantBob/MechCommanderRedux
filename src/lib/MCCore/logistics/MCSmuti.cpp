@@ -258,8 +258,14 @@ auto MCSmuti::Process(std::string_view text, MCOptionalRef<MCGuiPort> port, int3
                                 LineLength = 0;
                             }
 
-                            FontColor = color - '0';
-                            Font = Fonts[FontColor][FontSize];
+                            // Issue #25: the text comes from briefings, scripts and chat; a colour other than 0-9
+                            // keeps the current one (the original indexed the ten-row table with it).
+                            if (color >= '0' && color < '0' + static_cast<int32_t>(Fonts.size()))
+                            {
+                                FontColor = color - '0';
+                                Font = Fonts[FontColor][FontSize];
+                            }
+
                             break;
                         }
 

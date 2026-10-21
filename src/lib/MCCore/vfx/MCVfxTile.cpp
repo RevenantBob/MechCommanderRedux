@@ -12,6 +12,59 @@
 //
 // A row of length 0 is empty.
 
+namespace
+{
+    /// <summary>The port's result for a tile whose data doesn't fit its table (see <see cref="VfxTileFits"/>).</summary>
+    constexpr auto TileDataBad = static_cast<int32_t>(0xcdcf0002);
+}
+
+bool VfxTileFits(std::span<const uint8_t> tile)
+{
+    if (tile.size() < 4)
+    {
+        return false;
+    }
+
+    const uint32_t height = tile[2];
+    const uint32_t width = tile[3];
+    const size_t table = 4 + (static_cast<size_t>(height) + 1) * 4;
+
+    if (tile.size() < table)
+    {
+        return false;
+    }
+
+    const auto offset = [&](uint32_t row)
+    {
+        uint32_t value = 0;
+        std::memcpy(&value, tile.data() + 4 + static_cast<size_t>(row) * 4, sizeof(value));
+        return static_cast<size_t>(value);
+    };
+
+    size_t start = offset(0);
+
+    if (start < table || start > tile.size())
+    {
+        return false;
+    }
+
+    for (uint32_t row = 0; row < height; ++row)
+    {
+        const size_t end = offset(row + 1);
+
+        // The last pixel's column (x + pixels - 1) is at most the width: the retail tiles reach column `width`, one past
+        // their stated box, which the drawer allows for (it draws unclipped only when left + width is inside).
+        if (end < start || end > tile.size() || (end > start + 1 && tile[start] + (end - start - 2) > width))
+        {
+            return false;
+        }
+
+        start = end;
+    }
+
+    return true;
+}
+
 int32_t VfxNTileDraw(const MCPane& pane, std::span<const uint8_t> tile, int32_t x, int32_t y, const MCTileXlat& xlat)
 {
     const std::shared_ptr<MCWindow> window = pane.Window.lock();
@@ -19,6 +72,11 @@ int32_t VfxNTileDraw(const MCPane& pane, std::span<const uint8_t> tile, int32_t 
     if (window == nullptr || tile.empty())
     {
         return 0;
+    }
+
+    if (!VfxTileFits(tile))
+    {
+        return TileDataBad;
     }
 
     const int32_t stride = window->XMax + 1;

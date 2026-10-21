@@ -191,7 +191,9 @@ bool JetDatabase::findRow(uint32_t page, uint32_t row, size_t& first, size_t& la
 {
     const uint8_t* p = pageData(page);
 
-    if (p == nullptr || p[0] != PAGE_DATA || row >= readU16(p + DATA_ROW_COUNT))
+    // The row's offset entry must lie in the page (issue #25: a page claiming more rows than fit was read past).
+    if (p == nullptr || p[0] != PAGE_DATA || row >= readU16(p + DATA_ROW_COUNT) ||
+        DATA_ROW_OFFSETS + (static_cast<size_t>(row) + 1) * 2 > PAGE_SIZE)
     {
         return false;
     }

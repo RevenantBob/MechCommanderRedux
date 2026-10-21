@@ -34,7 +34,9 @@ public:
     /// Loads a scenario's maps: <paramref name="mapFile"/> (the terrain's .dat) and <paramref name="globalMapFile"/>
     /// (its .gmm), with a path finder window of <paramref name="pathWindow"/> tiles a side.
     /// </summary>
-    static std::unique_ptr<MCMoveSystem> Load(MCFile& mapFile, MCFile& globalMapFile, int32_t pathWindow);
+    /// <returns>The system, or which map can't be read and why.</returns>
+    static std::expected<std::unique_ptr<MCMoveSystem>, std::string> Load(MCFile& mapFile, MCFile& globalMapFile,
+                                                                          int32_t pathWindow);
 
     /// <summary>
     /// The A* open list the path finder and the global map share. Declared first: the searches that point at it go

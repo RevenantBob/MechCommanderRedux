@@ -118,8 +118,15 @@ inline int32_t NumMasterComponents();
 
 /// <summary>The form names, by <see cref="MCComponentForm"/>.</summary>
 extern const std::array<std::string_view, 20> ComponentFormString;
-/// <summary>The master component table, by id (loaded with the mission and read by logistics too).</summary>
+/// <summary>
+/// The master component table, by id (loaded with the mission and read by logistics too): a row for every byte id,
+/// those past <see cref="NumMasterComponents"/> empty.
+/// </summary>
 extern std::vector<MCMasterComponent> MasterComponentList;
+/// <summary>The rows <see cref="MasterComponentList"/> has: one per id a byte can hold.</summary>
+inline constexpr int32_t MaxMasterComponentRows = 256;
+/// <summary>The rows the component file filled (the count the game asked for).</summary>
+extern int32_t MasterComponentRows;
 /// <summary>The arm actuator's master id (from the file's header).</summary>
 extern int32_t MasterArmActuatorID;
 /// <summary>The leg actuator's master id.</summary>
@@ -131,5 +138,5 @@ extern int32_t MasterInnerSphereAntiMissileSystemID;
 
 inline int32_t NumMasterComponents()
 {
-    return static_cast<int32_t>(MasterComponentList.size());
+    return MasterComponentRows;
 }

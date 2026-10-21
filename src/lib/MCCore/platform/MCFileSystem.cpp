@@ -45,11 +45,17 @@ namespace
     }
 
     /// <summary>Resolves <paramref name="gamePath"/> against <paramref name="root"/> (for a relative path).</summary>
+    /// <remarks>
+    /// A relative path never leaves <paramref name="root"/>: a ".." at the root is ignored, as at a drive's root, and a
+    /// part naming a drive ("C:") is skipped, since appending it would replace the path. Paths reach here from saves,
+    /// mission data and the network (issue #25).
+    /// </remarks>
     std::filesystem::path ResolveFrom(const std::filesystem::path& root, std::string_view gamePath)
     {
         std::filesystem::path result;
         std::vector<std::string> parts = SplitGamePath(gamePath);
         size_t first = 0;
+        size_t depth = 0;
 
         if (IsAbsoluteGamePath(gamePath))
         {
@@ -79,10 +85,21 @@ namespace
 
             if (part == "..")
             {
-                result = result.parent_path();
+                if (depth > 0)
+                {
+                    result = result.parent_path();
+                    --depth;
+                }
+
                 continue;
             }
 
+            if (std::filesystem::path(part).has_root_name())
+            {
+                continue;
+            }
+
+            ++depth;
             std::filesystem::path exact = result / part;
             std::error_code error;
 
@@ -400,6 +417,16 @@ namespace MCFileSystem
     std::filesystem::path Resolve(std::string_view gamePath)
     {
         return Files().Resolve(gamePath);
+    }
+
+    bool IsContainedPath(std::string_view gamePath)
+    {
+        if (gamePath.empty() || IsAbsoluteGamePath(gamePath) || gamePath.find(':') != std::string_view::npos)
+        {
+            return false;
+        }
+
+        return std::ranges::none_of(SplitGamePath(gamePath), [](const std::string& part) { return part == ".."; });
     }
 
     std::filesystem::path ResolveWrite(std::string_view gamePath, bool copyExisting)

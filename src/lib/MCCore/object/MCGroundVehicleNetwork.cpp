@@ -338,7 +338,8 @@ auto MCGroundVehicle::HandleMoveChunk(uint32_t chunk) -> int32_t
     MoveChunk.Reset();
     MoveChunk.Data = chunk;
 
-    if (MoveChunk.Unpack(*this))
+    // Steps off the map, from the server's message, are ignored.
+    if (MoveChunk.Unpack(*this) && MoveChunk.OnMap())
     {
         MCMovePath& path = GetPilot()->GetMovePath();
         path.SetMoveChunk(MoveChunk);

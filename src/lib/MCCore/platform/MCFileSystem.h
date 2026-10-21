@@ -48,6 +48,12 @@ namespace MCFileSystem
     /// </summary>
     std::filesystem::path ResolveWrite(std::string_view gamePath, bool copyExisting = false);
 
+    /// <summary>
+    /// Whether <paramref name="gamePath"/>, a path from outside the game (another machine's message), names something
+    /// in the game's folders: not empty, relative, and with no ".." part, drive or stream (no ':').
+    /// </summary>
+    bool IsContainedPath(std::string_view gamePath);
+
     /// <summary>Creates a folder (the CRT's <c>_mkdir</c>), under the user folder for a relative path.</summary>
     /// <returns>Whether the folder exists afterwards.</returns>
     bool MakeDirectory(std::string_view gamePath);

@@ -383,7 +383,8 @@ TEST_CASE("logistics: deploy and remove force messages pack and unpack")
     CHECK_EQ(bytes[0xe], 0);
     CHECK_EQ(bytes[0x11], 0x0d);
 
-    const MCDeployForce back = UnpackDeployForce(bytes);
+    REQUIRE(UnpackDeployForce(bytes).has_value());
+    const MCDeployForce back = *UnpackDeployForce(bytes);
     CHECK(back.IsMech);
     CHECK(back.ClanSide);
     CHECK_EQ(back.NameVariant, 2);
@@ -399,7 +400,8 @@ TEST_CASE("logistics: deploy and remove force messages pack and unpack")
     vehicle.Items.assign(300, 0x41);
     const std::vector<uint8_t> vehicleBytes = PackDeployForce(vehicle);
     CHECK_EQ(vehicleBytes.size(), 0xdu + 44 * 2);
-    const MCDeployForce vehicleBack = UnpackDeployForce(vehicleBytes);
+    REQUIRE(UnpackDeployForce(vehicleBytes).has_value());
+    const MCDeployForce vehicleBack = *UnpackDeployForce(vehicleBytes);
     CHECK(!vehicleBack.IsMech);
     CHECK(!vehicleBack.ClanSide);
     CHECK_EQ(vehicleBack.PilotNameIndex, 0xff);
@@ -409,7 +411,12 @@ TEST_CASE("logistics: deploy and remove force messages pack and unpack")
     REQUIRE_EQ(remove.size(), 10u);
     CHECK_EQ(remove[0], 33);
     CHECK_EQ(remove[1], 0x10);
-    CHECK_EQ(UnpackRemoveForce(remove), 9);
+    CHECK(UnpackRemoveForce(remove) == std::optional<int32_t>(9));
+
+    // A message from another machine that is shorter than it says (issue #25) unpacks to nothing.
+    CHECK(!UnpackDeployForce(std::span(bytes).first(bytes.size() - 1)).has_value());
+    CHECK(!UnpackDeployForce(std::span(bytes).first(0xc)).has_value());
+    CHECK(!UnpackRemoveForce(std::span(remove).first(9)).has_value());
 }
 
 TEST_CASE("logistics: a cheat code typed in full fires once, a wrong key starts over")

@@ -4,6 +4,7 @@
 #include "abl/MCAblDebugger.h"
 #include "ai/MCMoveSystem.h"
 #include "ai/MCRefit.h"
+#include "ai/MCScenarioMap.h"
 #include "ai/MCTacticalOrder.h"
 #include "gui/MCGuiSystem.h"
 #include "iface/MCCommandParser.h"
@@ -39,6 +40,7 @@
 #include "object/MCTreeBuilding.h"
 #include "object/MCTurret.h"
 #include "object/MCWeaponShotInfo.h"
+#include "platform/MCFileSystem.h"
 #include "sound/MCSoundSystem.h"
 #include "terrain/MCTerrain.h"
 
@@ -102,6 +104,70 @@ namespace
     {
         return offset < bytes.size() ? bytes.subspan(offset, std::min(count, bytes.size() - offset))
                                      : std::span<const uint8_t>();
+    }
+
+    // Issue #25: every message comes from another machine, which can send anything. The checks below keep its indexes,
+    // ids and names to what the game can take; a message that fails one is dropped and logged.
+
+    /// <summary>Logs a message dropped because of what it held.</summary>
+    void Dropped(std::string_view what, uint32_t fromID)
+    {
+        SDL_Log("MCMultiPlayer: dropped %.*s from player %u", static_cast<int>(what.size()), what.data(), fromID);
+    }
+
+    /// <summary>The player number of <paramref name="fromID"/> (-1 when it has none).</summary>
+    int32_t PlayerNumberOf(uint32_t fromID)
+    {
+        const auto player = Game().SessionManager != nullptr ? Game().SessionManager->GetPlayer(fromID) : nullptr;
+        return player != nullptr && player->PlayerNumber >= 0 && player->PlayerNumber < MaxLinkupPlayers
+                   ? player->PlayerNumber
+                   : -1;
+    }
+
+    /// <summary>
+    /// Whether <paramref name="checkInId"/>, a check-in id or commander id in a message, is its sender's own: a player
+    /// checks in, orders and calls artillery only for itself (the game numbers check-ins as the session numbers its
+    /// players).
+    /// </summary>
+    bool IsSendersOwn(uint32_t fromID, int32_t checkInId)
+    {
+        return checkInId >= 0 && checkInId == PlayerNumberOf(fromID);
+    }
+
+    /// <summary>Whether world point <paramref name="point"/> (x and y) is on the game map.</summary>
+    bool OnMap(const MCVector3D& point)
+    {
+        if (!std::isfinite(point.X) || !std::isfinite(point.Y))
+        {
+            return false;
+        }
+
+        int32_t tileR = 0;
+        int32_t tileC = 0;
+        MCScenarioMap::WorldToMapTilePos(point, tileR, tileC);
+        return GameMap().OnMap(tileR, tileC);
+    }
+
+    /// <summary>Whether map cell (<paramref name="cellR"/>, <paramref name="cellC"/>) is on the game map.</summary>
+    bool CellOnMap(int32_t cellR, int32_t cellC)
+    {
+        return cellR >= 0 && cellC >= 0 && GameMap().OnMap(cellR / MapCellDim, cellC / MapCellDim);
+    }
+
+    /// <summary>
+    /// Whether <paramref name="name"/>, a file name from another machine, stays in the game's folders: relative, with
+    /// no "..", drive or stream, and (with <paramref name="bare"/>) no folder at all. With
+    /// <paramref name="extension"/>, it must end in it (case ignored).
+    /// </summary>
+    bool IsGameFileName(std::string_view name, bool bare, std::string_view extension = {})
+    {
+        if (!MCFileSystem::IsContainedPath(name) || (bare && name.find_first_of("\\/") != std::string_view::npos))
+        {
+            return false;
+        }
+
+        return extension.empty() || (name.size() >= extension.size() &&
+                                     MCPort::StrICmp(name.substr(name.size() - extension.size()), extension) == 0);
     }
 
     /// <summary>Sets up the dialog's single OK button with the given exit.</summary>
@@ -178,6 +244,12 @@ void HandleAppPlayerCheckIn(uint32_t fromID, std::span<const uint8_t> msg)
     const auto checkIn = ReadLinkupMessage<MCMPPlayerCheckInMessage>(msg);
     MCMultiPlayer& game = Game();
 
+    if (!IsSendersOwn(fromID, checkIn.CheckInId))
+    {
+        Dropped("a check-in for another player", fromID);
+        return;
+    }
+
     if (GlobalLog() != nullptr && GlobalLog()->PlayerLights != nullptr)
     {
         GlobalLog()->PlayerLights->SetPlayerStatus(fromID, 2);
@@ -185,8 +257,7 @@ void HandleAppPlayerCheckIn(uint32_t fromID, std::span<const uint8_t> msg)
 
     if (game.IsServer)
     {
-        Assert(checkIn.CheckInId >= 0 && checkIn.CheckInId <= 5, 0, "CHECKIN MESSAGE CRAPPED");
-        game.PlayerCheckedIn[checkIn.CheckInId] = static_cast<int32_t>(fromID);
+        game.PlayerCheckedIn[static_cast<size_t>(checkIn.CheckInId)] = static_cast<int32_t>(fromID);
 
         if (game.AllPlayersCheckedIn())
         {
@@ -235,8 +306,14 @@ void HandleAppPlayerCheckInReceipt(uint32_t fromID, std::span<const uint8_t> msg
 {
     const int32_t checkInId = ReadLinkupMessage<MCMPLongMessage>(msg).Value;
     MCMultiPlayer& game = Game();
-    Assert(checkInId >= 0 && checkInId <= 5, 0, "CHECKIN MESSAGE CRAPPED");
-    game.PlayerCheckedIn[checkInId] = static_cast<int32_t>(fromID);
+
+    if (!IsSendersOwn(fromID, checkInId))
+    {
+        Dropped("a check-in receipt for another player", fromID);
+        return;
+    }
+
+    game.PlayerCheckedIn[static_cast<size_t>(checkInId)] = static_cast<int32_t>(fromID);
 
     if (game.AllPlayersCheckedIn())
     {
@@ -261,12 +338,20 @@ void HandleAppReadyForBattle(uint32_t fromID, std::span<const uint8_t> msg)
         return;
     }
 
-    GlobalLog()->PlayerLights->SetPlayerStatus(fromID, 2);
+    if (!IsSendersOwn(fromID, ready.CheckInId))
+    {
+        Dropped("a ready-for-battle for another player", fromID);
+        return;
+    }
+
+    if (GlobalLog()->PlayerLights != nullptr)
+    {
+        GlobalLog()->PlayerLights->SetPlayerStatus(fromID, 2);
+    }
 
     if (game.IsHost)
     {
-        Assert(ready.CheckInId >= 0 && ready.CheckInId <= 5, 0, "CHECKIN MESSAGE CRAPPED");
-        game.PlayerCheckedIn[ready.CheckInId] = static_cast<int32_t>(fromID);
+        game.PlayerCheckedIn[static_cast<size_t>(ready.CheckInId)] = static_cast<int32_t>(fromID);
 
         if (game.AllPlayersCheckedIn())
         {
@@ -279,7 +364,7 @@ void HandleAppJoinTeam(uint32_t, std::span<const uint8_t> msg)
 {
     const auto join = ReadLinkupMessage<MCMPJoinTeamMessage>(msg);
 
-    if (GlobalLog()->SessionScreen != nullptr)
+    if (GlobalLog() != nullptr && GlobalLog()->SessionScreen != nullptr)
     {
         GlobalLog()->SessionScreen->AssignPlayer(join.PlayerID, join.Team, join.Slot, false);
     }
@@ -288,12 +373,13 @@ void HandleAppJoinTeam(uint32_t, std::span<const uint8_t> msg)
 void HandleAppRPUpdate(uint32_t, std::span<const uint8_t> msg)
 {
     const auto update = ReadLinkupMessage<MCMPTwoLongMessage>(msg);
-    const std::shared_ptr<MCSessionScreen> sessionScreen = GlobalLog()->SessionScreen;
 
-    if (sessionScreen == nullptr)
+    if (GlobalLog() == nullptr || GlobalLog()->SessionScreen == nullptr)
     {
         return;
     }
+
+    const std::shared_ptr<MCSessionScreen> sessionScreen = GlobalLog()->SessionScreen;
 
     if (update.Value2 == 1)
     {
@@ -321,16 +407,23 @@ void HandleAppTechbaseChange(uint32_t, std::span<const uint8_t> msg)
 
 void HandleAppSwitchScreen(uint32_t, std::span<const uint8_t> msg)
 {
-    if (ReadLinkupMessage<MCMPTwoLongMessage>(msg).Value1 == 1)
+    if (ReadLinkupMessage<MCMPTwoLongMessage>(msg).Value1 == 1 && GlobalLog() != nullptr)
     {
         GlobalLog()->SetUpSessionScreen();
     }
 }
 
-void HandleAppStartScenario(uint32_t, std::span<const uint8_t> msg)
+void HandleAppStartScenario(uint32_t fromID, std::span<const uint8_t> msg)
 {
     const auto start = ReadLinkupMessage<MCMPStartScenarioMessage>(msg);
     MCMultiPlayer& game = Game();
+
+    // A start with no scenario loaded is ignored (the original went on through a null scenario).
+    if (Scenario() == nullptr)
+    {
+        Dropped("a scenario start outside a scenario", fromID);
+        return;
+    }
 
     for (uint32_t i = 1; i <= Scenario()->NumParts(); i++)
     {
@@ -338,16 +431,22 @@ void HandleAppStartScenario(uint32_t, std::span<const uint8_t> msg)
 
         if (player != nullptr)
         {
-            const auto mover = std::static_pointer_cast<MCMover>(LockObject(Scenario()->Parts[i].Object));
-            mover->NetOwnerID = player->Id;
-            // The original copied at most 255 characters into the name's buffer.
-            mover->NetName = player->Name.substr(0, 0xff);
+            if (const auto mover = std::dynamic_pointer_cast<MCMover>(LockObject(Scenario()->Parts[i].Object)))
+            {
+                mover->NetOwnerID = player->Id;
+                // The original copied at most 255 characters into the name's buffer.
+                mover->NetName = player->Name.substr(0, 0xff);
+            }
         }
     }
 
-    for (int32_t i = 0; i < game.NumMovers; i++)
+    for (int32_t i = 0; i < std::min(game.NumMovers, static_cast<int32_t>(start.MoverFlags.size())); i++)
     {
-        LockObject(game.MoverRoster[i])->GetPilot()->EscapesThruEjection = (start.MoverFlags[i] & 1) != 0 ? 1 : 0;
+        if (const std::shared_ptr<MCMover> mover = game.RosterMover(i);
+            mover != nullptr && mover->GetPilot() != nullptr)
+        {
+            mover->GetPilot()->EscapesThruEjection = (start.MoverFlags[static_cast<size_t>(i)] & 1) != 0 ? 1 : 0;
+        }
     }
 
     game.InMission = true;
@@ -364,7 +463,7 @@ void HandleAppEndScenario(uint32_t, std::span<const uint8_t> msg)
     Game().ScenarioResult = ReadLinkupMessage<MCMPLongMessage>(msg).Value;
 }
 
-void HandleAppPlayerOrder(uint32_t, std::span<const uint8_t> msg)
+void HandleAppPlayerOrder(uint32_t fromID, std::span<const uint8_t> msg)
 {
     const auto message = ReadLinkupMessage<MCMPPlayerOrderMessage>(msg);
 
@@ -380,6 +479,12 @@ void HandleAppPlayerOrder(uint32_t, std::span<const uint8_t> msg)
         return;
     }
 
+    if (!IsSendersOwn(fromID, message.CheckInId) || commander == nullptr)
+    {
+        Dropped("an order for another player's units", fromID);
+        return;
+    }
+
     MCTacticalOrder order;
     order.Reset();
     order.Data[0] = message.PackedOrder[0];
@@ -388,6 +493,23 @@ void HandleAppPlayerOrder(uint32_t, std::span<const uint8_t> msg)
     MCVector3D wayPoint;
     wayPoint.X = std::bit_cast<float>(message.OrderParam1);
     wayPoint.Y = std::bit_cast<float>(message.OrderParam2);
+
+    // The way point (sent for move and jump orders, zero otherwise), the order and its aim must be ones the game has:
+    // an aim goes straight to the target's armor tables.
+    const auto aimTarget = std::dynamic_pointer_cast<MCMover>(LockObject(order.Target));
+    const bool aimValid =
+        order.AttackParams.AimLocation == -1 || (order.AttackParams.AimLocation >= 0 && aimTarget != nullptr &&
+                                                 aimTarget->IsHitLocation(order.AttackParams.AimLocation));
+    const bool wayPointValid = (message.OrderParam1 == 0 && message.OrderParam2 == 0) || OnMap(wayPoint);
+    const bool targetPointValid =
+        order.Code != MCTacticalOrderCode::AttackPoint || OnMap(order.AttackParams.TargetPoint);
+
+    if (order.Code >= MCTacticalOrderCode::Count || !aimValid || !wayPointValid || !targetPointValid)
+    {
+        Dropped("an order the game can't carry out", fromID);
+        return;
+    }
+
     wayPoint.Z = MCTerrain::GetTerrainElevation(wayPoint);
     order.SetWayPoint(0, wayPoint);
 
@@ -408,6 +530,14 @@ void HandleAppPlayerOrder(uint32_t, std::span<const uint8_t> msg)
     {
         order.Code = MCTacticalOrderCode::JumpToPoint;
         Assert(LockObject(order.Target) != nullptr, 0, " JumpToObject is NULL ");
+
+        // A jump to a target that isn't there is dropped (the original went on through the null target).
+        if (LockObject(order.Target) == nullptr)
+        {
+            Dropped("a jump to no target", fromID);
+            return;
+        }
+
         order.SetWayPoint(0, LockObject(order.Target)->GetPosition());
     }
 
@@ -430,7 +560,8 @@ void HandleAppPlayerOrder(uint32_t, std::span<const uint8_t> msg)
             }
         }
 
-        CalcJumpGoals(order.GetWayPoint(0), numGoals, jumpGoals, order.GetJumpTarget());
+        CalcJumpGoals(order.GetWayPoint(0), std::min(numGoals, static_cast<int32_t>(jumpGoals.size())), jumpGoals,
+                      order.GetJumpTarget());
     }
 
     const int fromGroup = (message.Flags & 0x20) != 0 ? 1 : 0;
@@ -483,7 +614,8 @@ void HandleAppPlayerOrder(uint32_t, std::span<const uint8_t> msg)
 
         if (order.Code == MCTacticalOrderCode::JumpToPoint)
         {
-            destinations = std::span<const MCVector3D>(jumpGoals).subspan(static_cast<size_t>(goalIndex));
+            destinations = std::span<const MCVector3D>(jumpGoals).subspan(
+                std::min(static_cast<size_t>(goalIndex), jumpGoals.size()));
             goalIndex += commander->GetGroup(groupId)->NumMovers();
         }
 
@@ -491,7 +623,7 @@ void HandleAppPlayerOrder(uint32_t, std::span<const uint8_t> msg)
     }
 }
 
-void HandleAppPlayerMoverGroup(uint32_t, std::span<const uint8_t> msg)
+void HandleAppPlayerMoverGroup(uint32_t fromID, std::span<const uint8_t> msg)
 {
     const auto message = ReadLinkupMessage<MCMPPlayerMoverGroupMessage>(msg);
 
@@ -500,14 +632,24 @@ void HandleAppPlayerMoverGroup(uint32_t, std::span<const uint8_t> msg)
         return;
     }
 
+    const std::shared_ptr<MCCommander> commander = CommanderById(message.CheckInId);
+
+    if (!IsSendersOwn(fromID, message.CheckInId) || commander == nullptr || message.GroupId < 0 ||
+        message.GroupId >= MCCommander::MaxGroups)
+    {
+        Dropped("a group for another player's units", fromID);
+        return;
+    }
+
     const std::array<std::weak_ptr<MCMover>, MCMultiPlayer::MaxLocalMovers>& playerMovers =
-        Game().PlayerMoverRoster[message.CheckInId];
+        Game().PlayerMoverRoster[static_cast<size_t>(message.CheckInId)];
     uint32_t memberBits = message.Members >> 4;
     std::vector<std::shared_ptr<MCMover>> movers;
 
     for (const std::weak_ptr<MCMover>& mover : playerMovers)
     {
-        if ((memberBits & 1) != 0)
+        // A slot whose mover is gone isn't added (the original added the null).
+        if ((memberBits & 1) != 0 && LockObject(mover) != nullptr)
         {
             movers.push_back(LockObject(mover));
         }
@@ -520,9 +662,14 @@ void HandleAppPlayerMoverGroup(uint32_t, std::span<const uint8_t> msg)
     int32_t pointIndex = message.Members & 0xf;
     int32_t i = 0;
 
+    // A point past the 12 slots (from the message) is no mover (the original read past them).
+    const std::shared_ptr<MCMover> pointMover = pointIndex < MCMultiPlayer::MaxLocalMovers
+                                                    ? LockObject(playerMovers[static_cast<size_t>(pointIndex)])
+                                                    : nullptr;
+
     for (; i < numMovers; i++)
     {
-        if (LockObject(playerMovers[pointIndex]) == movers[i])
+        if (pointMover == movers[i])
         {
             pointIndex = i;
             break;
@@ -530,10 +677,10 @@ void HandleAppPlayerMoverGroup(uint32_t, std::span<const uint8_t> msg)
     }
 
     Assert(i < numMovers, 0, " handleAppPlayerMoverGroup: bad pointMover ");
-    CommanderById(message.CheckInId)->SetGroup(message.GroupId, movers, pointIndex);
+    commander->SetGroup(message.GroupId, movers, pointIndex);
 }
 
-void HandleAppPlayerArtillery(uint32_t, std::span<const uint8_t> msg)
+void HandleAppPlayerArtillery(uint32_t fromID, std::span<const uint8_t> msg)
 {
     const auto message = ReadLinkupMessage<MCMPPlayerArtilleryMessage>(msg);
 
@@ -553,6 +700,14 @@ void HandleAppPlayerArtillery(uint32_t, std::span<const uint8_t> msg)
     MCVector3D location;
     location.X = message.TargetX;
     location.Y = message.TargetY;
+
+    // The strike is the sender's own, on the map (its type is three bits, all of them kinds of strike).
+    if (!IsSendersOwn(fromID, chunk.CommanderId) || CommanderById(chunk.CommanderId) == nullptr || !OnMap(location))
+    {
+        Dropped("an artillery call for another player or off the map", fromID);
+        return;
+    }
+
     location.Z = MCTerrain::GetTerrainElevation(location);
     CallArtillery(chunk.CommanderId, chunk.StrikeType, location, chunk.Seconds, 0);
 }
@@ -572,25 +727,34 @@ void HandleAppMoverUpdate(uint32_t, std::span<const uint8_t> msg)
         const size_t statusOffset = 4 + static_cast<size_t>(game.NumMovers) * 4;
         const size_t orderOffset = statusOffset + static_cast<size_t>(game.NumMovers) * 4;
 
+        // A roster slot whose mover is gone is skipped (the original went on through the null).
         for (int32_t i = 0; i < game.NumMovers; i++)
         {
-            const std::shared_ptr<MCMover> mover = LockObject(game.MoverRoster[i]);
+            const std::shared_ptr<MCMover> mover = game.RosterMover(i);
             Assert(mover != nullptr, 0, " handleAppMoveUpdate: No Mover ");
-            mover->HandleMoveChunk(Get<uint32_t>(msg, 4 + static_cast<size_t>(i) * 4));
+
+            if (mover != nullptr)
+            {
+                mover->HandleMoveChunk(Get<uint32_t>(msg, 4 + static_cast<size_t>(i) * 4));
+            }
         }
 
         for (int32_t i = 0; i < game.NumMovers; i++)
         {
-            LockObject(game.MoverRoster[i])
-                ->HandleStatusChunk(sequence - game.MoverUpdateSequence,
-                                    Get<uint32_t>(msg, statusOffset + static_cast<size_t>(i) * 4));
+            if (const std::shared_ptr<MCMover> mover = game.RosterMover(i))
+            {
+                mover->HandleStatusChunk(sequence - game.MoverUpdateSequence,
+                                         Get<uint32_t>(msg, statusOffset + static_cast<size_t>(i) * 4));
+            }
         }
 
         for (int32_t i = 0; i < game.NumMovers; i++)
         {
-            LockObject(game.MoverRoster[i])
-                ->GetPilot()
-                ->UpdateClientOrderQueue(ByteAt(msg, orderOffset + static_cast<size_t>(i)));
+            if (const std::shared_ptr<MCMover> mover = game.RosterMover(i);
+                mover != nullptr && mover->GetPilot() != nullptr)
+            {
+                mover->GetPilot()->UpdateClientOrderQueue(ByteAt(msg, orderOffset + static_cast<size_t>(i)));
+            }
         }
     }
 
@@ -611,13 +775,19 @@ void HandleAppTurretUpdate(uint32_t, std::span<const uint8_t> msg)
     {
         for (int32_t i = 0; i < game.NumTurrets; i++)
         {
-            const std::shared_ptr<MCTurret> turret = LockObject(game.TurretRoster[i]);
+            const std::shared_ptr<MCTurret> turret = game.RosterTurret(i);
             Assert(turret != nullptr, 0, " handleAppTurretUpdate: No Turret ");
             const auto targetIndex = static_cast<int8_t>(ByteAt(msg, 4 + static_cast<size_t>(i)));
 
+            if (turret == nullptr)
+            {
+                continue;
+            }
+
             // Original behaviour (OB-106): -1 is no target, 0-127 a mover of the roster. The original's third case (a
-            // part id from 0x80248 down) can't be reached with a signed byte, so building targets are misread.
-            turret->Target = targetIndex < 0 ? nullptr : LockObject(game.MoverRoster[targetIndex]);
+            // part id from 0x80248 down) can't be reached with a signed byte, so building targets are misread. An index
+            // past the roster (the original read past it) is no target.
+            turret->Target = game.RosterMover(targetIndex);
         }
     }
 
@@ -640,8 +810,13 @@ void HandleAppMoverWeaponFireUpdate(uint32_t, std::span<const uint8_t> msg)
     for (int32_t i = 0; i < numMovers; i++)
     {
         const uint8_t numChunks = ByteAt(msg, 10 + static_cast<size_t>(i));
-        LockObject(game.MoverRoster[firstMover + i])
-            ->AddWeaponFireChunks(1, Words(msg, 0x22 + chunkIndex * 4, numChunks));
+
+        // A mover past the roster, or gone, gets nothing (the original wrote through the slot).
+        if (const std::shared_ptr<MCMover> mover = game.RosterMover(firstMover + i))
+        {
+            mover->AddWeaponFireChunks(1, Words(msg, 0x22 + chunkIndex * 4, numChunks));
+        }
+
         chunkIndex += numChunks;
     }
 }
@@ -663,8 +838,13 @@ void HandleAppTurretWeaponFireUpdate(uint32_t, std::span<const uint8_t> msg)
         // Each turret's byte: its roster index (bits 2-7) and its number of chunks (bits 0-1).
         const uint8_t entry = ByteAt(msg, 9 + static_cast<size_t>(i));
         const size_t numChunks = entry & 3;
-        LockObject(game.TurretRoster[entry >> 2])
-            ->AddWeaponFireChunks(1, Words(msg, 9 + static_cast<size_t>(numTurrets) + chunkIndex * 4, numChunks));
+
+        // A turret past the roster, or gone, gets nothing (the original wrote through the slot).
+        if (const std::shared_ptr<MCTurret> turret = game.RosterTurret(entry >> 2))
+        {
+            turret->AddWeaponFireChunks(1, Words(msg, 9 + static_cast<size_t>(numTurrets) + chunkIndex * 4, numChunks));
+        }
+
         chunkIndex += numChunks;
     }
 }
@@ -684,13 +864,19 @@ void HandleAppMoverCriticalHitUpdate(uint32_t, std::span<const uint8_t> msg)
 
     for (int32_t i = 0; i < numMovers; i++)
     {
-        const std::shared_ptr<MCMover> mover = LockObject(game.MoverRoster[firstMover + i]);
+        // A mover past the roster, or gone, gets nothing (the original wrote through the slot); its bytes are still
+        // stepped over.
+        const std::shared_ptr<MCMover> mover = game.RosterMover(firstMover + i);
         const uint32_t numCriticalHits = ByteAt(msg, 10 + static_cast<size_t>(i));
         Assert(numCriticalHits < 0x81, numCriticalHits, " handleAppMoverCritHits: bad numCH ");
 
         if (numCriticalHits != 0)
         {
-            mover->AddCriticalHitChunks(1, BytesAt(msg, 0x3a + chunkIndex, numCriticalHits));
+            if (mover != nullptr)
+            {
+                mover->AddCriticalHitChunks(1, BytesAt(msg, 0x3a + chunkIndex, numCriticalHits));
+            }
+
             chunkIndex += numCriticalHits;
         }
 
@@ -699,13 +885,17 @@ void HandleAppMoverCriticalHitUpdate(uint32_t, std::span<const uint8_t> msg)
 
         if (numRadio != 0)
         {
-            mover->AddRadioChunks(1, BytesAt(msg, 0x3a + chunkIndex, numRadio));
+            if (mover != nullptr)
+            {
+                mover->AddRadioChunks(1, BytesAt(msg, 0x3a + chunkIndex, numRadio));
+            }
+
             chunkIndex += numRadio;
         }
     }
 }
 
-void HandleAppWeaponHitUpdate(uint32_t, std::span<const uint8_t> msg)
+void HandleAppWeaponHitUpdate(uint32_t fromID, std::span<const uint8_t> msg)
 {
     MCMultiPlayer& game = Game();
 
@@ -722,6 +912,29 @@ void HandleAppWeaponHitUpdate(uint32_t, std::span<const uint8_t> msg)
         chunk.Data = Get<uint32_t>(msg, 9 + i * 4);
         chunk.Unpack();
 
+        // The target is a mover of the roster (type 0) or the object a part id names (1 and 2); one that isn't there,
+        // or isn't the kind the chunk needs, or an armor location the target doesn't have, is skipped. The original
+        // read past the roster, cast whatever it found, and was fatal on type 3.
+        std::shared_ptr<MCGameObject> target;
+
+        if (chunk.TargetType == 0)
+        {
+            target = game.RosterMover(chunk.TargetId);
+        }
+        else if (chunk.TargetType == 1 || chunk.TargetType == 2)
+        {
+            target = std::dynamic_pointer_cast<MCGameObject>(ObjectList()->FindObjectFromPart(chunk.TargetId));
+        }
+
+        const auto mover = std::dynamic_pointer_cast<MCMover>(target);
+
+        if (target == nullptr || (chunk.Refit != 0 && mover == nullptr) ||
+            (chunk.Refit == 0 && mover != nullptr && !mover->IsHitLocation(chunk.HitLocation)))
+        {
+            Dropped("a weapon hit on no target", fromID);
+            continue;
+        }
+
         if (chunk.Refit == 0)
         {
             MCWeaponShotInfo shotInfo;
@@ -730,41 +943,12 @@ void HandleAppWeaponHitUpdate(uint32_t, std::span<const uint8_t> msg)
             shotInfo.Damage = chunk.Damage;
             shotInfo.HitLocation = chunk.HitLocation;
             shotInfo.EntryAngle = HitEntryAngles[chunk.EntryAngle];
-
-            if (chunk.TargetType == 0)
-            {
-                LockObject(game.MoverRoster[chunk.TargetId])->HandleWeaponHit(shotInfo, 0);
-            }
-            else if (chunk.TargetType == 1 || chunk.TargetType == 2)
-            {
-                std::static_pointer_cast<MCGameObject>(ObjectList()->FindObjectFromPart(chunk.TargetId))
-                    ->HandleWeaponHit(shotInfo, 0);
-            }
-            else
-            {
-                Fatal(0, " Multiplayer.handleAppWeaponHitUpdate: bad targetType for weaponHit ");
-            }
-
+            target->HandleWeaponHit(shotInfo, 0);
             continue;
         }
 
-        std::shared_ptr<MCMover> target;
-
-        if (chunk.TargetType == 0)
-        {
-            target = LockObject(game.MoverRoster[chunk.TargetId]);
-        }
-        else if (chunk.TargetType == 1 || chunk.TargetType == 2)
-        {
-            target = std::static_pointer_cast<MCMover>(ObjectList()->FindObjectFromPart(chunk.TargetId));
-        }
-        else
-        {
-            Fatal(0, " Multiplayer.handleAppWeaponHitUpdate: bad targetType for refit ");
-        }
-
         float pointsUsed = 0.0f;
-        DoRefit(*target, chunk.Damage, pointsUsed, chunk.Damage == -6.0f ? 1 : 0);
+        DoRefit(*mover, chunk.Damage, pointsUsed, chunk.Damage == -6.0f ? 1 : 0);
     }
 }
 
@@ -776,7 +960,14 @@ namespace
         const int32_t tileR = chunk.TileRow / 3;
         const int32_t tileC = chunk.TileCol / 3;
         const int32_t layout = std::min(chunk.Param2, 3);
-        MCMapTile& tile = GameMap().Map[tileR * GameMap().Width + tileC];
+
+        // A mine off the map (from the server's message) is ignored; the original wrote past it.
+        if (!GameMap().OnMap(tileR, tileC))
+        {
+            return;
+        }
+
+        MCMapTile& tile = GameMap().TileAt(tileR, tileC);
 
         if (chunk.Param1 == 1)
         {
@@ -845,13 +1036,15 @@ namespace
 
             default:
             {
-                Fatal(0, " handleAppWorldStateUpdate: bad fire victim ");
+                // The part id came from the server's message; an object that can't burn is left alone (the original was
+                // fatal).
+                break;
             }
         }
     }
 }
 
-void HandleAppWorldStateUpdate(uint32_t, std::span<const uint8_t> msg)
+void HandleAppWorldStateUpdate(uint32_t fromID, std::span<const uint8_t> msg)
 {
     MCMultiPlayer& game = Game();
 
@@ -866,7 +1059,13 @@ void HandleAppWorldStateUpdate(uint32_t, std::span<const uint8_t> msg)
     {
         MCWorldStateChunk chunk;
         chunk.Data = Get<uint32_t>(msg, 10 + i * 4);
-        chunk.Unpack();
+
+        // A type the game doesn't have is dropped (the original was fatal).
+        if (!chunk.Unpack())
+        {
+            Dropped("a world event of no known type", fromID);
+            continue;
+        }
 
         switch (chunk.Type)
         {
@@ -890,13 +1089,19 @@ void HandleAppWorldStateUpdate(uint32_t, std::span<const uint8_t> msg)
 
             case MCWorldStateChunk::PilotKillStat:
             {
-                if (const std::shared_ptr<MCMover> mover = LockObject(game.MoverRoster[chunk.Param1]); mover != nullptr)
-                {
-                    mover->GetPilot()->NumKilled[chunk.Param2][1]++;
+                // A mover past the roster, or a kill kind past the pilot's seven counts, is dropped (the original read
+                // past the roster and counted past the table).
+                const std::shared_ptr<MCMover> mover = game.RosterMover(chunk.Param1);
+                const std::shared_ptr<MCMechWarrior> pilot = mover != nullptr ? mover->GetPilot() : nullptr;
 
-                    if (mover->GetPilot()->OnHomeTeam() != 0)
+                if (pilot != nullptr && chunk.Param2 >= 0 &&
+                    chunk.Param2 < static_cast<int32_t>(std::size(pilot->NumKilled)))
+                {
+                    pilot->NumKilled[chunk.Param2][1]++;
+
+                    if (pilot->OnHomeTeam() != 0)
                     {
-                        mover->GetPilot()->RadioMessage(KillRadioMessages[chunk.Param2], 0);
+                        pilot->RadioMessage(KillRadioMessages[static_cast<size_t>(chunk.Param2)], 0);
                     }
                 }
 
@@ -905,9 +1110,11 @@ void HandleAppWorldStateUpdate(uint32_t, std::span<const uint8_t> msg)
 
             default:
             {
-                if (chunk.Type < MCWorldStateChunk::Artillery || chunk.Type > MCWorldStateChunk::LastArtillery)
+                // A strike off the map, or by a commander not in the game, is dropped.
+                if (!CellOnMap(chunk.TileRow, chunk.TileCol) ||
+                    CommanderById(chunk.Type - MCWorldStateChunk::Artillery) == nullptr)
                 {
-                    Fatal(0, " Multiplayer.handleAppWorldStateUpdate: bad worldStateType ");
+                    Dropped("an artillery strike off the map", fromID);
                     break;
                 }
 
@@ -950,7 +1157,17 @@ void HandleAppFileInquiry(uint32_t fromID, std::span<const uint8_t> msg)
     MCMultiPlayer& game = Game();
     constexpr size_t nameOffset = sizeof(MCMPFileNameMessage);
     auto report = game.StartGuaranteedMessage<MCMPFileNameMessage>(MCMPMessageType::FileReport);
-    report.Value = static_cast<int32_t>(GetCheckSum(fileName));
+
+    // Issue #25: only a mission file in the game's folders is looked at; anything else is reported missing (the
+    // original opened any path and sent back its first four bytes).
+    const bool missionFile = IsGameFileName(fileName, false, ".mpk");
+
+    if (!missionFile)
+    {
+        Dropped("an inquiry about a file outside the game", fromID);
+    }
+
+    report.Value = missionFile ? static_cast<int32_t>(GetCheckSum(fileName)) : 0;
     game.PutMessage(report);
     const size_t length = std::min(fileName.size(), MCMultiPlayer::MsgBufferSize - nameOffset - 1);
     std::memcpy(game.MsgBuffer.data() + nameOffset, fileName.data(), length);
@@ -963,27 +1180,46 @@ void HandleAppFileReport(uint32_t fromID, std::span<const uint8_t> msg)
 {
     const bool haveFile = ReadLinkupMessage<MCMPLongMessage>(msg).Value != 0;
 
-    if (GlobalLog()->SessionScreen != nullptr)
+    if (GlobalLog() != nullptr && GlobalLog()->SessionScreen != nullptr)
     {
         GlobalLog()->SessionScreen->FileReport(fromID, haveFile);
     }
 }
 
-void HandleAppLoadMission(uint32_t, std::span<const uint8_t> msg)
+void HandleAppLoadMission(uint32_t fromID, std::span<const uint8_t> msg)
 {
-    if (GlobalLog()->SessionScreen != nullptr)
+    const std::string_view fileName = MessageText(msg, sizeof(MCMPFileNameMessage));
+
+    // Issue #25: only a mission file in the game's folders is opened (the original opened any path the host sent).
+    if (!IsGameFileName(fileName, false, ".mpk"))
     {
-        GlobalLog()->SessionScreen->LoadMission(MessageText(msg, sizeof(MCMPFileNameMessage)));
+        Dropped("a mission outside the game's folders", fromID);
+        return;
+    }
+
+    if (GlobalLog() != nullptr && GlobalLog()->SessionScreen != nullptr)
+    {
+        GlobalLog()->SessionScreen->LoadMission(fileName);
     }
 }
 
-void HandleAppStart(uint32_t, std::span<const uint8_t> msg)
+void HandleAppStart(uint32_t fromID, std::span<const uint8_t> msg)
 {
+    const std::string_view missionName = MessageText(msg, sizeof(MCMPFileNameMessage));
+
+    // Issue #25: the host sends the mission's bare name (LoadCampaign adds the folder and extension); anything else is
+    // dropped, as is a start with no session screen to leave.
+    if (!IsGameFileName(missionName, true) || GlobalLog() == nullptr || GlobalLog()->SessionScreen == nullptr)
+    {
+        Dropped("a start of a mission outside the game's folders", fromID);
+        return;
+    }
+
     GuiSystem().RemoveTimer(*GlobalLog()->SessionScreen, 0);
     Game().SessionManager->SendLatencyInfo();
     SoundSystem()->PlayBettySample(0x19);
     GlobalLog()->InitializeMultiplayer();
-    GlobalLog()->LoadCampaign(MessageText(msg, sizeof(MCMPFileNameMessage)), ".MPK", false, false);
+    GlobalLog()->LoadCampaign(missionName, ".MPK", false, false);
     GlobalLog()->SetUpBriefingScreen(false);
 }
 
@@ -1092,13 +1328,68 @@ void MultiPlayerSystemCallback(MCFidpMessage& msg)
     }
 }
 
+namespace
+{
+    /// <summary>
+    /// Whether <paramref name="fromID"/> may send a message of <paramref name="type"/>: what runs the game (the
+    /// session's set-up, the scenario's start and end, every in-mission update, the session screen's choices) comes
+    /// only from the server or the session's host; the players' own messages from anyone, checked by their handlers.
+    /// </summary>
+    /// <remarks>
+    /// Issue #25: the original took every message from anyone, so any player could start, end or rewrite the game on
+    /// the others' machines. The host relays every message and vouches for its sender.
+    /// </remarks>
+    bool MaySend(MCMPMessageType type, uint32_t fromID)
+    {
+        switch (type)
+        {
+            case MCMPMessageType::PlayerSetup:
+            case MCMPMessageType::StartPlanning:
+            case MCMPMessageType::StartScenario:
+            case MCMPMessageType::EndScenario:
+            case MCMPMessageType::MoverUpdate:
+            case MCMPMessageType::TurretUpdate:
+            case MCMPMessageType::MoverWeaponFireUpdate:
+            case MCMPMessageType::TurretWeaponFireUpdate:
+            case MCMPMessageType::MoverCriticalHitUpdate:
+            case MCMPMessageType::WeaponHitUpdate:
+            case MCMPMessageType::WorldStateUpdate:
+            case MCMPMessageType::PrepareScenario:
+            case MCMPMessageType::FileInquiry:
+            case MCMPMessageType::LoadMission:
+            case MCMPMessageType::Start:
+            case MCMPMessageType::JoinTeam:
+            case MCMPMessageType::SwitchScreen:
+            case MCMPMessageType::RPUpdate:
+            case MCMPMessageType::TechbaseChange:
+            {
+                const MCMultiPlayer& game = Game();
+                return fromID == game.ServerID || fromID == game.HostID ||
+                       (game.SessionManager != nullptr && game.SessionManager->SpeaksForSession(fromID));
+            }
+
+            default:
+            {
+                return true;
+            }
+        }
+    }
+}
+
 void MultiPlayerApplicationCallback(MCFidpMessage& msg)
 {
     const uint32_t fromID = msg.FromID;
     const std::span<const uint8_t> bytes = msg.Bytes();
     MCMultiPlayer& game = Game();
+    const auto type = static_cast<MCMPMessageType>(msg.Type());
 
-    switch (static_cast<MCMPMessageType>(msg.Type()))
+    if (!MaySend(type, fromID))
+    {
+        Dropped(std::format("message {} (the server's or host's)", static_cast<uint32_t>(type)), fromID);
+        return;
+    }
+
+    switch (type)
     {
         case MCMPMessageType::NewServer:
         {
@@ -1226,9 +1517,10 @@ void MultiPlayerApplicationCallback(MCFidpMessage& msg)
 
         case MCMPMessageType::DeployForce:
         {
+            // The bytes received, not the whole buffer: the handler reads no further than the message (issue #25).
             if (GlobalLog() != nullptr)
             {
-                GlobalLog()->HandleDeployForceMessage(fromID, msg.Buffer());
+                GlobalLog()->HandleDeployForceMessage(fromID, bytes);
             }
 
             break;
@@ -1238,7 +1530,7 @@ void MultiPlayerApplicationCallback(MCFidpMessage& msg)
         {
             if (GlobalLog() != nullptr)
             {
-                GlobalLog()->HandleRemoveForceMessage(fromID, msg.Buffer());
+                GlobalLog()->HandleRemoveForceMessage(fromID, bytes);
             }
 
             break;
@@ -1319,9 +1611,18 @@ void MultiPlayerApplicationCallback(MCFidpMessage& msg)
 
         case MCMPMessageType::SessionCheckIn:
         {
-            const int32_t playerNumber = game.SessionManager->GetPlayer(fromID)->PlayerNumber;
+            // A sender without a number (gone, or not yet numbered) is ignored; the original read through the null
+            // player or wrote before the table (issue #25).
+            const int32_t playerNumber = PlayerNumberOf(fromID);
             Assert(playerNumber >= 0 && playerNumber <= 5, 0, "PNUM BAD");
-            game.PlayerSessionCheckIn[playerNumber] = 1;
+
+            if (playerNumber < 0)
+            {
+                Dropped("a session check-in from no player", fromID);
+                break;
+            }
+
+            game.PlayerSessionCheckIn[static_cast<size_t>(playerNumber)] = 1;
 
             if (GlobalLog() != nullptr && GlobalLog()->SessionScreen != nullptr)
             {

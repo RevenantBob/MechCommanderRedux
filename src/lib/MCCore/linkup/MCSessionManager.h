@@ -1,10 +1,10 @@
 #pragma once
 
 // Original source: mcx\linkup\sessionmanager.cpp (and the inline getters of sessionmanager.h): the game's DirectPlay
-// session layer. It enumerates connections (TCP/IP, IPX, modem, serial, lobby), hosts, lists and joins sessions,
-// tracks the players and groups, runs a receive pass that sorts incoming messages into queues, and on top of
-// DirectPlay implements guaranteed, ordered delivery (per-player send counters, verify lists, resends), latency
-// measurement, server switching and file transfer.
+// session layer. It enumerates connections (TCP/IP, IPX, modem, serial, lobby), hosts, lists and joins sessions, tracks
+// the players and groups, runs a receive pass that sorts incoming messages into queues, and on top of DirectPlay
+// implements guaranteed, ordered delivery (per-player send counters, verify lists, resends), latency measurement and
+// server switching.
 //
 // Port: DirectPlay is the port's stand-in, MCDirectPlay (platform/MCDirectPlay.h), over TCP/UDP. It offers the TCP/IP
 // and IPX connections only, so the modem, serial and lobby paths find nothing (as on a machine without them). The
@@ -18,7 +18,6 @@ class MCFidpGroup;
 class MCFidpMessage;
 class MCFidpPlayer;
 class MCFidpSession;
-class MCFileTransferInfo;
 
 /// <summary>
 /// Whether a DirectPlay lobby started the game (the session's start-up sets it from
@@ -77,8 +76,6 @@ public:
     std::shared_ptr<MCFidpSession> CurrentSession() const { return _CurrentSession.lock(); }
     /// <summary>This machine's player (one of <see cref="Players"/>), or null.</summary>
     std::shared_ptr<MCFidpPlayer> MyPlayer() const { return _MyPlayer.lock(); }
-    /// <summary>Sets the directory transferred files go in (cut to 511 characters).</summary>
-    void SetHomeDirectory(std::string_view directory);
     /// <summary>Hosts <paramref name="session"/> and creates this machine's player <paramref name="playerName"/>.</summary>
     /// <returns>0; -1 when DirectPlay refused the session; -2 when the player could not be created.</returns>
     int32_t HostSession(const MCFidpSession& session, std::string_view playerName);
@@ -89,6 +86,11 @@ public:
     int32_t JoinSession(const _GUID& sessionGUID, std::string_view playerName);
     /// <summary>Whether every player reported its latency, so a new server can be picked.</summary>
     bool ReadyToChooseServer() const;
+    /// <summary>
+    /// Whether player <paramref name="fromID"/> may run the session: the server, or a player of the session's host
+    /// (who numbers the players and groups while players can still join).
+    /// </summary>
+    bool SpeaksForSession(uint32_t fromID) const;
     /// <summary>The host closes the session to new players.</summary>
     /// <returns>Whether it was locked (false when not hosting).</returns>
     bool LockSession();
@@ -241,10 +243,6 @@ public:
     std::deque<std::shared_ptr<MCFidpMessage>> PreIDGroupMessages;
     /// <summary>Server messages sent before this machine had a player number.</summary>
     std::deque<std::shared_ptr<MCFidpMessage>> PreIDServerMessages;
-    /// <summary>Files being sent.</summary>
-    std::vector<std::unique_ptr<MCFileTransferInfo>> OutgoingFiles;
-    /// <summary>Files being received.</summary>
-    std::vector<std::unique_ptr<MCFileTransferInfo>> IncomingFiles;
     /// <summary>The kind of the current connection.</summary>
     MCNetProtocol CurrentConnection = MCNetProtocol::None;
     /// <summary>This machine's player's DPID (0 when none).</summary>
@@ -263,8 +261,6 @@ public:
     std::function<void(MCFidpMessage& msg)> ApplicationCallback;
     /// <summary>The game's handler of system messages (player created/destroyed, added to group, session lost).</summary>
     std::function<void(MCFidpMessage& msg)> SystemCallback;
-    /// <summary>Called when a received file is complete (MultiPlayerFileReceivedCallback).</summary>
-    std::function<void(const std::string& fileName)> FileReceivedCallback;
     /// <summary>The DirectPlay object (the port's stand-in).</summary>
     std::unique_ptr<MCDirectPlay> DirectPlay;
     /// <summary>The <see cref="MCNetProtocol"/> bits of the connections found.</summary>
@@ -317,6 +313,13 @@ private:
     void EnumeratePlayers(std::shared_ptr<MCFidpSession> session);
     /// <summary>Hands each player's in-order guaranteed messages to the application handler.</summary>
     void ProcessGuaranteedMessages();
+    /// <summary>
+    /// Whether player <paramref name="fromID"/> may send a linkup message of <paramref name="type"/>: only the server
+    /// names the next server, and only <see cref="SpeaksForSession"/> numbers players, fills groups, starts the game or
+    /// removes a player.
+    /// </summary>
+    /// <remarks>Issue #25: the original took these from anyone in the session.</remarks>
+    bool MaySend(MCLinkupMessageType type, uint32_t fromID) const;
     /// <summary>Receive pass: routes one application message (verify, guaranteed, plain).</summary>
     void RTProcessApplicationMessage(std::shared_ptr<MCFidpMessage> msg);
     /// <summary>Receive pass: the server's player numbers arrived (this machine gets its number).</summary>
@@ -353,14 +356,12 @@ private:
     /// <summary>A queued system message, after the game's handler saw it.</summary>
     void HandlePostSystemMessage(MCFidpMessage& msg);
     /// <summary>
-    /// An application message on the game thread: the linkup layer's own types (player numbers, file transfer, system
+    /// An application message on the game thread: the linkup layer's own types (player numbers, system
     /// info, latency, ping) or the game's (<see cref="ApplicationCallback"/>).
     /// </summary>
     void HandleApplicationMessage(std::shared_ptr<MCFidpMessage> msg);
     /// <summary>The server's numbering in a lobby game.</summary>
     void ApplyLobbyPlayerNumbers(const MCFIPlayerNumbersMessage& numbers);
-    /// <summary>A file piece arrived.</summary>
-    void HandleFileData(const MCFidpMessage& msg);
     /// <summary>A ping from the server: its latency order.</summary>
     void HandlePingUpdate(const MCFidpMessage& msg);
 
@@ -386,8 +387,6 @@ private:
     bool _SessionLocked = false;
     /// <summary>RemovePlayerFromGame's re-entry guard.</summary>
     bool _RemovingPlayer = false;
-    /// <summary>Where transferred files go.</summary>
-    std::string _HomeDirectory;
     /// <summary>The modems found.</summary>
     std::vector<std::string> _ModemNames;
     /// <summary>Whether <see cref="IsIpxAvailable"/> / <see cref="IsTcpAvailable"/> looked already, and what they found.</summary>
@@ -397,8 +396,6 @@ private:
     bool _TcpAvailable = false;
     /// <summary>Set when every latency report is in (<see cref="ReadyToChooseServer"/>).</summary>
     bool _LatencyReportsIn = false;
-    /// <summary>The id of the next file transfer (0-255).</summary>
-    int32_t _NextFileID = 0;
     /// <summary>Performance-counter time of the next ping.</summary>
     uint32_t _NextPingTime = 0;
     /// <summary>Milliseconds between pings.</summary>

@@ -383,7 +383,8 @@ auto MCTacticalOrder::Unpack() -> void
             {
                 if (MultiPlayer() != nullptr)
                 {
-                    Target = LockObject(MultiPlayer()->MoverRoster[objectBits & 0x1f]);
+                    // Issue #25: an index past the roster (from another machine's order) is no target.
+                    Target = MultiPlayer()->RosterMover(static_cast<int32_t>(objectBits & 0x1f));
                 }
 
                 return;
@@ -405,7 +406,10 @@ auto MCTacticalOrder::Unpack() -> void
                 return;
             }
             default:
-                Fatal(static_cast<int32_t>(targetBits & 3), " Bad targetType ");
+            {
+                // Type 3 only comes from another machine's order; it has no target (the original was fatal).
+                return;
+            }
         }
     };
 
@@ -475,24 +479,28 @@ auto MCTacticalOrder::SetGroupFlag(int32_t localMoverId, bool set) -> void
 auto MCTacticalOrder::GetGroup(int32_t commanderId, std::span<std::shared_ptr<MCMover>> moverList,
                                std::shared_ptr<MCMover>& point) const -> int32_t
 {
-    if (MultiPlayer() == nullptr)
+    // Issue #25: the commander and the point come from another machine's order; one past the rosters has no movers.
+    if (MultiPlayer() == nullptr || commanderId < 0 || commanderId >= MaxLinkupPlayers)
     {
+        point = nullptr;
         return 0;
     }
 
+    const auto& roster = MultiPlayer()->PlayerMoverRoster[static_cast<size_t>(commanderId)];
     int32_t numMovers = 0;
 
-    for (int32_t i = 0; i < 12; i++)
+    for (int32_t i = 0; i < MCMultiPlayer::MaxLocalMovers && numMovers < std::ssize(moverList); i++)
     {
         if ((GroupFlags >> i & 1) != 0)
         {
-            moverList[static_cast<size_t>(numMovers)] = LockObject(MultiPlayer()->PlayerMoverRoster[commanderId][i]);
+            moverList[static_cast<size_t>(numMovers)] = LockObject(roster[static_cast<size_t>(i)]);
             numMovers++;
         }
     }
 
-    point = PointLocalMoverId != 0xf ? LockObject(MultiPlayer()->PlayerMoverRoster[commanderId][PointLocalMoverId])
-                                     : nullptr;
+    point = PointLocalMoverId >= 0 && PointLocalMoverId < MCMultiPlayer::MaxLocalMovers
+                ? LockObject(roster[static_cast<size_t>(PointLocalMoverId)])
+                : nullptr;
     return numMovers;
 }
 

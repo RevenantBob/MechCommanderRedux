@@ -115,6 +115,12 @@ struct MCGlobalPathStep
 /// <remarks>Original source: <c>ai\move.cpp</c>.</remarks>
 class MCGlobalMap
 {
+    /// <summary>Only <see cref="Read"/> makes a map from a file.</summary>
+    struct Key
+    {
+        explicit Key() = default;
+    };
+
 public:
     /// <summary>Version stamp at the start of a global map file.</summary>
     static constexpr int32_t FileVersion = 0x22569;
@@ -131,7 +137,17 @@ public:
     static constexpr int32_t MaxPathSteps = 80;
 
     /// <summary>Reads a global map file (see <see cref="Write"/>); the door search uses <paramref name="openList"/>.</summary>
-    MCGlobalMap(MCFile& mapFile, std::shared_ptr<MCPriorityQueue> openList);
+    /// <returns>
+    /// The map, or why the file isn't one the game can search: a count the file doesn't hold, or an area, door or link
+    /// that names one the map doesn't have.
+    /// </returns>
+    /// <remarks>
+    /// Issue #25: the original read the counts' worth whatever the file held and followed every index unchecked.
+    /// </remarks>
+    static std::expected<std::unique_ptr<MCGlobalMap>, std::string> Read(MCFile& mapFile,
+                                                                         std::shared_ptr<MCPriorityQueue> openList);
+    /// <summary>An empty map for <see cref="Read"/> to fill.</summary>
+    MCGlobalMap(Key, std::shared_ptr<MCPriorityQueue> openList);
     /// <summary>
     /// Computes the areas, doors and links of a scenario map (the editor's work), planning the link costs with
     /// <paramref name="pathFinder"/> for <paramref name="search"/>'s moving object (the bridge tiles cleared).
@@ -200,6 +216,9 @@ public:
     int32_t GoalSectorC = 0;
 
 private:
+    /// <summary>Nothing, or the first area, door or link of a read map that names one the map doesn't have.</summary>
+    std::expected<void, std::string> CheckIndexes() const;
+
     /// <summary>Allocates an empty area map of the given size (multiples of 10); the sector grid is sized from the
     /// width alone.</summary>
     void InitAreaMap(int32_t newWidth, int32_t newHeight);

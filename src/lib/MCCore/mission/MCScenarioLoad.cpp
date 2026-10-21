@@ -57,6 +57,32 @@ namespace
     constexpr double DegreesToRadians = 0x1.1df46a2526c7ap-6;
 
     /// <summary>
+    /// The object of part <paramref name="partNumber"/> of <paramref name="scenario"/>, which the mission file names as
+    /// <paramref name="what"/>: a part that exists and holds a <typeparamref name="T"/> that <paramref name="fits"/>.
+    /// </summary>
+    /// <remarks>
+    /// Issue #25: the original indexed the parts with the file's number unchecked and cast whatever it found (a mech to
+    /// a train car). A mission that names another part can't be played: it ends with the reason.
+    /// </remarks>
+    template <class T, class Fits>
+    std::shared_ptr<T> ReferencedPart(const MCScenario& scenario, int64_t partNumber, std::string_view what,
+                                      Fits&& fits)
+    {
+        if (partNumber >= 1 && partNumber <= static_cast<int64_t>(scenario.NumParts()))
+        {
+            if (std::shared_ptr<T> object =
+                    std::dynamic_pointer_cast<T>(LockObject(scenario.Parts[static_cast<size_t>(partNumber)].Object));
+                object != nullptr && fits(*object))
+            {
+                return object;
+            }
+        }
+
+        Fatal(static_cast<int32_t>(partNumber),
+              std::format(" The mission's {} names part {}, which isn't one ", what, partNumber));
+    }
+
+    /// <summary>
     /// Installs a terrain in the game context and loads <paramref name="fileName"/> into it (what it builds reaches for
     /// it there); a failure is Fatal.
     /// </summary>
@@ -624,7 +650,16 @@ auto MCScenario::LoadTerrain(MCFitIniFile& file, std::string_view terrainName) -
             Fatal(result, " Could not open global Map ");
         }
 
-        MCGameContext::Current().SetMoveSystem(MCMoveSystem::Load(mapFile, globalMapFile, SimpleMovePathRange * 2 + 1));
+        std::expected<std::unique_ptr<MCMoveSystem>, std::string> moveSystem =
+            MCMoveSystem::Load(mapFile, globalMapFile, SimpleMovePathRange * 2 + 1);
+
+        // A mission whose maps can't be read can't be played.
+        if (!moveSystem)
+        {
+            Fatal(0, " could not start Game Map: ", moveSystem.error());
+        }
+
+        MCGameContext::Current().SetMoveSystem(std::move(*moveSystem));
         UpdateDisplay(false, true, 30, true, 60);
         UpdateDisplay(false, true, 30, true, 65);
         Terrain()->UpdateAllObjects();
@@ -796,10 +831,9 @@ auto MCScenario::LoadCarriers(MCFitIniFile& file) -> void
             {
                 const auto carPart =
                     RequireFit<int32_t>(file, std::format("Car{}", carNumber), " Could not find a car in train block");
-                Assert(carPart <= static_cast<int32_t>(NumParts()), 0, "Illegal part number for train car");
+                const auto car = ReferencedPart<MCTrainCar>(*this, carPart, "train car", [](const MCTrainCar& found)
+                                                            { return found.ObjectClass == MCObjectClass::TrainCar; });
                 const MCPart& part = Parts[static_cast<size_t>(carPart)];
-                const auto car = std::static_pointer_cast<MCTrainCar>(LockObject(part.Object));
-                Assert(car->ObjectClass == MCObjectClass::TrainCar, 0, "Car in train block isn't a traincar!");
                 train->AddCar(*car);
                 car->SetPartId(trainNumber, carNumber);
 
@@ -838,13 +872,9 @@ auto MCScenario::LoadCarriers(MCFitIniFile& file) -> void
         {
             RequireFitBlock(file, std::format("ECarrier{}", carrierNumber), " Could not find carrier block");
             const auto partNumber = RequireFit<int32_t>(file, "Carrier", " Could not read carrier in carrier block");
-            Assert(partNumber < static_cast<int32_t>(NumParts()), static_cast<uint32_t>(partNumber),
-                   "Illegal part number for elemental carrier");
-            const auto carrier =
-                std::static_pointer_cast<MCGroundVehicle>(LockObject(Parts[static_cast<size_t>(partNumber)].Object));
-            Assert(carrier != nullptr && carrier->ObjectClass == MCObjectClass::GroundVehicle &&
-                       carrier->ElementalCarrier != 0,
-                   0, "Illegal carrier object");
+            const auto carrier = ReferencedPart<MCGroundVehicle>(
+                *this, partNumber, "elemental carrier", [](const MCGroundVehicle& found)
+                { return found.ObjectClass == MCObjectClass::GroundVehicle && found.ElementalCarrier != 0; });
 
             for (int32_t i = 0; i < MCGroundVehicle::MaxElementals; i++)
             {
@@ -855,10 +885,9 @@ auto MCScenario::LoadCarriers(MCFitIniFile& file) -> void
                     break;
                 }
 
-                const auto elemental = std::static_pointer_cast<MCElemental>(
-                    LockObject(Parts[static_cast<size_t>(*elementalPart)].Object));
-                Assert(elemental != nullptr && elemental->ObjectClass == MCObjectClass::Elemental, 0,
-                       "Illegal elemental object");
+                const auto elemental =
+                    ReferencedPart<MCElemental>(*this, *elementalPart, "carried elemental", [](const MCElemental& found)
+                                                { return found.ObjectClass == MCObjectClass::Elemental; });
                 carrier->Elementals[i] = elemental;
                 elemental->Transport = carrier;
             }
@@ -875,11 +904,9 @@ auto MCScenario::LoadCarriers(MCFitIniFile& file) -> void
         {
             RequireFitBlock(file, std::format("Bus{}", busNumber), " Could not find bus block");
             const auto busPart = RequireFit<int32_t>(file, "Bus", " Could not read carrier in carrier block");
-            Assert(busPart <= static_cast<int32_t>(NumParts()), static_cast<uint32_t>(busPart),
-                   "Illegal part number for elemental carrier");
             const auto bus =
-                std::static_pointer_cast<MCGroundVehicle>(LockObject(Parts[static_cast<size_t>(busPart)].Object));
-            Assert(bus != nullptr && bus->ObjectClass == MCObjectClass::GroundVehicle, 0, "Illegal bus object");
+                ReferencedPart<MCGroundVehicle>(*this, busPart, "bus", [](const MCGroundVehicle& found)
+                                                { return found.ObjectClass == MCObjectClass::GroundVehicle; });
 
             for (int32_t seat = 0; seat < MaxGroundVehicleSeats && seat < static_cast<int32_t>(bus->Seats); seat++)
             {
@@ -931,7 +958,11 @@ auto MCScenario::LoadObjectives(MCFitIniFile& file) -> void
                       static_cast<int32_t>(static_cast<double>(i) / static_cast<int32_t>(numObjectives) * 5.0 + 93.0));
     }
 
-    Objectives.Load(file, numObjectives);
+    // A mission whose objectives can't be read can't be played.
+    if (const std::expected<void, std::string> loaded = Objectives.Load(file, numObjectives); !loaded)
+    {
+        Fatal(0, " Bad mission objectives: ", loaded.error());
+    }
 }
 
 auto MCScenario::LoadGroups(MCFitIniFile& file) -> void
@@ -950,9 +981,16 @@ auto MCScenario::LoadGroups(MCFitIniFile& file) -> void
             commander->SetNumCameraDrones(OptionalFit<int32_t>(file, "NumCameraDrones", 0));
         }
 
+        // A commander has 32 groups; a mission's further ones are refused (issue #25: the original went past them).
         for (int32_t groupId = 0; file.SeekBlock(std::format("Commander{}Group:{}", commanderId, groupId)) == 0;
              groupId++)
         {
+            if (groupId >= MCCommander::MaxGroups)
+            {
+                Fatal(groupId, std::format(" The mission gives commander {} more than {} groups ", commanderId,
+                                           MCCommander::MaxGroups));
+            }
+
             bool pointChosen = false;
             std::array<int32_t, MCMoverGroup::MaxMovers> mates{};
 
@@ -968,9 +1006,10 @@ auto MCScenario::LoadGroups(MCFitIniFile& file) -> void
                     continue;
                 }
 
+                const auto mateMover = ReferencedPart<MCMover>(*this, mates[i], "group mate", [](const MCMover& found)
+                                                               { return IsMoverClass(found.ObjectClass); });
                 MCPart& mate = Parts[static_cast<size_t>(mates[i])];
                 const int32_t partId = 0x200 + commanderId * 0x180 + groupId * MCMoverGroup::MaxMovers + i;
-                const auto mateMover = std::static_pointer_cast<MCMover>(LockObject(mate.Object));
                 mateMover->SetPartId(partId);
 
                 if (mate.Exists == 0)

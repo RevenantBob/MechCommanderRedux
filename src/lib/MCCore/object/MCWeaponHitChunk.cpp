@@ -192,8 +192,8 @@ auto MCWeaponHitChunk::Unpack() -> void
         return;
     }
 
-    DebugWeaponHitChunk(*this, std::nullopt);
-    Fatal(0, " Bad WeaponHitChunk Target Type ");
+    // Target type 3 comes only from another machine; the caller drops it (the original wrote a debug file and was
+    // fatal).
 }
 
 auto MCWeaponHitChunk::EqualTo(MCWeaponHitChunk& chunk) -> int

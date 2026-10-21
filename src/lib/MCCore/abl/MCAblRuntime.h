@@ -146,6 +146,13 @@ public:
     /// runaway recursion.
     /// </summary>
     static constexpr int32_t MaxStackItems = 0xa000 / 4;
+    /// <summary>
+    /// Calls deep the interpreter goes before a stack overflow (port's): each call recurses in C++ as well, and with small
+    /// frames the C++ stack ran out before the script's stack filled (issue #25).
+    /// </summary>
+    static constexpr int32_t MaxCallDepth = 128;
+    /// <summary>The largest block a script's variables may take (port's limit on the script heap).</summary>
+    static constexpr int32_t MaxBlockBytes = 16 << 20;
 
     /// <summary>The loop iterations allowed before an infinite-loop error, until a script's <c>setmaxloops</c>.</summary>
     static constexpr int32_t DefaultMaxLoopIterations = 100001;

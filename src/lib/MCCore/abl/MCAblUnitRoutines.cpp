@@ -578,31 +578,23 @@ auto ExecHbGetWeaponRanges(MCAblRuntime& abl) -> void
     if (object && IsMover(*object))
     {
         const auto mover = std::static_pointer_cast<MCMover>(object);
+        const float shortest =
+            mover->ShortestRangeWeapon == 0xff
+                ? -1.0f
+                : MasterComponentList[mover->Inventory[mover->ShortestRangeWeapon].MasterID].WeaponRange[1];
+        float optimal = mover->GetFireRange(-1);
 
-        if (mover->ShortestRangeWeapon == 0xff)
-        {
-            ranges[0] = -1.0f;
-        }
-        else
-        {
-            ranges[0] = MasterComponentList[mover->Inventory[mover->ShortestRangeWeapon].MasterID].WeaponRange[1];
-        }
-
-        ranges[1] = mover->GetFireRange(-1);
-
-        if (ranges[1] == -1.0f)
+        if (optimal == -1.0f)
         {
             mover->CalcOptimalRange(nullptr);
-            ranges[1] = mover->GetFireRange(-1);
+            optimal = mover->GetFireRange(-1);
         }
 
-        ranges[2] = mover->GetFireRange(-2);
+        PutArrayArgument(ranges, {shortest, optimal, mover->GetFireRange(-2)});
     }
     else
     {
-        ranges[2] = 0.0f;
-        ranges[1] = 0.0f;
-        ranges[0] = 0.0f;
+        PutArrayArgument(ranges, {0.0f, 0.0f, 0.0f});
     }
 
     abl.GetCodeToken();
@@ -621,13 +613,11 @@ auto ExecHbSetMoveGoal(MCAblRuntime& abl) -> MCAblTypeId
     if (abl.Brain.Warrior())
     {
         MCVector3D goal;
-        goal.X = location[0];
-        goal.Y = location[1];
-        goal.Z = location[2];
+        goal.X = ArrayArgumentAt<float>(location, 0);
+        goal.Y = ArrayArgumentAt<float>(location, 1);
+        goal.Z = ArrayArgumentAt<float>(location, 2);
         abl.Brain.Warrior()->SetMoveGoal(goalType, goal, nullptr);
-        location[0] = goal.X;
-        location[1] = goal.Y;
-        location[2] = goal.Z;
+        PutArrayArgument(location, {goal.X, goal.Y, goal.Z});
         abl.Brain.Warrior()->MoveOrders.ScriptGoal = 1;
     }
 
@@ -669,10 +659,7 @@ auto ExecHbGetFireRanges(MCAblRuntime& abl) -> MCAblTypeId
     abl.GetCodeToken();
     std::span<float> ranges = abl.NextReference<float>();
     abl.Pop();
-    ranges[0] = WeaponRange[0];
-    ranges[1] = WeaponRange[1];
-    ranges[2] = WeaponRange[2];
-    ranges[3] = Scenario()->MaxWeaponRange;
+    PutArrayArgument(ranges, {WeaponRange[0], WeaponRange[1], WeaponRange[2], Scenario()->MaxWeaponRange});
     abl.GetCodeToken();
     return MCAblTypeId::None;
 }
@@ -834,7 +821,7 @@ auto ExecHbSortWeapons(MCAblRuntime& abl) -> void
     abl.Pop();
     int32_t listSize = abl.NextInteger();
     int32_t sortType = abl.NextInteger();
-    int32_t valueList[48];
+    std::array<int32_t, 48> valueList{};
 
     if (abl.Brain.Object() && IsMover(*abl.Brain.Object()))
     {
@@ -860,9 +847,7 @@ auto ExecHbGetObjectPosition(MCAblRuntime& abl) -> MCAblTypeId
 
     if (IsGroupId(partId))
     {
-        position[0] = 0.0f;
-        position[1] = 0.0f;
-        position[2] = 0.0f;
+        PutArrayArgument(position, {0.0f, 0.0f, 0.0f});
     }
     else
     {
@@ -871,9 +856,7 @@ auto ExecHbGetObjectPosition(MCAblRuntime& abl) -> MCAblTypeId
         if (object)
         {
             MCVector3D objectPosition = object->GetPosition();
-            position[0] = objectPosition.X;
-            position[1] = objectPosition.Y;
-            position[2] = objectPosition.Z;
+            PutArrayArgument(position, {objectPosition.X, objectPosition.Y, objectPosition.Z});
         }
     }
 
@@ -966,7 +949,8 @@ auto ExecHbGetUnitMates(MCAblRuntime& abl) -> MCAblTypeId
         movers = GroupMovers(*static_cast<MCMover&>(*object).Group.lock());
     }
 
-    for (size_t i = 0; i < movers.size(); i++)
+    // As many as the script's array holds (issue #25: the original wrote every mate); the count is still all of them.
+    for (size_t i = 0; i < std::min(movers.size(), mateList.size()); i++)
     {
         mateList[i] = movers[i]->PartId;
     }

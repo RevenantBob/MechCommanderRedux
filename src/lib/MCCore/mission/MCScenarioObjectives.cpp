@@ -11,9 +11,15 @@ MCObjectiveList::MCObjectiveList()
     }
 }
 
-auto MCObjectiveList::Load(MCFitIniFile& file, uint32_t count) -> void
+auto MCObjectiveList::Load(MCFitIniFile& file, uint32_t count) -> std::expected<void, std::string>
 {
-    Assert(count < MaxObjectives + 1, count, " Too Many Objectives ");
+    // Issue #25: the count comes from the mission file; the original only asserted, and wrote the objectives past the
+    // nine slots into the scenario's next members.
+    if (count > static_cast<uint32_t>(MaxObjectives))
+    {
+        return std::unexpected(std::format("{} objectives, more than the {} a mission can have", count, MaxObjectives));
+    }
+
     _Count = static_cast<int32_t>(count);
 
     for (int32_t i = 0; i < _Count; i++)
@@ -29,6 +35,8 @@ auto MCObjectiveList::Load(MCFitIniFile& file, uint32_t count) -> void
         objective.Radius = OptionalFit<float>(file, "Radius", 0.0f);
         objective.Position = {-99.0f, -99.0f, -99.0f};
     }
+
+    return {};
 }
 
 auto MCObjectiveList::SetStatus(int32_t number, uint32_t status) -> int32_t

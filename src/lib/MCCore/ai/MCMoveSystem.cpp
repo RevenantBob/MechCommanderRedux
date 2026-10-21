@@ -6,14 +6,30 @@ MCMoveSystem::MCMoveSystem() = default;
 
 MCMoveSystem::~MCMoveSystem() = default;
 
-auto MCMoveSystem::Load(MCFile& mapFile, MCFile& globalMapFile, int32_t pathWindow) -> std::unique_ptr<MCMoveSystem>
+auto MCMoveSystem::Load(MCFile& mapFile, MCFile& globalMapFile, int32_t pathWindow)
+    -> std::expected<std::unique_ptr<MCMoveSystem>, std::string>
 {
     auto system = std::make_unique<MCMoveSystem>();
-    system->Map = std::make_unique<MCScenarioMap>(mapFile);
+    std::expected<std::unique_ptr<MCScenarioMap>, std::string> map = MCScenarioMap::Read(mapFile);
+
+    if (!map)
+    {
+        return std::unexpected(std::format("the movement map: {}", map.error()));
+    }
+
+    system->Map = std::move(*map);
     system->ObjectMap = std::make_unique<MCObjectMap>(*system->Map);
     system->PathManager = std::make_unique<MCMovePathManager>();
     system->PathFinder = std::make_unique<MCMoveMap>(pathWindow, pathWindow, system->OpenList);
-    system->GlobalMap = std::make_unique<MCGlobalMap>(globalMapFile, system->OpenList);
+    std::expected<std::unique_ptr<MCGlobalMap>, std::string> globalMap =
+        MCGlobalMap::Read(globalMapFile, system->OpenList);
+
+    if (!globalMap)
+    {
+        return std::unexpected(std::format("the global map: {}", globalMap.error()));
+    }
+
+    system->GlobalMap = std::move(*globalMap);
     return system;
 }
 

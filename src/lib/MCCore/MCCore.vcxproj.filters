@@ -423,9 +423,6 @@
     <ClCompile Include="linkup\MCFidpSession.cpp">
       <Filter>linkup</Filter>
     </ClCompile>
-    <ClCompile Include="linkup\MCFileTransferInfo.cpp">
-      <Filter>linkup</Filter>
-    </ClCompile>
     <ClCompile Include="linkup\MCSessionManager.cpp">
       <Filter>linkup</Filter>
     </ClCompile>
@@ -1595,9 +1592,6 @@
       <Filter>linkup</Filter>
     </ClInclude>
     <ClInclude Include="linkup\MCFidpSession.h">
-      <Filter>linkup</Filter>
-    </ClInclude>
-    <ClInclude Include="linkup\MCFileTransferInfo.h">
       <Filter>linkup</Filter>
     </ClInclude>
     <ClInclude Include="linkup\MCLinkupMessages.h">

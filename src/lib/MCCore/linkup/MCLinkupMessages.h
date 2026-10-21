@@ -51,9 +51,9 @@ enum class MCLinkupMessageType : uint16_t
     GameStarted = 5,
     /// <summary>A new server (<see cref="MCFIValueMessage"/>; passed on to the game).</summary>
     NewServer = 6,
-    /// <summary>A file transfer begins (<see cref="MCFIBeginFileTransferMessage"/>).</summary>
+    /// <summary>A file transfer begins. The game never sent files; the port drops it.</summary>
     BeginFileTransfer = 7,
-    /// <summary>A piece of a file (<see cref="MCFIFileDataMessage"/>).</summary>
+    /// <summary>A piece of a file. The game never sent files; the port drops it.</summary>
     FileData = 8,
     /// <summary>The receiver was removed from the game (<see cref="MCFIValueMessage"/>; passed on to the game).</summary>
     PlayerRemoved = 9,
@@ -113,39 +113,6 @@ public:
 };
 
 static_assert(sizeof(MCFISystemInfoMessage) == 0xc);
-
-/// <summary>
-/// Message type 7: announces a file transfer: the file's size, its transfer id and its name as "name\directory".
-/// </summary>
-/// <remarks>
-/// Fixed layout, variable length on the wire: these 7 bytes, then the zero-terminated "name\directory"
-/// (<see cref="MCFileTransferInfo::CreateBeginTransferMessage"/> sizes it strlen(name) + strlen(dir) + 0xb).
-/// </remarks>
-class MCFIBeginFileTransferMessage : public MCFIMessageHeader
-{
-public:
-    uint32_t FileSize = 0;
-    /// <summary>The transfer's id (SessionManager's next file id, 0-255).</summary>
-    uint8_t FileID = 0;
-};
-
-static_assert(sizeof(MCFIBeginFileTransferMessage) == 7);
-
-/// <summary>Bytes of a file each <see cref="MCFIFileDataMessage"/> carries at most.</summary>
-inline constexpr size_t FileDataPieceSize = 100;
-
-/// <summary>
-/// Message type 8 (guaranteed): one piece of a file transfer: the transfer id and up to 100 bytes of the file. A
-/// piece whose last byte is 0 ends the transfer.
-/// </summary>
-/// <remarks>Fixed layout: 9 + bytes read on the wire (header word 0x1008).</remarks>
-struct MCFIFileDataMessage : public MCFIGuaranteedMessageHeader
-{
-    uint8_t FileID = 0;
-    std::array<uint8_t, FileDataPieceSize> Data{};
-};
-
-static_assert(sizeof(MCFIFileDataMessage) == 0x6d);
 
 /// <summary>Message type 2 (guaranteed): the server's numbering of the players.</summary>
 /// <remarks>Fixed layout: 0x21 bytes.</remarks>

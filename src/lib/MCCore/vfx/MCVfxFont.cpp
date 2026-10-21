@@ -18,8 +18,50 @@ int32_t VfxFontHeight(std::span<const uint8_t> font)
     return MCVfxRead32(font, 8);
 }
 
+bool VfxFontFits(std::span<const uint8_t> font)
+{
+    if (font.size() < 0x10)
+    {
+        return false;
+    }
+
+    const int64_t count = MCVfxRead32(font, 4);
+    const int64_t height = VfxFontHeight(font);
+
+    if (count < 0 || height < 0 || 0x10 + count * 4 > static_cast<int64_t>(font.size()))
+    {
+        return false;
+    }
+
+    for (int64_t character = 0; character < count; character++)
+    {
+        const int64_t offset = static_cast<uint32_t>(MCVfxRead32(font, 0x10 + static_cast<size_t>(character) * 4));
+
+        if (offset + 4 > static_cast<int64_t>(font.size()))
+        {
+            return false;
+        }
+
+        const int64_t width = MCVfxRead32(font, static_cast<size_t>(offset));
+
+        if (width < 0 || offset + 4 + width * height > static_cast<int64_t>(font.size()))
+        {
+            return false;
+        }
+    }
+
+    return true;
+}
+
 int32_t VfxCharacterWidth(std::span<const uint8_t> font, int32_t character)
 {
+    // A character past the font's table has no glyph (issue #25; DIM10.FNT lists 140, and the original read whatever
+    // followed the table as offsets).
+    if (character < 0 || character >= MCVfxRead32(font, 4))
+    {
+        return 0;
+    }
+
     return MCVfxRead32(Glyph(font, character));
 }
 
