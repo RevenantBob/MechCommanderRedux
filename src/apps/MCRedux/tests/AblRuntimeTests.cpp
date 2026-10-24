@@ -444,6 +444,54 @@ TEST_CASE("abl memory: concat writes only as far as its string's array goes (OB-
     CHECK_EQ(AblRuntime()->ArrayBlockCount(), 0u);
 }
 
+TEST_CASE("abl memory: a shorter string copied into a longer char array (OB-180)")
+{
+    MCAblRuntimeScope abl;
+    // The string's characters and its 0 land in the array, the rest is zeroed (the original copied the whole array's
+    // size from the string, past its end). concat then appends at the 0, so text[2] is the "x".
+    const auto check = [](std::string_view name)
+    {
+        return std::format("    concat({}, \"x\");\r\n    ok = 1;\r\n"
+                           "    if ({}[0] == \"a\") and ({}[1] == \"b\") and "
+                           "({}[2] == \"x\") then\r\n        ok = 2;\r\n"
+                           "    endif;\r\n",
+                           name, name, name, name);
+    };
+
+    // A literal assigned to the array.
+    CHECK_EQ(abl.Run(Returns("var\r\n    char[20] text;\r\n    integer ok;\r\n",
+                             "    text = \"abcdefgh\";\r\n    text = \"ab\";\r\n" + check("text"), "ok")),
+             2);
+    // A string constant.
+    CHECK_EQ(abl.Run(Returns("const\r\n    shortname = \"ab\";\r\nvar\r\n    char[20] text;\r\n    integer ok;\r\n",
+                             "    text = \"abcdefgh\";\r\n    text = shortname;\r\n" + check("text"), "ok")),
+             2);
+    // A shorter char array.
+    CHECK_EQ(abl.Run(Returns("var\r\n    char[3] small;\r\n    char[20] text;\r\n    integer ok;\r\n",
+                             "    small = \"ab\";\r\n    text = \"abcdefgh\";\r\n    text = small;\r\n" + check("text"),
+                             "ok")),
+             2);
+    // A literal and a shorter array passed by value to a char array parameter.
+    CHECK_EQ(abl.Run("module strparam : integer;\r\n"
+                     "type\r\n"
+                     "    name20 = char[20];\r\n"
+                     "var\r\n"
+                     "    char[3] small;\r\n"
+                     "function test (name20 text) : integer;\r\n"
+                     "var\r\n"
+                     "    integer ok;\r\n"
+                     "code\r\n" +
+                     check("text") +
+                     "    return(ok);\r\n"
+                     "endfunction;\r\n"
+                     "code\r\n"
+                     "    small = \"ab\";\r\n"
+                     "    return(test(\"ab\") * 10 + test(small));\r\n"
+                     "endmodule.\r\n"),
+             22);
+    CHECK_EQ(AblRuntime()->ArrayBlockCount(), 0u);
+}
+
 TEST_CASE("abl routines: a position written into a script's array stops at the array's end")
 {
     MCAblRuntimeScope abl;

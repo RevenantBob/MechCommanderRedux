@@ -391,8 +391,14 @@ auto MCAblRuntime::Text(MCAblAddress address) -> std::string_view
 auto MCAblRuntime::CopyBytes(MCAblAddress target, MCAblAddress source, int32_t size) -> void
 {
     const auto count = static_cast<size_t>(size);
+    const std::span<uint8_t> to = Checked(target, count);
+    // A string may be shorter than the char array it goes into (a literal, a constant, a smaller array): its bytes
+    // are copied and the rest zeroed (OB-180).
+    const std::span<uint8_t> from = Bytes(source);
+    const size_t copied = std::min(count, from.size());
     // memmove: an array may be copied over itself.
-    std::memmove(Checked(target, count).data(), Checked(source, count).data(), count);
+    std::memmove(to.data(), from.data(), copied);
+    std::fill(to.begin() + static_cast<ptrdiff_t>(copied), to.end(), uint8_t{0});
 }
 
 auto MCAblRuntime::StackIndex(MCAblAddress address) -> int32_t
