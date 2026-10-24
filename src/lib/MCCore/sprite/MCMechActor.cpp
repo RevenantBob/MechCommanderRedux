@@ -50,22 +50,6 @@ namespace
     /// <summary>Half a turn: MCX.EXE's constant for pi (a little short of it).</summary>
     constexpr double TurnAngle = 3.1415926535820002;
 
-    /// <summary>Wraps <paramref name="rotation"/> into -180..180 (one step each way).</summary>
-    auto WrapRotation(float rotation) -> float
-    {
-        if (rotation > 180.0)
-        {
-            return (rotation - 180.0f) - 180.0f;
-        }
-
-        if (rotation < -180.0)
-        {
-            return rotation + 180.0f + 180.0f;
-        }
-
-        return rotation;
-    }
-
     /// <summary>Turns <paramref name="mech"/>'s frame half a turn about its up axis (the reversed gestures end
     /// facing the other way) and clears its torso and arm rotations.</summary>
     auto TurnAround(MCBattleMech& mech) -> void
@@ -665,17 +649,26 @@ auto MCMechActor::Render(int32_t depthFixup) -> int32_t
     const float rotation2 = facing + leftArm + torso;
     const float rotation3 = facing + rightArm + torso;
     const bool armSymmetrical = MechTree->Gestures[CurrentGesture].ArmSymmetrical != 0;
-    // A mirrored gesture facing left draws each arm from the other arm's sprites.
-    const bool swapArms = armSymmetrical && WrapRotation(rotation3) < 0.0;
+
+    // A mirrored arm is drawn from the other arm's sprites. OB-179 fixed: the original swapped on the sign of the
+    // angle alone, also facing straight ahead or back, where the sprite isn't mirrored, so a lone arm jumped sides.
+    const auto mirrored = [&](int32_t part, float rotation)
+    {
+        const std::optional<MCGesturePacket> packet = MechTree->GesturePacket(upperGesture, part, rotation);
+        return armSymmetrical && packet.has_value() && packet->Reverse;
+    };
+
+    const bool swapRightArm = mirrored(3, rotation2);
+    const bool swapLeftArm = mirrored(2, rotation3);
 
     if (!RightArmGone)
     {
         shapes[MCMechPart::RightArm] =
-            MechTree->GetGesture(upperGesture, swapArms ? 3 : 2, rotation2, Reverse[MCMechPart::RightArm],
+            MechTree->GetGesture(upperGesture, swapRightArm ? 3 : 2, rotation2, Reverse[MCMechPart::RightArm],
                                  FrameRate[MCMechPart::RightArm], largeSprites);
     }
 
-    if (!LeftArmGone && swapArms)
+    if (!LeftArmGone && swapLeftArm)
     {
         shapes[MCMechPart::LeftArm] = MechTree->GetGesture(upperGesture, 2, rotation3, Reverse[MCMechPart::LeftArm],
                                                            FrameRate[MCMechPart::LeftArm], largeSprites);

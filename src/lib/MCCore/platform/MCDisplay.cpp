@@ -514,6 +514,45 @@ std::expected<std::vector<SDL_Color>, std::string> MCDisplay::ReadFrame()
     return _Presenter->ReadFrame(frame);
 }
 
+std::expected<void, std::string> MCDisplay::SaveShownScreenshot(const std::filesystem::path& path)
+{
+    const MCFrame frame = BuildFrame(true);
+    auto read = _Presenter->ReadFrame(frame);
+
+    if (!read)
+    {
+        return std::unexpected(read.error());
+    }
+
+    // A scaled frame is composited at the shown size; else the shown view is a part of the screen.
+    const bool scaled = frame.ScaledOutput();
+    const int pitch = scaled ? frame.OutputWidth : frame.Width;
+    const SDL_Rect shown = scaled ? SDL_Rect{0, 0, frame.OutputWidth, frame.OutputHeight} : frame.View;
+    SDL_Surface* surface = SDL_CreateSurface(shown.w, shown.h, SDL_PIXELFORMAT_RGBA32);
+
+    if (surface == nullptr)
+    {
+        return std::unexpected(SdlError("SDL_CreateSurface"));
+    }
+
+    for (int y = 0; y < shown.h; ++y)
+    {
+        std::memcpy(static_cast<uint8_t*>(surface->pixels) + static_cast<ptrdiff_t>(y) * surface->pitch,
+                    read->data() + static_cast<size_t>(shown.y + y) * pitch + shown.x,
+                    static_cast<size_t>(shown.w) * sizeof(SDL_Color));
+    }
+
+    const bool saved = SDL_SavePNG(surface, path.string().c_str());
+    SDL_DestroySurface(surface);
+
+    if (!saved)
+    {
+        return std::unexpected(SdlError("SDL_SavePNG"));
+    }
+
+    return {};
+}
+
 std::vector<uint8_t> MCDisplay::ComposeScreen() const
 {
     const std::vector<MCUnderlay> underlays = ScreenUnderlays();

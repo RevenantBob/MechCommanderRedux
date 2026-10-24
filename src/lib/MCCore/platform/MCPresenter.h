@@ -149,8 +149,9 @@ public:
     virtual std::expected<void, std::string> Present(const MCFrame& frame) = 0;
 
     /// <summary>
-    /// Draws the frame as <see cref="Present"/> would, at the screen's size, and reads it back as RGBA (tests compare
-    /// it with the CPU's composite).
+    /// Draws the frame as <see cref="Present"/> would and reads it back as RGBA: at the screen's size, or at
+    /// <see cref="MCFrame::OutputWidth"/> x <see cref="MCFrame::OutputHeight"/> when the frame is scaled (tests compare
+    /// the first with the CPU's composite; screenshots take the second).
     /// </summary>
     virtual std::expected<std::vector<SDL_Color>, std::string> ReadFrame(const MCFrame& frame) = 0;
 

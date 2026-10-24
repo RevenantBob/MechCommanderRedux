@@ -1,19 +1,29 @@
 #include "stdafx.h"
 #include "MCTest.h"
+#include "ScreenInput.h"
+#include "TestGame.h"
 #include "fixtures/MCRegisteredData.h"
 #include "appear/MCAppearanceTypeList.h"
+#include "camera/MCCamera.h"
 #include "fakes/MCMemoryFileSource.h"
 #include "fixtures/MCRetailData.h"
 #include "lib/MCFile.h"
 #include "lib/MCPacketFile.h"
 #include "main/MCGamePaths.h"
 #include "main/MCMissionGlobals.h"
+#include "object/MCBattleMech.h"
 #include "object/MCBattleMechType.h"
+#include "object/MCMechWarrior.h"
+#include "object/MCMover.h"
+#include "platform/MCDisplay.h"
+#include "platform/MCInput.h"
 #include "platform/MCRenderer.h"
 #include "sprite/MCGVAppearance.h"
 #include "sprite/MCMechActor.h"
 #include "sprite/MCShape.h"
 #include "sprite/MCSpriteManager.h"
+#include "sprite/MCSpriteMath.h"
+#include "sprite/MCSpriteTree.h"
 #include "sprite/MCVfxAppearance.h"
 #include "vfx/MCVfxFunctions.h"
 
@@ -571,6 +581,241 @@ TEST_CASE("sprites: the shadow facing is one of 32, wrapped and clamped")
     // -90 is 270: 33 * 270 / 360 = 24.75.
     CHECK_EQ(CalcRotation(-90.0f, 0x20), 24);
     CHECK_EQ(CalcRotation(359.0f, 0x20), 31);
+}
+
+namespace
+{
+    /// <summary>The mech tree named <paramref name="name"/> (its FIT's Main Info "Name") in the game's sprite PAK.</summary>
+    std::shared_ptr<MCSpriteTree> FindMechTree(std::string_view name)
+    {
+        MCPacketFile pak;
+
+        if (pak.Open(GamePath(SpritePath, "sprites", ".pak")) != 0)
+        {
+            return nullptr;
+        }
+
+        for (int32_t packet = 0; packet < pak.GetNumPackets(); ++packet)
+        {
+            MCFitIniFile fit;
+
+            if (pak.SeekPacket(packet) != 0 || pak.GetPacketSize() == 0 ||
+                fit.Open(pak, static_cast<uint32_t>(pak.GetPacketSize())) != 0 || fit.SeekBlock("Parts") != 0 ||
+                fit.SeekBlock("Main Info") != 0)
+            {
+                continue;
+            }
+
+            const MCFitResult<std::string> treeName = fit.Read<std::string>("Name");
+
+            if (treeName.has_value() && *treeName == name)
+            {
+                return std::static_pointer_cast<MCSpriteTree>(
+                    AppearanceTypeList().GetAppearance(0x01000000u | static_cast<uint32_t>(packet)));
+            }
+        }
+
+        return nullptr;
+    }
+
+    /// <summary>Turns <paramref name="mech"/> to face <paramref name="degrees"/> (about the world's up axis).</summary>
+    void FaceMech(MCBattleMech& mech, float degrees)
+    {
+        const double radians = static_cast<double>(degrees) * std::numbers::pi / 180.0;
+        const auto c = static_cast<float>(std::cos(radians));
+        const auto s = static_cast<float>(std::sin(radians));
+        MCFrameOfRef frame(MCVector3D(c, s, 0.0f), MCVector3D(-s, c, 0.0f), UnitZ);
+        mech.SetFrame(frame);
+    }
+
+    /// <summary>What one mech part drew: its shape (numbered in the order first seen), frame and mirroring.</summary>
+    struct DrawnPart
+    {
+        int32_t Shape = -1;
+        int32_t Frame = 0;
+        int32_t Reverse = 0;
+
+        bool operator==(const DrawnPart&) const = default;
+    };
+
+    /// <summary>Numbers each shape the first time it is seen, so a log can tell shapes apart.</summary>
+    struct ShapeNumbers
+    {
+        int32_t Number(const std::weak_ptr<MCShape>& shape)
+        {
+            const std::shared_ptr<MCShape> pinned = shape.lock();
+
+            if (pinned == nullptr)
+            {
+                return -1;
+            }
+
+            const auto found = std::ranges::find(_Seen, pinned.get(),
+                                                 [](const std::weak_ptr<MCShape>& seen) { return seen.lock().get(); });
+
+            if (found != _Seen.end())
+            {
+                return static_cast<int32_t>(found - _Seen.begin());
+            }
+
+            _Seen.push_back(pinned);
+            return static_cast<int32_t>(_Seen.size()) - 1;
+        }
+
+        std::vector<std::weak_ptr<MCShape>> _Seen;
+    };
+}
+
+/// <summary>
+/// Diagnostic for a report of a mech drawing one arm (or an arm on the wrong side) while it faces down the screen. The
+/// mech of mission 1 is given the tree of --mech &lt;name&gt; (default "madcat"), turned through every facing standing
+/// and walking, and each frame's arms are logged; two arms drawing the same shape, frame and mirroring draw one arm.
+/// </summary>
+TEST_CASE_ISOLATED("game: a mech draws both arms at every facing, standing and walking")
+{
+    if (!MCTestGame::Available())
+    {
+        return;
+    }
+
+    // --gpudraw off|on|mirror: who draws the frame surfaces (the shots are the CPU's picture, so "on" leaves out what
+    // only the GPU drew).
+    if (const std::optional<std::string_view> drawing = MCTest::Option("gpudraw"); drawing.has_value())
+    {
+        const std::optional<MCGpuDrawing> kind = MCGpuDrawingFromName(*drawing);
+        REQUIRE(kind.has_value());
+        MCRenderer::RequestGpuDrawing(*kind);
+    }
+
+    REQUIRE(MCTestGame::StartMission(1));
+
+    // --window <width>x<height>: the (hidden) window's size, which the mission's screen follows.
+    if (const std::optional<std::string_view> window = MCTest::Option("window"); window.has_value())
+    {
+        int32_t width = 0;
+        int32_t height = 0;
+        const size_t x = window->find('x');
+        REQUIRE(x != std::string_view::npos);
+        std::from_chars(window->data(), window->data() + x, width);
+        std::from_chars(window->data() + x + 1, window->data() + window->size(), height);
+        REQUIRE(SDL_SetWindowSize(&MCInput::Display()->Window(), width, height));
+        SDL_SyncWindow(&MCInput::Display()->Window());
+
+        for (int32_t frame = 0; frame < 4; ++frame)
+        {
+            MCTestGame::RunFrame(1.0f / 15.0f);
+        }
+    }
+
+    std::cout << std::format("  renderer {}, gpu drawing {}, screen {}x{}\n", MCInput::Display()->RendererName(),
+                             static_cast<int32_t>(MCRenderer::GpuDrawing()), MCInput::Display()->Screen().XMax + 1,
+                             MCInput::Display()->Screen().YMax + 1);
+    // One of the player's mechs, which takes move orders.
+    const std::shared_ptr<MCMover> mover = GetMoverFromPartId(0x200);
+    REQUIRE(mover != nullptr);
+    REQUIRE(mover->ObjectClass == MCObjectClass::BattleMech);
+    const auto mech = std::static_pointer_cast<MCBattleMech>(mover);
+    const auto actor = std::static_pointer_cast<MCMechActor>(mech->Appearance);
+    REQUIRE(actor != nullptr);
+
+    const std::string treeName(MCTest::Option("mech").value_or("madcat"));
+    const std::shared_ptr<MCSpriteTree> tree = FindMechTree(treeName);
+    REQUIRE(tree != nullptr);
+    tree->PreloadGestures();
+    REQUIRE_EQ(actor->Init(tree, mech), 0);
+    Eye()->ChangeTarget(mech, true);
+
+    ShapeNumbers numbers;
+    int32_t oneArm = 0;
+
+    // Runs a frame and logs (and checks) what each part drew.
+    const auto step = [&](std::string_view what, float aim, std::optional<std::string> shotName)
+    {
+        MCTestGame::RunFrame(1.0f / 15.0f);
+        MCMechParts<DrawnPart> drawn;
+
+        for (int32_t part = 0; part < MechPartCount; ++part)
+        {
+            drawn[part] = {numbers.Number(actor->PartShape[part]), actor->CurrentFrame[part], actor->Reverse[part]};
+        }
+
+        const DrawnPart& right = drawn[MCMechPart::RightArm];
+        const DrawnPart& left = drawn[MCMechPart::LeftArm];
+        const bool same = right.Shape >= 0 && right == left;
+        const bool missing = (right.Shape < 0 && !actor->RightArmGone) || (left.Shape < 0 && !actor->LeftArmGone);
+
+        if (same || missing)
+        {
+            oneArm++;
+        }
+
+        std::cout << std::format(
+            "  {:8} {:7.2f} actor {:8.3f} torso {:6.2f} g{:2} | legs s{:3} f{:2} r{} | torso s{:3} f{:2} r{} | "
+            "rarm s{:3} f{:2} r{} | larm s{:3} f{:2} r{} | order {}{}{}{}{}\n",
+            what, aim, MCActorFacing(*mech), mech->TorsoRotation, actor->CurrentGesture, drawn[MCMechPart::Legs].Shape,
+            drawn[MCMechPart::Legs].Frame, drawn[MCMechPart::Legs].Reverse, drawn[MCMechPart::Torso].Shape,
+            drawn[MCMechPart::Torso].Frame, drawn[MCMechPart::Torso].Reverse, right.Shape, right.Frame, right.Reverse,
+            left.Shape, left.Frame, left.Reverse, static_cast<int32_t>(actor->PartOrder[0]),
+            static_cast<int32_t>(actor->PartOrder[1]), static_cast<int32_t>(actor->PartOrder[2]),
+            static_cast<int32_t>(actor->PartOrder[3]),
+            same ? "  <-- one arm (both the same)" : (missing ? "  <-- an arm has no shape" : ""));
+
+        if (shotName.has_value())
+        {
+            MCScreenInput::SaveShot(*shotName, MCScreenInput::ScreenHash());
+            MCScreenInput::SaveShownShot(*shotName + "_shown");
+        }
+    };
+
+    // Standing, turned through every facing (0 faces the camera, 180 away from it).
+    for (int32_t tenths = -1800; tenths < 1800; tenths += 25)
+    {
+        const float facing = static_cast<float>(tenths) / 10.0f;
+        MCTest::Scope scope(std::format("standing at {}", facing));
+
+        for (int32_t frame = 0; frame < 2; ++frame)
+        {
+            FaceMech(*mech, facing);
+            step("standing", facing, std::nullopt);
+        }
+    }
+
+    // --arm-gone right|left: the walks are made with that arm blown off (as BattleMech::update marks it).
+    if (const std::optional<std::string_view> gone = MCTest::Option("arm-gone"); gone.has_value())
+    {
+        actor->RightArmGone = *gone == "right";
+        actor->LeftArmGone = *gone == "left";
+    }
+
+    // Walking, ordered 500 units each way.
+    const std::shared_ptr<MCMechWarrior> pilot = mech->GetPilot();
+    REQUIRE(pilot != nullptr);
+
+    for (const float direction : {0.0f, 180.0f, 90.0f, -90.0f, 45.0f, -45.0f, 5.0f, -5.0f})
+    {
+        MCTest::Scope scope(std::format("walking toward {}", direction));
+        const MCVector3D start = mech->GetPosition();
+        const double radians = static_cast<double>(direction) * std::numbers::pi / 180.0;
+        const MCVector3D goal(start.X + static_cast<float>(500.0 * std::cos(radians)),
+                              start.Y + static_cast<float>(500.0 * std::sin(radians)), start.Z);
+        pilot->OrderMoveToPoint(0, 1, MCOrderOrigin::Player, goal, -1, 0);
+
+        for (int32_t frame = 0; frame < 90; ++frame)
+        {
+            // Shots while it faces within 10 degrees of the camera, where the arms swap sprites.
+            std::optional<std::string> shotName;
+
+            if (std::abs(MCActorFacing(*mech)) < 10.0)
+            {
+                shotName = std::format("walk_{:+04.0f}_{:02}_facing_{:+06.2f}", direction, frame, MCActorFacing(*mech));
+            }
+
+            step("walking", direction, shotName);
+        }
+    }
+
+    std::cout << std::format("  {} frames drew one arm\n", oneArm);
+    CHECK_EQ(oneArm, 0);
 }
 
 namespace

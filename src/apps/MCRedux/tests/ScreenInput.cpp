@@ -52,6 +52,22 @@ namespace MCScreenInput
         std::printf("  %s: 0x%08x\n", name.c_str(), hash);
     }
 
+    void SaveShownShot(const std::string& name)
+    {
+        const std::optional<std::string_view> shots = MCTest::Option("shots");
+
+        if (!shots || MCInput::Display() == nullptr)
+        {
+            return;
+        }
+
+        if (auto saved = MCInput::Display()->SaveShownScreenshot(std::filesystem::path(*shots) / (name + ".png"));
+            !saved)
+        {
+            std::printf("  %s: %s\n", name.c_str(), saved.error().c_str());
+        }
+    }
+
     void SendMouse(int32_t type, int32_t x, int32_t y, bool leftHeld)
     {
         // A motion event moves the game's cursor without warping the real mouse (SetCursorPos would).

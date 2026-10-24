@@ -693,7 +693,10 @@ std::expected<std::vector<SDL_Color>, std::string> MCVulkanPresenter::ReadFrame(
     }
 
     Composite(*commands, frame, gpuSurfaces);
-    const uint32_t size = static_cast<uint32_t>(frame.Width) * static_cast<uint32_t>(frame.Height) * 4;
+    // The composite's size: the window pixels of a scaled frame, else the screen's.
+    const auto width = static_cast<uint32_t>(frame.ScaledOutput() ? frame.OutputWidth : frame.Width);
+    const auto height = static_cast<uint32_t>(frame.ScaledOutput() ? frame.OutputHeight : frame.Height);
+    const uint32_t size = width * height * 4;
     SDL_GPUTransferBufferCreateInfo info{};
     info.usage = SDL_GPU_TRANSFERBUFFERUSAGE_DOWNLOAD;
     info.size = size;
@@ -708,13 +711,13 @@ std::expected<std::vector<SDL_Color>, std::string> MCVulkanPresenter::ReadFrame(
     SDL_GPUCopyPass* pass = SDL_BeginGPUCopyPass(commands);
     SDL_GPUTextureRegion source{};
     source.texture = _Frame.Handle.get();
-    source.w = static_cast<uint32_t>(frame.Width);
-    source.h = static_cast<uint32_t>(frame.Height);
+    source.w = width;
+    source.h = height;
     source.d = 1;
     SDL_GPUTextureTransferInfo destination{};
     destination.transfer_buffer = download;
-    destination.pixels_per_row = static_cast<uint32_t>(frame.Width);
-    destination.rows_per_layer = static_cast<uint32_t>(frame.Height);
+    destination.pixels_per_row = width;
+    destination.rows_per_layer = height;
     SDL_DownloadFromGPUTexture(pass, &source, &destination);
     SDL_EndGPUCopyPass(pass);
     SDL_GPUFence* fence = SDL_SubmitGPUCommandBufferAndAcquireFence(commands);
@@ -727,7 +730,7 @@ std::expected<std::vector<SDL_Color>, std::string> MCVulkanPresenter::ReadFrame(
 
     SDL_WaitForGPUFences(_Device.get(), true, &fence, 1);
     SDL_ReleaseGPUFence(_Device.get(), fence);
-    std::vector<SDL_Color> pixels(static_cast<size_t>(frame.Width) * frame.Height);
+    std::vector<SDL_Color> pixels(static_cast<size_t>(width) * height);
     const void* mapped = SDL_MapGPUTransferBuffer(_Device.get(), download, false);
 
     if (mapped == nullptr)

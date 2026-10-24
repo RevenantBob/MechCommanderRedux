@@ -122,6 +122,8 @@ extern std::string StartupPakFile;
 
 /// <summary>Cheats on (missions read it from their FIT).</summary>
 extern bool CheatsOn;
+/// <summary>Port: the command line's <c>-debug</c>: Enter opens the debug console in a single-player mission.</summary>
+extern bool DebugOn;
 /// <summary>The "can't hit me" cheat: home team movers take no hits outside multiplayer (the name is the port's).</summary>
 extern bool CantHitMe;
 /// <summary>The salvage cheat: a destroyed mover's salvage is never blown up.</summary>
