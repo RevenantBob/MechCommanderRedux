@@ -344,7 +344,10 @@ public:
     /// <summary>The 0-terminated text at <paramref name="address"/> (a char array, or a literal).</summary>
     std::string_view Text(MCAblAddress address);
 
-    /// <summary>Copies <paramref name="size"/> bytes from <paramref name="source"/> to <paramref name="target"/>.</summary>
+    /// <summary>
+    /// Copies <paramref name="size"/> bytes from <paramref name="source"/> to <paramref name="target"/>; a source that
+    /// ends sooner (a shorter string) fills the rest with zeros.
+    /// </summary>
     void CopyBytes(MCAblAddress target, MCAblAddress source, int32_t size);
 
     // ---- The interpreter's interface for the standard routines ----------------------------------------------------
