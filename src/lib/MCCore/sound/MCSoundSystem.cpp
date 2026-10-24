@@ -94,6 +94,13 @@ bool IsWaveImage(std::span<const uint8_t> data)
     return riff == 0x46464952 && wave == 0x45564157;
 }
 
+float SoundBiteGain(float volume)
+{
+    // The original's channel volume was linear in decibels (OB-176): a bite's volume v was 20 * (v - 1) dB. Under
+    // the port's taper (40 * log10 of the channel volume) that is a factor of 10^((v - 1) / 2).
+    return std::pow(10.0f, (std::clamp(volume, 0.0f, 1.0f) - 1.0f) * 0.5f);
+}
+
 int32_t SoundPanPosition(float dx, float dy)
 {
     MCVector3D axisX = UnitX;
@@ -735,7 +742,9 @@ void MCSoundSystem::Update()
             SetChannelImage(NOISE_CHANNEL, Sounds[FIRE_BITE].BiteData);
             _Renderer.SetChannelLooping(NOISE_CHANNEL, true);
             _Renderer.SetChannelPanning(NOISE_CHANNEL, 0.0f);
-            _Renderer.SetChannelVolume(NOISE_CHANNEL, ChannelVolume(DigitalMasterVolume));
+            // OB-181 fixed: the original played the fire at the effects volume, without the bite's own.
+            _Renderer.SetChannelVolume(NOISE_CHANNEL,
+                                       ChannelVolume(DigitalMasterVolume) * SoundBiteGain(Sounds[FIRE_BITE].Volume));
             SampleChannels[NOISE_CHANNEL].SampleId = FIRE_BITE;
             _Renderer.Play(NOISE_CHANNEL, _ChannelResource[NOISE_CHANNEL].lock());
         }
@@ -1026,7 +1035,7 @@ int32_t MCSoundSystem::PlaySample(uint32_t sampleId, MCOptionalRef<MCGameObject>
     }
 
     _Renderer.SetChannelPanning(channel, (static_cast<float>(pan) - 64.0f) * (1.0f / 128.0f));
-    _Renderer.SetChannelVolume(channel, static_cast<float>(level) * (1.0f / 128.0f) * bite.Volume);
+    _Renderer.SetChannelVolume(channel, ChannelVolume(level) * SoundBiteGain(bite.Volume));
     state.SampleId = static_cast<int32_t>(sampleId);
 
     // The original kept the destroyed resource's pointer when the bite isn't a wave; the port forgets it.
