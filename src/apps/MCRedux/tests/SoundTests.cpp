@@ -1,11 +1,14 @@
 #include "stdafx.h"
 #include "MCMock.h"
 #include "MCTest.h"
+#include "camera/MCCameraList.h"
 #include "fakes/MCNullAudioDevice.h"
 #include "gameos/MCSoundChannel.h"
 #include "gameos/MCSoundRenderer.h"
 #include "main/MCGameContext.h"
 #include "platform/MCAudio.h"
+#include "mission/MCMission.h"
+#include "mission/MCScenario.h"
 #include "object/MCMechWarrior.h"
 #include "sound/MCRadio.h"
 #include "sound/MCRadioMessage.h"
@@ -158,10 +161,9 @@ TEST_CASE("sound: a stopped effect fades out over updates and frees its channel"
     MCSoundFixture fixture;
     MCSoundSystem& sound = *fixture.sound;
     MCSoundRenderer& renderer = *fixture.renderer;
-    sound.DigitalMasterVolume = 64;
-    sound.Sounds[0].Volume = 0.5f;
+    sound.DigitalMasterVolume = 32;
     REQUIRE_EQ(sound.PlayDigitalSample(0, 1, std::nullopt, false, false), 1);
-    // The volume is the effects volume (of 128) times the bite's.
+    // The volume is the effects volume (of 128); the bite's is full.
     CHECK_EQ(renderer.ChannelVolume(1), 0.25f);
     // Centred: the sound is at the listener.
     CHECK_EQ(renderer.ChannelResource(1) != nullptr, true);
@@ -200,9 +202,9 @@ TEST_CASE("sound: an interface sound plays at the interface volume, an effect at
     CHECK_EQ(renderer.ChannelVolume(1), 0.25f);
     REQUIRE_EQ(sound.PlayDigitalSample(2, 1, std::nullopt, false, false), 2);
     CHECK_EQ(renderer.ChannelVolume(2), 0.5f);
-    // The bite's own volume still scales it.
+    // The bite's own volume still lowers it: 0.5 is 10 dB under the interface volume's -24 dB.
     REQUIRE_EQ(sound.PlayInterfaceSample(1), 3);
-    CHECK_EQ(renderer.ChannelVolume(3), 0.125f);
+    CHECK(std::abs(MCSoundChannel::BufferVolume(renderer.ChannelVolume(3)) - (-3408)) <= 2);
     // Already playing: refused, as an effect is.
     CHECK_EQ(sound.PlayInterfaceSample(2), -1);
 
@@ -236,6 +238,85 @@ TEST_CASE("sound: the channel volume tapers to silence at 0 (OB-176)")
         MCTest::Scope entry(std::format("step {}", step));
         CHECK(MCSoundChannel::BufferVolume((step - 1) / 128.0f) < MCSoundChannel::BufferVolume(step / 128.0f));
     }
+}
+
+/// <summary>
+/// A sound bite's volume (SOUND.SND) is the level the original gave it, 20 * (volume - 1) dB under the effects volume,
+/// at any effects volume: at 64 (-12 dB) a 1.0 autocannon is -12 dB, a 0.25 laser -27 dB and a 0.15 missile -29 dB
+/// (issue #31: through the fader taper the laser fell to -36 dB and the missile to -45 dB).
+/// </summary>
+TEST_CASE("sound: a bite's volume lowers it by its original decibels at any effects volume")
+{
+    MCSoundFixture fixture;
+    MCSoundSystem& sound = *fixture.sound;
+    MCSoundRenderer& renderer = *fixture.renderer;
+    const auto hundredthsDb = [&](int32_t channel)
+    { return MCSoundChannel::BufferVolume(renderer.ChannelVolume(channel)); };
+    const std::array<float, 5> volumes{1.0f, 0.75f, 0.25f, 0.15f, 0.0f};
+
+    for (size_t i = 0; i < volumes.size(); i++)
+    {
+        sound.Sounds[i].Volume = volumes[i];
+    }
+
+    for (const uint8_t level : {uint8_t{64}, uint8_t{127}})
+    {
+        MCTest::Scope entry(std::format("effects volume {}", level));
+        sound.DigitalMasterVolume = level;
+        const int32_t full = MCSoundChannel::BufferVolume(level / 128.0f);
+
+        for (size_t i = 0; i < volumes.size(); i++)
+        {
+            MCTest::Scope bite(std::format("bite volume {}", volumes[i]));
+            REQUIRE_EQ(sound.PlayDigitalSample(static_cast<uint32_t>(i), 1, std::nullopt, false, false),
+                       static_cast<int32_t>(i) + 1);
+            const int32_t expected = full + std::lround(2000.0f * (volumes[i] - 1.0f));
+            CHECK(std::abs(hundredthsDb(static_cast<int32_t>(i) + 1) - expected) <= 2);
+        }
+
+        // Stopped channels are free again after an update.
+        for (int32_t channel = 1; channel <= static_cast<int32_t>(volumes.size()); channel++)
+        {
+            renderer.Stop(channel);
+        }
+
+        sound.Update();
+    }
+
+    // At 64: the values the issue is about.
+    CHECK_EQ(MCSoundChannel::BufferVolume(64 / 128.0f * SoundBiteGain(1.0f)), -1204);
+    CHECK(std::abs(MCSoundChannel::BufferVolume(64 / 128.0f * SoundBiteGain(0.25f)) - (-2704)) <= 2);
+    CHECK(std::abs(MCSoundChannel::BufferVolume(64 / 128.0f * SoundBiteGain(0.15f)) - (-2904)) <= 2);
+    // Out of range volumes clamp.
+    CHECK_EQ(SoundBiteGain(2.0f), 1.0f);
+    CHECK_EQ(SoundBiteGain(-1.0f), SoundBiteGain(0.0f));
+}
+
+/// <summary>
+/// While something burns on screen, the fire loop (bite 22, "Building on Fire", volume 0.25) plays centred on the
+/// noise channel at its own volume under the effects volume: -27 dB at 64 (OB-181: the original played it at the
+/// effects volume, as loud as a 1.0 bite).
+/// </summary>
+TEST_CASE("sound: the fire loop plays at its bite's volume (OB-181)")
+{
+    MCSoundFixture fixture(32);
+    MCSoundSystem& sound = *fixture.sound;
+    MCSoundRenderer& renderer = *fixture.renderer;
+    fixture.scope.Context().SetScenario(std::make_unique<MCScenario>());
+    fixture.scope.Context().Scenario()->MusicPending = true;
+    const auto cameras = std::make_shared<MCCameraList>();
+    fixture.scope.Context().SetCameraList(cameras);
+    const auto camera = std::make_shared<MCCamera>();
+    cameras->SetEye(camera);
+    sound.DigitalMasterVolume = 64;
+    sound.Sounds[0x16].Volume = 0.25f;
+    const int32_t saved = SomethingOnFire;
+    SomethingOnFire = 1;
+    sound.Update();
+    SomethingOnFire = saved;
+    REQUIRE(renderer.IsPlaying(NOISE_CHANNEL));
+    CHECK_EQ(sound.SampleChannels[NOISE_CHANNEL].SampleId, 0x16);
+    CHECK(std::abs(MCSoundChannel::BufferVolume(renderer.ChannelVolume(NOISE_CHANNEL)) - (-2704)) <= 2);
 }
 
 /// <summary>

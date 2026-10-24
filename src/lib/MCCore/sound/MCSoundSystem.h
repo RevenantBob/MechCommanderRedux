@@ -40,7 +40,7 @@ struct MCSoundBite
     uint32_t SoundId = 0;
     /// <summary>The wave, when loaded (empty while not).</summary>
     std::vector<uint8_t> BiteData;
-    /// <summary>"volume" (0..1).</summary>
+    /// <summary>"volume" (0..1): the bite's level, 20 * (volume - 1) dB (see <see cref="SoundBiteGain"/>).</summary>
     float Volume = 0.0f;
 };
 
@@ -112,6 +112,11 @@ extern int32_t EnemyDestroyed;
 
 /// <summary>Whether <paramref name="data"/> starts with a RIFF WAVE header.</summary>
 bool IsWaveImage(std::span<const uint8_t> data);
+/// <summary>
+/// The channel volume factor of a sound bite's <paramref name="volume"/> (0..1): the 20 * (volume - 1) dB the
+/// original gave it (1 is 0 dB, 0 is -20 dB), under the port's fader taper.
+/// </summary>
+float SoundBiteGain(float volume);
 /// <summary>
 /// The pan position (0..128, 64 centre) of a sound <paramref name="dx"/>, <paramref name="dy"/> from the listener:
 /// the angle from the screen's up direction (the world axes turned by 45 degrees), folded to the front.
@@ -270,7 +275,7 @@ private:
     /// <summary>Reads the .snd file and opens the sound and Betty packet files.</summary>
     void Load(std::string_view soundFileName);
     /// <summary>PlayDigitalSample's work, with the channel at <paramref name="level"/> (0..127) times the bite's
-    /// volume.</summary>
+    /// <see cref="SoundBiteGain"/>.</summary>
     int32_t PlaySample(uint32_t sampleId, MCOptionalRef<MCGameObject> source, bool atCamera, bool farRange,
                        uint8_t level);
     /// <summary>Clears the music state and, when given, sets <paramref name="state"/>.</summary>
