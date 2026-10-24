@@ -71,6 +71,7 @@
     <ClCompile Include="tests\BriefingTests.cpp" />
     <ClCompile Include="tests\CameraTests.cpp" />
     <ClCompile Include="tests\ColorTests.cpp" />
+    <ClCompile Include="tests\ConsoleTests.cpp" />
     <ClCompile Include="tests\ControlTests.cpp" />
     <ClCompile Include="tests\CursorTests.cpp" />
     <ClCompile Include="tests\DirectPlayTests.cpp" />

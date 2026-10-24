@@ -16,6 +16,12 @@ namespace MCScreenInput
     void SaveShot(const std::string& name, uint32_t hash);
 
     /// <summary>
+    /// --shots &lt;folder&gt;: saves the picture the window shows (the presenter's composite, read back from the GPU
+    /// with Vulkan, at the window's pixels) as <paramref name="name"/>.png there.
+    /// </summary>
+    void SaveShownShot(const std::string& name);
+
+    /// <summary>
     /// Sends the game a mouse event at (<paramref name="x"/>, <paramref name="y"/>) as CheckMouse makes them (type 1
     /// left down, 4 left up, 7 a move), with the cursor moved there first.
     /// </summary>

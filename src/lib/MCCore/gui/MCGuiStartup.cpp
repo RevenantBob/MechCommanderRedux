@@ -349,6 +349,11 @@ auto ParseCommandLine(std::string_view commandLine) -> void
 
             i++;
         }
+        else if (MCIEquals(word, "-debug") || MCIEquals(word, "--debug"))
+        {
+            // Port: "-debug" lets Enter open the debug console in a single-player mission (MCGuiConsole).
+            DebugOn = true;
+        }
         else if (MCIEquals(word, "-novsync"))
         {
             // Port: "-novsync" shows frames as soon as they are drawn instead of at the display's refresh.

@@ -3,6 +3,7 @@
 #include "color/MCPalette.h"
 #include "engine/MCFont.h"
 #include "gameos/MCSoundRenderer.h"
+#include "gui/MCGuiConsole.h"
 #include "gui/MCGuiFont.h"
 #include "gui/MCGuiInput.h"
 #include "gui/MCGuiMessageBox.h"
@@ -78,6 +79,7 @@ MCGuiSystem::~MCGuiSystem()
 {
     Session.reset();
     _Retired.clear();
+    Console.reset();
     VersionDialog.reset();
     SmackerWindow.reset();
     Screen.reset();
@@ -316,6 +318,7 @@ auto MCGuiSystem::Stop() -> void
 
     // The screen's last windows (the original left a version box or a movie window still open to its assert).
     _Retired.clear();
+    Console.reset();
     VersionDialog.reset();
 
     if (SmackerWindow != nullptr)

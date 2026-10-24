@@ -13,6 +13,7 @@ class MCDisplay;
 class MCFont;
 class MCGuiFont;
 class MCGuiMessageBox;
+class MCGuiConsole;
 class MCGameSession;
 class MCGuiSmackerWindow;
 class MCPacketFile;
@@ -227,6 +228,8 @@ public:
     std::shared_ptr<MCFont> EngineFont;
     /// <summary>The version box (Ctrl+Alt+V with cheats on).</summary>
     MCGuiOwned<MCGuiMessageBox> VersionDialog;
+    /// <summary>Port: the debug console while it is open (<see cref="OpenConsole"/>).</summary>
+    MCGuiOwned<MCGuiConsole> Console;
     /// <summary>The frame callback that sends the mouse's moves and clicks (<see cref="CheckMouse"/>).</summary>
     std::shared_ptr<MCGuiCallback> MouseTrackerCallback = std::make_shared<MCGuiCallback>();
 

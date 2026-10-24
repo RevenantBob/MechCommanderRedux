@@ -65,6 +65,7 @@ std::string WindowTitle;
 std::string PaletteName;
 std::string StartupPakFile;
 bool CheatsOn = false;
+bool DebugOn = false;
 bool CantHitMe = false;
 bool CantBlowSalvage = false;
 bool BunnyStrikesOn = false;

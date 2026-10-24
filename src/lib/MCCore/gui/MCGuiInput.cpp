@@ -3,6 +3,7 @@
 #include "camera/MCCamera.h"
 #include "camera/MCMainWindow.h"
 #include "camera/MCViewWindow.h"
+#include "gui/MCGuiConsole.h"
 #include "gui/MCGuiMessageBox.h"
 #include "gui/MCGuiSystem.h"
 #include "gui/MCGuiSmackerWindow.h"
@@ -142,6 +143,11 @@ namespace
 
                     GamePaused = false;
                     GameAsked = false;
+                }
+                else if (event.CtrlKey == 0 && event.AltKey == 0 && ConsoleUsable())
+                {
+                    // Port: the debug console (-debug).
+                    OpenConsole();
                 }
                 break;
             }

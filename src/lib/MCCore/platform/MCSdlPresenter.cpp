@@ -235,8 +235,11 @@ std::expected<std::vector<SDL_Color>, std::string> MCSdlPresenter::ReadFrame(con
         return std::unexpected(uploaded.error());
     }
 
+    // The upload's size: the window pixels of a scaled frame, else the screen's.
+    const int width = frame.ScaledOutput() ? frame.OutputWidth : frame.Width;
+    const int height = frame.ScaledOutput() ? frame.OutputHeight : frame.Height;
     SDL_Texture* target =
-        SDL_CreateTexture(_Renderer.get(), SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_TARGET, frame.Width, frame.Height);
+        SDL_CreateTexture(_Renderer.get(), SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_TARGET, width, height);
 
     if (target == nullptr)
     {
@@ -264,13 +267,13 @@ std::expected<std::vector<SDL_Color>, std::string> MCSdlPresenter::ReadFrame(con
         return std::unexpected(SdlError("SDL_ConvertSurface"));
     }
 
-    std::vector<SDL_Color> pixels(static_cast<size_t>(frame.Width) * frame.Height);
+    std::vector<SDL_Color> pixels(static_cast<size_t>(width) * height);
 
-    for (int y = 0; y < frame.Height && y < rgba->h; ++y)
+    for (int y = 0; y < height && y < rgba->h; ++y)
     {
-        std::memcpy(pixels.data() + static_cast<size_t>(y) * frame.Width,
+        std::memcpy(pixels.data() + static_cast<size_t>(y) * width,
                     static_cast<const uint8_t*>(rgba->pixels) + static_cast<ptrdiff_t>(y) * rgba->pitch,
-                    static_cast<size_t>(std::min(frame.Width, rgba->w)) * sizeof(SDL_Color));
+                    static_cast<size_t>(std::min(width, rgba->w)) * sizeof(SDL_Color));
     }
 
     SDL_DestroySurface(rgba);

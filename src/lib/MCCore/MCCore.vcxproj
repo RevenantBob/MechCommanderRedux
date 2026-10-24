@@ -110,6 +110,7 @@
     <ClCompile Include="gui\MCGuiCallback.cpp" />
     <ClCompile Include="gui\MCGuiChatWindow.cpp" />
     <ClCompile Include="gui\MCGuiComboBox.cpp" />
+    <ClCompile Include="gui\MCGuiConsole.cpp" />
     <ClCompile Include="gui\MCGuiFont.cpp" />
     <ClCompile Include="gui\MCGuiGlobals.cpp" />
     <ClCompile Include="gui\MCGuiHolderObject.cpp" />
@@ -136,6 +137,7 @@
     <ClCompile Include="gui\MCScrollPane.cpp" />
     <ClCompile Include="gui\MCUpdateDisplay.cpp" />
     <ClCompile Include="iface\MCCommandParser.cpp" />
+    <ClCompile Include="iface\MCConsoleCommands.cpp" />
     <ClCompile Include="iface\MCFriendlyMechIcon.cpp" />
     <ClCompile Include="iface\MCLanceIcon.cpp" />
     <ClCompile Include="iface\MCMechBar.cpp" />
@@ -504,6 +506,7 @@
     <ClInclude Include="gui\MCGuiCallback.h" />
     <ClInclude Include="gui\MCGuiChatWindow.h" />
     <ClInclude Include="gui\MCGuiComboBox.h" />
+    <ClInclude Include="gui\MCGuiConsole.h" />
     <ClInclude Include="gui\MCGuiEvent.h" />
     <ClInclude Include="gui\MCGuiFont.h" />
     <ClInclude Include="gui\MCGuiGlobals.h" />
@@ -531,6 +534,7 @@
     <ClInclude Include="gui\MCScrollPane.h" />
     <ClInclude Include="gui\MCUpdateDisplay.h" />
     <ClInclude Include="iface\MCCommandParser.h" />
+    <ClInclude Include="iface\MCConsoleCommands.h" />
     <ClInclude Include="iface\MCFriendlyMechIcon.h" />
     <ClInclude Include="iface\MCInterfaceTypes.h" />
     <ClInclude Include="iface\MCLanceIcon.h" />

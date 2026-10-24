@@ -233,6 +233,13 @@ public:
     std::expected<void, std::string> SaveScreenshot(const std::filesystem::path& path) const;
 
     /// <summary>
+    /// Writes the picture the window shows as an RGBA PNG: the frame composited by the presenter as
+    /// <see cref="Present"/> does (on the GPU with Vulkan, GPU-drawn surfaces included), at the window pixels a scaled
+    /// view covers, else the shown view at the screen's size; without the bars around it.
+    /// </summary>
+    std::expected<void, std::string> SaveShownScreenshot(const std::filesystem::path& path);
+
+    /// <summary>
     /// The whole screen as the player sees it, at the screen's size: its pixels with the underlays' pixels in place of
     /// the key, as <see cref="Present"/> shows them (nearest). When the GPU draws the frame, read back from it (what was
     /// drawn so far is run first).
