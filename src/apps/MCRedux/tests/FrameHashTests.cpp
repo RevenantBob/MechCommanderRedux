@@ -544,7 +544,8 @@ namespace
     /// right) took the preferences step to 0x6ea95138 and the folds to 0x097f849e and 0x92debaca (GPU 0x3b586e8e and
     /// 0x9297295d), only there; the run now pins the settings it shows (<see cref="MCRecordedPrefs"/>). The UI
     /// RESOLUTION box (2026-10-18) took the preferences step to 0xd7aa9185 and the folds to 0xcfbe6bb8 and 0xac3d91aa
-    /// (GPU 0x8d317260 and 0xd056cb3d), only there.
+    /// (GPU 0x8d317260 and 0xd056cb3d), only there. The drop-down boxes lined up with the sliders' labels, wide enough
+    /// for NATIVE (RETINA/HD) (2026-10-25), took the preferences step to 0x1ccc9bf5.
     /// </remarks>
     void LogisticsFrames(bool gpu)
     {
@@ -626,7 +627,7 @@ namespace
 
         const Step steps[] = {
             {"main menu", [] {}, 0x59acc997u},
-            {"preferences", [] { ShowPreferences(); }, 0xd7aa9185u},
+            {"preferences", [] { ShowPreferences(); }, 0x1ccc9bf5u},
             {"main menu after preferences", [] { CancelPrefs(); }, 0x59acc997u},
             {"load screen", [] { LoadScreen(); }, 0xb773197eu},
             {"main menu after load", [] { Cancel(); }, 0x59acc997u},

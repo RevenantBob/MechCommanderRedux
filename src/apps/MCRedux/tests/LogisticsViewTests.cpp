@@ -138,8 +138,8 @@ TEST_CASE_ISOLATED("game: the logistics chat history draws as the original's pic
 namespace
 {
     /// <summary>
-    /// The preferences screen's drop-downs, as AddPreferencesPanel places them: each field 76 wide and 11 tall at
-    /// (512, top), its list's rows 10 tall from top + 11. DIFFICULTY's field is at y 176 (EASY, REGULAR, HARD),
+    /// The preferences screen's drop-downs, as AddPreferencesPanel places them: each field 104 wide and 11 tall at
+    /// (488, top), its list's rows 10 tall from top + 11. DIFFICULTY's field is at y 176 (EASY, REGULAR, HARD),
     /// RENDERER's at y 243 (VULKAN, SOFTWARE).
     /// </summary>
     struct PrefsDropDown
