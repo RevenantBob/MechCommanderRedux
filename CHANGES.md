@@ -172,6 +172,9 @@ Bugs that have an impact on how the game *plays* may remain in the game, and are
   - Each jump jet takes one slot, in the leg with fewer jets. The original miscounted the jets and put each one in
     every empty slot of a leg.
   - A weapon is never put in a full location. The original wrote it over the first slot of the next location.
+  - The Rail Gun and Light Gauss Rifle get a critical slot. The original took them for equipment and gave them none.
+    They still fired, but critical hits and losing their location never destroyed them, their fire arc ignored the
+    torso's turn, and each shot read its starting point from outside the mech's body locations.
 
 ### Mission Scripts
 
