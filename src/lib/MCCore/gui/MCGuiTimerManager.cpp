@@ -69,7 +69,7 @@ auto MCGuiTimerManager::Erase(size_t index) -> void
     }
 }
 
-auto MCGuiTimerManager::RemoveTimersOf(const std::weak_ptr<const MCGuiObject>& target, int32_t id) -> void
+auto MCGuiTimerManager::RemoveTimersOf(const std::weak_ptr<MCGuiObject>& target, int32_t id) -> void
 {
     if (id != -1)
     {
@@ -115,12 +115,12 @@ auto MCGuiTimerManager::RemoveTimersOf(const std::weak_ptr<const MCGuiObject>& t
 
 auto MCGuiTimerManager::RemoveTimers(const MCGuiObject& target) -> void
 {
-    RemoveTimersOf(target.weak_from_this(), -1);
+    RemoveTimersOf(MCWeakSelf(target), -1);
 }
 
 auto MCGuiTimerManager::RemoveTimer(const MCGuiObject& target, int16_t id) -> void
 {
-    RemoveTimersOf(target.weak_from_this(), id);
+    RemoveTimersOf(MCWeakSelf(target), id);
 }
 
 auto MCGuiTimerManager::RemoveTimer(int32_t index) -> void
