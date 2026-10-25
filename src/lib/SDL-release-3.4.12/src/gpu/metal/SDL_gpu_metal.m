@@ -1810,12 +1810,17 @@ static void METAL_UploadToTexture(
 
         MetalTexture *metalTexture = METAL_INTERNAL_PrepareTextureForWrite(renderer, textureContainer, cycle);
 
+        // MechCommander Redux Mac port: honour the source's row and image strides (pixels_per_row, rows_per_layer;
+        // 0 means tightly packed), as the other backends do. Without this a sub-rectangle upload from a wider buffer
+        // (the movie frames) lands sheared and repeated.
+        const Uint32 rowPixels = source->pixels_per_row != 0 ? source->pixels_per_row : destination->w;
+        const Uint32 imageRows = source->rows_per_layer != 0 ? source->rows_per_layer : destination->h;
         [metalCommandBuffer->blitEncoder
                  copyFromBuffer:bufferContainer->activeBuffer->handle
                    sourceOffset:source->offset
-              sourceBytesPerRow:BytesPerRow(destination->w, textureContainer->header.info.format)
+              sourceBytesPerRow:BytesPerRow(rowPixels, textureContainer->header.info.format)
             // sourceBytesPerImage expects the stride between 2D images (slices) of a 3D texture, not the size of the entire region
-            sourceBytesPerImage:SDL_CalculateGPUTextureFormatSize(textureContainer->header.info.format, destination->w, destination->h, 1)
+            sourceBytesPerImage:SDL_CalculateGPUTextureFormatSize(textureContainer->header.info.format, rowPixels, imageRows, 1)
                      sourceSize:MTLSizeMake(destination->w, destination->h, destination->d)
                       toTexture:metalTexture->handle
                destinationSlice:destination->layer
