@@ -1024,7 +1024,7 @@ std::expected<void, std::string> MCVulkanRenderer::UploadTables()
     if (all)
     {
         changed.resize(rows);
-        std::ranges::iota(changed, 0u);
+        std::iota(changed.begin(), changed.end(), 0u);
     }
     else
     {
@@ -2900,7 +2900,7 @@ std::expected<void, std::string> MCVulkanRenderer::Execute(SDL_GPUCommandBuffer&
     }
 
     std::vector<uint32_t> order(_Records.size());
-    std::ranges::iota(order, 0u);
+    std::iota(order.begin(), order.end(), 0u);
     std::ranges::stable_sort(order, [&](uint32_t a, uint32_t b)
                              { return ranks[_Records[a].SurfaceIndex] < ranks[_Records[b].SurfaceIndex]; });
 
