@@ -15,7 +15,7 @@ struct MCAudioCore
     float Master = 1.0f;
     std::vector<float> Block;
     /// <summary>Told of every buffer's play and stop (the device that opened the mixer), or empty.</summary>
-    std::atomic<std::weak_ptr<MCAudioDevice>> Listener;
+    MCAtomicPtr<std::weak_ptr<MCAudioDevice>> Listener;
 
     /// <summary>Adds one buffer's contribution to <paramref name="out"/>. Called with the lock held.</summary>
     void MixBuffer(MCSoundBuffer& buffer, std::span<float> out) const;

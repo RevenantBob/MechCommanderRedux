@@ -49,9 +49,9 @@ namespace
 
     /// <summary>The installed context, or null for the root one.</summary>
     /// <remarks>Never destroyed, like the root: other threads may still ask while the process ends.</remarks>
-    std::atomic<std::shared_ptr<MCGameContext>>& CurrentContext()
+    MCAtomicPtr<std::shared_ptr<MCGameContext>>& CurrentContext()
     {
-        static MCNeverDestroyed<std::atomic<std::shared_ptr<MCGameContext>>> current;
+        static MCNeverDestroyed<MCAtomicPtr<std::shared_ptr<MCGameContext>>> current;
         return *current;
     }
 }

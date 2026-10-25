@@ -1,6 +1,7 @@
 # Checks every pull request: the C++ is formatted (scripts/ci/format.py), the .vcxproj/.filters files list
-# every source file (scripts/ci/sync_projects.py), and the solution builds and its tests pass as the release build
-# does (release.yml). Run either script without --check locally to fix what it reports.
+# every source file (scripts/ci/sync_projects.py), the solution builds and its tests pass as the release build does
+# (release.yml), and the Mac build (src/mac) builds and its tests pass. Run either script without --check locally to
+# fix what it reports.
 name: Checks
 
 on:
@@ -50,3 +51,26 @@ jobs:
       # The game: tests need the retail install (--game), which the runner doesn't have; they pass with a note.
       - name: Test
         run: src\build\bin\x64\Release\mc_tests.exe
+
+  macos:
+    # The Mac build (src/mac): the game and the tests with CMake on Apple Silicon, then the tests, as the build job does
+    # on Windows. macos-15's Xcode 16.4 is the oldest the build supports. The runner has CMake and the .NET SDK (for
+    # nbgv's version); the shaders need glslang and SPIRV-Cross.
+    runs-on: macos-15
+    steps:
+      - name: Check out
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Install the shader tools
+        run: brew install glslang spirv-cross
+
+      - name: Build
+        run: |
+          cmake -S src/mac -B src/mac/build
+          cmake --build src/mac/build --parallel "$(sysctl -n hw.ncpu)"
+
+      # As on Windows, the game's tests pass with a note without the retail install.
+      - name: Test
+        run: src/mac/build/mc_tests

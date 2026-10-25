@@ -27,6 +27,11 @@ struct MCDisplayOptions
     /// <summary>Create the window hidden (tests).</summary>
     bool Hidden = false;
     /// <summary>
+    /// Give the window the display's pixel density (a Retina screen's 2 pixels a point), so a window-following screen
+    /// is that many pixels; else one pixel a point.
+    /// </summary>
+    bool HighPixelDensity = true;
+    /// <summary>
     /// The logical screen follows the window: <see cref="Width"/> x <see cref="Height"/> is the smallest it gets (and
     /// the window's minimum size), the window opens at the scale of that size <see cref="WindowScale"/> picks, and the
     /// screen starts at the window's size in pixels. The window is never resized to fit the screen.

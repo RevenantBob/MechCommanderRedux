@@ -94,7 +94,9 @@ namespace
                 continue;
             }
 
-            if (std::filesystem::path(part).has_root_name())
+            // A drive ("C:"), told by its spelling rather than has_root_name, which only knows drives on Windows:
+            // elsewhere the part would become a folder of that name instead of being skipped.
+            if (part.size() >= 2 && part[1] == ':' && std::isalpha(static_cast<unsigned char>(part[0])))
             {
                 continue;
             }

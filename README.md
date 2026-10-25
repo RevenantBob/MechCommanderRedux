@@ -262,6 +262,23 @@ The output goes to `src/build/bin/x64/<Configuration>/`:
 | `mc_tests.exe` | The test suite               |
 | `SDL3.dll`     | SDL3 runtime                 |
 
+### Compiling on macOS
+
+The game and the test suite also build for macOS on Apple Silicon, with CMake and Xcode 16.3 or later; the game runs on
+macOS 14 or later (the Mission Editor is Windows only). The GPU renderer runs on Metal: the build compiles the HLSL shaders with
+glslang (dxc has no macOS build) and translates them to Metal's shading language with SPIRV-Cross.
+
+```
+xcode-select --install
+brew install cmake glslang spirv-cross
+cmake -S src/mac -B src/mac/build
+cmake --build src/mac/build --parallel "$(sysctl -n hw.ncpu)"
+```
+
+The output goes to `src/mac/build/`: `MCRedux` (the game; run it with `--data <your MechCommander Gold folder>`) and
+`mc_tests` (the test suite). The source lists come from the Visual Studio projects, so a file added to them builds on
+macOS too. Without the .NET SDK the version is `0.0.0.0`, as on Windows.
+
 ### Releases
 
 Releases come from the **Release** workflow on GitHub (Actions → Release → Run workflow). It builds `main`, runs the
@@ -293,3 +310,4 @@ release, so the [Download](#download) link always gets the newest one. It refuse
 | `src/apps/MCEditor/`          | The Mission Editor                                                 |
 | `src/lib/sqlite-3.50.4/`      | SQLite, for the editor's mission database                          |
 | `src/lib/miniz-3.0.2/`        | miniz, for unpacking the editor's files from the CD                |
+| `src/mac/`                    | The macOS build (CMake) and its shader translator                  |

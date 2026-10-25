@@ -76,7 +76,9 @@ private:
     /// </summary>
     struct TimerToWhack
     {
-        std::weak_ptr<const MCGuiObject> Target;
+        // Not weak_ptr<const MCGuiObject>: converting to it would empty the reference of an object being destroyed
+        // (see MCWeakSelf).
+        std::weak_ptr<MCGuiObject> Target;
         bool ByObject = false;
         int32_t Id = 0;
     };
@@ -90,7 +92,7 @@ private:
     /// <summary>Removes timer number <paramref name="index"/> now; the last one takes the frame callback away.</summary>
     void Erase(size_t index);
     /// <summary>Removes the timers of the object <paramref name="target"/> refers to (id -1: all of them).</summary>
-    void RemoveTimersOf(const std::weak_ptr<const MCGuiObject>& target, int32_t id);
+    void RemoveTimersOf(const std::weak_ptr<MCGuiObject>& target, int32_t id);
 
     std::vector<std::shared_ptr<MCGuiTimer>> _Timers;
     std::vector<TimerToWhack> _TimersToWhack;

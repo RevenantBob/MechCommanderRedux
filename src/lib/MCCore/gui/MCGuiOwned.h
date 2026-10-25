@@ -38,10 +38,25 @@ template <typename T, typename U> bool MCSameObject(const std::weak_ptr<T>& firs
 }
 
 /// <summary>
+/// <paramref name="object"/>'s own <c>weak_from_this</c> reference, which keeps its control block while the object is
+/// being destroyed.
+/// </summary>
+/// <remarks>
+/// <c>weak_from_this() const</c> returns a <c>weak_ptr&lt;const T&gt;</c> converted from the stored one, and libc++
+/// converts a <c>weak_ptr</c> by locking it, so once the last share is gone the result is empty and no longer names
+/// the object (MSVC's STL keeps the control block). The non-const overload copies the stored reference instead.
+/// </remarks>
+template <typename U> auto MCWeakSelf(const U& object)
+{
+    // Only to reach the non-const overload, which copies; nothing is modified.
+    return const_cast<U&>(object).weak_from_this();
+}
+
+/// <summary>
 /// Whether <paramref name="reference"/> refers to <paramref name="object"/> (by its control block, so it also holds
 /// while the object is being destroyed). False for an object no <c>shared_ptr</c> owns.
 /// </summary>
 template <typename T, typename U> bool MCRefersTo(const std::weak_ptr<T>& reference, const U& object)
 {
-    return MCSameObject(object.weak_from_this(), reference);
+    return MCSameObject(MCWeakSelf(object), reference);
 }

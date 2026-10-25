@@ -1,11 +1,23 @@
 #include "stdafx.h"
 #include "platform/MCVulkanShaders.h"
 #include "platform/MCFileSystem.h"
+#if defined(__APPLE__)
+#include "shaders/composite.msl.h"
+#include "shaders/draw.msl.h"
+#include "shaders/instance.msl.h"
+#include "shaders/quad.msl.h"
+#include "shaders/terrain.msl.h"
+// A built-in shader's code in Format: the Mac build's MSL.
+#define MC_BUILT_IN_SHADER(name) MC_##name##_msl
+#else
 #include "shaders/composite.spv.h"
 #include "shaders/draw.spv.h"
 #include "shaders/instance.spv.h"
 #include "shaders/quad.spv.h"
 #include "shaders/terrain.spv.h"
+// A built-in shader's code in Format: dxc's SPIR-V.
+#define MC_BUILT_IN_SHADER(name) MC_##name##_spirv
+#endif
 
 namespace MCVulkanShaders
 {
@@ -39,15 +51,15 @@ namespace MCVulkanShaders
         switch (shader)
         {
             case MCShader::Quad:
-                return MC_quad_spirv;
+                return MC_BUILT_IN_SHADER(quad);
             case MCShader::Composite:
-                return MC_composite_spirv;
+                return MC_BUILT_IN_SHADER(composite);
             case MCShader::Instance:
-                return MC_instance_spirv;
+                return MC_BUILT_IN_SHADER(instance);
             case MCShader::Draw:
-                return MC_draw_spirv;
+                return MC_BUILT_IN_SHADER(draw);
             case MCShader::Terrain:
-                return MC_terrain_spirv;
+                return MC_BUILT_IN_SHADER(terrain);
         }
 
         return {};
@@ -76,6 +88,12 @@ namespace MCVulkanShaders
         /// <summary>The first replacement for <paramref name="name"/>, or empty.</summary>
         std::filesystem::path FindReplacement(std::string_view name)
         {
+            // Replacements are SPIR-V, so only a SPIR-V build takes one.
+            if (Format != SDL_GPU_SHADERFORMAT_SPIRV)
+            {
+                return {};
+            }
+
             const std::string file = std::format("{}.spv", name);
 
             for (const std::filesystem::path& folder : SearchFolders())
@@ -107,8 +125,8 @@ namespace MCVulkanShaders
         SDL_GPUShaderCreateInfo create{};
         create.code = builtIn.data();
         create.code_size = builtIn.size();
-        create.entrypoint = "main";
-        create.format = SDL_GPU_SHADERFORMAT_SPIRV;
+        create.entrypoint = EntryPoint;
+        create.format = Format;
         create.stage = info.Stage;
         create.num_samplers = info.Samplers;
         create.num_uniform_buffers = info.UniformBuffers;
