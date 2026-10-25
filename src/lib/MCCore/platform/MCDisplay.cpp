@@ -111,7 +111,7 @@ std::expected<std::unique_ptr<MCDisplay>, std::string> MCDisplay::Create(const M
 
     display->_WindowScale = scale;
 
-    SDL_WindowFlags flags = SDL_WINDOW_HIGH_PIXEL_DENSITY;
+    SDL_WindowFlags flags = options.HighPixelDensity ? SDL_WINDOW_HIGH_PIXEL_DENSITY : 0;
 
     if (options.Resizable)
     {

@@ -85,6 +85,16 @@ auto MCGuiSystem::OpenDisplay() -> void
     options.Fullscreen = GFullScreen != 0;
     options.Stretch = GStretchToFit != 0;
     options.Hidden = GHiddenWindow;
+
+    // A hidden window (the tests') is 640x480 pixels on any desktop. A window-following screen is the window's size
+    // in pixels, which the desktop's size (the window scale) and pixel density would otherwise set, and with it what
+    // the game draws and updates: the tests' recorded frames and runs would hold on one kind of machine only.
+    if (GHiddenWindow)
+    {
+        options.WindowScale = 1;
+        options.HighPixelDensity = false;
+    }
+
     options.Renderer = static_cast<MCRendererKind>(GRenderer);
     options.VSync = GVSync;
     auto display = MCDisplay::Create(options);
