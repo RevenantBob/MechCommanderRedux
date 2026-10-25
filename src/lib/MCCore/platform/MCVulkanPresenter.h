@@ -74,7 +74,13 @@ private:
     /// textures in a copy pass (with <paramref name="gpuSurfaces"/>, the palette only); sets
     /// <paramref name="gpuSurfaces"/> to what the composite should read.
     /// </summary>
-    std::expected<void, std::string> Prepare(SDL_GPUCommandBuffer& commands, const MCFrame& frame, bool& gpuSurfaces);
+    /// <remarks>
+    /// A frame only <paramref name="read"/> keeps the underlays where the shown frames placed them: read at the
+    /// screen's size, it would otherwise place them at another scale than a scaled window's (a Retina screen's), and
+    /// a surface placed at a new size is made again, empty, until the game next draws all of it.
+    /// </remarks>
+    std::expected<void, std::string> Prepare(SDL_GPUCommandBuffer& commands, const MCFrame& frame, bool& gpuSurfaces,
+                                             bool read);
     /// <summary>Uploads the frame's textures in a copy pass on <paramref name="commands"/>.</summary>
     std::expected<void, std::string> Upload(SDL_GPUCommandBuffer& commands, const MCFrame& frame, bool gpuSurfaces);
     /// <summary>Composites the frame into the frame texture, from the uploaded textures or the GPU's surfaces.</summary>

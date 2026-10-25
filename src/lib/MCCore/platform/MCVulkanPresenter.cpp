@@ -256,12 +256,16 @@ bool MCVulkanPresenter::ShowsGpuSurfaces(const MCFrame& frame) const
 }
 
 std::expected<void, std::string> MCVulkanPresenter::Prepare(SDL_GPUCommandBuffer& commands, const MCFrame& frame,
-                                                            bool& gpuSurfaces)
+                                                            bool& gpuSurfaces, bool read)
 {
     if (_Renderer != nullptr && MCRenderer::GpuDrawing() != MCGpuDrawing::Off)
     {
         _Renderer->SetColors(frame.PaletteColors, frame.Cycle);
-        PlaceUnderlays(frame);
+
+        if (!read)
+        {
+            PlaceUnderlays(frame);
+        }
 
         if (auto executed = _Renderer->Execute(commands, frame.Underlays); !executed)
         {
@@ -597,7 +601,7 @@ std::expected<void, std::string> MCVulkanPresenter::Present(const MCFrame& frame
 
     if (MCFrameLog::Scope part("present.prepare"); true)
     {
-        if (auto prepared = Prepare(*commands, frame, gpuSurfaces); !prepared)
+        if (auto prepared = Prepare(*commands, frame, gpuSurfaces, false); !prepared)
         {
             SDL_CancelGPUCommandBuffer(commands);
             return prepared;
@@ -686,7 +690,7 @@ std::expected<std::vector<SDL_Color>, std::string> MCVulkanPresenter::ReadFrame(
 
     bool gpuSurfaces = false;
 
-    if (auto prepared = Prepare(*commands, frame, gpuSurfaces); !prepared)
+    if (auto prepared = Prepare(*commands, frame, gpuSurfaces, true); !prepared)
     {
         SDL_CancelGPUCommandBuffer(commands);
         return std::unexpected(prepared.error());
