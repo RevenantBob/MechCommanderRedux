@@ -46,7 +46,7 @@ Bugs that have an impact on how the game *plays* may remain in the game, and are
 
 - Rebuilt as a native 64-bit program. DirectDraw, DirectSound, DirectPlay and the Smacker DLL are replaced by SDL3 and
   a built-in Smacker video decoder.
-- Windows only for now; Linux is planned.
+- Runs on Windows, and on Macs with Apple silicon as `MechCommander Redux.app`. Linux is planned.
 
 ### Display
 
@@ -62,6 +62,8 @@ Bugs that have an impact on how the game *plays* may remain in the game, and are
   pixel, and scrolling keeps the same speed on screen at any zoom. The `Use90Pixel` and `Force45Pixel` settings in
   `PREFS.CFG` are no longer used.
 - The menu and logistics screens are still 640x480, and are scaled up to fit the window.
+- UI RESOLUTION's NATIVE setting follows the screen's scale: on a Retina screen or a scaled Windows desktop, the
+  in-mission UI is the size it is on a standard screen instead of half that.
 - The game still draws in 256 colours as the original did; the GPU (Vulkan where available) scales the picture to the
   window.
 - Palette changes appear on the next frame drawn instead of instantly.
@@ -92,6 +94,9 @@ Bugs that have an impact on how the game *plays* may remain in the game, and are
 
 - The game reads its data from your MechCommander Gold folder and never writes to it. See the
   [README](README.md#running-the-game) for how the folder is found.
+- Started from somewhere else, the game finds the folder itself: on a Mac beside the app, in the Applications folders
+  (including inside a Wineskin, Porting Kit or Kegworks app) and in CrossOver's bottles. If it finds more than one
+  copy, or none, it asks, and it remembers the answer. Hold Option as the Mac app opens to choose again.
 - Saves, preferences and temporary files go to `%APPDATA%\MechCommander Redux\`, or to the folder given with `--user`.
   Saves left in the MechCommander Gold folder still show up, and deleting or overwriting one in the game removes it
   from there.
