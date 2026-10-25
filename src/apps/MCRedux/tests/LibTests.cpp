@@ -374,9 +374,9 @@ TEST_CASE("file: a child window reads its part of the parent")
 TEST_CASE("file: writes go to the user folder and never touch the install")
 {
     ScratchFolder folder("overlay");
-    std::filesystem::create_directories(folder / "install\\data");
+    std::filesystem::create_directories(folder / "install/data");
     const std::vector<uint8_t> original = Bytes("FITini\r\n[Prefs]\r\nl Volume = 3\r\n\r\nFITend\r\n");
-    WriteFile(folder / "install\\data\\prefs.cfg", original);
+    WriteFile(folder / "install/data/prefs.cfg", original);
 
     {
         MCTestContextScope scope;
@@ -396,13 +396,13 @@ TEST_CASE("file: writes go to the user folder and never touch the install")
         out.WriteIdLong("Volume", 9);
         out.Close();
 
-        CHECK(std::filesystem::exists(folder / "user\\data\\prefs.cfg"));
+        CHECK(std::filesystem::exists(folder / "user/data/prefs.cfg"));
         REQUIRE_EQ(fit.Open("data\\prefs.cfg"), 0);
         REQUIRE_EQ(fit.SeekBlock("Prefs"), 0);
         CHECK(fit.Read<int32_t>("Volume") == MCFitResult<int32_t>(9));
     }
 
-    CHECK(ReadFile(folder / "install\\data\\prefs.cfg") == original);
+    CHECK(ReadFile(folder / "install/data/prefs.cfg") == original);
 
     MCTestContextScope scope;
     MCMemoryFileSource& files = scope.Context().SetFiles(std::make_unique<MCMemoryFileSource>());
@@ -432,12 +432,12 @@ TEST_CASE("file: writes go to the user folder and never touch the install")
 TEST_CASE("file: deleting a save removes the install's copy too")
 {
     ScratchFolder folder("delete-save");
-    std::filesystem::create_directories(folder / "install\\data\\savegame");
-    std::filesystem::create_directories(folder / "user\\data\\savegame");
-    WriteFile(folder / "install\\data\\savegame\\shipped.sav", Bytes("install"));
-    WriteFile(folder / "install\\data\\savegame\\both.sav", Bytes("install"));
-    WriteFile(folder / "user\\data\\savegame\\both.sav", Bytes("user"));
-    WriteFile(folder / "install\\data\\savegame\\other.sav", Bytes("install"));
+    std::filesystem::create_directories(folder / "install/data/savegame");
+    std::filesystem::create_directories(folder / "user/data/savegame");
+    WriteFile(folder / "install/data/savegame/shipped.sav", Bytes("install"));
+    WriteFile(folder / "install/data/savegame/both.sav", Bytes("install"));
+    WriteFile(folder / "user/data/savegame/both.sav", Bytes("user"));
+    WriteFile(folder / "install/data/savegame/other.sav", Bytes("install"));
 
     MCTestContextScope scope;
     scope.Context().SetFiles(std::make_unique<MCDiskFileSource>());
@@ -464,10 +464,10 @@ TEST_CASE("file: deleting a save removes the install's copy too")
     CHECK(MCFileSystem::Exists("data\\savegame\\shipped.sav"));
 
     CHECK(MCFileSystem::RemoveSave("DATA\\SAVEGAME\\SHIPPED.SAV"));
-    CHECK(!std::filesystem::exists(folder / "install\\data\\savegame\\shipped.sav"));
+    CHECK(!std::filesystem::exists(folder / "install/data/savegame/shipped.sav"));
     CHECK(MCFileSystem::RemoveSave("data\\savegame\\both.sav"));
-    CHECK(!std::filesystem::exists(folder / "install\\data\\savegame\\both.sav"));
-    CHECK(!std::filesystem::exists(folder / "user\\data\\savegame\\both.sav"));
+    CHECK(!std::filesystem::exists(folder / "install/data/savegame/both.sav"));
+    CHECK(!std::filesystem::exists(folder / "user/data/savegame/both.sav"));
     CHECK(MCFileSystem::RemoveSave("data\\savegame\\missing.sav"));
 
     const std::vector<std::string> left = MCFileSystem::FindFiles("data\\savegame\\*.sav");
@@ -483,8 +483,8 @@ TEST_CASE("file: deleting a save removes the install's copy too")
 TEST_CASE("file: a relative path never leaves the user or game folder")
 {
     ScratchFolder folder("contain");
-    std::filesystem::create_directories(folder / "install\\data");
-    WriteFile(folder / "install\\data\\shared.cfg", Bytes("install"));
+    std::filesystem::create_directories(folder / "install/data");
+    WriteFile(folder / "install/data/shared.cfg", Bytes("install"));
     WriteFile(folder / "secret.txt", Bytes("outside"));
 
     MCTestContextScope scope;
@@ -517,7 +517,7 @@ TEST_CASE("file: a relative path never leaves the user or game folder")
     // A write that tries to climb out of the user folder lands inside it; the install and the folder above stay.
     REQUIRE(MCFileSystem::CopyFile("data\\shared.cfg", "..\\..\\secret.txt"));
     CHECK(ReadFile(folder / "secret.txt") == Bytes("outside"));
-    CHECK(ReadFile(folder / "user\\secret.txt") == Bytes("install"));
+    CHECK(ReadFile(folder / "user/secret.txt") == Bytes("install"));
 }
 
 /// <summary>
