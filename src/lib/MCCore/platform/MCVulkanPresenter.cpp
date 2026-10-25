@@ -47,11 +47,11 @@ std::expected<std::unique_ptr<MCVulkanPresenter>, std::string> MCVulkanPresenter
     auto presenter = std::make_unique<MCVulkanPresenter>(Key{});
     presenter->_Window = std::move(window);
     presenter->_Presentation = presentation;
-    SDL_GPUDevice* device = SDL_CreateGPUDevice(SDL_GPU_SHADERFORMAT_SPIRV, false, "vulkan");
+    SDL_GPUDevice* device = SDL_CreateGPUDevice(MCVulkanShaders::Format, false, MCVulkanShaders::Driver);
 
     if (device == nullptr)
     {
-        return std::unexpected(SdlError("SDL_CreateGPUDevice(vulkan)"));
+        return std::unexpected(SdlError(std::format("SDL_CreateGPUDevice({})", MCVulkanShaders::Driver)));
     }
 
     presenter->_Device = std::shared_ptr<SDL_GPUDevice>(device, MCSdlDeleter{});
@@ -181,7 +181,8 @@ std::string MCVulkanPresenter::Name() const
 {
     const std::string_view device =
         SDL_GetStringProperty(SDL_GetGPUDeviceProperties(_Device.get()), SDL_PROP_GPU_DEVICE_NAME_STRING, "");
-    return !device.empty() ? std::format("vulkan ({})", device) : std::string("vulkan");
+    return !device.empty() ? std::format("{} ({})", MCVulkanShaders::Driver, device)
+                           : std::string(MCVulkanShaders::Driver);
 }
 
 void MCVulkanPresenter::SetVSync(bool on)

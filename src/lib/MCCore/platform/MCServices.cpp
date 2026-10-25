@@ -43,8 +43,17 @@ uint64_t MCSystemClock::UtcFileTime()
 
 uint64_t MCSystemClock::LocalFileTime()
 {
+#if defined(__APPLE__)
+    // libc++ has no std::chrono::current_zone(); use the C library's UTC offset for "now".
+    const auto now = std::chrono::system_clock::now();
+    const std::time_t t = std::chrono::system_clock::to_time_t(now);
+    std::tm local{};
+    localtime_r(&t, &local);
+    return ToFileTime(now.time_since_epoch() + std::chrono::seconds(local.tm_gmtoff));
+#else
     const auto local = std::chrono::current_zone()->to_local(std::chrono::system_clock::now());
     return ToFileTime(local.time_since_epoch());
+#endif
 }
 
 int32_t MCCrtRandom::Next()
