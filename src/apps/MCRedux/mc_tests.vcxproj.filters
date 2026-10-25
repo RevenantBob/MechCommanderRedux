@@ -14,6 +14,7 @@
   <ItemGroup>
     <ClCompile Include="MCConsole.cpp" />
     <ClCompile Include="MCCrashTrace.cpp" />
+    <ClCompile Include="MCGameFolder.cpp" />
     <ClCompile Include="stdafx.cpp" />
     <ClCompile Include="tests\AblRuntimeTests.cpp">
       <Filter>tests</Filter>
@@ -85,6 +86,9 @@
       <Filter>tests\fixtures</Filter>
     </ClCompile>
     <ClCompile Include="tests\FrameHashTests.cpp">
+      <Filter>tests</Filter>
+    </ClCompile>
+    <ClCompile Include="tests\GameFolderTests.cpp">
       <Filter>tests</Filter>
     </ClCompile>
     <ClCompile Include="tests\GameSessionTests.cpp">
@@ -229,6 +233,7 @@
   <ItemGroup>
     <ClInclude Include="MCConsole.h" />
     <ClInclude Include="MCCrashTrace.h" />
+    <ClInclude Include="MCGameFolder.h" />
     <ClInclude Include="stdafx.h" />
     <ClInclude Include="tests\fakes\MCLoopbackTransport.h">
       <Filter>tests\fakes</Filter>

@@ -60,6 +60,9 @@
     <ClCompile Include="MCCrashTrace.cpp">
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
     </ClCompile>
+    <ClCompile Include="MCGameFolder.cpp">
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+    </ClCompile>
     <ClCompile Include="stdafx.cpp">
       <PrecompiledHeader>Create</PrecompiledHeader>
     </ClCompile>
@@ -87,6 +90,7 @@
     <ClCompile Include="tests\fixtures\MCTerrainGeometryScope.cpp" />
     <ClCompile Include="tests\fixtures\MCTinyMap.cpp" />
     <ClCompile Include="tests\FrameHashTests.cpp" />
+    <ClCompile Include="tests\GameFolderTests.cpp" />
     <ClCompile Include="tests\GameSessionTests.cpp" />
     <ClCompile Include="tests\GpuDrawingTests.cpp" />
     <ClCompile Include="tests\GroundVehicleTests.cpp" />
@@ -137,6 +141,7 @@
     <ClCompile Include="tests\ZoomTests.cpp" />
     <ClInclude Include="MCConsole.h" />
     <ClInclude Include="MCCrashTrace.h" />
+    <ClInclude Include="MCGameFolder.h" />
     <ClInclude Include="stdafx.h" />
     <ClInclude Include="tests\fakes\MCLoopbackTransport.h" />
     <ClInclude Include="tests\fakes\MCManualClock.h" />
