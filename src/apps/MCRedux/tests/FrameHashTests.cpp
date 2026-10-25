@@ -545,10 +545,10 @@ namespace
     /// 0x9297295d), only there; the run now pins the settings it shows (<see cref="MCRecordedPrefs"/>). The UI
     /// RESOLUTION box (2026-10-18) took the preferences step to 0xd7aa9185 and the folds to 0xcfbe6bb8 and 0xac3d91aa
     /// (GPU 0x8d317260 and 0xd056cb3d), only there. The CONTROLS button (2026-10-25) took the preferences step to
-    /// 0x733386ba (software and GPU agree); the folds still need re-recording on the recording machine, whose test user
-    /// folder (and so its load screen) can't be reproduced elsewhere. The drop-down boxes lined up with the sliders'
-    /// labels, wide enough for NATIVE (RETINA/HD) (2026-10-25), took the preferences step to 0x43e55f2a (software and GPU
-    /// agree).
+    /// 0x733386ba (software and GPU agree). The drop-down boxes lined up with the sliders' labels, wide enough for
+    /// NATIVE (RETINA/HD) (2026-10-25), took the preferences step to 0x43e55f2a (software and GPU agree). The two
+    /// together took the folds to 0xb83606d6 and 0xcd07a54a (GPU 0xb5054b56 and 0x7a383add), re-recorded on the
+    /// recording machine, whose test user folder (and so its load screen) can't be reproduced elsewhere.
     /// </remarks>
     void LogisticsFrames(bool gpu)
     {
@@ -752,8 +752,8 @@ namespace
 
         MCTestGame::OnPresent = nullptr;
         SaveShot("logistics every frame", frames);
-        CHECK_EQ(frames, gpu ? 0x8d317260u : 0xcfbe6bb8u);
-        CHECK_EQ(presents, gpu ? 0xd056cb3du : 0xac3d91aau);
+        CHECK_EQ(frames, gpu ? 0xb5054b56u : 0xb83606d6u);
+        CHECK_EQ(presents, gpu ? 0x7a383addu : 0xcd07a54au);
         CheckGpuAlone(gpu);
     }
 }
