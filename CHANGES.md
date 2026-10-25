@@ -15,6 +15,7 @@ Bugs that have an impact on how the game *plays* may remain in the game, and are
     - [Platform](#platform)
     - [Display](#display)
     - [Mouse](#mouse)
+    - [Keyboard](#keyboard)
     - [Sound](#sound)
     - [Multiplayer](#multiplayer)
     - [Files and Saves](#files-and-saves)
@@ -77,6 +78,22 @@ Bugs that have an impact on how the game *plays* may remain in the game, and are
   scroll bar (mechs, pilots, vehicles, inventory, a mech's weapon list in the repair bay and briefing, saved games, the
   tactical map's info and salvage pages, the mission results, the multiplayer game list) it scrolls a row or line per
   notch, as the scroll arrows do. A list inside another list scrolls first.
+
+### Keyboard
+
+- The mission keys can be changed: the preferences screen has a CONTROLS button listing every command with its key and
+  an alternate key. Click a key and press the new one, with Ctrl, Alt or Shift if you like; a key another command had
+  moves, and the screen says which command lost it. Right-click clears a key, and DEFAULTS brings back the original
+  keys. Keys that differ from the original are kept in `PREFS.CFG`'s `Controls` block.
+- LAPTOP sets keys every laptop has, with no keypad, F-keys, Home or Page Up and Down, and none macOS keeps for
+  itself:
+  - aimed shots on Shift with U I O / J K L / M . (the keypad's layout);
+  - lances on 1-4 (Shift adds, Ctrl makes) and 5 breaks them up;
+  - support strikes on 7 8 9 0;
+  - map scroll on Shift+arrows;
+  - power up and down on P and Shift+P, and eject on Shift+E;
+  - zoom on = and -;
+  - hold Ctrl, R or H to force an order, a run or a jump.
 
 ### Sound
 
@@ -177,6 +194,9 @@ Bugs that have an impact on how the game *plays* may remain in the game, and are
   - Each jump jet takes one slot, in the leg with fewer jets. The original miscounted the jets and put each one in
     every empty slot of a leg.
   - A weapon is never put in a full location. The original wrote it over the first slot of the next location.
+  - The Rail Gun and Light Gauss Rifle get a critical slot. The original took them for equipment and gave them none.
+    They still fired, but critical hits and losing their location never destroyed them, their fire arc ignored the
+    torso's turn, and each shot read its starting point from outside the mech's body locations.
 
 ### Mission Scripts
 
