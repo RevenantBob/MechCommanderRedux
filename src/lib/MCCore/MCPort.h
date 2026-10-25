@@ -129,3 +129,39 @@ template <typename... Args> std::string MCFormatPrintf(const std::string& format
     std::snprintf(text.data(), text.size() + 1, format.c_str(), args...);
     return text;
 }
+
+#if defined(__cpp_lib_atomic_shared_ptr)
+/// <summary>An atomic <c>shared_ptr</c> or <c>weak_ptr</c> (<typeparamref name="P"/>).</summary>
+template <typename P> using MCAtomicPtr = std::atomic<P>;
+#else
+/// <summary>
+/// An atomic <c>shared_ptr</c> or <c>weak_ptr</c> (<typeparamref name="P"/>) where the standard library has no
+/// <c>std::atomic&lt;P&gt;</c> (libc++): the pointer behind a mutex, with the operations the port uses.
+/// </summary>
+template <typename P> class MCAtomicPtr
+{
+public:
+    MCAtomicPtr() noexcept = default;
+    MCAtomicPtr(const MCAtomicPtr&) = delete;
+    MCAtomicPtr& operator=(const MCAtomicPtr&) = delete;
+
+    P load(std::memory_order = std::memory_order_seq_cst) const
+    {
+        std::scoped_lock lock(_Lock);
+        return _Pointer;
+    }
+
+    void store(P pointer, std::memory_order = std::memory_order_seq_cst)
+    {
+        // The old pointer is let go once the lock is: its object's destructor may come back here.
+        std::scoped_lock lock(_Lock);
+        _Pointer.swap(pointer);
+    }
+
+    void operator=(P pointer) { store(std::move(pointer)); }
+
+private:
+    mutable std::mutex _Lock;
+    P _Pointer;
+};
+#endif
