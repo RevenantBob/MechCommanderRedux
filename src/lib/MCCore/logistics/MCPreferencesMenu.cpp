@@ -106,12 +106,17 @@ namespace
     /// <summary>A volume slider's range.</summary>
     constexpr int32_t VolumeMax = 127;
 
-    /// <summary>A drop-down box's title and drop-down (under the title, in the art's checks' column and first row).</summary>
-    constexpr int32_t BoxTitleLeft = 32;
+    /// <summary>
+    /// A drop-down box's title and drop-down (under the title), lined up with the sliders' labels and as wide as the
+    /// box allows, so UI RESOLUTION's NATIVE can say it's the one for a Retina or HD screen.
+    /// </summary>
+    constexpr int32_t BoxTitleLeft = 8;
     constexpr int32_t BoxTitleTop = 9;
-    constexpr int32_t DropDownLeft = 32;
+    constexpr int32_t DropDownLeft = 8;
     constexpr int32_t DropDownTop = 21;
-    constexpr int32_t DropDownWidth = 76;
+    constexpr int32_t DropDownWidth = 104;
+    /// <summary>UI RESOLUTION's native choice: its lines follow the screen's scale (GUiResolution).</summary>
+    constexpr std::string_view NativeUiResolution = "NATIVE (RETINA/HD)";
 
     /// <summary>ACCEPT and CANCEL on the panel: side by side at its bottom right, 10 pixels in.</summary>
     constexpr int32_t AcceptLeft = 120;
@@ -289,7 +294,7 @@ void AddPreferencesPanel(MCGenericScreen& screen)
     // UI RESOLUTION: the most lines the in-mission UI is drawn at, from the next scenario on.
     MCLogGroupBox& uiResolution = AddBox(screen, panel, UiResolutionBoxPlace, BoxOutlineColor);
     AddLabel(screen, uiResolution, "UI RESOLUTION", BoxTitleLeft, BoxTitleTop);
-    std::vector<MCLogComboBox::Item> uiResolutions = {{"NATIVE", 0}};
+    std::vector<MCLogComboBox::Item> uiResolutions = {{std::string(NativeUiResolution), 0}};
 
     for (const int lines : UiResolutions)
     {

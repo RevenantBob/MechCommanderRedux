@@ -158,6 +158,7 @@ std::expected<std::unique_ptr<MCDisplay>, std::string> MCDisplay::Create(const M
         display->_MinWidth = options.Width;
         display->_MinHeight = options.Height;
         display->_MaxHeight = std::max(options.MaxHeight, 0);
+        display->_FollowDisplayScale = options.FollowDisplayScale;
         SDL_SetWindowMinimumSize(window, options.Width, options.Height);
         SDL_SyncWindow(window);
         display->WindowScreenSize(display->_Width, display->_Height);
@@ -177,7 +178,7 @@ MCDisplay::~MCDisplay()
 
 void MCDisplay::SetTitle(std::string_view title)
 {
-    const std::string_view renderer = _Presenter->Kind() == MCRendererKind::Vulkan ? "Vulkan" : "Software";
+    const std::string_view renderer = _Presenter->Kind() == MCRendererKind::Vulkan ? MCGpuApiName : "Software";
     SDL_SetWindowTitle(_Window.get(), std::format("{} [{}]", title, renderer).c_str());
 }
 
@@ -219,12 +220,24 @@ void MCDisplay::WindowScreenSize(int& width, int& height) const
         return;
     }
 
+    int maxHeight = _MaxHeight;
+
+    // On a high-DPI display (SDL's display scale: a Retina screen's 2, a Windows desktop's 150%), no taller than the
+    // window in points, nor shorter than the smallest screen (a short window on a scaled desktop), so the screen keeps
+    // the window's aspect.
+    if (const float scale = SDL_GetWindowDisplayScale(_Window.get()); _FollowDisplayScale && scale > 1.0f)
+    {
+        const int pointHeight =
+            std::max(static_cast<int>(std::lround(static_cast<double>(pixelHeight) / scale)), _MinHeight);
+        maxHeight = maxHeight > 0 ? std::min(maxHeight, pointHeight) : pointHeight;
+    }
+
     // A window taller than the most: that many lines, as wide as the window's aspect makes them.
-    if (_MaxHeight > 0 && pixelHeight > _MaxHeight)
+    if (maxHeight > 0 && pixelHeight > maxHeight)
     {
         pixelWidth = static_cast<int>(
-            std::lround(static_cast<double>(pixelWidth) * _MaxHeight / static_cast<double>(pixelHeight)));
-        pixelHeight = _MaxHeight;
+            std::lround(static_cast<double>(pixelWidth) * maxHeight / static_cast<double>(pixelHeight)));
+        pixelHeight = maxHeight;
     }
 
     width = std::max(pixelWidth, _MinWidth);

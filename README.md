@@ -13,6 +13,9 @@ data files from your own copy of MechCommander Gold.
 
 **[⬇ Download the latest version for Windows (64-bit)](https://github.com/RevenantBob/MechCommanderRedux/releases/latest/download/MechCommanderRedux-win-x64.zip)**
 
+**[⬇ Download the latest version for Mac (Apple silicon)](https://github.com/RevenantBob/MechCommanderRedux/releases/latest/download/MechCommanderRedux-mac-arm64.zip)**:
+`MechCommander Redux.app`, which finds your copy of the game by itself (see `INSTALL-Mac.txt` in the zip).
+
 This is a zip file with the game (`MCRedux.exe`), the Mission Editor (`MCEditor.exe`) and instructions. You also need
 your own copy of MechCommander Gold: see [Running the Game](#running-the-game) and [Mission Editor](#mission-editor)
 for how to set it up. To see what changed in each version, or to download an older one, visit the
@@ -93,13 +96,20 @@ from your installation; it never modifies it.
    - extract it into your MechCommander Gold folder (the one containing `SYSTEM.CFG`), then run `MCRedux.exe`; or
    - extract it anywhere you like, and point it at your MechCommander Gold folder with `--data` (see below).
 
+On a Mac, drag `MechCommander Redux.app` to your Applications folder and open it (the first time, allow it under
+System Settings → Privacy & Security; see `INSTALL-Mac.txt`).
+
 Redux looks for the game's data in the first of these folders that contains `SYSTEM.CFG`:
 
-1. The folder given with `-d` / `--data`
+1. The folder given with `-d` / `--data` (if it has no game, Redux shows an error listing every folder it tried)
 2. The current folder
 3. The folder `MCRedux.exe` is in
+4. The folder chosen or found last time
+5. On a Mac, a copy of the game (`SYSTEM.CFG` beside `MCX.EXE`) beside the app, in `/Applications` or
+   `~/Applications` (including inside a Wineskin, Porting Kit or Kegworks app) or in a CrossOver bottle
 
-If none of them has it, Redux shows an error listing every folder it tried.
+If it finds several copies, or none, Redux asks which folder to play and remembers the answer. Hold Option (⌥) as the
+Mac app opens to choose again.
 
 ### Command-Line Options
 
@@ -129,7 +139,8 @@ MCRedux.exe --data "C:\Games\MechCommander Gold"
 ### Saves and Settings
 
 Without `--user`, saves and preferences go to your user profile, in
-`%APPDATA%\MechCommander Redux\` on Windows, so they never touch the game folder.
+`%APPDATA%\MechCommander Redux\` on Windows and `~/Library/Application Support/MechCommander Redux/` on a Mac, so they
+never touch the game folder.
 
 ## Mission Editor
 
@@ -275,8 +286,9 @@ cmake -S src/mac -B src/mac/build
 cmake --build src/mac/build --parallel "$(sysctl -n hw.ncpu)"
 ```
 
-The output goes to `src/mac/build/`: `MCRedux` (the game; run it with `--data <your MechCommander Gold folder>`) and
-`mc_tests` (the test suite). The source lists come from the Visual Studio projects, so a file added to them builds on
+The output goes to `src/mac/build/`: `MechCommander Redux.app` (the game: open it, or run
+`"MechCommander Redux.app/Contents/MacOS/MechCommander Redux" --data <your MechCommander Gold folder>`) and `mc_tests`
+(the test suite). The source lists come from the Visual Studio projects, so a file added to them builds on
 macOS too. Without the .NET SDK the version is `0.0.0.0`, as on Windows.
 
 ### Releases
@@ -284,7 +296,9 @@ macOS too. Without the .NET SDK the version is `0.0.0.0`, as on Windows.
 Releases come from the **Release** workflow on GitHub (Actions → Release → Run workflow). It builds `main`, runs the
 tests, tags the commit `v<version>` (the same version the build puts in the exe) and publishes a GitHub Release with
 the game zip `MechCommanderRedux-win-x64.zip` (`MCRedux.exe`, `SDL3.dll`, `MCEditor.exe`, and `src/docs/README.txt`
-and `INSTALL.txt`) and a symbols zip, `MechCommanderRedux-win-x64-symbols.zip`. The zips have the same names in every
+and `INSTALL.txt`), a symbols zip, `MechCommanderRedux-win-x64-symbols.zip`, and the Mac app,
+`MechCommanderRedux-mac-arm64.zip` (`MechCommander Redux.app` and `src/docs/INSTALL-Mac.txt`, built on a macOS runner;
+signed ad hoc, as there's no Apple developer account). The zips have the same names in every
 release, so the [Download](#download) link always gets the newest one. It refuses to run twice for the same commit, since the tag would already exist.
 
 ### Technologies
