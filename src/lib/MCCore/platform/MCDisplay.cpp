@@ -178,7 +178,7 @@ MCDisplay::~MCDisplay()
 
 void MCDisplay::SetTitle(std::string_view title)
 {
-    const std::string_view renderer = _Presenter->Kind() == MCRendererKind::Vulkan ? "Vulkan" : "Software";
+    const std::string_view renderer = _Presenter->Kind() == MCRendererKind::Vulkan ? MCGpuApiName : "Software";
     SDL_SetWindowTitle(_Window.get(), std::format("{} [{}]", title, renderer).c_str());
 }
 
