@@ -423,12 +423,22 @@ MCViewport MCDisplay::ShownViewport() const
 
 bool MCDisplay::ScaledOutput(int& width, int& height) const
 {
-    if (!_FollowWindow || _View.x != 0 || _View.y != 0 || _View.w != _Width || _View.h != _Height)
+    if (_View.x != 0 || _View.y != 0 || _View.w != _Width || _View.h != _Height)
     {
         return false;
     }
 
-    const MCViewport viewport = ShownViewport();
+    return WholeScreenOutput(width, height);
+}
+
+bool MCDisplay::WholeScreenOutput(int& width, int& height) const
+{
+    if (!_FollowWindow)
+    {
+        return false;
+    }
+
+    const MCViewport viewport = _Presenter->Viewport(_Width, _Height);
     const auto shownWidth = static_cast<int>(std::lround(viewport.W));
     const auto shownHeight = static_cast<int>(std::lround(viewport.H));
 
@@ -447,6 +457,13 @@ float MCDisplay::UnderlayScale() const
     int width = 0;
     int height = 0;
     return ScaledOutput(width, height) ? static_cast<float>(height) / static_cast<float>(_Height) : 1.0f;
+}
+
+float MCDisplay::ScreenScale() const
+{
+    int width = 0;
+    int height = 0;
+    return WholeScreenOutput(width, height) ? static_cast<float>(height) / static_cast<float>(_Height) : 1.0f;
 }
 
 void MCDisplay::PixelScale(float& scaleX, float& scaleY) const
