@@ -87,6 +87,18 @@ extern int GUiResolution;
 inline constexpr int MaxUiResolution = 1080;
 /// <summary>Port-only: the choices of <see cref="GUiResolution"/> other than native.</summary>
 inline constexpr std::array<int, 5> UiResolutions = {480, 600, 720, 900, 1080};
+/// <summary>
+/// Port-only: the in-mission interface's size in percent (PREFS "InterfaceSize", which alt+= and alt+- step and save in
+/// a mission): one of <see cref="InterfaceSizes"/>. The screen gets that many times
+/// fewer lines than UI RESOLUTION gives it (480 at the fewest), so the tactical map, the command palette, the mech bar
+/// and the unit overlays, drawn at fixed sizes, are that much bigger; the world view keeps the window's pixels and
+/// shows as much of the battlefield. It takes effect at once, as a window resize does.
+/// </summary>
+extern int GInterfaceSize;
+/// <summary>Port-only: the original's interface size, <see cref="GInterfaceSize"/>'s default.</summary>
+inline constexpr int OriginalInterfaceSize = 100;
+/// <summary>Port-only: the choices of <see cref="GInterfaceSize"/>, smallest first.</summary>
+inline constexpr std::array<int, 5> InterfaceSizes = {OriginalInterfaceSize, 125, 150, 175, 200};
 /// <summary>Port-only: draw the frame counter in the top-right corner (PREFS "ShowFps", read by systemInit, or the
 /// command line's <c>-fps</c>).</summary>
 extern int GShowFps;
