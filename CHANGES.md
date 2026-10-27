@@ -106,6 +106,10 @@ Bugs that have an impact on how the game *plays* may remain in the game, and are
 - Modem, serial cable, lobby (MPlayer, Zone) and host migration aren't supported.
 - Zoom works in multiplayer. The original locked multiplayer games to the zoomed-out view and greyed out the zoom
   button. Zoom only changes what is drawn, so players zooming independently doesn't affect the game itself.
+- A launcher can premake a match: the host's command line (`-host`) can name the mission, each team's resource points
+  and tech base, and who is on which team (`-matchmap`, `-team1rp`, `-team2rp`, `-team1tech`, `-team2tech`, `-slot`).
+  Once everyone has joined, the game goes straight from "Waiting for Players" to the mech bay, without the ready room or
+  the map selector. See the [README](README.md#premade-matches).
 
 ### Files and Saves
 
@@ -234,6 +238,7 @@ Bugs that have an impact on how the game *plays* may remain in the game, and are
 - Chat from an unknown player takes the first player's colour instead of crashing.
 - A mech icon part for a location without armor no longer divides by zero when it picks its colour. It shows red, as
   in the original.
+- The health bar over popup turrets and gates is green, yellow and red again instead of black.
 
 ### Mission Editor Fixes
 

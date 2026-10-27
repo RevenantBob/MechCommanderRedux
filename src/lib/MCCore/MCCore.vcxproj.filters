@@ -724,6 +724,9 @@
     <ClCompile Include="network\MCMultiPlayer.cpp">
       <Filter>network</Filter>
     </ClCompile>
+    <ClCompile Include="network\MCMPGameConfiguration.cpp">
+      <Filter>network</Filter>
+    </ClCompile>
     <ClCompile Include="network\MCMultiPlayerHandlers.cpp">
       <Filter>network</Filter>
     </ClCompile>
@@ -1897,6 +1900,9 @@
       <Filter>mission</Filter>
     </ClInclude>
     <ClInclude Include="network\MCMultiPlayer.h">
+      <Filter>network</Filter>
+    </ClInclude>
+    <ClInclude Include="network\MCMPGameConfiguration.h">
       <Filter>network</Filter>
     </ClInclude>
     <ClInclude Include="network\MCMultiPlayerHandlers.h">
