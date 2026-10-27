@@ -313,8 +313,8 @@ auto ParseCommandLine(std::string_view commandLine) -> void
             if (hasArgument)
             {
                 const int32_t points = std::max(std::atoi(words[i + 1].c_str()), 0);
-                (MCIEquals(word, "-team1rp") ? GameConfiguration.Team1RpPerPlayer : GameConfiguration.Team2RpPerPlayer) =
-                    points;
+                (MCIEquals(word, "-team1rp") ? GameConfiguration.Team1RpPerPlayer
+                                             : GameConfiguration.Team2RpPerPlayer) = points;
                 i++;
             }
         }

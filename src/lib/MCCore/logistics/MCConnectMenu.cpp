@@ -825,8 +825,8 @@ void ReadyRoomPlayerListHandleEvent(MCGuiObject& object, MCGuiEvent& event)
                 std::ranges::all_of(GameConfiguration.Roster,
                                     [&players](const MPGamePlayer& wanted)
                                     {
-                                        return std::ranges::any_of(
-                                            players, [&wanted](const auto& player) { return player->Name == wanted.Name; });
+                                        return std::ranges::any_of(players, [&wanted](const auto& player)
+                                                                   { return player->Name == wanted.Name; });
                                     }))
             {
                 MPBeginConfiguredMatch();

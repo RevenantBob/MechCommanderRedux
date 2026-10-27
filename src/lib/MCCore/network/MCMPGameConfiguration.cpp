@@ -339,7 +339,10 @@ void MPBeginConfiguredMatch()
     // The mission's points are a team's pool, shared out among its players when the mission loads, so a figure for
     // each player is multiplied up by the team's size. A locked mission keeps its own points and tech bases.
     auto teamSize = [](const std::array<uint32_t, MPMatchState::TeamSlots>& team)
-    { return static_cast<int32_t>(std::ranges::count_if(team, [](uint32_t id) { return id != MPMatchState::NoPlayer; })); };
+    {
+        return static_cast<int32_t>(
+            std::ranges::count_if(team, [](uint32_t id) { return id != MPMatchState::NoPlayer; }));
+    };
 
     match.Team1Points = info->Team1Points;
     match.Team2Points = info->Team2Points;
@@ -348,7 +351,8 @@ void MPBeginConfiguredMatch()
 
     if (info->Locked)
     {
-        SDL_Log("Match: %s is a locked mission; its own points and tech bases are kept", GameConfiguration.Mission.c_str());
+        SDL_Log("Match: %s is a locked mission; its own points and tech bases are kept",
+                GameConfiguration.Mission.c_str());
     }
     else
     {
