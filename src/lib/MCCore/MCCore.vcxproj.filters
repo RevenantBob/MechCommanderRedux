@@ -721,10 +721,10 @@
     <ClCompile Include="mission\MCScenarioPart.cpp">
       <Filter>mission</Filter>
     </ClCompile>
-    <ClCompile Include="network\MCMultiPlayer.cpp">
+    <ClCompile Include="network\MCMPGameConfiguration.cpp">
       <Filter>network</Filter>
     </ClCompile>
-    <ClCompile Include="network\MCMPGameConfiguration.cpp">
+    <ClCompile Include="network\MCMultiPlayer.cpp">
       <Filter>network</Filter>
     </ClCompile>
     <ClCompile Include="network\MCMultiPlayerHandlers.cpp">
@@ -1899,10 +1899,10 @@
     <ClInclude Include="mission\MCScenarioReading.h">
       <Filter>mission</Filter>
     </ClInclude>
-    <ClInclude Include="network\MCMultiPlayer.h">
+    <ClInclude Include="network\MCMPGameConfiguration.h">
       <Filter>network</Filter>
     </ClInclude>
-    <ClInclude Include="network\MCMPGameConfiguration.h">
+    <ClInclude Include="network\MCMultiPlayer.h">
       <Filter>network</Filter>
     </ClInclude>
     <ClInclude Include="network\MCMultiPlayerHandlers.h">

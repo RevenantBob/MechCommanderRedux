@@ -262,8 +262,8 @@
     <ClCompile Include="mission\MCScenarioLoad.cpp" />
     <ClCompile Include="mission\MCScenarioObjectives.cpp" />
     <ClCompile Include="mission\MCScenarioPart.cpp" />
-    <ClCompile Include="network\MCMultiPlayer.cpp" />
     <ClCompile Include="network\MCMPGameConfiguration.cpp" />
+    <ClCompile Include="network\MCMultiPlayer.cpp" />
     <ClCompile Include="network\MCMultiPlayerHandlers.cpp" />
     <ClCompile Include="network\MCMultiPlayerSend.cpp" />
     <ClCompile Include="network\MCWorldStateChunk.cpp" />
@@ -662,8 +662,8 @@
     <ClInclude Include="mission\MCScenarioObjectives.h" />
     <ClInclude Include="mission\MCScenarioPart.h" />
     <ClInclude Include="mission\MCScenarioReading.h" />
-    <ClInclude Include="network\MCMultiPlayer.h" />
     <ClInclude Include="network\MCMPGameConfiguration.h" />
+    <ClInclude Include="network\MCMultiPlayer.h" />
     <ClInclude Include="network\MCMultiPlayerHandlers.h" />
     <ClInclude Include="network\MCMultiPlayerMessages.h" />
     <ClInclude Include="network\MCWorldStateChunk.h" />
