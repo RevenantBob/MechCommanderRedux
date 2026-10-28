@@ -790,6 +790,7 @@
     <ClInclude Include="platform\MCSocket.h" />
     <ClInclude Include="platform\MCSoftwareRenderer.h" />
     <ClInclude Include="platform\MCStringTable.h" />
+    <ClInclude Include="platform\MCUtf8Path.h" />
     <ClInclude Include="platform\MCVulkanPresenter.h" />
     <ClInclude Include="platform\MCVulkanRenderer.h" />
     <ClInclude Include="platform\MCVulkanShaders.h" />

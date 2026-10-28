@@ -16,6 +16,7 @@
 #include "main/MCGameSession.h"
 #include "mission/MCMission.h"
 #include "network/MCMultiPlayer.h"
+#include "platform/MCFileSystem.h"
 #include "platform/MCFrameLog.h"
 #include "platform/MCInput.h"
 #include "platform/MCPresenter.h"
@@ -396,7 +397,7 @@ auto ParseCommandLine(std::string_view commandLine) -> void
         else if (MCIEquals(word, "-framelog"))
         {
             // Port: "-framelog <file>" writes the slow frames there, with what took their time (MCFrameLog).
-            if (hasArgument && !MCFrameLog::Open(std::string(words[i + 1])))
+            if (hasArgument && !MCFrameLog::Open(MCFileSystem::FromUtf8(words[i + 1])))
             {
                 SDL_Log("-framelog: can't write %s", std::string(words[i + 1]).c_str());
             }
@@ -418,7 +419,7 @@ auto ParseCommandLine(std::string_view commandLine) -> void
             // Port: "-gpudump <folder>": mirror mode saves the first frame that differs there.
             if (hasArgument)
             {
-                MCRenderer::SetMirrorDumpFolder(std::string(words[i + 1]));
+                MCRenderer::SetMirrorDumpFolder(MCFileSystem::FromUtf8(words[i + 1]));
             }
 
             i++;

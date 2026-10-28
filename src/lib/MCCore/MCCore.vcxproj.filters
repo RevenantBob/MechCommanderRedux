@@ -2283,6 +2283,9 @@
     <ClInclude Include="platform\MCStringTable.h">
       <Filter>platform</Filter>
     </ClInclude>
+    <ClInclude Include="platform\MCUtf8Path.h">
+      <Filter>platform</Filter>
+    </ClInclude>
     <ClInclude Include="platform\MCVulkanPresenter.h">
       <Filter>platform</Filter>
     </ClInclude>
