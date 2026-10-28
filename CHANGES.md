@@ -241,6 +241,7 @@ Bugs that have an impact on how the game *plays* may remain in the game, and are
 - Chat from an unknown player takes the first player's colour instead of crashing.
 - A mech icon part for a location without armor no longer divides by zero when it picks its colour. It shows red, as
   in the original.
+- The health bar over popup turrets and gates is green, yellow and red again instead of black.
 
 ### Mission Editor Fixes
 
