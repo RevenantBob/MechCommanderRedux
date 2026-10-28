@@ -106,6 +106,10 @@ Bugs that have an impact on how the game *plays* may remain in the game, and are
 - Modem, serial cable, lobby (MPlayer, Zone) and host migration aren't supported.
 - Zoom works in multiplayer. The original locked multiplayer games to the zoomed-out view and greyed out the zoom
   button. Zoom only changes what is drawn, so players zooming independently doesn't affect the game itself.
+- A launcher can premake a match: the host's command line (`-host`) can name the mission, each team's resource points
+  and tech base, and who is on which team (`-matchmap`, `-team1rp`, `-team2rp`, `-team1tech`, `-team2tech`, `-slot`).
+  Once everyone has joined, the game goes straight from "Waiting for Players" to the mech bay, without the ready room or
+  the map selector. See the [README](README.md#premade-matches).
 
 ### Files and Saves
 
@@ -168,6 +172,9 @@ Bugs that have an impact on how the game *plays* may remain in the game, and are
 - Shots now fly to the spot they hit. In the original, bullets, laser beams and Gauss rifle (railgun) bolts flew to a
   point on the target picked by the firing weapon's mount, while the impact played where the shot hit, so hits often
   looked like misses. Damage is unchanged.
+- A mech component that was already destroyed and then hit again, for example when its limb was blown off, no longer
+  shows in its normal colour on the payload page. Its health wrapped around instead of staying at 0, so a destroyed
+  Gauss rifle (railgun) could look undamaged while a destroyed ER laser showed red.
 
 ### Logistics and Menus
 
