@@ -12,6 +12,7 @@
 
 #include "lib/MCFatal.h"
 #include "platform/MCAllocator.h"
+#include "platform/MCUtf8Path.h"
 
 namespace
 {
@@ -136,12 +137,15 @@ namespace
             command += std::format(" --{} \"{}{}\"", key, value, std::string(trailing, '\\'));
         }
 
-#ifdef _WIN32
-        // cmd.exe drops the first and last quote of a command that starts with one.
-        command = "\"" + command + "\"";
-#endif
         std::cout << std::flush;
+#ifdef _WIN32
+        // cmd.exe drops the first and last quote of a command that starts with one. The wide call keeps every
+        // character of the UTF-8 command; system would read it in the ANSI code page.
+        command = "\"" + command + "\"";
+        return _wsystem(MCFileSystem::FromUtf8(command).c_str()) == 0;
+#else
         return std::system(command.c_str()) == 0;
+#endif
     }
 }
 
@@ -151,7 +155,12 @@ namespace
 /// process (how isolated tests are run). Any other <c>--name value</c> is an option the tests read
 /// (<see cref="MCTest::Option"/>). Exits 0 when every selected test passed.
 /// </summary>
+#ifdef _WIN32
+// Windows hands main the command line in the ANSI code page, which can't spell every folder; wmain gets it whole.
+int wmain(int argc, wchar_t** argv)
+#else
 int main(int argc, char** argv)
+#endif
 {
     if (const auto allocator = MCInitializeAllocator(); !allocator)
     {
@@ -163,13 +172,21 @@ int main(int argc, char** argv)
     // assertion) prints its stack and writes mc_tests.dmp instead of showing a dialog.
     MCNoMessageBoxes = true;
     MCCrashTrace::Install();
+    std::vector<std::string> arguments;
+
+    for (int i = 0; i < argc; i++)
+    {
+        // A path converts the wide argument to UTF-8; on other systems it is UTF-8 already.
+        arguments.push_back(MCFileSystem::ToUtf8(std::filesystem::path(argv[i])));
+    }
+
     std::vector<std::string> filters;
     bool list = false;
     std::optional<std::string_view> only;
 
     for (int i = 1; i < argc; ++i)
     {
-        std::string_view arg = argv[i];
+        std::string_view arg = arguments[i];
 
         if (arg == "--list")
         {
@@ -177,11 +194,11 @@ int main(int argc, char** argv)
         }
         else if (arg == "--only" && i + 1 < argc)
         {
-            only = argv[++i];
+            only = arguments[++i];
         }
         else if (arg.starts_with("--") && arg.size() > 2 && i + 1 < argc)
         {
-            Options().emplace_back(std::string(arg.substr(2)), argv[++i]);
+            Options().emplace_back(std::string(arg.substr(2)), arguments[++i]);
         }
         else
         {
@@ -219,7 +236,7 @@ int main(int argc, char** argv)
         {
             std::cout << "[ PROC ] " << test.Name << std::endl;
 
-            if (!RunIsolated(argv[0], test))
+            if (!RunIsolated(arguments[0], test))
             {
                 ++state.Failures;
                 failed.emplace_back(test);
