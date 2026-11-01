@@ -72,6 +72,9 @@ Bugs that have an impact on how the game *plays* may remain in the game, and are
 ### Mouse
 
 - The mouse cursor is the system cursor, so it moves smoothly even when the game's frame rate drops.
+- Full screen, the cursor stops two points short of the screen's left and right edges (which still scroll the map),
+  so edge scrolling no longer runs it into a screen corner and fires the corner's hot corner action (macOS's Lock
+  Screen, Mission Control...).
 - Scrolling the battlefield, at the screen's edges or with the scroll keys, keeps its speed at any frame rate. The
   original moved whole pixels each frame and dropped the rest, so the faster the game ran, the slower it scrolled. It
   crosses the screen at the original's pace at any UI resolution (SCROLL SPEED's AUTO), or up to three times faster.
@@ -97,6 +100,8 @@ Bugs that have an impact on how the game *plays* may remain in the game, and are
   - power up and down on P and Shift+P, and eject on Shift+E;
   - zoom on = and -;
   - hold Ctrl, R or H to force an order, a run or a jump.
+- The system's input methods (an IME, or macOS's accent menu on a held letter) work in text fields only, so they no
+  longer hold back or swallow mission keys.
 
 ### Sound
 
