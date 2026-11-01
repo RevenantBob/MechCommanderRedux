@@ -209,9 +209,9 @@ void ReadPreferences(MCFitIniFile& file)
     const int32_t uiResolution = file.Read<int32_t>("UIResolution").value_or(0);
     GUiResolution = std::ranges::contains(UiResolutions, uiResolution) ? uiResolution : 0;
 
-    // Port-only: the in-mission interface's size in percent (one of InterfaceSizes, else the original's).
-    const int32_t interfaceSize = file.Read<int32_t>("InterfaceSize").value_or(OriginalInterfaceSize);
-    GInterfaceSize = std::ranges::contains(InterfaceSizes, interfaceSize) ? interfaceSize : OriginalInterfaceSize;
+    // Port-only: the in-mission interface's size in percent (one of InterfaceSizes, else AUTO).
+    const int32_t interfaceSize = file.Read<int32_t>("InterfaceSize").value_or(AutoInterfaceSize);
+    GInterfaceSize = std::ranges::contains(InterfaceSizes, interfaceSize) ? interfaceSize : AutoInterfaceSize;
 
     // Port: the mode is still read, but the screen is the window's size (MCGuiSystem::OpenDisplay).
     switch (file.Read<int32_t>("Resolution").value_or(0))

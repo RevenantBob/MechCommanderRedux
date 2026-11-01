@@ -66,8 +66,10 @@ Bugs that have an impact on how the game *plays* may remain in the game, and are
 - UI RESOLUTION's NATIVE setting follows the screen's scale: on a Retina screen or a scaled Windows desktop, the
   in-mission UI is the size it is on a standard screen instead of half that.
 - Alt+= and Alt+- during a mission make the interface (tactical map, command palette, mech bar, unit overlays) bigger
-  or smaller, from 100% to 200% in steps of 25%, without changing how much of the battlefield shows. The size is kept
-  in `PREFS.CFG` (`InterfaceSize`), and the keys can be changed on the CONTROLS screen.
+  or smaller, from 100% to 200% in steps of 25%, without changing how much of the battlefield shows. It starts at AUTO,
+  the size that keeps the original's proportions (the screen's lines over the original's 480: 200% at 1080P), which
+  the keys step on from. The size is kept in `PREFS.CFG` (`InterfaceSize`), and the keys can be changed on the
+  CONTROLS screen.
 - The game still draws in 256 colours as the original did; the GPU (Vulkan where available) scales the picture to the
   window.
 - Palette changes appear on the next frame drawn instead of instantly.

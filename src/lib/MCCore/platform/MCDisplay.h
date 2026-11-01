@@ -50,8 +50,9 @@ struct MCDisplayOptions
     bool FollowDisplayScale = false;
     /// <summary>
     /// A window-following screen has this many times fewer lines than the window and the limits above give it (but
-    /// no fewer than <see cref="Height"/>), so what is drawn on it at a fixed size is that much bigger; see
-    /// <see cref="MCDisplay::SetInterfaceScale"/>.
+    /// no fewer than <see cref="Height"/>), so what is drawn on it at a fixed size is that much bigger, or, at
+    /// <see cref="MCDisplay::AutoInterface"/>, as many as suit the display (<see cref="MCDisplay::AutoInterfaceScale"/>);
+    /// see <see cref="MCDisplay::SetInterfaceScale"/>.
     /// </summary>
     float InterfaceScale = 1.0f;
     /// <summary>The renderer asked for; Vulkan falls back to software when it can't start.</summary>
@@ -71,7 +72,10 @@ struct MCScreenFit
     int MaxHeight = 0;
     /// <summary>No taller than the window in points either.</summary>
     bool FollowDisplayScale = false;
-    /// <summary>How many times fewer lines than the other limits give it (1: none).</summary>
+    /// <summary>
+    /// How many times fewer lines than the other limits give it (1: none; <see cref="MCDisplay::AutoInterface"/>: as
+    /// many as suit the display).
+    /// </summary>
     float InterfaceScale = 1.0f;
 };
 
@@ -111,6 +115,9 @@ public:
     MCDisplay(const MCDisplay&) = delete;
     MCDisplay& operator=(const MCDisplay&) = delete;
 
+    /// <summary>The original's screen's lines (640x480).</summary>
+    static constexpr int OriginalLines = 480;
+
     /// <summary>The SDL window.</summary>
     SDL_Window& Window() const { return *_Window; }
 
@@ -145,6 +152,22 @@ public:
     /// </summary>
     static SDL_Point FollowingScreenSize(int pixelWidth, int pixelHeight, float displayScale, const MCScreenFit& fit);
 
+    /// <summary>The interface scale that asks for <see cref="AutoInterfaceScale"/>.</summary>
+    static constexpr float AutoInterface = 0.0f;
+
+    /// <summary>
+    /// The interface scale that keeps a screen of <paramref name="lines"/> lines to the original's proportions: its
+    /// lines over <see cref="OriginalLines"/>, in quarter steps from 1 to 2 (a Retina MacBook at NATIVE or 1080P, or a
+    /// 1080-line desktop: 2; 720P: 1.5).
+    /// </summary>
+    static float AutoInterfaceScale(int lines);
+
+    /// <summary>
+    /// AUTO's interface scale (<see cref="AutoInterfaceScale"/>) for the window as it is now, whatever scale is set (1
+    /// when it has no size).
+    /// </summary>
+    float AutoInterfaceScaleNow() const;
+
     /// <summary>
     /// Sets the tallest a window-following screen gets (0: as tall as the window), from the next
     /// <see cref="WindowScreenSize"/> on. A screen shorter than the window is shown scaled up, but its underlays (the
@@ -164,7 +187,10 @@ public:
     /// drawn on it is that much bigger, the world view keeps the window's pixels), from the next
     /// <see cref="WindowScreenSize"/> on.
     /// </summary>
-    void SetInterfaceScale(float scale) { _InterfaceScale = std::max(scale, 1.0f); }
+    void SetInterfaceScale(float scale)
+    {
+        _InterfaceScale = scale == AutoInterface ? AutoInterface : std::max(scale, 1.0f);
+    }
 
     /// <summary>
     /// How many window pixels the underlays are composited at per screen pixel down: above 1 when the whole screen is
@@ -364,6 +390,10 @@ private:
     /// would cover when the screen follows the window and is shown scaled up; false (and nothing set) otherwise.
     /// </summary>
     bool WholeScreenOutput(int& width, int& height) const;
+    /// <summary>The window's size in pixels; false (and nothing set) when it is minimised or has none.</summary>
+    bool WindowPixelSize(int& pixelWidth, int& pixelHeight) const;
+    /// <summary>The limits the setters give a window-following screen.</summary>
+    MCScreenFit ScreenFit() const;
 
     /// <summary>The window; the presenter shares it, so it outlives what draws into it.</summary>
     std::shared_ptr<SDL_Window> _Window;

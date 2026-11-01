@@ -15,6 +15,7 @@
 #include "logistics/MCMainMenu.h"
 #include "logistics/MCRegistrySettings.h"
 #include "main/MCLogistics.h"
+#include "platform/MCDisplay.h"
 #include "platform/MCPresenter.h"
 #include "platform/MCRenderer.h"
 #include "sound/MCSoundSystem.h"
@@ -417,14 +418,20 @@ int SteppedInterfaceSize(int size, int steps)
 
 bool StepInterfaceSize(int steps)
 {
-    const int size = SteppedInterfaceSize(GInterfaceSize, steps);
+    // AUTO steps on from the size it picks for the display, and a step back onto that size is AUTO again.
+    const std::shared_ptr<MCDisplay> display = GuiSystem().Display();
+    const int autoSize = display != nullptr ? static_cast<int>(std::lround(display->AutoInterfaceScaleNow() *
+                                                                           static_cast<float>(OriginalInterfaceSize)))
+                                            : OriginalInterfaceSize;
+    const int size = GInterfaceSize == AutoInterfaceSize ? autoSize : GInterfaceSize;
+    const int stepped = SteppedInterfaceSize(size, steps);
 
-    if (size == GInterfaceSize)
+    if (stepped == size)
     {
         return false;
     }
 
-    GInterfaceSize = size;
+    GInterfaceSize = stepped == autoSize ? AutoInterfaceSize : stepped;
     SavePrefs();
     return true;
 }

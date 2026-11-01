@@ -464,6 +464,10 @@ namespace MCTestGame
                 return false;
             }
 
+            // The original's interface size, not AUTO's for whatever window a test opens (a test, or
+            // BootOptions.Started, sets another).
+            GInterfaceSize = OriginalInterfaceSize;
+
             if (const std::shared_ptr<MCDisplay> display = MCInput::Display(); display != nullptr)
             {
                 display->OnPresent = Presented;
