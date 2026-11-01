@@ -88,6 +88,9 @@ public:
     MCDisplay(const MCDisplay&) = delete;
     MCDisplay& operator=(const MCDisplay&) = delete;
 
+    /// <summary>The original's screen's lines (640x480).</summary>
+    static constexpr int OriginalLines = 480;
+
     /// <summary>The SDL window.</summary>
     SDL_Window& Window() const { return *_Window; }
 

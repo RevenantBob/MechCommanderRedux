@@ -140,7 +140,7 @@ namespace
     /// <summary>
     /// The preferences screen's drop-downs, as AddPreferencesPanel places them: each field 104 wide and 11 tall at
     /// (488, top), its list's rows 10 tall from top + 11. DIFFICULTY's field is at y 176 (EASY, REGULAR, HARD),
-    /// RENDERER's at y 243 (VULKAN, SOFTWARE), SCROLL SPEED's at y 351 (1X to 3X).
+    /// RENDERER's at y 243 (VULKAN, SOFTWARE), SCROLL SPEED's at y 351 (AUTO, 1.5X to 3X).
     /// </summary>
     struct PrefsDropDown
     {
@@ -633,8 +633,9 @@ TEST_CASE_ISOLATED("game: INTERFACE VOLUME sets the interface level, and CANCEL 
 }
 
 /// <summary>
-/// SCROLL SPEED shows the scroll speed when the screen opens (the original's, 1X) and offers 1X to 3X in half steps; a
-/// choice sets the speed, CANCEL puts it back (and the field shows it), and ACCEPT writes it to PREFS "ScrollSpeed".
+/// SCROLL SPEED shows the scroll speed when the screen opens (AUTO, the original's pace) and offers 1.5X to 3X in half
+/// steps besides; a choice sets the speed, CANCEL puts it back (and the field shows it), and ACCEPT writes it to PREFS
+/// "ScrollSpeed".
 /// </summary>
 TEST_CASE_ISOLATED("game: SCROLL SPEED sets the scroll speed, CANCEL puts it back and ACCEPT saves it in PREFS")
 {
@@ -647,7 +648,7 @@ TEST_CASE_ISOLATED("game: SCROLL SPEED sets the scroll speed, CANCEL puts it bac
     // The tests' user folder overlays the install, so a PREFS written here would be every later test's.
     const std::filesystem::path prefsPath = MCFileSystem::UserRoot() / "prefs.cfg";
     std::filesystem::remove(prefsPath);
-    REQUIRE_EQ(GScrollSpeed, OriginalScrollSpeed);
+    REQUIRE_EQ(GScrollSpeed, AutoScrollSpeed);
 
     const auto frames = []
     {
@@ -671,7 +672,7 @@ TEST_CASE_ISOLATED("game: SCROLL SPEED sets the scroll speed, CANCEL puts it bac
     REQUIRE(dropDown != nullptr);
     const std::vector<MCLogComboBox::Item>& items = dropDown->Items();
     REQUIRE_EQ(items.size(), ScrollSpeeds.size());
-    constexpr std::array<std::string_view, 5> Labels = {"1X (ORIGINAL)", "1.5X", "2X", "2.5X", "3X"};
+    constexpr std::array<std::string_view, 5> Labels = {"AUTO", "1.5X", "2X", "2.5X", "3X"};
 
     for (size_t i = 0; i < items.size(); i++)
     {
@@ -693,14 +694,14 @@ TEST_CASE_ISOLATED("game: SCROLL SPEED sets the scroll speed, CANCEL puts it bac
     CHECK(!dropDown->IsOpen());
     CHECK_EQ(MCScreenInput::ScreenHash(), originalShown);
 
-    // 2X, then CANCEL: the original's speed again, shown when the screen opens.
+    // 2X, then CANCEL: AUTO again, shown when the screen opens.
     choose(2);
     CHECK_EQ(GScrollSpeed, 200);
     MCScreenInput::SaveShot("prefs scroll speed 2x", MCScreenInput::ScreenHash());
     CHECK(MCScreenInput::ScreenHash() != originalShown);
     CancelPrefs();
     frames();
-    CHECK_EQ(GScrollSpeed, OriginalScrollSpeed);
+    CHECK_EQ(GScrollSpeed, AutoScrollSpeed);
     ShowPreferences();
     frames();
     CHECK_EQ(MCScreenInput::ScreenHash(), originalShown);

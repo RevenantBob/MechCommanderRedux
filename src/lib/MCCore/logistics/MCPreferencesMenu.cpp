@@ -139,7 +139,7 @@ namespace
     int32_t SavedRendererPreference = 0;
     int32_t SavedUiResolution = 0;
     int32_t SavedInterfaceLevel = 0;
-    int32_t SavedScrollSpeed = OriginalScrollSpeed;
+    int32_t SavedScrollSpeed = AutoScrollSpeed;
 
     /// <summary>The click INTERFACE VOLUME plays at its new level.</summary>
     constexpr uint32_t InterfacePreviewSample = 0x10;
@@ -311,8 +311,8 @@ void AddPreferencesPanel(MCGenericScreen& screen)
 
     AddDropDown(screen, uiResolution, GUiResolution, std::move(uiResolutions), nullptr);
 
-    // SCROLL SPEED: the battlefield's scrolling, at the screen's edges and by the scroll keys, as a factor of the
-    // original's speed.
+    // SCROLL SPEED: the battlefield's scrolling, at the screen's edges and by the scroll keys: AUTO (the original's pace
+    // across the screen), or a factor of it.
     MCLogGroupBox& scrollSpeed = AddBox(screen, panel, ScrollSpeedBoxPlace, BoxOutlineColor);
     AddLabel(screen, scrollSpeed, "SCROLL SPEED", BoxTitleLeft, BoxTitleTop);
     std::vector<MCLogComboBox::Item> scrollSpeeds;
@@ -320,7 +320,7 @@ void AddPreferencesPanel(MCGenericScreen& screen)
     for (const int percent : ScrollSpeeds)
     {
         const std::string factor = std::format("{}X", percent / PercentPerFactor);
-        scrollSpeeds.push_back({percent == OriginalScrollSpeed ? factor + " (ORIGINAL)" : factor, percent});
+        scrollSpeeds.push_back({percent == AutoScrollSpeed ? std::string("AUTO") : factor, percent});
     }
 
     AddDropDown(screen, scrollSpeed, GScrollSpeed, std::move(scrollSpeeds), nullptr);

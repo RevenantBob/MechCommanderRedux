@@ -89,13 +89,17 @@ inline constexpr int MaxUiResolution = 1080;
 inline constexpr std::array<int, 5> UiResolutions = {480, 600, 720, 900, 1080};
 /// <summary>
 /// Port-only: how fast the battlefield scrolls, at the screen's edges and by the scroll keys, in percent of the
-/// original's speed (PREFS "ScrollSpeed", the preferences screen's SCROLL SPEED box): one of <see cref="ScrollSpeeds"/>.
+/// original's pace across the screen (PREFS "ScrollSpeed", the preferences screen's SCROLL SPEED box): one of
+/// <see cref="ScrollSpeeds"/>. The pace is the original's at 640x480 at any UI resolution (the screen's lines over the
+/// original's 480 times its speed); <see cref="AutoScrollSpeed"/>, the default, is that pace.
 /// </summary>
 extern int GScrollSpeed;
-/// <summary>Port-only: the original's scroll speed, <see cref="GScrollSpeed"/>'s default.</summary>
+/// <summary>Port-only: <see cref="GScrollSpeed"/>'s AUTO (the original's pace), its default.</summary>
+inline constexpr int AutoScrollSpeed = 0;
+/// <summary>Port-only: the percent of the original's pace AUTO is.</summary>
 inline constexpr int OriginalScrollSpeed = 100;
-/// <summary>Port-only: the choices of <see cref="GScrollSpeed"/>.</summary>
-inline constexpr std::array<int, 5> ScrollSpeeds = {OriginalScrollSpeed, 150, 200, 250, 300};
+/// <summary>Port-only: the choices of <see cref="GScrollSpeed"/>, AUTO first.</summary>
+inline constexpr std::array<int, 5> ScrollSpeeds = {AutoScrollSpeed, 150, 200, 250, 300};
 /// <summary>Port-only: draw the frame counter in the top-right corner (PREFS "ShowFps", read by systemInit, or the
 /// command line's <c>-fps</c>).</summary>
 extern int GShowFps;
