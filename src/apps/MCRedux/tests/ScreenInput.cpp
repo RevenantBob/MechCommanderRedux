@@ -164,10 +164,10 @@ namespace MCScreenInput
         RealButton(false);
     }
 
-    void RealKey(SDL_Scancode scancode)
+    void RealKey(SDL_Scancode scancode, SDL_Keymod mod)
     {
-        RealKeyEvent(scancode, true, SDL_KMOD_NONE);
-        RealKeyEvent(scancode, false, SDL_KMOD_NONE);
+        RealKeyEvent(scancode, true, mod);
+        RealKeyEvent(scancode, false, mod);
     }
 
     void RealKeyEvent(SDL_Scancode scancode, bool down, SDL_Keymod mod)

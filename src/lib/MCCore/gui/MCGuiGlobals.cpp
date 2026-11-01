@@ -45,6 +45,7 @@ bool GHiddenWindow = false;
 int GRenderer = 0;
 int GRendererPreference = 0;
 int GUiResolution = 0;
+int GScrollSpeed = AutoScrollSpeed;
 int GInterfaceSize = AutoInterfaceSize;
 int GShowFps = 0;
 int GShowFpsPreference = 0;
