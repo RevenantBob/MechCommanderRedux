@@ -451,8 +451,11 @@ auto MCTacticalMap::DrawObjects() -> void
     // (The markers' blink is stepped by UpdateMapPage, and the objectives' areas revealed by RevealObjectives: the
     // original did both here.)
 
-    // The home side's pending objectives that have a position: a numbered dot.
+    // The home side's pending objectives that have a position: a numbered dot. The numbers are at the font's double
+    // scale (OB-182: the original took whatever scale the font's last user left, the hover tag's 1.0 among them).
     const auto numObjectives = static_cast<int32_t>(HomeTeam()->NumObjectives);
+    LineFont()->Scale = 2.0f;
+    LineFont()->Scaled = true;
 
     for (int32_t i = 0; i < numObjectives; i++)
     {
