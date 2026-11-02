@@ -15,6 +15,7 @@
 #include "main/MCSystemConfig.h"
 #include "main/MCLogistics.h"
 #include "main/MCGameContext.h"
+#include "main/MCGamePaths.h"
 #include "main/MCMissionGlobals.h"
 #include "mission/MCMission.h"
 #include "mission/MCScenario.h"
@@ -50,6 +51,101 @@ namespace
 namespace MCTestGame
 {
     std::function<void()> OnPresent;
+    MCBootOptions BootOptions;
+
+    void BootInLargeWindow(int uiResolution, int interfaceSize)
+    {
+        BootOptions.WindowWidth = LargeWindowWidth;
+        BootOptions.WindowHeight = LargeWindowHeight;
+        BootOptions.FixedZoomHeight = 0.0f;
+        BootOptions.Started = [uiResolution, interfaceSize]
+        {
+            GUiResolution = uiResolution;
+            GInterfaceSize = interfaceSize;
+        };
+    }
+
+    namespace
+    {
+        /// <summary>The folder of the user folder's data folder that PinnedSaves makes the save folder.</summary>
+        constexpr std::string_view PinnedSaveFolder = "mc_tests_saves";
+
+        /// <summary>The extension of a campaign's saves.</summary>
+        constexpr std::string_view SaveExtension = ".sav";
+
+        /// <summary>The pinned save folder on disk.</summary>
+        std::filesystem::path PinnedSaveFolderPath()
+        {
+            return UserFolder() / "data" / PinnedSaveFolder;
+        }
+
+        /// <summary>
+        /// Makes <paramref name="folder"/> the save folder: SavePath, and the folder the file panes of logistics' screens
+        /// list (each took SavePath as the boot made it).
+        /// </summary>
+        void SetSaveFolder(const std::string& folder)
+        {
+            SavePath = folder;
+            const std::shared_ptr<MCLogistics> logistics = GlobalLog();
+
+            if (logistics == nullptr)
+            {
+                return;
+            }
+
+            for (const MCSplashScreen* screen :
+                 {logistics->LoadScreen.get(), logistics->SaveScreen.get(), logistics->MultiplayerScreen.get()})
+            {
+                if (screen != nullptr && screen->FilePane != nullptr)
+                {
+                    screen->FilePane->StartDirectory = folder;
+                }
+            }
+        }
+    }
+
+    std::filesystem::path UserFolder()
+    {
+        return std::filesystem::temp_directory_path() / "mc_tests_user";
+    }
+
+    PinnedSaves::PinnedSaves(std::span<const std::string_view> names) : _Kept(SavePath)
+    {
+        const std::filesystem::path folder = PinnedSaveFolderPath();
+        std::filesystem::remove_all(folder);
+        std::filesystem::create_directories(folder);
+        const std::string pinned = std::format("data\\{}\\", PinnedSaveFolder);
+
+        // The save folder also holds what the game ships there (campaign starts, solo missions, multiplayer maps):
+        // copies of all of it but the saves.
+        for (const std::string& file : MCFileSystem::FindFiles(GamePath(_Kept, "*")))
+        {
+            if (MCPort::StrICmp(std::filesystem::path(file).extension().string(), SaveExtension) != 0)
+            {
+                MCTest::Scope scope(std::format("pinning the saves: copying {}", file));
+                REQUIRE(MCFileSystem::CopyFile(_Kept + file, pinned + file));
+            }
+        }
+
+        for (const std::string_view name : names)
+        {
+            std::ofstream(folder / std::format("{}{}", name, SaveExtension));
+        }
+
+        SetSaveFolder(pinned);
+    }
+
+    PinnedSaves::~PinnedSaves()
+    {
+        SetSaveFolder(_Kept);
+        std::error_code error;
+        std::filesystem::remove_all(PinnedSaveFolderPath(), error);
+
+        if (error)
+        {
+            std::cout << "  can't remove the pinned saves' folder: " << error.message() << "\n";
+        }
+    }
 
     namespace
     {
@@ -285,7 +381,7 @@ namespace MCTestGame
         return false;
     }
 
-    bool StartLogistics()
+    bool StartLogistics(const std::function<void()>& afterBoot)
     {
         if (booted != 0)
         {
@@ -299,6 +395,11 @@ namespace MCTestGame
         if (!Boot(""))
         {
             return false;
+        }
+
+        if (afterBoot)
+        {
+            afterBoot();
         }
 
         // The intro movie (if any) and the main menu's entrance.
@@ -322,7 +423,7 @@ namespace MCTestGame
         bool Boot(std::string commandLine)
         {
             // The game writes its saves and settings under the user folder; keep them out of the real one.
-            const std::filesystem::path userRoot = std::filesystem::temp_directory_path() / "mc_tests_user";
+            const std::filesystem::path userRoot = UserFolder();
             std::filesystem::create_directories(userRoot);
             MCFileSystem::SetUserRoot(userRoot);
 
@@ -353,7 +454,7 @@ namespace MCTestGame
             MCPort::SeedRand(seed ? static_cast<uint32_t>(std::stoul(std::string(*seed))) : 10u);
             // The world view shows 480 lines (one world pixel per screen pixel in the 640x480 window) at any zoom
             // request, so what is on screen, and so updated, is the same every run.
-            MCFixedZoomHeight = 480.0f;
+            MCFixedZoomHeight = BootOptions.FixedZoomHeight;
             PaletteName = "palette.gif";
             MCGameContext::Current().SetGuiSystem(std::make_unique<MCGuiSystem>());
 
@@ -363,9 +464,26 @@ namespace MCTestGame
                 return false;
             }
 
+            // The original's interface size, not AUTO's for whatever window a test opens (a test, or
+            // BootOptions.Started, sets another).
+            GInterfaceSize = OriginalInterfaceSize;
+
             if (const std::shared_ptr<MCDisplay> display = MCInput::Display(); display != nullptr)
             {
                 display->OnPresent = Presented;
+
+                if (BootOptions.Started)
+                {
+                    BootOptions.Started();
+                }
+
+                // Another window size: the screen follows it, as it does for a player's window in the menus.
+                if (BootOptions.WindowWidth > 0 && BootOptions.WindowHeight > 0)
+                {
+                    SDL_SetWindowSize(&display->Window(), BootOptions.WindowWidth, BootOptions.WindowHeight);
+                    SDL_SyncWindow(&display->Window());
+                    MCFollowWindowSize();
+                }
             }
 
             for (int32_t i = 0; i < ScreenWindow()->NumberOfChildren(); i++)

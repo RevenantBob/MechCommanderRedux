@@ -15,6 +15,7 @@
 #include "logistics/MCMainMenu.h"
 #include "logistics/MCRegistrySettings.h"
 #include "main/MCLogistics.h"
+#include "platform/MCDisplay.h"
 #include "platform/MCPresenter.h"
 #include "platform/MCRenderer.h"
 #include "sound/MCSoundSystem.h"
@@ -65,13 +66,15 @@ namespace
     constexpr MCPrefsPlace PanelPlace{13, 51, 263, 275};
 
     /// <summary>
-    /// The boxes on the panel: the art's (SOUND one row taller), then RENDERER and UI RESOLUTION under DIFFICULTY.
+    /// The boxes on the panel: the art's (SOUND one row taller), then RENDERER, UI RESOLUTION and SCROLL SPEED under
+    /// DIFFICULTY.
     /// </summary>
     constexpr MCPrefsPlace BrightnessBoxPlace{10, 11, 112, 38};
     constexpr MCPrefsPlace SoundBoxPlace{10, 59, 112, 113};
     constexpr MCPrefsPlace DifficultyBoxPlace{132, 11, 120, 63};
     constexpr MCPrefsPlace RendererBoxPlace{132, 78, 120, 50};
     constexpr MCPrefsPlace UiResolutionBoxPlace{132, 132, 120, 50};
+    constexpr MCPrefsPlace ScrollSpeedBoxPlace{132, 186, 120, 50};
 
     /// <summary>The panel's outline (the art's panel's grey) and every box's fill (black).</summary>
     constexpr uint8_t PanelOutlineColor = 0x18;
@@ -117,6 +120,8 @@ namespace
     constexpr int32_t DropDownWidth = 104;
     /// <summary>UI RESOLUTION's native choice: its lines follow the screen's scale (GUiResolution).</summary>
     constexpr std::string_view NativeUiResolution = "NATIVE (RETINA/HD)";
+    /// <summary>SCROLL SPEED's choices are factors of the original's speed: "1.5X" is 150 percent.</summary>
+    constexpr double PercentPerFactor = 100.0;
 
     /// <summary>ACCEPT and CANCEL on the panel: side by side at its bottom right, 10 pixels in.</summary>
     constexpr int32_t AcceptLeft = 120;
@@ -128,10 +133,14 @@ namespace
     /// <summary>The INTERFACE VOLUME slider (the screen owns it).</summary>
     std::weak_ptr<MCLogSlider> InterfaceSlider;
 
-    /// <summary>The renderer choice, the UI resolution and the interface volume when the screen opened (for CancelPrefs).</summary>
+    /// <summary>
+    /// The renderer choice, the UI resolution, the interface volume and the scroll speed when the screen opened (for
+    /// CancelPrefs).
+    /// </summary>
     int32_t SavedRendererPreference = 0;
     int32_t SavedUiResolution = 0;
     int32_t SavedInterfaceLevel = 0;
+    int32_t SavedScrollSpeed = AutoScrollSpeed;
 
     /// <summary>The click INTERFACE VOLUME plays at its new level.</summary>
     constexpr uint32_t InterfacePreviewSample = 0x10;
@@ -303,6 +312,20 @@ void AddPreferencesPanel(MCGenericScreen& screen)
 
     AddDropDown(screen, uiResolution, GUiResolution, std::move(uiResolutions), nullptr);
 
+    // SCROLL SPEED: the battlefield's scrolling, at the screen's edges and by the scroll keys: AUTO (the original's pace
+    // across the screen), or a factor of it.
+    MCLogGroupBox& scrollSpeed = AddBox(screen, panel, ScrollSpeedBoxPlace, BoxOutlineColor);
+    AddLabel(screen, scrollSpeed, "SCROLL SPEED", BoxTitleLeft, BoxTitleTop);
+    std::vector<MCLogComboBox::Item> scrollSpeeds;
+
+    for (const int percent : ScrollSpeeds)
+    {
+        const std::string factor = std::format("{}X", percent / PercentPerFactor);
+        scrollSpeeds.push_back({percent == AutoScrollSpeed ? std::string("AUTO") : factor, percent});
+    }
+
+    AddDropDown(screen, scrollSpeed, GScrollSpeed, std::move(scrollSpeeds), nullptr);
+
     MoveOnto(screen, AcceptElement, panel, AcceptLeft, ButtonsTop);
     MoveOnto(screen, CancelElement, panel, CancelLeft, ButtonsTop);
 
@@ -327,6 +350,7 @@ void ShowPreferences()
     SavedRendererPreference = GRendererPreference;
     SavedUiResolution = GUiResolution;
     SavedInterfaceLevel = SoundSystem()->InterfaceLevel;
+    SavedScrollSpeed = GScrollSpeed;
     MCGenericScreen& screen = *logistics->PrefScreen;
     screen.Element<MCLogSlider>(BrightnessSliderElement)->SetCurrentValue(brightness);
     screen.Element<MCLogSlider>(MusicSliderElement)->SetCurrentValue(static_cast<int32_t>(logistics->SavedPrefs3));
@@ -363,6 +387,7 @@ void CancelPrefs()
     GameDifficulty = logistics->SavedPrefs6;
     GRendererPreference = SavedRendererPreference;
     GUiResolution = SavedUiResolution;
+    GScrollSpeed = SavedScrollSpeed;
     Cancel();
 }
 
@@ -370,8 +395,20 @@ void WritePrefs()
 {
     // Port: the keys CONTROLS edited become the player's, and are written after the settings.
     AcceptControls();
+    SavePrefs();
+    Cancel();
+}
+
+void SavePrefs()
+{
     MCFitIniFile prefs;
-    prefs.Create("prefs.cfg");
+
+    if (const int32_t result = prefs.Create("prefs.cfg"); result != 0)
+    {
+        SDL_Log("SavePrefs: cannot create prefs.cfg (%#x); the settings aren't saved", static_cast<uint32_t>(result));
+        return;
+    }
+
     prefs.WriteBlock("MechCommander");
     prefs.WriteIdBoolean("PaletteCycle", GuiSystem().PaletteCycle);
     prefs.WriteIdBoolean("DirectDraw", GFullScreen != 0);
@@ -390,9 +427,38 @@ void WritePrefs()
     prefs.WriteIdBoolean("SoftwareCursor", GSoftwareCursor != 0);
     prefs.WriteIdString("Renderer", MCRendererKindName(static_cast<MCRendererKind>(GRendererPreference)));
     prefs.WriteIdLong("UIResolution", GUiResolution);
+    prefs.WriteIdLong("ScrollSpeed", GScrollSpeed);
+    prefs.WriteIdLong("InterfaceSize", GInterfaceSize);
     prefs.WriteIdBoolean("ShowFps", GShowFpsPreference != 0);
     MCKeyBindings::WritePrefs(prefs);
-    Cancel();
+}
+
+int SteppedInterfaceSize(int size, int steps)
+{
+    const auto found = std::ranges::find(InterfaceSizes, size);
+    const ptrdiff_t index = found != InterfaceSizes.end() ? std::distance(InterfaceSizes.begin(), found) : 0;
+    const ptrdiff_t last = std::ssize(InterfaceSizes) - 1;
+    return InterfaceSizes[static_cast<size_t>(std::clamp<ptrdiff_t>(index + steps, 0, last))];
+}
+
+bool StepInterfaceSize(int steps)
+{
+    // AUTO steps on from the size it picks for the display, and a step back onto that size is AUTO again.
+    const std::shared_ptr<MCDisplay> display = GuiSystem().Display();
+    const int autoSize = display != nullptr ? static_cast<int>(std::lround(display->AutoInterfaceScaleNow() *
+                                                                           static_cast<float>(OriginalInterfaceSize)))
+                                            : OriginalInterfaceSize;
+    const int size = GInterfaceSize == AutoInterfaceSize ? autoSize : GInterfaceSize;
+    const int stepped = SteppedInterfaceSize(size, steps);
+
+    if (stepped == size)
+    {
+        return false;
+    }
+
+    GInterfaceSize = stepped == autoSize ? AutoInterfaceSize : stepped;
+    SavePrefs();
+    return true;
 }
 
 void PrefScreenHandleEvent(MCGuiObject&, MCGuiEvent&)

@@ -59,6 +59,7 @@ namespace
                      GShowFps, GShowFpsPreference, GRenderer, GRendererPreference) = _Display;
             std::tie(DisplayWidth, DisplayHeight, LanguageOffset, GameDifficulty, MusicVolume, RadioVolume, SfxVolume,
                      InterfaceVolume) = _Numbers;
+            GScrollSpeed = _ScrollSpeed;
         }
 
         SavedSettings(const SavedSettings&) = delete;
@@ -74,6 +75,7 @@ namespace
         std::tuple<int32_t, int32_t, int32_t, int32_t, int32_t, int32_t, int32_t, int32_t> _Numbers{
             DisplayWidth, DisplayHeight, LanguageOffset, GameDifficulty,
             MusicVolume,  RadioVolume,   SfxVolume,      InterfaceVolume};
+        int _ScrollSpeed{GScrollSpeed};
     };
 
     /// <summary>SYSTEM.CFG as the retail game ships it, with <paramref name="extraBlocks"/> before the ABL block.</summary>
@@ -199,7 +201,7 @@ TEST_CASE("system config: SYSTEM.CFG gives the sound switches, the ABL debugger 
 /// <summary>
 /// PREFS.CFG as the retail game ships it: Brightness lands in the gamma level (the original's quirk: it wins over
 /// Gamma), the full-size sprites are always used, and what the file lacks takes the defaults (difficulty 1, music
-/// and radio 0x40, effects 0x60, language 0).
+/// and radio 0x40, effects 0x60, language 0, the original's scroll speed).
 /// </summary>
 TEST_CASE("system config: PREFS.CFG gives the display, difficulty and volumes, with defaults for what it lacks")
 {
@@ -244,6 +246,15 @@ TEST_CASE("system config: PREFS.CFG gives the display, difficulty and volumes, w
     ReadPrefsText("FITini\r\n[MechCommander]\r\nl SFXVolume=100\r\nl InterfaceVolume=12\r\nFITend\r\n");
     CHECK_EQ(SfxVolume, 100);
     CHECK_EQ(InterfaceVolume, 12);
+    CHECK_EQ(GScrollSpeed, AutoScrollSpeed);
+
+    // SCROLL SPEED: one of its choices, else AUTO (100 percent of the original's pace is AUTO's).
+    ReadPrefsText("FITini\r\n[MechCommander]\r\nl ScrollSpeed=250\r\nFITend\r\n");
+    CHECK_EQ(GScrollSpeed, 250);
+    ReadPrefsText("FITini\r\n[MechCommander]\r\nl ScrollSpeed=100\r\nFITend\r\n");
+    CHECK_EQ(GScrollSpeed, AutoScrollSpeed);
+    ReadPrefsText("FITini\r\n[MechCommander]\r\nl ScrollSpeed=175\r\nFITend\r\n");
+    CHECK_EQ(GScrollSpeed, AutoScrollSpeed);
 }
 
 /// <summary>OB-168, kept: Brightness and Gamma fill the same gamma level, Brightness last.</summary>
@@ -344,12 +355,12 @@ namespace
 {
     /// <summary>
     /// Deletes the save games written while it lives (a finished mission saves the campaign), which would otherwise
-    /// show on the load screen of the recorded-frame tests sharing the test user folder.
+    /// pile up in the test user folder.
     /// </summary>
     class SaveGameCleanup
     {
     public:
-        SaveGameCleanup() : _Folder(std::filesystem::temp_directory_path() / "mc_tests_user" / "data" / "savegame")
+        SaveGameCleanup() : _Folder(MCTestGame::UserFolder() / "data" / "savegame")
         {
             for (const std::filesystem::path& file : Files())
             {
