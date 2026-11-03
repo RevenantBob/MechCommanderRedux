@@ -1087,6 +1087,8 @@ namespace MCInput
                 return VK_OEM_PERIOD;
             case SDL_SCANCODE_SLASH:
                 return VK_OEM_2;
+            case SDL_SCANCODE_NONUSBACKSLASH:
+                return VK_OEM_102;
             case SDL_SCANCODE_CAPSLOCK:
                 return VK_CAPITAL;
             case SDL_SCANCODE_PRINTSCREEN:
@@ -1237,6 +1239,8 @@ namespace MCInput
                 return {0x52, false};
             case SDL_SCANCODE_KP_PERIOD:
                 return {0x53, false};
+            case SDL_SCANCODE_NONUSBACKSLASH:
+                return {0x56, false};
             case SDL_SCANCODE_F11:
                 return {0x57, false};
             case SDL_SCANCODE_F12:

@@ -75,6 +75,8 @@ namespace
                 return '^';
             case 0x39:
                 return ' ';
+            case 0x56:
+                return '<';
             default:
                 return -1;
         }
@@ -244,6 +246,7 @@ TEST_CASE("controls: the CONTROLS screen names keys by what they type in the key
     CHECK_EQ(MCKeyBindings::KeyLabel(0x2c | KeyShift), "SHIFT+Y");
     CHECK_EQ(MCKeyBindings::KeyLabel(0x27), "\xd6");
     CHECK_EQ(MCKeyBindings::KeyLabel(0x29), "^");
+    CHECK_EQ(MCKeyBindings::KeyLabel(0x56 | KeyShift), "SHIFT+<");
     CHECK_EQ(MCKeyBindings::KeyLabel(0x39), "SPACE");
     CHECK_EQ(MCKeyBindings::KeyLabel(0x4e), "KEYPAD +");
     CHECK_EQ(MCKeyBindings::KeyName(0x0c), "-");

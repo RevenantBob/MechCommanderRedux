@@ -109,6 +109,7 @@ Bugs that have an impact on how the game *plays* may remain in the game, and are
   longer hold back or swallow mission keys.
 - The CONTROLS screen names keys as your keyboard types them: on a German keyboard the keys right of 0 show as ß and
   ´ (not - and =), and Y and Z swap. `PREFS.CFG` keeps the US keyboard's names, so it reads the same on any keyboard.
+  The key left of Z on European keyboards (< on a German one) can be bound too: it used to give the game no key.
 
 ### Sound
 
