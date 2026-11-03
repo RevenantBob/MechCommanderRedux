@@ -255,6 +255,8 @@ Bugs that have an impact on how the game *plays* may remain in the game, and are
 - A mech icon part for a location without armor no longer divides by zero when it picks its colour. It shows red, as
   in the original.
 - The health bar over popup turrets and gates is green, yellow and red again instead of black.
+- Text shows ´ ¨ ° ¿ « » § ² º and ½, which the game's fonts listed but left blank: the marks are cut from the fonts'
+  own é, ë and å, ¿ « » are made from ? < >, and the rest are drawn in the fonts' style.
 
 ### Mission Editor Fixes
 
