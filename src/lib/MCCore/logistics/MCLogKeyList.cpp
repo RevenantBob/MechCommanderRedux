@@ -103,7 +103,7 @@ namespace
 
 MCLogKeyList::~MCLogKeyList()
 {
-    MCLogKeyList::Destroy();
+    Destroy();
 }
 
 auto MCLogKeyList::Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, MCKeyBindings::MCKeyTable& keys)
@@ -114,7 +114,7 @@ auto MCLogKeyList::Init(int32_t xPos, int32_t yPos, int32_t width, int32_t heigh
     Reset();
 }
 
-auto MCLogKeyList::Destroy() -> void
+auto MCLogKeyList::OnDestroy() -> void
 {
     if (GuiSystem().HasText(*this))
     {
@@ -128,7 +128,7 @@ auto MCLogKeyList::Destroy() -> void
 
     _Listening.reset();
     _ThumbGrab.reset();
-    MCLogObject::Destroy();
+    MCLogObject::OnDestroy();
 }
 
 auto MCLogKeyList::Keys() const -> MCKeyBindings::MCKeyTable&

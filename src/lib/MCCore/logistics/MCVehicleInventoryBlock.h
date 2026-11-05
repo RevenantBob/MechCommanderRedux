@@ -4,18 +4,19 @@
 
 class MCLogVehicle;
 
-/// <summary>An owned vehicle in the inventory list: name, tonnage and class, and a small damage diagram.</summary>
+/// <summary>
+/// An owned vehicle's row in the inventory list (a row of <see cref="MCListView"/>): name, tonnage and class, and a
+/// small damage diagram.
+/// </summary>
 /// <remarks>Original source: <c>logistics\invblock.cpp</c> (<c>VehicleInventoryBlock</c>).</remarks>
 class MCVehicleInventoryBlock : public MCInventoryBlock
 {
 public:
-    ~MCVehicleInventoryBlock() override;
-
-    /// <summary>Shows <paramref name="logVehicle"/>; reads its weight-class and armor texts.</summary>
+    /// <summary>Shows <paramref name="logVehicle"/>.</summary>
     void Init(std::shared_ptr<MCLogVehicle> logVehicle);
 
-    /// <summary>Frees the picture and the texts.</summary>
-    void Destroy() override;
+    /// <summary>Frees the picture.</summary>
+    void OnDestroy() override;
 
     /// <summary>Empty (a bare <c>ret</c> the export has no function for).</summary>
     void Draw() override;
@@ -24,30 +25,31 @@ public:
     void HandleEvent(MCGuiEvent& event) override;
 
     /// <summary>
-    /// Makes the damage diagram when it is missing. Port: the row is drawn by <see cref="DrawRow"/> (the original
-    /// painted it here).
+    /// Makes the damage diagram when it is missing (the original's <c>drawBackground</c>, which also painted the row).
     /// </summary>
-    void DrawBackground();
+    void OnRefresh() override;
 
     /// <summary>Port: the vehicle's name, tonnage/class line and diagram.</summary>
     void DrawRow(MCLogPort& port, int32_t top) override;
 
-    /// <summary>Port: the diagram, tonnage, classes, speed and description.</summary>
-    void DrawInfo(MCLogPort& port) override;
+    /// <summary>
+    /// Port: <paramref name="vehicle"/>'s details in the info box: its <paramref name="diagram"/>, tonnage, classes,
+    /// speed and description.
+    /// </summary>
+    static void DrawVehicleInfo(const MCLogVehicle& vehicle, MCOptionalRef<const MCLogPort> diagram, MCLogPort& port);
 
     /// <summary>
-    /// The sale dialog's answer: a confirmed sale removes the vehicle; otherwise it goes back to the inventory.
+    /// The sale dialog's answer for <paramref name="sold"/>: a confirmed sale removes the vehicle; otherwise it goes
+    /// back to the inventory.
     /// </summary>
-    void OnSellConfirmed(int32_t result) const;
+    static void OnSellConfirmed(MCLogVehicle& sold, int32_t result);
 
     /// <summary>The cached damage diagram (0x1c x 0x1e).</summary>
     std::shared_ptr<MCLogPort> PicturePort;
     /// <summary>The vehicle (null once it is gone); the caller keeps it as its pin.</summary>
     std::shared_ptr<MCLogVehicle> Vehicle() const { return _Vehicle.lock(); }
-    /// <summary>The weight class (string table 0x4f..0x52 by tonnage).</summary>
-    std::string WeightClassText;
-    /// <summary>The armor rating (string table 0x4f/0x51/0x64..0x66 by armor tonnage), cut at 14 characters.</summary>
-    std::string ArmorText;
+    /// <summary>The vehicle's <see cref="MCLogPart::ListIndex"/>.</summary>
+    int32_t ListIndex() const override;
 
 private:
     /// <summary>The vehicle the block refers to (<see cref="Vehicle"/>).</summary>

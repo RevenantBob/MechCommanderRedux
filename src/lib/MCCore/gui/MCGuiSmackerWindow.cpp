@@ -76,7 +76,7 @@ auto MCGuiSmackerWindow::StartSmackerMovie(std::unique_ptr<MCSmackTag> newMovie,
     return 0;
 }
 
-auto MCGuiSmackerWindow::Destroy() -> void
+auto MCGuiSmackerWindow::OnDestroy() -> void
 {
     Movie.reset();
 
@@ -87,15 +87,14 @@ auto MCGuiSmackerWindow::Destroy() -> void
 
     MoviePane.reset();
     MovieWindow.reset();
-    MCGuiObject::Destroy();
-    ScreenWindow()->RemoveChild(*this);
+    MCGuiObject::OnDestroy();
 }
 
 auto MCGuiSmackerWindow::EndSmackerMovie() -> void
 {
     Movie.reset();
     MovieOver = 1;
-    Destroy();
+    Close();
 }
 
 auto MCGuiSmackerWindow::CheckSmackerPalette() -> void

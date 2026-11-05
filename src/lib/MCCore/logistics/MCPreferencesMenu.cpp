@@ -155,49 +155,58 @@ namespace
     }
 
     /// <summary>Adds a box at <paramref name="place"/> on <paramref name="parent"/>.</summary>
-    MCLogGroupBox& AddBox(MCGenericScreen& screen, MCGuiObject& parent, const MCPrefsPlace& place, uint8_t outline)
+    MCLogGroupBox& AddBox(MCGuiObject& parent, const MCPrefsPlace& place, uint8_t outline)
     {
-        auto box = MCMakeGui<MCLogGroupBox>(outline, BoxFillColor);
-        box->Init(place.Left, place.Top, place.Width, place.Height);
-        box->SetTransparent(true);
-        box->ShowGuiWindow(true);
-        return screen.AdoptChildOf(parent, std::move(box));
+        const MCGuiHandle<MCLogGroupBox> box = parent.CreateChild<MCLogGroupBox>(
+            [&](MCLogGroupBox& made)
+            {
+                made.Init(place.Left, place.Top, place.Width, place.Height);
+                made.SetTransparent(true);
+                made.ShowGuiWindow(true);
+            },
+            outline, BoxFillColor);
+        return *box;
     }
 
     /// <summary>Adds a label showing <paramref name="text"/> at (<paramref name="xPos"/>, <paramref name="yPos"/>) on <paramref name="parent"/>.</summary>
-    void AddLabel(MCGenericScreen& screen, MCGuiObject& parent, std::string_view text, int32_t xPos, int32_t yPos)
+    void AddLabel(MCGuiObject& parent, std::string_view text, int32_t xPos, int32_t yPos)
     {
-        auto label = MCMakeGui<MCLogLabel>(text);
-        label->InitAt(xPos, yPos);
-        label->ShowGuiWindow(true);
-        screen.AdoptChildOf(parent, std::move(label));
+        parent.CreateChild<MCLogLabel>(
+            [&](MCLogLabel& label)
+            {
+                label.InitAt(xPos, yPos);
+                label.ShowGuiWindow(true);
+            },
+            text);
     }
 
-    /// <summary>Moves the fit's element <paramref name="element"/> onto <paramref name="parent"/> at (<paramref name="xPos"/>, <paramref name="yPos"/>).</summary>
-    void MoveOnto(MCGenericScreen& screen, int32_t element, MCGuiObject& parent, int32_t xPos, int32_t yPos)
+    /// <summary>
+    /// Makes the fit's element <paramref name="element"/> on <paramref name="parent"/> instead of the screen (from the
+    /// screen's ini <paramref name="file"/>), at (<paramref name="xPos"/>, <paramref name="yPos"/>).
+    /// </summary>
+    void MoveOnto(MCGenericScreen& screen, MCFitIniFile& file, int32_t element, MCGuiObject& parent, int32_t xPos,
+                  int32_t yPos)
     {
-        const std::shared_ptr<MCGuiObject> object = screen.Element<MCGuiObject>(element);
-        screen.RemoveChild(*object);
-        parent.AddChild(object);
-        object->MoveTo(xPos, yPos);
+        screen.RemakeElementOn(parent, file, element);
+        screen.Element<MCGuiObject>(element)->MoveTo(xPos, yPos);
     }
 
     /// <summary>Gives <paramref name="slider"/> the art's track and places it with its label in <paramref name="box"/>.</summary>
-    void PlaceSlider(MCGenericScreen& screen, MCGuiObject& box, MCLogSlider& slider, const MCPrefsSliderRow& row,
+    void PlaceSlider(MCGuiObject& box, MCLogSlider& slider, const MCPrefsSliderRow& row,
                      std::shared_ptr<MCLogPort> track)
     {
-        AddLabel(screen, box, row.Label, SliderLabelLeft, row.LabelTop);
+        AddLabel(box, row.Label, SliderLabelLeft, row.LabelTop);
         slider.Resize(SliderTrackArt.Width, SliderTrackArt.Height);
         slider.SetTrack(std::move(track), SliderThumbInset);
         slider.MoveTo(SliderLeft, row.SliderTop);
     }
 
-    /// <summary>Moves the fit's slider <paramref name="element"/> into <paramref name="box"/> with its label and track.</summary>
-    void MoveSlider(MCGenericScreen& screen, MCGuiObject& box, int32_t element, const MCPrefsSliderRow& row,
-                    std::shared_ptr<MCLogPort> track)
+    /// <summary>Makes the fit's slider <paramref name="element"/> in <paramref name="box"/> with its label and track.</summary>
+    void MoveSlider(MCGenericScreen& screen, MCFitIniFile& file, MCGuiObject& box, int32_t element,
+                    const MCPrefsSliderRow& row, std::shared_ptr<MCLogPort> track)
     {
-        MoveOnto(screen, element, box, SliderLeft, row.SliderTop);
-        PlaceSlider(screen, box, *screen.Element<MCLogSlider>(element), row, std::move(track));
+        MoveOnto(screen, file, element, box, SliderLeft, row.SliderTop);
+        PlaceSlider(box, *screen.Element<MCLogSlider>(element), row, std::move(track));
     }
 
     /// <summary>The art's slider track, cut out as a picture of its own.</summary>
@@ -211,13 +220,15 @@ namespace
     }
 
     /// <summary>Adds a drop-down editing <paramref name="setting"/> in <paramref name="box"/>.</summary>
-    void AddDropDown(MCGenericScreen& screen, MCGuiObject& box, int32_t& setting,
-                     std::vector<MCLogComboBox::Item> items, std::function<void(int32_t value)> changed)
+    void AddDropDown(MCGuiObject& box, int32_t& setting, std::vector<MCLogComboBox::Item> items,
+                     std::function<void(int32_t value)> changed)
     {
-        auto dropDown = MCMakeGui<MCLogComboBox>();
-        dropDown->Init(DropDownLeft, DropDownTop, DropDownWidth, setting, std::move(items), std::move(changed));
-        dropDown->ShowGuiWindow(true);
-        screen.AdoptChildOf(box, std::move(dropDown));
+        box.CreateChild<MCLogComboBox>(
+            [&](MCLogComboBox& dropDown)
+            {
+                dropDown.Init(DropDownLeft, DropDownTop, DropDownWidth, setting, std::move(items), std::move(changed));
+                dropDown.ShowGuiWindow(true);
+            });
     }
 
     /// <summary>Difficulty toggle <paramref name="index"/> (0 easy, 1 regular, 2 hard) of the preferences screen.</summary>
@@ -254,7 +265,7 @@ namespace
     }
 }
 
-void AddPreferencesPanel(MCGenericScreen& screen)
+void AddPreferencesPanel(MCGenericScreen& screen, MCFitIniFile& file)
 {
     // The original's DIFFICULTY checks (easy, regular, hard) give way to the drop-down.
     for (int32_t i = 0; i < 3; i++)
@@ -263,46 +274,52 @@ void AddPreferencesPanel(MCGenericScreen& screen)
     }
 
     MCGuiObject& art = *screen.Element<MCGuiObject>(PanelArtElement);
-    auto newPanel = MCMakeGui<MCLogGroupBox>(PanelOutlineColor, BoxFillColor);
-    newPanel->Init(art.X() + PanelPlace.Left, art.Y() + PanelPlace.Top, PanelPlace.Width, PanelPlace.Height);
-    newPanel->SetTransparent(true);
-    newPanel->ShowGuiWindow(true);
-    MCLogGroupBox& panel = screen.AdoptChild(std::move(newPanel));
+    const MCGuiHandle<MCLogGroupBox> newPanel = screen.CreateChild<MCLogGroupBox>(
+        [&](MCLogGroupBox& made)
+        {
+            made.Init(art.X() + PanelPlace.Left, art.Y() + PanelPlace.Top, PanelPlace.Width, PanelPlace.Height);
+            made.SetTransparent(true);
+            made.ShowGuiWindow(true);
+        },
+        PanelOutlineColor, BoxFillColor);
+    MCLogGroupBox& panel = *newPanel;
     const std::shared_ptr<MCLogPort> track = CutSliderTrack(screen);
 
-    MCLogGroupBox& brightness = AddBox(screen, panel, BrightnessBoxPlace, BoxOutlineColor);
-    MoveSlider(screen, brightness, BrightnessSliderElement, BrightnessRow, track);
+    MCLogGroupBox& brightness = AddBox(panel, BrightnessBoxPlace, BoxOutlineColor);
+    MoveSlider(screen, file, brightness, BrightnessSliderElement, BrightnessRow, track);
 
-    MCLogGroupBox& sound = AddBox(screen, panel, SoundBoxPlace, BoxOutlineColor);
-    MoveSlider(screen, sound, MusicSliderElement, MusicRow, track);
-    MoveSlider(screen, sound, RadioSliderElement, RadioRow, track);
-    MoveSlider(screen, sound, FxSliderElement, FxRow, track);
+    MCLogGroupBox& sound = AddBox(panel, SoundBoxPlace, BoxOutlineColor);
+    MoveSlider(screen, file, sound, MusicSliderElement, MusicRow, track);
+    MoveSlider(screen, file, sound, RadioSliderElement, RadioRow, track);
+    MoveSlider(screen, file, sound, FxSliderElement, FxRow, track);
 
     // INTERFACE VOLUME: a slider of the volumes' range.
-    auto newSlider = MCMakeGui<MCLogSlider>();
-    newSlider->Init(SliderLeft, InterfaceRow.SliderTop, SliderTrackArt.Width, SliderTrackArt.Height, {});
-    newSlider->MinValue = 0;
-    newSlider->MaxValue = VolumeMax;
-    newSlider->SetEventRoutine(SlideInterfaceVolume);
-    newSlider->ShowGuiWindow(true);
+    const MCGuiHandle<MCLogSlider> newSlider = sound.CreateChild<MCLogSlider>(
+        [&](MCLogSlider& slider)
+        {
+            slider.Init(SliderLeft, InterfaceRow.SliderTop, SliderTrackArt.Width, SliderTrackArt.Height, {});
+            slider.MinValue = 0;
+            slider.MaxValue = VolumeMax;
+            slider.SetEventRoutine(SlideInterfaceVolume);
+            slider.ShowGuiWindow(true);
+        });
     InterfaceSlider = newSlider;
-    MCLogSlider& interfaceSlider = screen.AdoptChildOf(sound, std::move(newSlider));
-    PlaceSlider(screen, sound, interfaceSlider, InterfaceRow, track);
+    PlaceSlider(sound, *newSlider, InterfaceRow, track);
 
-    MCLogGroupBox& difficulty = AddBox(screen, panel, DifficultyBoxPlace, BoxOutlineColor);
-    AddLabel(screen, difficulty, "DIFFICULTY", BoxTitleLeft, BoxTitleTop);
-    AddDropDown(screen, difficulty, GameDifficulty, {{"EASY", 0}, {"REGULAR", 1}, {"HARD", 2}}, nullptr);
+    MCLogGroupBox& difficulty = AddBox(panel, DifficultyBoxPlace, BoxOutlineColor);
+    AddLabel(difficulty, "DIFFICULTY", BoxTitleLeft, BoxTitleTop);
+    AddDropDown(difficulty, GameDifficulty, {{"EASY", 0}, {"REGULAR", 1}, {"HARD", 2}}, nullptr);
 
-    MCLogGroupBox& renderer = AddBox(screen, panel, RendererBoxPlace, BoxOutlineColor);
-    AddLabel(screen, renderer, "RENDERER", BoxTitleLeft, BoxTitleTop);
-    AddDropDown(screen, renderer, GRendererPreference,
+    MCLogGroupBox& renderer = AddBox(panel, RendererBoxPlace, BoxOutlineColor);
+    AddLabel(renderer, "RENDERER", BoxTitleLeft, BoxTitleTop);
+    AddDropDown(renderer, GRendererPreference,
                 {{"VULKAN", static_cast<int32_t>(MCRendererKind::Vulkan)},
                  {"SOFTWARE", static_cast<int32_t>(MCRendererKind::Software)}},
                 RendererChanged);
 
     // UI RESOLUTION: the most lines the in-mission UI is drawn at, from the next scenario on.
-    MCLogGroupBox& uiResolution = AddBox(screen, panel, UiResolutionBoxPlace, BoxOutlineColor);
-    AddLabel(screen, uiResolution, "UI RESOLUTION", BoxTitleLeft, BoxTitleTop);
+    MCLogGroupBox& uiResolution = AddBox(panel, UiResolutionBoxPlace, BoxOutlineColor);
+    AddLabel(uiResolution, "UI RESOLUTION", BoxTitleLeft, BoxTitleTop);
     std::vector<MCLogComboBox::Item> uiResolutions = {{std::string(NativeUiResolution), 0}};
 
     for (const int lines : UiResolutions)
@@ -310,12 +327,12 @@ void AddPreferencesPanel(MCGenericScreen& screen)
         uiResolutions.push_back({std::format("{}P", lines), lines});
     }
 
-    AddDropDown(screen, uiResolution, GUiResolution, std::move(uiResolutions), nullptr);
+    AddDropDown(uiResolution, GUiResolution, std::move(uiResolutions), nullptr);
 
     // SCROLL SPEED: the battlefield's scrolling, at the screen's edges and by the scroll keys: AUTO (the original's pace
     // across the screen), or a factor of it.
-    MCLogGroupBox& scrollSpeed = AddBox(screen, panel, ScrollSpeedBoxPlace, BoxOutlineColor);
-    AddLabel(screen, scrollSpeed, "SCROLL SPEED", BoxTitleLeft, BoxTitleTop);
+    MCLogGroupBox& scrollSpeed = AddBox(panel, ScrollSpeedBoxPlace, BoxOutlineColor);
+    AddLabel(scrollSpeed, "SCROLL SPEED", BoxTitleLeft, BoxTitleTop);
     std::vector<MCLogComboBox::Item> scrollSpeeds;
 
     for (const int percent : ScrollSpeeds)
@@ -324,10 +341,10 @@ void AddPreferencesPanel(MCGenericScreen& screen)
         scrollSpeeds.push_back({percent == AutoScrollSpeed ? std::string("AUTO") : factor, percent});
     }
 
-    AddDropDown(screen, scrollSpeed, GScrollSpeed, std::move(scrollSpeeds), nullptr);
+    AddDropDown(scrollSpeed, GScrollSpeed, std::move(scrollSpeeds), nullptr);
 
-    MoveOnto(screen, AcceptElement, panel, AcceptLeft, ButtonsTop);
-    MoveOnto(screen, CancelElement, panel, CancelLeft, ButtonsTop);
+    MoveOnto(screen, file, AcceptElement, panel, AcceptLeft, ButtonsTop);
+    MoveOnto(screen, file, CancelElement, panel, CancelLeft, ButtonsTop);
 
     // CONTROLS: the in-mission keys, on a panel of their own.
     AddControlsPanel(screen, panel, ControlsLeft, ButtonsTop);

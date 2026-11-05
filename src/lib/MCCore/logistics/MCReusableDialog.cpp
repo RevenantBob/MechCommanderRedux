@@ -37,14 +37,14 @@ auto MCReusableDialog::Init([[maybe_unused]] int32_t xPos, [[maybe_unused]] int3
                                        BottomPiece->Height() + MiddlePiece->Height() + TopPiece->Height());
     Assert(result == 0, static_cast<uint32_t>(result), "Error initializing reusable dialog");
 
-    OkButton = MCMakeGui<MCLogDialogButton>();
-    result = OkButton->Init(0, 0, 0x3f, 0xe, {});
-    Assert(result == 0, static_cast<uint32_t>(result), "Error initializing reusable dialog");
-    AddChild(OkButton);
-    CancelButton = MCMakeGui<MCLogDialogButton>();
-    result = CancelButton->Init(0, 0, 0x3f, 0xe, {});
-    Assert(result == 0, static_cast<uint32_t>(result), "Error initializing reusable dialog");
-    AddChild(CancelButton);
+    const auto initButton = [](MCLogDialogButton& button)
+    {
+        const int32_t buttonResult = button.Init(0, 0, 0x3f, 0xe, {});
+        Assert(buttonResult == 0, static_cast<uint32_t>(buttonResult), "Error initializing reusable dialog");
+    };
+
+    OkButton = CreateChild<MCLogDialogButton>(initButton);
+    CancelButton = CreateChild<MCLogDialogButton>(initButton);
     SetTwoButton(false);
     ShowGuiWindow(false);
     SetDepth(100);
@@ -53,15 +53,13 @@ auto MCReusableDialog::Init([[maybe_unused]] int32_t xPos, [[maybe_unused]] int3
     return 0;
 }
 
-auto MCReusableDialog::Destroy() -> void
+auto MCReusableDialog::OnDestroy() -> void
 {
     TopPiece.reset();
     MiddlePiece.reset();
     BottomPiece.reset();
-    OkButton.reset();
-    CancelButton.reset();
     Text.clear();
-    MCLogObject::Destroy();
+    MCLogObject::OnDestroy();
 }
 
 auto MCReusableDialog::DrawFrame() -> void
@@ -116,7 +114,7 @@ auto MCReusableDialog::Draw() -> void
 
     for (size_t i = 0; i < ChildList.size(); i++)
     {
-        if (const std::shared_ptr<MCGuiObject> child = ChildList[i].lock(); child != nullptr)
+        if (const std::shared_ptr<MCGuiObject> child = ChildList[i].Lock(); child != nullptr)
         {
             DrawChild(*child);
         }
@@ -276,7 +274,7 @@ auto MCRefitDialog::Draw() -> void
 
     for (size_t i = 0; i < ChildList.size(); i++)
     {
-        if (const std::shared_ptr<MCGuiObject> child = ChildList[i].lock(); child != nullptr)
+        if (const std::shared_ptr<MCGuiObject> child = ChildList[i].Lock(); child != nullptr)
         {
             DrawChild(*child);
         }

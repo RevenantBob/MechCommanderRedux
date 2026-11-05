@@ -86,49 +86,67 @@ void AddControlsPanel(MCGenericScreen& screen, MCGuiObject& prefsPanel, int32_t 
 {
     PrefsPanel = prefsPanel.weak_from_this();
 
-    auto controlsButton = MCMakeGui<MCLogTextButton>();
-    controlsButton->InitWithLabel(buttonLeft, buttonTop, Title, ShowControls);
-    controlsButton->ShowGuiWindow(true);
-    screen.AdoptChildOf(prefsPanel, std::move(controlsButton));
+    prefsPanel.CreateChild<MCLogTextButton>(
+        [&](MCLogTextButton& button)
+        {
+            button.InitWithLabel(buttonLeft, buttonTop, Title, ShowControls);
+            button.ShowGuiWindow(true);
+        });
 
-    auto newPanel = MCMakeGui<MCLogGroupBox>(PanelOutlineColor, PanelFillColor);
-    newPanel->Init(PanelPlace.Left, PanelPlace.Top, PanelPlace.Width, PanelPlace.Height);
-    newPanel->SetTransparent(true);
-    newPanel->ShowGuiWindow(false);
+    const MCGuiHandle<MCLogGroupBox> newPanel = screen.CreateChild<MCLogGroupBox>(
+        [](MCLogGroupBox& made)
+        {
+            made.Init(PanelPlace.Left, PanelPlace.Top, PanelPlace.Width, PanelPlace.Height);
+            made.SetTransparent(true);
+            made.ShowGuiWindow(false);
+        },
+        PanelOutlineColor, PanelFillColor);
     Panel = newPanel;
-    MCLogGroupBox& panel = screen.AdoptChild(std::move(newPanel));
+    MCLogGroupBox& panel = *newPanel;
 
-    auto title = MCMakeGui<MCLogLabel>(Title, LgWhiteFont);
-    title->InitAt(TitleLeft, TitleTop);
-    title->ShowGuiWindow(true);
-    screen.AdoptChildOf(panel, std::move(title));
+    panel.CreateChild<MCLogLabel>(
+        [](MCLogLabel& title)
+        {
+            title.InitAt(TitleLeft, TitleTop);
+            title.ShowGuiWindow(true);
+        },
+        Title, LgWhiteFont);
 
-    auto newList = MCMakeGui<MCLogKeyList>();
-    newList->Init(ListPlace.Left, ListPlace.Top, ListPlace.Width, ListPlace.Height, Edited);
-    newList->ShowGuiWindow(true);
-    List = newList;
-    screen.AdoptChildOf(panel, std::move(newList));
+    List = panel.CreateChild<MCLogKeyList>(
+        [](MCLogKeyList& list)
+        {
+            list.Init(ListPlace.Left, ListPlace.Top, ListPlace.Width, ListPlace.Height, Edited);
+            list.ShowGuiWindow(true);
+        });
 
     // The buttons take the art's size; they are placed once made.
-    auto defaults = MCMakeGui<MCLogTextButton>();
-    defaults->InitWithLabel(0, 0, "DEFAULTS", RestoreDefaultKeys);
-    const int32_t buttonsTop = PanelPlace.Height - ButtonInset - defaults->Height();
-    defaults->MoveTo(ButtonInset, buttonsTop);
-    defaults->ShowGuiWindow(true);
-    const int32_t laptopLeft = ButtonInset + defaults->Width() + ButtonInset;
-    screen.AdoptChildOf(panel, std::move(defaults));
+    int32_t buttonsTop = 0;
+    int32_t laptopLeft = 0;
+    panel.CreateChild<MCLogTextButton>(
+        [&](MCLogTextButton& defaults)
+        {
+            defaults.InitWithLabel(0, 0, "DEFAULTS", RestoreDefaultKeys);
+            buttonsTop = PanelPlace.Height - ButtonInset - defaults.Height();
+            defaults.MoveTo(ButtonInset, buttonsTop);
+            defaults.ShowGuiWindow(true);
+            laptopLeft = ButtonInset + defaults.Width() + ButtonInset;
+        });
 
-    auto laptop = MCMakeGui<MCLogTextButton>();
-    laptop->InitWithLabel(0, 0, "LAPTOP", UseLaptopKeys);
-    laptop->MoveTo(laptopLeft, buttonsTop);
-    laptop->ShowGuiWindow(true);
-    screen.AdoptChildOf(panel, std::move(laptop));
+    panel.CreateChild<MCLogTextButton>(
+        [&](MCLogTextButton& laptop)
+        {
+            laptop.InitWithLabel(0, 0, "LAPTOP", UseLaptopKeys);
+            laptop.MoveTo(laptopLeft, buttonsTop);
+            laptop.ShowGuiWindow(true);
+        });
 
-    auto done = MCMakeGui<MCLogTextButton>();
-    done->InitWithLabel(0, 0, "DONE", HideControls);
-    done->MoveTo(PanelPlace.Width - ButtonInset - done->Width(), buttonsTop);
-    done->ShowGuiWindow(true);
-    screen.AdoptChildOf(panel, std::move(done));
+    panel.CreateChild<MCLogTextButton>(
+        [&](MCLogTextButton& done)
+        {
+            done.InitWithLabel(0, 0, "DONE", HideControls);
+            done.MoveTo(PanelPlace.Width - ButtonInset - done.Width(), buttonsTop);
+            done.ShowGuiWindow(true);
+        });
 }
 
 void ResetControls()

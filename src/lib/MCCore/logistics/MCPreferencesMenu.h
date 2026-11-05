@@ -2,6 +2,7 @@
 
 // The preferences screen's callbacks and the settings it edits (prefs.cfg). Original source: logistics\logmain.cpp.
 
+class MCFitIniFile;
 class MCGenericScreen;
 class MCGuiEvent;
 class MCGuiObject;
@@ -56,9 +57,10 @@ bool StepInterfaceSize(int steps);
 /// "UIResolution", <see cref="GUiResolution"/>); a SCROLL SPEED drop-down (AUTO, 1.5X .. 3X; PREFS "ScrollSpeed",
 /// <see cref="GScrollSpeed"/>); and ACCEPT and CANCEL side by side at the bottom right. The renderer
 /// takes effect at the next start, which the message dialog says when the drop-down picks another renderer than the
-/// running one; the UI resolution at the next scenario.
+/// running one; the UI resolution at the next scenario. The screen's sliders and buttons are made again from its ini
+/// <paramref name="file"/> on the panel's boxes.
 /// </summary>
-void AddPreferencesPanel(MCGenericScreen& screen);
+void AddPreferencesPanel(MCGenericScreen& screen, MCFitIniFile& file);
 
 /// <summary>The preferences screen's routine (it does nothing).</summary>
 void PrefScreenHandleEvent(MCGuiObject& object, MCGuiEvent& event);
