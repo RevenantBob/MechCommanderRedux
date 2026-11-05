@@ -1,6 +1,7 @@
 #pragma once
 
 #include "iface/MCInterfaceTypes.h"
+#include "lib/MCOptionalRef.h"
 
 class MCFitIniFile;
 class MCGuiFont;
@@ -86,20 +87,17 @@ namespace MCKeyBindings
     /// The binding's name as the CONTROLS screen shows it: <see cref="KeyName"/>, with the Mac's names for the keys
     /// its keyboard labels otherwise (OPTION, CMD, DELETE, RETURN) on macOS, and nothing for no key. A key that types
     /// a character is named by what it types in the keyboard layout (<see cref="SetLayout"/>), upper-case, when
-    /// <paramref name="font"/> draws it (null: any): on a German keyboard the key right of 0 is ß, not -.
+    /// <paramref name="font"/> draws it (absent: any): on a German keyboard the key right of 0 is ß, not -.
     /// </summary>
-    // TODO: raw pointer parameter (modern_status rawparam); take MCOptionalRef<const MCGuiFont> instead.
-    std::string KeyLabel(uint32_t key, const MCGuiFont* font = nullptr);
+    std::string KeyLabel(uint32_t key, MCOptionalRef<const MCGuiFont> font = std::nullopt);
 
     /// <summary>What a keyboard layout's keys type: the Windows-1252 character of a scan code, or -1 for none.</summary>
-    using MCKeyLayout = int (*)(uint16_t code);
+    using MCKeyLayout = std::function<int(uint16_t code)>;
 
     /// <summary>
     /// Sets the layout <see cref="KeyLabel"/> names keys by: the player's keyboard's (MCInput::LayoutCharacter) until
-    /// then, or null for the US keyboard's names PREFS keeps (tests, which picture the same on any machine).
+    /// then, or empty for the US keyboard's names PREFS keeps (tests, which picture the same on any machine).
     /// </summary>
-    // TODO: raw function pointer parameter (modern_status rawparam, via MCKeyLayout); make MCKeyLayout a
-    // std::function (empty for the US keyboard).
     void SetLayout(MCKeyLayout layout);
 
     /// <summary>The binding <paramref name="name"/> (as <see cref="KeyName"/> writes it, case ignored) names, if any.</summary>
