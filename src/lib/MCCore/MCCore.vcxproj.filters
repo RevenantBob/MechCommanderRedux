@@ -342,6 +342,9 @@
     <ClCompile Include="gui\MCHardwareCursor.cpp">
       <Filter>gui</Filter>
     </ClCompile>
+    <ClCompile Include="gui\MCListView.cpp">
+      <Filter>gui</Filter>
+    </ClCompile>
     <ClCompile Include="gui\MCScrollPane.cpp">
       <Filter>gui</Filter>
     </ClCompile>
@@ -486,6 +489,9 @@
     <ClCompile Include="logistics\MCLogButton.cpp">
       <Filter>logistics</Filter>
     </ClCompile>
+    <ClCompile Include="logistics\MCLogChat.cpp">
+      <Filter>logistics</Filter>
+    </ClCompile>
     <ClCompile Include="logistics\MCLogChatInput.cpp">
       <Filter>logistics</Filter>
     </ClCompile>
@@ -612,6 +618,9 @@
     <ClCompile Include="logistics\MCTicker.cpp">
       <Filter>logistics</Filter>
     </ClCompile>
+    <ClCompile Include="logistics\MCTickerLine.cpp">
+      <Filter>logistics</Filter>
+    </ClCompile>
     <ClCompile Include="logistics\MCUnitLimits.cpp">
       <Filter>logistics</Filter>
     </ClCompile>
@@ -694,6 +703,9 @@
       <Filter>main</Filter>
     </ClCompile>
     <ClCompile Include="main\MCMPPlayerLights.cpp">
+      <Filter>main</Filter>
+    </ClCompile>
+    <ClCompile Include="main\MCMPPlayerLightsView.cpp">
       <Filter>main</Filter>
     </ClCompile>
     <ClCompile Include="main\MCSystemConfig.cpp">
@@ -1486,10 +1498,10 @@
     <ClInclude Include="gui\MCGuiObject.h">
       <Filter>gui</Filter>
     </ClInclude>
-    <ClInclude Include="gui\MCGuiOwned.h">
+    <ClInclude Include="gui\MCGuiPort.h">
       <Filter>gui</Filter>
     </ClInclude>
-    <ClInclude Include="gui\MCGuiPort.h">
+    <ClInclude Include="gui\MCGuiRef.h">
       <Filter>gui</Filter>
     </ClInclude>
     <ClInclude Include="gui\MCGuiScrollBar.h">
@@ -1529,6 +1541,9 @@
       <Filter>gui</Filter>
     </ClInclude>
     <ClInclude Include="gui\MCHardwareCursor.h">
+      <Filter>gui</Filter>
+    </ClInclude>
+    <ClInclude Include="gui\MCListView.h">
       <Filter>gui</Filter>
     </ClInclude>
     <ClInclude Include="gui\MCScrollPane.h">
@@ -1675,6 +1690,9 @@
     <ClInclude Include="logistics\MCLogButton.h">
       <Filter>logistics</Filter>
     </ClInclude>
+    <ClInclude Include="logistics\MCLogChat.h">
+      <Filter>logistics</Filter>
+    </ClInclude>
     <ClInclude Include="logistics\MCLogChatInput.h">
       <Filter>logistics</Filter>
     </ClInclude>
@@ -1801,6 +1819,9 @@
     <ClInclude Include="logistics\MCTicker.h">
       <Filter>logistics</Filter>
     </ClInclude>
+    <ClInclude Include="logistics\MCTickerLine.h">
+      <Filter>logistics</Filter>
+    </ClInclude>
     <ClInclude Include="logistics\MCUnitLimits.h">
       <Filter>logistics</Filter>
     </ClInclude>
@@ -1871,6 +1892,9 @@
       <Filter>main</Filter>
     </ClInclude>
     <ClInclude Include="main\MCMPPlayerLights.h">
+      <Filter>main</Filter>
+    </ClInclude>
+    <ClInclude Include="main\MCMPPlayerLightsView.h">
       <Filter>main</Filter>
     </ClInclude>
     <ClInclude Include="main\MCOriginalBugFixes.h">

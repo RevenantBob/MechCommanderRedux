@@ -31,7 +31,7 @@ public:
     /// <summary>The height of a row.</summary>
     static constexpr int32_t RowHeight = 11;
 
-    /// <summary>Calls <see cref="Destroy"/>.</summary>
+    /// <summary>Destroys the object if nothing did (its cleanup lets go of the GUI system's grab).</summary>
     ~MCLogKeyList() override;
 
     /// <summary>
@@ -41,7 +41,7 @@ public:
     void Init(int32_t xPos, int32_t yPos, int32_t width, int32_t height, MCKeyBindings::MCKeyTable& keys);
 
     /// <summary>Stops listening before the object goes.</summary>
-    void Destroy() override;
+    void OnDestroy() override;
 
     /// <summary>Draws the headings, the rows, the scroll bar and the status line from the state.</summary>
     void Draw() override;

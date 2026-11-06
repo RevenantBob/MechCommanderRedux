@@ -23,24 +23,23 @@ namespace
     MCDragState MechDrag;
 }
 
-MCMechInventoryBlock::~MCMechInventoryBlock()
-{
-    MCMechInventoryBlock::Destroy();
-}
-
 auto MCMechInventoryBlock::Init(std::shared_ptr<MCLogMech> logMech) -> void
 {
-    DiagramPort.reset();
     _Mech = logMech;
     InitRow();
-    ListIndex = Mech()->NameIndex;
 }
 
-auto MCMechInventoryBlock::Destroy() -> void
+auto MCMechInventoryBlock::ListIndex() const -> int32_t
+{
+    const std::shared_ptr<MCLogMech> mech = Mech();
+    return mech != nullptr ? mech->ListIndex : -1;
+}
+
+auto MCMechInventoryBlock::OnDestroy() -> void
 {
     DiagramPort.reset();
     _Mech.reset();
-    MCInventoryBlock::Destroy();
+    MCInventoryBlock::OnDestroy();
 }
 
 auto MCMechInventoryBlock::Draw() -> void
@@ -51,7 +50,7 @@ auto MCMechInventoryBlock::Draw() -> void
     }
 }
 
-auto MCMechInventoryBlock::DrawBackground() -> void
+auto MCMechInventoryBlock::OnRefresh() -> void
 {
     if (DiagramPort != nullptr)
     {
@@ -88,32 +87,27 @@ auto MCMechInventoryBlock::DrawRow(MCLogPort& port, int32_t top) -> void
     }
 }
 
-auto MCMechInventoryBlock::DrawInfo(MCLogPort& port) -> void
+auto MCMechInventoryBlock::DrawMechInfo(const MCLogMech& mech, MCOptionalRef<const MCLogPort> diagram, MCLogPort& port)
+    -> void
 {
-    const std::shared_ptr<MCLogMech> mech = Mech();
     // The 0x1e square at (3, 2) of the row (its art and the diagram), as the original copied it out of the tab's
     // picture.
     MCLogBlockPort square(port.Frame(), 9, 0x191, 0x1e, 0x1e, false);
     VfxPaneCopy(GlobalLog()->InvBlockPort->Frame(), 3, 2, square.Frame(), 0, 0, -1);
 
-    if (DiagramPort != nullptr)
+    if (diagram)
     {
-        DiagramPort->CopyTo(square.Frame(), 2, 0, true);
+        diagram->get().CopyTo(square.Frame(), 2, 0, true);
     }
 
     WriteText(*YellowDropFont, port, 0x53, 0x193,
-              std::format("{:.0f} {}", mech->CurTonnage, LoadGameString(0x6e, 0x1e)));
-    WriteText(*YellowDropFont, port, 0x53, 0x19c, mech->WeightClassName);
-    WriteText(*YellowDropFont, port, 0xa8, 0x193, mech->ChassisClassName);
-    WriteText(*YellowDropFont, port, 0xa8, 0x19c, mech->ExtraName1);
-    WriteText(*YellowDropFont, port, 0xa8, 0x1a5, mech->ExtraName2);
-    WriteText(*YellowDropFont, port, 0x53, 0x1a5, std::format("{} m/s", mech->MaxRunSpeed));
-    DrawInfoDescription(port, 0xc3, 0x26, mech->Description, 8, 0x1b3);
-}
-
-auto MCMechInventoryBlock::DeleteDiagram() -> void
-{
-    DiagramPort.reset();
+              std::format("{:.0f} {}", mech.CurTonnage, LoadGameString(0x6e, 0x1e)));
+    WriteText(*YellowDropFont, port, 0x53, 0x19c, mech.WeightClassName);
+    WriteText(*YellowDropFont, port, 0xa8, 0x193, mech.ChassisClassName);
+    WriteText(*YellowDropFont, port, 0xa8, 0x19c, mech.ExtraName1);
+    WriteText(*YellowDropFont, port, 0xa8, 0x1a5, mech.ExtraName2);
+    WriteText(*YellowDropFont, port, 0x53, 0x1a5, std::format("{} m/s", mech.MaxRunSpeed));
+    DrawInfoDescription(port, 0xc3, 0x26, mech.Description, 8, 0x1b3);
 }
 
 auto MCMechInventoryBlock::OfferSale() -> void
@@ -134,17 +128,23 @@ auto MCMechInventoryBlock::OfferSale() -> void
     picture.Init(DiagramPort->Width(), DiagramPort->Height());
     VfxPaneWipe(picture.Frame(), 0x10);
     DiagramPort->CopyTo(picture.Frame(), 2, 0, true);
+    // The answer goes to the mech, not this row (the list can drop the row while the dialog is open); the dialog keeps
+    // its callback, so it refers to the mech without keeping it.
     OpenPurchaseDialog(1, -price, 1, mech->FileName, title, picture,
-                       [this](int32_t result, int32_t) { OnSellConfirmed(result); });
+                       [weak = std::weak_ptr<MCLogMech>(mech)](int32_t result, int32_t)
+                       {
+                           if (const std::shared_ptr<MCLogMech> sold = weak.lock(); sold != nullptr)
+                           {
+                               OnSellConfirmed(*sold, result);
+                           }
+                       });
 }
 
-auto MCMechInventoryBlock::OnSellConfirmed(int32_t result) const -> void
+auto MCMechInventoryBlock::OnSellConfirmed(MCLogMech& sold, int32_t result) -> void
 {
-    std::shared_ptr<MCLogMech> sold = Mech();
-
     if (result == 0)
     {
-        sold->Assigned = false;
+        sold.Assigned = false;
         GlobalLog()->ReorderMechs();
         MCPurchaseScreen::CreateMechInvBlock();
         GlobalLog()->PurchaseScreen->SetUpMechInv(false, true);
@@ -153,7 +153,7 @@ auto MCMechInventoryBlock::OnSellConfirmed(int32_t result) const -> void
 
     MCInventoryList& spares = *GlobalLog()->ComponentInventory;
 
-    for (const std::shared_ptr<MCLogInventoryItem>& item : sold->Inventory->Items)
+    for (const std::shared_ptr<MCLogInventoryItem>& item : sold.Inventory->Items)
     {
         uint8_t masterID = item->MasterID;
         MCComponentForm form = MasterComponentList[masterID].Form;
@@ -183,7 +183,8 @@ auto MCMechInventoryBlock::OnSellConfirmed(int32_t result) const -> void
     }
 
     MCPurchaseScreen::CreateCompInvBlock();
-    int32_t index = GlobalLog()->ForceMechList->GetMechIndex(sold);
+    int32_t index =
+        GlobalLog()->ForceMechList->GetMechIndex(std::static_pointer_cast<const MCLogMech>(sold.shared_from_this()));
     GlobalLog()->ForceMechList->RemoveMech(static_cast<uint8_t>(index));
     GlobalLog()->ReorderMechs();
     ResourcePoints -= GlobalLog()->PurchaseDialog->UnitCost;
@@ -203,7 +204,15 @@ auto MCMechInventoryBlock::HandleEvent(MCGuiEvent& event) -> void
         // The info block: the row's diagram, tonnage, classes, speed and description.
         MCLogInvScreen::DrawBlankInvInfoBlock(-1);
         PrepareInfoDescription(Mech()->Description);
-        screen->ShowInfo(MCInvInfoBox::Kind::Mech, weak_from_this());
+        // Shown while the mech lives (the box went blank with the mech's block before), whatever happens to the row.
+        screen->ShowDetails(MCInvInfoBox::Kind::Mech,
+                            [weak = std::weak_ptr<MCLogMech>(Mech()), diagram = DiagramPort](MCLogPort& port)
+                            {
+                                if (const std::shared_ptr<MCLogMech> mech = weak.lock(); mech != nullptr)
+                                {
+                                    DrawMechInfo(*mech, MCOptionalOf<const MCLogPort>(diagram), port);
+                                }
+                            });
 
         if (event.Type == 1)
         {
@@ -234,11 +243,10 @@ auto MCMechInventoryBlock::HandleEvent(MCGuiEvent& event) -> void
         screen->SetUpMechInv(false, true);
     };
 
-    // Into the force on the repair screen.
+    // Into the force on the repair screen (its listing makes the mech's row).
     auto joinForce = [&]
     {
         BumpDeploySlots(false);
-        GlobalLog()->RepairScreen->UnitPane->AddChild(Mech()->RepairBlock);
         GlobalLog()->RepairScreen->AddMechToList(*Mech());
         GlobalLog()->RepairScreen->SelectMech(Mech());
     };

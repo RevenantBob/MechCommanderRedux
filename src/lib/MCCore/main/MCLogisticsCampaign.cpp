@@ -7,7 +7,6 @@
 #include "lib/MCPacketFile.h"
 #include "logistics/MCBriefingScreen.h"
 #include "logistics/MCLogTextObject.h"
-#include "logistics/MCMechBriefBlock.h"
 #include "logistics/MCMechRepairBlock.h"
 #include "logistics/MCMissionLogisticsBridge.h"
 #include "ai/MCMoveGeometry.h"
@@ -66,7 +65,6 @@ auto MCLogistics::LoadQuickStart(MCFitIniFile& file) -> void
         const auto type =
             ReadRequired<uint32_t>(file, std::format("Slot{}Type", slotIndex), "could not read unitType in quickstart");
         const std::string profileKey = std::format("Slot{}UnitProfile", slotIndex);
-        const RECT& rect = briefing.SlotRects[slotIndex];
 
         if (type < 3)
         {
@@ -109,7 +107,6 @@ auto MCLogistics::LoadQuickStart(MCFitIniFile& file) -> void
                 deploy.Unit = 0;
                 mech->Deployed = true;
                 warrior.Deployed = true;
-                MCMechBriefBlock::Create(mech, briefing, rect.left, rect.top);
             }
         }
         else
@@ -138,21 +135,23 @@ auto MCLogistics::LoadQuickStart(MCFitIniFile& file) -> void
                 SendAddVehicleMessage(*vehicle, lance, slot);
                 vehicle->Deployed = true;
                 deploy.Vehicle = 0;
-                MCMechBriefBlock::Create(vehicle, briefing, rect.left, rect.top);
             }
         }
     }
+
+    // The units placed show in their slots (the original made each unit's block there as it placed it).
+    briefing.ShowSlots();
 
     int32_t index = 0;
 
     for (const std::shared_ptr<MCLogMech>& mech : ForceMechList->Mechs)
     {
-        mech->RepairBlock->SlotIndex = index++;
+        mech->SlotIndex = index++;
     }
 
     for (const std::shared_ptr<MCLogVehicle>& vehicle : ForceVehicleList->Vehicles)
     {
-        vehicle->RepairBlock->SlotIndex = index++;
+        vehicle->SlotIndex = index++;
     }
 }
 
@@ -317,7 +316,7 @@ auto MCLogistics::LoadCampaign(std::string_view saveName, std::string_view exten
     if (MultiPlayer() == nullptr)
     {
         PurchaseFile = ReadRequiredText(file, "purchaseFile", 0x7f, " cound not read purchasing file in campain file ");
-        PlayerLights.reset();
+        ResetPlayerLights();
     }
     else
     {

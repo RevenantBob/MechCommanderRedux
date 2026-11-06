@@ -768,21 +768,19 @@ namespace
                              variant->NumAvailable = 2;
                          }
                      }
-
-                     mech->Block->DrawBackground(mech->Block->Row);
                  }
 
                  for (const std::shared_ptr<MCLogInventoryItem>& item : GlobalLog()->PurchaseComponents->Items)
                  {
                      item->Count = 2;
-                     item->PurchaseBlock->DrawBackground(item->PurchaseBlock->Row, item->MasterID);
                  }
 
                  for (const auto& vehicle : GlobalLog()->PurVehicleList->Vehicles)
                  {
                      vehicle->Data->NumAvailable = 2;
-                     vehicle->Block->DrawBackground(vehicle->Block->Row);
                  }
+
+                 MCLogInvScreen::RefreshStoreRows();
 
                  Click(100, 60);
              },

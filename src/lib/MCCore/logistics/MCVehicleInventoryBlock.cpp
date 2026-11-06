@@ -21,27 +21,23 @@ namespace
     MCDragState VehicleDrag;
 }
 
-MCVehicleInventoryBlock::~MCVehicleInventoryBlock()
-{
-    MCVehicleInventoryBlock::Destroy();
-}
-
 auto MCVehicleInventoryBlock::Init(std::shared_ptr<MCLogVehicle> logVehicle) -> void
 {
     _Vehicle = logVehicle;
     InitRow();
-    ListIndex = Vehicle()->NameIndex;
-    WeightClassText = LoadGameString(WeightClassString(Vehicle()->CurTonnage), 0xfe);
-    ArmorText = LoadGameString(ArmorClassString(Vehicle()->ArmorTonnage), 0xf);
 }
 
-auto MCVehicleInventoryBlock::Destroy() -> void
+auto MCVehicleInventoryBlock::ListIndex() const -> int32_t
+{
+    const std::shared_ptr<MCLogVehicle> vehicle = Vehicle();
+    return vehicle != nullptr ? vehicle->ListIndex : -1;
+}
+
+auto MCVehicleInventoryBlock::OnDestroy() -> void
 {
     _Vehicle.reset();
-    WeightClassText.clear();
-    ArmorText.clear();
     PicturePort.reset();
-    MCInventoryBlock::Destroy();
+    MCInventoryBlock::OnDestroy();
 }
 
 auto MCVehicleInventoryBlock::Draw() -> void
@@ -59,25 +55,32 @@ auto MCVehicleInventoryBlock::OfferSale() -> bool
 
     PlayLogSound(0x34);
     int32_t price = SalePrice(vehicle->VehicleResourcePoints);
+    // The answer goes to the vehicle, not this row (the list can drop the row while the dialog is open); the dialog
+    // keeps its callback, so it refers to the vehicle without keeping it.
     OpenPurchaseDialog(7, -price, 1, vehicle->FileName, {}, MCOptionalOf(PicturePort),
-                       [this](int32_t result, int32_t) { OnSellConfirmed(result); });
+                       [weak = std::weak_ptr<MCLogVehicle>(vehicle)](int32_t result, int32_t)
+                       {
+                           if (const std::shared_ptr<MCLogVehicle> sold = weak.lock(); sold != nullptr)
+                           {
+                               OnSellConfirmed(*sold, result);
+                           }
+                       });
     return true;
 }
 
-auto MCVehicleInventoryBlock::OnSellConfirmed(int32_t result) const -> void
+auto MCVehicleInventoryBlock::OnSellConfirmed(MCLogVehicle& sold, int32_t result) -> void
 {
-    std::shared_ptr<MCLogVehicle> sold = Vehicle();
-
     if (result == 0)
     {
-        sold->Assigned = false;
+        sold.Assigned = false;
         GlobalLog()->ReorderVehicles();
         MCPurchaseScreen::CreateVhclInvBlock();
         GlobalLog()->PurchaseScreen->SetUpVhclInv(false, true);
         return;
     }
 
-    int32_t index = GlobalLog()->ForceVehicleList->GetVehicleIndex(sold);
+    int32_t index = GlobalLog()->ForceVehicleList->GetVehicleIndex(
+        std::static_pointer_cast<const MCLogVehicle>(sold.shared_from_this()));
     GlobalLog()->ForceVehicleList->RemoveVehicle(static_cast<uint8_t>(index));
     GlobalLog()->ReorderVehicles();
     ResourcePoints -= GlobalLog()->PurchaseDialog->UnitCost;
@@ -97,7 +100,16 @@ auto MCVehicleInventoryBlock::HandleEvent(MCGuiEvent& event) -> void
         // The info block: diagram, tonnage, classes, speed and description.
         MCLogInvScreen::DrawBlankInvInfoBlock(-1);
         PrepareInfoDescription(Vehicle()->Description);
-        screen->ShowInfo(MCInvInfoBox::Kind::Vehicle, weak_from_this());
+        // Shown while the vehicle lives (the box went blank with the vehicle's block before), whatever happens to the
+        // row.
+        screen->ShowDetails(MCInvInfoBox::Kind::Vehicle,
+                            [weak = std::weak_ptr<MCLogVehicle>(Vehicle()), diagram = PicturePort](MCLogPort& port)
+                            {
+                                if (const std::shared_ptr<MCLogVehicle> vehicle = weak.lock(); vehicle != nullptr)
+                                {
+                                    DrawVehicleInfo(*vehicle, MCOptionalOf<const MCLogPort>(diagram), port);
+                                }
+                            });
     }
 
     auto forceFull = []
@@ -111,11 +123,11 @@ auto MCVehicleInventoryBlock::HandleEvent(MCGuiEvent& event) -> void
         screen->SetUpVhclInv(false, true);
     };
 
-    // Into the force on the repair screen (the vehicle bumps the drop slots' vehicle indices).
+    // Into the force on the repair screen (the vehicle bumps the drop slots' vehicle indices; its listing makes the
+    // vehicle's row).
     auto joinForce = [&]
     {
         PlayLogSound(0x34);
-        GlobalLog()->RepairScreen->UnitPane->AddChild(Vehicle()->RepairBlock);
         BumpDeploySlots(true);
         GlobalLog()->RepairScreen->AddVehicleToList(*Vehicle());
         GlobalLog()->RepairScreen->SelectVehicle(Vehicle());
@@ -285,7 +297,7 @@ auto MCVehicleInventoryBlock::HandleEvent(MCGuiEvent& event) -> void
     }
 }
 
-auto MCVehicleInventoryBlock::DrawBackground() -> void
+auto MCVehicleInventoryBlock::OnRefresh() -> void
 {
     if (PicturePort != nullptr)
     {
@@ -308,7 +320,7 @@ auto MCVehicleInventoryBlock::DrawRow(MCLogPort& port, int32_t top) -> void
     WriteText(*YellowDropFont, port, 0x26, top + 7, Vehicle()->FileName);
     WriteText(*BlueDropFont, port, 0x26, top + 0x15,
               MCFormatPrintf(LoadGameString(0x53, 0xfe).c_str(), static_cast<double>(Vehicle()->CurTonnage),
-                             WeightClassText.c_str()));
+                             Vehicle()->WeightClassName.c_str()));
 
     if (PicturePort != nullptr)
     {
@@ -316,23 +328,23 @@ auto MCVehicleInventoryBlock::DrawRow(MCLogPort& port, int32_t top) -> void
     }
 }
 
-auto MCVehicleInventoryBlock::DrawInfo(MCLogPort& port) -> void
+auto MCVehicleInventoryBlock::DrawVehicleInfo(const MCLogVehicle& vehicle, MCOptionalRef<const MCLogPort> diagram,
+                                              MCLogPort& port) -> void
 {
-    const std::shared_ptr<MCLogVehicle> vehicle = Vehicle();
     // The 0x1e square at (3, 2) of the row (its art and the diagram), as the original copied it out of the tab's
     // picture.
     MCLogBlockPort square(port.Frame(), 9, 0x191, 0x1e, 0x1e, false);
     VfxPaneCopy(GlobalLog()->InvBlockPort->Frame(), 3, 2, square.Frame(), 0, 0, -1);
 
-    if (PicturePort != nullptr)
+    if (diagram)
     {
-        PicturePort->CopyTo(square.Frame(), 2, 0, true);
+        diagram->get().CopyTo(square.Frame(), 2, 0, true);
     }
 
     WriteText(*YellowDropFont, port, 0x53, 0x193,
-              std::format("{:.0f} {}", vehicle->CurTonnage, LoadGameString(0x6e, 0xfe)));
-    WriteText(*YellowDropFont, port, 0x53, 0x19c, WeightClassText);
-    WriteText(*YellowDropFont, port, 0xa9, 0x193, ArmorText);
-    WriteText(*YellowDropFont, port, 0x53, 0x1a5, std::format("{} m/s", vehicle->MaxMoveSpeed));
-    DrawInfoDescription(port, 0xc3, 0x26, vehicle->Description, 8, 0x1b3);
+              std::format("{:.0f} {}", vehicle.CurTonnage, LoadGameString(0x6e, 0xfe)));
+    WriteText(*YellowDropFont, port, 0x53, 0x19c, vehicle.WeightClassName);
+    WriteText(*YellowDropFont, port, 0xa9, 0x193, vehicle.ArmorClassName);
+    WriteText(*YellowDropFont, port, 0x53, 0x1a5, std::format("{} m/s", vehicle.MaxMoveSpeed));
+    DrawInfoDescription(port, 0xc3, 0x26, vehicle.Description, 8, 0x1b3);
 }

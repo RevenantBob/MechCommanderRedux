@@ -21,10 +21,18 @@ your own copy of MechCommander Gold: see [Running the Game](#running-the-game) a
 for how to set it up. To see what changed in each version, or to download an older one, visit the
 [releases page](https://github.com/RevenantBob/MechCommanderRedux/releases).
 
+## Community
+
+Join the development Discord server to follow progress or help out: **[discord.gg/TZyZ9Vbj37](https://discord.gg/TZyZ9Vbj37)**
+
+Please report bugs on GitHub, in the [issue tracker](https://github.com/RevenantBob/MechCommanderRedux/issues), not on
+Discord.
+
 ## Table of Contents
 
 - [MechCommander Redux](#mechcommander-redux)
   - [Download](#download)
+  - [Community](#community)
   - [Table of Contents](#table-of-contents)
     - [Highlights](#highlights)
     - [Planned Features](#planned-features)

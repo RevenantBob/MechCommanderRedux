@@ -4,6 +4,7 @@
 #include "TestGame.h"
 #include "fakes/MCManualClock.h"
 #include "camera/MCCamera.h"
+#include "gui/MCGuiSmackerWindow.h"
 #include "gui/MCGuiSystem.h"
 #include "gui/MCUpdateDisplay.h"
 #include "lib/MCFastFileSet.h"
@@ -93,8 +94,8 @@ namespace MCTestGame
                 return;
             }
 
-            for (const MCSplashScreen* screen :
-                 {logistics->LoadScreen.get(), logistics->SaveScreen.get(), logistics->MultiplayerScreen.get()})
+            for (const std::shared_ptr<MCSplashScreen>& screen :
+                 {logistics->LoadScreen.Lock(), logistics->SaveScreen.Lock(), logistics->MultiplayerScreen.Lock()})
             {
                 if (screen != nullptr && screen->FilePane != nullptr)
                 {
