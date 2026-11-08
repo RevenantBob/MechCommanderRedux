@@ -44,10 +44,9 @@ auto MCVehicleInventoryBlock::Draw() -> void
 {
 }
 
-auto MCVehicleInventoryBlock::OfferSale() -> bool
+auto MCVehicleInventoryBlock::OfferSale(const std::shared_ptr<MCLogVehicle>& vehicle,
+                                        const std::shared_ptr<MCLogPort>& picture) -> bool
 {
-    const std::shared_ptr<MCLogVehicle> vehicle = Vehicle();
-
     if (vehicle->Required != 0)
     {
         return false;
@@ -57,7 +56,7 @@ auto MCVehicleInventoryBlock::OfferSale() -> bool
     int32_t price = SalePrice(vehicle->VehicleResourcePoints);
     // The answer goes to the vehicle, not this row (the list can drop the row while the dialog is open); the dialog
     // keeps its callback, so it refers to the vehicle without keeping it.
-    OpenPurchaseDialog(7, -price, 1, vehicle->FileName, {}, MCOptionalOf(PicturePort),
+    OpenPurchaseDialog(7, -price, 1, vehicle->FileName, {}, MCOptionalOf(picture),
                        [weak = std::weak_ptr<MCLogVehicle>(vehicle)](int32_t result, int32_t)
                        {
                            if (const std::shared_ptr<MCLogVehicle> sold = weak.lock(); sold != nullptr)
@@ -93,21 +92,32 @@ auto MCVehicleInventoryBlock::HandleEvent(MCGuiEvent& event) -> void
         return;
     }
 
+    // The vehicle and its picture, taken once for the whole event: a list refresh below drops this row once its
+    // vehicle leaves the inventory (put down with the right button, the vehicle joins the force before the sale or the
+    // force's listing reads it), and a dropped row has neither. A row already dropped takes no events.
+    const std::shared_ptr<MCLogVehicle> vehicle = Vehicle();
+
+    if (vehicle == nullptr)
+    {
+        return;
+    }
+
+    const std::shared_ptr<MCLogPort> picture = PicturePort;
     std::shared_ptr<MCLogInvScreen> screen = Screen();
 
     if (VehicleDrag.Idle())
     {
         // The info block: diagram, tonnage, classes, speed and description.
         MCLogInvScreen::DrawBlankInvInfoBlock(-1);
-        PrepareInfoDescription(Vehicle()->Description);
+        PrepareInfoDescription(vehicle->Description);
         // Shown while the vehicle lives (the box went blank with the vehicle's block before), whatever happens to the
         // row.
         screen->ShowDetails(MCInvInfoBox::Kind::Vehicle,
-                            [weak = std::weak_ptr<MCLogVehicle>(Vehicle()), diagram = PicturePort](MCLogPort& port)
+                            [weak = std::weak_ptr<MCLogVehicle>(vehicle), picture](MCLogPort& port)
                             {
-                                if (const std::shared_ptr<MCLogVehicle> vehicle = weak.lock(); vehicle != nullptr)
+                                if (const std::shared_ptr<MCLogVehicle> shown = weak.lock(); shown != nullptr)
                                 {
-                                    DrawVehicleInfo(*vehicle, MCOptionalOf<const MCLogPort>(diagram), port);
+                                    DrawVehicleInfo(*shown, MCOptionalOf<const MCLogPort>(picture), port);
                                 }
                             });
     }
@@ -117,7 +127,7 @@ auto MCVehicleInventoryBlock::HandleEvent(MCGuiEvent& event) -> void
 
     auto backToInventory = [&]
     {
-        Vehicle()->Assigned = false;
+        vehicle->Assigned = false;
         GlobalLog()->ReorderVehicles();
         MCLogInvScreen::CreateVhclInvBlock();
         screen->SetUpVhclInv(false, true);
@@ -129,8 +139,8 @@ auto MCVehicleInventoryBlock::HandleEvent(MCGuiEvent& event) -> void
     {
         PlayLogSound(0x34);
         BumpDeploySlots(true);
-        GlobalLog()->RepairScreen->AddVehicleToList(*Vehicle());
-        GlobalLog()->RepairScreen->SelectVehicle(Vehicle());
+        GlobalLog()->RepairScreen->AddVehicleToList(*vehicle);
+        GlobalLog()->RepairScreen->SelectVehicle(vehicle);
     };
 
     switch (event.Type)
@@ -160,7 +170,7 @@ auto MCVehicleInventoryBlock::HandleEvent(MCGuiEvent& event) -> void
             if (event.Type == 1)
             {
                 VehicleDrag.Dragging = true;
-                Vehicle()->Assigned = true;
+                vehicle->Assigned = true;
                 GlobalLog()->ReorderVehicles();
                 MCLogInvScreen::CreateVhclInvBlock();
                 screen->SetUpVhclInv(false, false);
@@ -228,7 +238,7 @@ auto MCVehicleInventoryBlock::HandleEvent(MCGuiEvent& event) -> void
             else if (OverPaneInside(*screen->UnitPane, event))
             {
                 // Dropped on the store: offer to sell it.
-                if (OfferSale())
+                if (OfferSale(vehicle, picture))
                 {
                     break;
                 }
@@ -262,7 +272,7 @@ auto MCVehicleInventoryBlock::HandleEvent(MCGuiEvent& event) -> void
             GuiSystem().SetCursorVisible(true);
             GuiSystem().Release();
             MCDragIcon::Remove();
-            Vehicle()->Assigned = true;
+            vehicle->Assigned = true;
             GlobalLog()->ReorderVehicles();
             MCLogInvScreen::CreateVhclInvBlock();
             screen->SetUpVhclInv(false, true);
@@ -282,7 +292,7 @@ auto MCVehicleInventoryBlock::HandleEvent(MCGuiEvent& event) -> void
                 break;
             }
 
-            if (OfferSale())
+            if (OfferSale(vehicle, picture))
             {
                 break;
             }
